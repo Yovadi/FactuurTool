@@ -84,6 +84,8 @@ export async function generateInvoicePDF(invoice: InvoiceData, preview: boolean 
   } else {
     pdf.save(`${invoice.invoice_number}.pdf`);
   }
+
+  return pdf;
 }
 
 async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
