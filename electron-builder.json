@@ -9,6 +9,9 @@
     "electron/**/*",
     "public/**/*"
   ],
+  "asarUnpack": [
+    "node_modules/@supabase/**/*"
+  ],
   "win": {
     "target": [
       {
@@ -16,9 +19,11 @@
         "arch": ["x64"]
       }
     ],
-    "artifactName": "${productName}-Setup-${version}.${ext}"
+    "artifactName": "${productName}-Setup-${version}.${ext}",
+    "signingHashAlgorithms": ["sha256"],
+    "signDlls": false
   },
-  "asar": false,
+  "asar": true,
   "nsis": {
     "oneClick": false,
     "perMachine": false,

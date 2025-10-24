@@ -14,39 +14,7 @@
     "electron:build:dir": "npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win --dir"
   },
   "build": {
-    "appId": "com.hal5.invoicemanager",
-    "productName": "HAL5 Facturatie Manager",
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "dist/**/*",
-      "electron/**/*",
-      "public/**/*"
-    ],
-    "asarUnpack": [
-      "node_modules/@supabase/**/*"
-    ],
-    "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": ["x64"]
-        }
-      ],
-      "artifactName": "${productName}-Setup-${version}.${ext}",
-      "sign": null
-    },
-    "asar": true,
-    "nsis": {
-      "oneClick": false,
-      "perMachine": false,
-      "allowToChangeInstallationDirectory": true,
-      "deleteAppDataOnUninstall": false,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "HAL5 Facturatie Manager"
-    }
+    "extends": null
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
