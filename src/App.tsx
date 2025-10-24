@@ -23,16 +23,6 @@ function App() {
 
   return (
     <div className="min-h-screen bg-dark-950">
-      <nav className="bg-dark-900 border-b border-dark-700 shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <div className="text-gold-500 font-bold text-xl">HAL5 Overloon</div>
-            </div>
-          </div>
-        </div>
-      </nav>
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex gap-6">
           <aside className="w-64 flex-shrink-0">
