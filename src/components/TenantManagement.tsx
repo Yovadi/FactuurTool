@@ -197,51 +197,66 @@ export function TenantManagement() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="space-y-3">
         {tenants.map((tenant) => (
           <div
             key={tenant.id}
-            className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-5 hover:shadow-md transition-shadow"
+            className="bg-dark-900 rounded-lg border border-dark-700 p-4 hover:border-dark-600 transition-colors"
           >
-            <div className="flex justify-between items-start mb-3">
-              <h3 className="text-lg font-semibold text-gray-100">{tenant.company_name}</h3>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4 flex-1">
+                <Mail className="text-gray-500" size={24} />
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-1">
+                    <h3 className="text-lg font-semibold text-gray-100">
+                      {tenant.company_name}
+                    </h3>
+                    {tenant.name && (
+                      <span className="text-sm text-gray-400">
+                        {tenant.name}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-4 text-sm text-gray-300">
+                    <span className="flex items-center gap-1">
+                      <Mail size={14} />
+                      {tenant.email}
+                    </span>
+                    {tenant.phone && (
+                      <>
+                        <span>•</span>
+                        <span className="flex items-center gap-1">
+                          <Phone size={14} />
+                          {tenant.phone}
+                        </span>
+                      </>
+                    )}
+                    {tenant.billing_address && (
+                      <>
+                        <span>•</span>
+                        <span className="flex items-center gap-1">
+                          <MapPin size={14} />
+                          {tenant.billing_address}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
               <div className="flex gap-2">
                 <button
                   onClick={() => handleEdit(tenant)}
-                  className="text-gold-500 hover:text-gold-400 transition-colors"
+                  className="flex items-center gap-1 text-gold-500 hover:text-gold-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
                 >
-                  <Edit2 size={16} />
+                  <Edit2 size={20} />
                 </button>
                 <button
                   onClick={() => handleDelete(tenant.id)}
-                  className="text-red-600 hover:text-red-800 transition-colors"
+                  className="flex items-center gap-1 text-red-600 hover:text-red-500 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
                 >
-                  <Trash2 size={16} />
+                  <Trash2 size={20} />
                 </button>
               </div>
-            </div>
-            <div className="space-y-2 text-sm text-gray-300">
-              {tenant.name && (
-                <div className="text-gray-200 font-medium">
-                  {tenant.name}
-                </div>
-              )}
-              <div className="flex items-center gap-2">
-                <Mail size={14} />
-                <span>{tenant.email}</span>
-              </div>
-              {tenant.phone && (
-                <div className="flex items-center gap-2">
-                  <Phone size={14} />
-                  <span>{tenant.phone}</span>
-                </div>
-              )}
-              {tenant.billing_address && (
-                <div className="flex items-start gap-2">
-                  <MapPin size={14} className="mt-0.5" />
-                  <span className="flex-1">{tenant.billing_address}</span>
-                </div>
-              )}
             </div>
           </div>
         ))}

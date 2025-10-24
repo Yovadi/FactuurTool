@@ -264,68 +264,65 @@ export function SpaceManagement() {
               <h2 className="text-xl font-bold text-gray-100 mb-4 pb-2 border-b-2 border-amber-500">
                 {typeLabels[type]}
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="space-y-3">
                 {typedSpaces.map((space) => (
-          <div
-            key={space.id}
-            className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-5 hover:shadow-md transition-shadow"
-          >
-            <div className="flex justify-between items-start mb-3">
-              <div className="flex items-center gap-2">
-                <h3 className="text-lg font-semibold text-gray-100">{space.space_number}</h3>
-                <span
-                  className={`text-xs px-2 py-1 rounded-full ${
-                    space.is_available
-                      ? 'bg-dark-700 text-green-400'
-                      : 'bg-red-900 text-red-400'
-                  }`}
-                >
-                  {space.is_available ? 'Beschikbaar' : 'Verhuurd'}
-                </span>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleEdit(space)}
-                  className="text-gold-500 hover:text-gold-400 transition-colors"
-                >
-                  <Edit2 size={16} />
-                </button>
-                <button
-                  onClick={() => handleDelete(space.id)}
-                  className="text-red-600 hover:text-red-800 transition-colors"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </div>
-            <div className="space-y-2 text-sm text-gray-300">
-              <div className="flex items-center gap-2">
-                <Home size={14} />
-                <span className="capitalize">{space.space_type}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Square size={14} />
-                <span>
-                  {space.space_type === 'diversen'
-                    ? `€ ${space.square_footage.toLocaleString()}`
-                    : `${space.square_footage.toLocaleString()} m²`}
-                </span>
-              </div>
-              {!space.is_available && space.tenant && (
-                <div className="mt-3 pt-3 border-t border-dark-700">
-                  <div className="flex items-center gap-2 text-gray-200">
-                    <User size={14} />
-                    <div className="flex flex-col">
-                      <span className="font-medium">{space.tenant.name}</span>
-                      {space.tenant.company_name && (
-                        <span className="text-xs text-gray-400">{space.tenant.company_name}</span>
-                      )}
+                  <div
+                    key={space.id}
+                    className="bg-dark-900 rounded-lg border border-dark-700 p-4 hover:border-dark-600 transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4 flex-1">
+                        <Home className="text-gray-500" size={24} />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-1">
+                            <h3 className="text-lg font-semibold text-gray-100">
+                              {space.space_number}
+                            </h3>
+                            <span
+                              className={`text-xs px-2 py-1 rounded-full font-medium ${
+                                space.is_available
+                                  ? 'bg-dark-700 text-green-400'
+                                  : 'bg-red-900 text-red-400'
+                              }`}
+                            >
+                              {space.is_available ? 'Beschikbaar' : 'Verhuurd'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-4 text-sm text-gray-300">
+                            <span className="flex items-center gap-1">
+                              <Square size={14} />
+                              {space.space_type === 'diversen'
+                                ? `€ ${space.square_footage.toLocaleString()}`
+                                : `${space.square_footage.toLocaleString()} m²`}
+                            </span>
+                            {!space.is_available && space.tenant && (
+                              <>
+                                <span>•</span>
+                                <span className="flex items-center gap-1">
+                                  <User size={14} />
+                                  {space.tenant.company_name}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleEdit(space)}
+                          className="flex items-center gap-1 text-gold-500 hover:text-gold-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
+                        >
+                          <Edit2 size={20} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(space.id)}
+                          className="flex items-center gap-1 text-red-600 hover:text-red-500 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
+                        >
+                          <Trash2 size={20} />
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
-            </div>
-          </div>
                 ))}
               </div>
             </div>
