@@ -18,6 +18,7 @@
     ],
     "artifactName": "${productName}-Setup-${version}.${ext}"
   },
+  "asar": false,
   "nsis": {
     "oneClick": false,
     "perMachine": false,
