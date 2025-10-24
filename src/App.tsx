@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dashboard } from './components/Dashboard';
 import { TenantManagement } from './components/TenantManagement';
 import { SpaceManagement } from './components/SpaceManagement';
@@ -11,6 +11,11 @@ type Tab = 'dashboard' | 'tenants' | 'spaces' | 'leases' | 'invoices' | 'setting
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setIsLoading(false);
+  }, []);
 
   const navigation = [
     { id: 'dashboard' as Tab, label: 'Dashboard', icon: LayoutDashboard },
@@ -21,13 +26,21 @@ function App() {
     { id: 'settings' as Tab, label: 'Verhuurder', icon: Settings },
   ];
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-dark-950">
-      <nav className="bg-dark-900 border-b border-dark-700 shadow-lg">
+    <div className="min-h-screen bg-gray-900">
+      <nav className="bg-gray-800 border-b border-gray-700 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
-              <img src="/Logo.png" alt="HAL5 Overloon" className="h-10" />
+              <div className="text-white font-bold text-xl">HAL5 Overloon</div>
             </div>
           </div>
         </div>
@@ -36,7 +49,7 @@ function App() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex gap-6">
           <aside className="w-64 flex-shrink-0">
-            <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2">
+            <div className="bg-gray-800 rounded-lg shadow-lg border border-gray-700 p-2">
               <nav className="space-y-1">
                 {navigation.map((item) => {
                   const Icon = item.icon;
@@ -47,8 +60,8 @@ function App() {
                       onClick={() => setActiveTab(item.id)}
                       className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
                         isActive
-                          ? 'bg-gold-500 text-dark-950'
-                          : 'text-gray-300 hover:bg-dark-800'
+                          ? 'bg-yellow-500 text-gray-900'
+                          : 'text-gray-300 hover:bg-gray-700'
                       }`}
                     >
                       <Icon size={20} />
@@ -61,7 +74,7 @@ function App() {
           </aside>
 
           <main className="flex-1 min-w-0">
-            <div className="bg-dark-950">
+            <div className="bg-gray-900">
               {activeTab === 'dashboard' && <Dashboard />}
               {activeTab === 'tenants' && <TenantManagement />}
               {activeTab === 'spaces' && <SpaceManagement />}
