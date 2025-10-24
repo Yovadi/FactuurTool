@@ -72,158 +72,115 @@ export function InvoicePreview({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 overflow-y-auto p-4">
-      <div className="bg-white rounded-lg shadow-2xl my-8 relative" style={{ width: '210mm', maxWidth: '95vw', maxHeight: '95vh', overflow: 'auto' }}>
-        <button
-          onClick={onClose}
-          className="sticky top-2 right-2 float-right text-gray-400 hover:text-gray-600 transition-colors z-20 bg-white rounded-full p-1 shadow-lg"
-        >
-          <X size={20} />
-        </button>
-
-        <div style={{ fontFamily: 'helvetica, arial, sans-serif', padding: '20mm', fontSize: '9px' }}>
-          <div className="relative" style={{ marginBottom: '30mm' }}>
-            <div className="absolute top-0 right-0">
-              <img src="/Logo.png" alt="Hal 5 Overloon" style={{ width: '60mm', height: '30mm', objectFit: 'contain' }} />
-            </div>
-
-            <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: '#282828', margin: '0' }}>FACTUUR {invoiceNumberDisplay}</h1>
-          </div>
-
-          <div className="grid grid-cols-2 gap-8" style={{ marginBottom: '8mm' }}>
-            <div>
-              <div style={{ backgroundColor: '#f5f5f5', width: '60mm', padding: '3mm' }}>
-                <p style={{ fontSize: '9px', fontWeight: 'bold', marginBottom: '1mm', color: '#282828' }}>FACTUUR VOOR:</p>
-                <p style={{ fontSize: '9px', color: '#3c3c3c', marginBottom: '0.5mm' }}>t.a.v. {tenant.name}</p>
-                {tenant.company_name && (
-                  <p style={{ fontSize: '9px', color: '#3c3c3c', marginBottom: '0.5mm' }}>{tenant.company_name}</p>
-                )}
-                {tenant.billing_address && (
-                  <p style={{ fontSize: '9px', color: '#3c3c3c', whiteSpace: 'pre-line', marginBottom: '0.5mm' }}>{tenant.billing_address}</p>
-                )}
-                <p style={{ fontSize: '9px', color: '#0066cc' }}>{tenant.email}</p>
-              </div>
-            </div>
-
-            <div>
-              {company && (
-                <>
-                  <p style={{ fontSize: '9px', fontWeight: 'bold', marginBottom: '1mm', color: '#3c3c3c' }}>{company.name}</p>
-                  <p style={{ fontSize: '8px', color: '#505050', marginBottom: '0.5mm' }}>{company.address}</p>
-                  <p style={{ fontSize: '8px', color: '#505050', marginBottom: '0.5mm' }}>{company.postal_code} {company.city}</p>
-                  {company.phone && <p style={{ fontSize: '8px', color: '#505050', marginBottom: '0.5mm' }}>T: {company.phone}</p>}
-                  {company.email && <p style={{ fontSize: '8px', color: '#505050', marginBottom: '0.5mm' }}>E: {company.email}</p>}
-                  {company.website && <p style={{ fontSize: '8px', color: '#505050' }}>W: {company.website}</p>}
-                </>
-              )}
-            </div>
-          </div>
-
-          <div className="mb-6 flex justify-end" style={{ marginBottom: '5mm', paddingRight: '10mm' }}>
-            <div style={{ fontSize: '8px', color: '#505050' }}>
-              <div className="flex" style={{ marginBottom: '1mm', gap: '8mm' }}>
-                <span style={{ fontWeight: 'bold' }}>FACTUURNUMMER:</span>
-                <span>{invoiceNumberDisplay}</span>
-              </div>
-              <div className="flex" style={{ marginBottom: '1mm', gap: '8mm' }}>
-                <span style={{ fontWeight: 'bold' }}>FACTUURDATUM:</span>
-                <span>{formatDate(invoice.invoice_date)}</span>
-              </div>
-              <div className="flex" style={{ gap: '8mm' }}>
-                <span style={{ fontWeight: 'bold' }}>VERVALDATUM:</span>
-                <span>{formatDate(invoice.due_date)}</span>
-              </div>
-            </div>
-          </div>
-
-          {invoice.invoice_month && (
-            <div style={{ marginBottom: '4mm', fontSize: '8px', color: '#505050' }}>
-              <span style={{ fontWeight: 'bold' }}>FACTUURMAAND:</span>
-              <span style={{ marginLeft: '2mm' }}>{getMonthName(invoice.invoice_month)}</span>
-            </div>
-          )}
-
-          <div style={{ marginBottom: '8mm', marginTop: '5mm' }}>
-            <div style={{ backgroundColor: '#eab308', height: '8mm', display: 'flex', alignItems: 'center', fontSize: '9px', color: 'white', fontWeight: 'bold' }}>
-              <div style={{ paddingLeft: '2mm', width: '120mm' }}>OMSCHRIJVING</div>
-              <div style={{ paddingLeft: '2mm', width: '40mm' }}>BEDRAG</div>
-              <div style={{ paddingRight: '5mm', width: '20mm', textAlign: 'right' }}>BTW</div>
-            </div>
-
-            {spaces.map((space, index) => {
-              let displayName = space.space_name;
-
-              // Add square footage to description if available
-              if (space.square_footage && space.space_type !== 'voorschot' && space.space_type !== 'diversen') {
-                const sqm = typeof space.square_footage === 'string' ? parseFloat(space.square_footage as string) : space.square_footage;
-                if (!isNaN(sqm) && sqm > 0) {
-                  displayName = `${space.space_name} - ${sqm.toFixed(0)} m²`;
-                }
-              }
-
-              return (
-                <div
-                  key={index}
-                  style={{
-                    backgroundColor: index % 2 === 0 ? '#fafafa' : 'white',
-                    height: '7mm',
-                    display: 'flex',
-                    alignItems: 'center',
-                    fontSize: '9px',
-                    color: '#3c3c3c'
-                  }}
-                >
-                  <div style={{ paddingLeft: '2mm', width: '120mm' }}>{displayName}</div>
-                  <div style={{ paddingLeft: '2mm', width: '40mm' }}>€ {space.monthly_rent.toFixed(2)}</div>
-                  <div style={{ paddingRight: '5mm', width: '20mm', textAlign: 'right' }}>{invoice.vat_rate.toFixed(0)}%</div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="flex justify-end" style={{ marginBottom: '8mm' }}>
-            <div style={{ width: '70mm' }}>
-              <div style={{ borderTop: '1px solid #c8c8c8' }}>
-                <div className="flex justify-between" style={{ padding: '2mm 0', fontSize: '9px', color: '#3c3c3c' }}>
-                  <span>Subtotaal (excl. BTW):</span>
-                  <span>€ {invoice.subtotal.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between" style={{ padding: '1mm 0', fontSize: '9px', color: '#3c3c3c' }}>
-                  <span>BTW ({invoice.vat_rate.toFixed(0)}%):</span>
-                  <span>€ {invoice.vat_amount.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between" style={{ paddingTop: '2mm', fontSize: '11px', fontWeight: 'bold', borderTop: '2px solid #eab308', color: '#282828' }}>
-                  <span>Totaal te betalen:</span>
-                  <span>€ {invoice.amount.toFixed(2)}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {company && (
-            <div style={{ marginBottom: '8mm' }}>
-              <h3 style={{ fontSize: '9px', fontWeight: 'bold', marginBottom: '2mm', color: '#282828' }}>Betaalinformatie</h3>
-              <div style={{ fontSize: '8px', color: '#3c3c3c' }}>
-                <p style={{ marginBottom: '1mm' }}>Gelieve het totaalbedrag van €{invoice.amount.toFixed(2)} binnen 14 dagen te voldoen op:</p>
-                <p style={{ fontWeight: 'bold', marginBottom: '1mm' }}>IBAN: {company.iban}</p>
-                <p style={{ marginBottom: '1mm' }}>Ten name van: {company.name}</p>
-                <p>Onder vermelding van: {invoiceNumberDisplay}</p>
-              </div>
-            </div>
-          )}
-
-          {company && (
-            <div style={{ paddingTop: '4mm', borderTop: '1px solid #e6e6e6', textAlign: 'center', fontSize: '7px', color: '#787878' }}>
-              <p style={{ marginBottom: '0.5mm' }}>{company.name} | KvK: {company.kvk} | BTW: {company.btw}</p>
-              <p style={{ marginBottom: '0.5mm' }}>{company.address}, {company.postal_code} {company.city}</p>
-              <p>
-                {company.phone && `T: ${company.phone}`}
-                {company.email && ` | E: ${company.email}`}
-                {company.website && ` | W: ${company.website}`}
-              </p>
-            </div>
-          )}
+      <div className="bg-white rounded-lg shadow-2xl my-8 relative max-w-2xl w-full mx-auto">
+        <div className="sticky top-0 bg-white rounded-t-lg border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-gray-900">Factuur {invoiceNumberDisplay}</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <X size={24} />
+          </button>
         </div>
 
+        <div className="p-6 space-y-6">
+          <div className="flex items-center justify-center mb-6">
+            <img src="/Logo.png" alt="Hal 5 Overloon" className="h-20 object-contain" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-6 pb-6 border-b border-gray-200">
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">Klant</h3>
+              <p className="text-gray-900 font-medium">{tenant.name}</p>
+              {tenant.company_name && (
+                <p className="text-gray-600 text-sm">{tenant.company_name}</p>
+              )}
+            </div>
+            <div className="text-right">
+              <div className="space-y-1 text-sm">
+                <div>
+                  <span className="text-gray-600">Factuurnummer: </span>
+                  <span className="font-semibold text-gray-900">{invoiceNumberDisplay}</span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Factuurdatum: </span>
+                  <span className="text-gray-900">{formatDate(invoice.invoice_date)}</span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Vervaldatum: </span>
+                  <span className="text-gray-900">{formatDate(invoice.due_date)}</span>
+                </div>
+                {invoice.invoice_month && (
+                  <div>
+                    <span className="text-gray-600">Factuurmaand: </span>
+                    <span className="text-gray-900">{getMonthName(invoice.invoice_month)}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Kostenoverzicht</h3>
+            <div className="space-y-2">
+              {spaces.map((space, index) => {
+                let displayName = space.space_name;
+                if (space.square_footage && space.space_type !== 'voorschot' && space.space_type !== 'diversen') {
+                  const sqm = typeof space.square_footage === 'string' ? parseFloat(space.square_footage as string) : space.square_footage;
+                  if (!isNaN(sqm) && sqm > 0) {
+                    displayName = `${space.space_name} - ${sqm.toFixed(0)} m²`;
+                  }
+                }
+
+                return (
+                  <div
+                    key={index}
+                    className="flex justify-between items-center py-2 px-3 rounded bg-gray-50"
+                  >
+                    <span className="text-gray-700">{displayName}</span>
+                    <span className="font-medium text-gray-900">€ {space.monthly_rent.toFixed(2)}</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-6 pt-4 border-t-2 border-gray-200 space-y-2">
+              <div className="flex justify-between text-gray-700">
+                <span>Subtotaal (excl. BTW):</span>
+                <span>€ {invoice.subtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-gray-700">
+                <span>BTW ({invoice.vat_rate.toFixed(0)}%):</span>
+                <span>€ {invoice.vat_amount.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-lg font-bold text-gray-900 pt-2 border-t border-gray-300">
+                <span>Totaal te betalen:</span>
+                <span>€ {invoice.amount.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-4 border-t border-gray-200">
+            {onDownload && (
+              <button
+                onClick={onDownload}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+              >
+                <Download size={18} />
+                Download PDF
+              </button>
+            )}
+            {onSend && (
+              <button
+                onClick={onSend}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg transition-colors"
+              >
+                <Send size={18} />
+                Verstuur E-mail
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
