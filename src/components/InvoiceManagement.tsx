@@ -795,13 +795,15 @@ Overloon`;
         website: companySettings.website
       } : undefined
     }, false);
+
+    setPreviewInvoice(null);
   };
 
   const handlePreviewSend = async () => {
     if (!previewInvoice) return;
 
-    setPreviewInvoice(null);
     await sendInvoiceEmail(previewInvoice.invoice.id);
+    setPreviewInvoice(null);
   };
 
   if (loading) {
