@@ -438,11 +438,18 @@ export function InvoiceManagement() {
           }
         }
 
+        const formattedAmount = new Intl.NumberFormat('nl-NL', {
+          style: 'currency',
+          currency: 'EUR',
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2
+        }).format(invoice.amount);
+
         const emailBody = `Beste ${tenant.name},
 
 Hierbij ontvangt u factuur ${invoice.invoice_number} van ${companySettings.company_name}.
 
-Factuurbedrag: €${invoice.amount.toFixed(2)}
+Factuurbedrag: ${formattedAmount}
 Vervaldatum: ${new Date(invoice.due_date).toLocaleDateString('nl-NL')}
 
 Gelieve het bedrag binnen de gestelde termijn over te maken naar bankrekening ${companySettings.bank_account}.
@@ -456,7 +463,8 @@ ${companySettings.phone}`;
           pdfBlob,
           tenant.email,
           `Factuur ${invoice.invoice_number} van ${companySettings.company_name}`,
-          emailBody
+          emailBody,
+          invoice.invoice_number
         );
 
         if (!result.success) {

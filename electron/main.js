@@ -40,12 +40,13 @@ function createWindow() {
   });
 }
 
-ipcMain.handle('send-email-with-pdf', async (event, pdfBuffer, to, subject, body) => {
+ipcMain.handle('send-email-with-pdf', async (event, pdfBuffer, to, subject, body, fileName) => {
   try {
     const fs = require('fs');
     const os = require('os');
     const tempDir = os.tmpdir();
-    const tempFilePath = path.join(tempDir, `invoice-${Date.now()}.pdf`);
+    const sanitizedFileName = (fileName || `invoice-${Date.now()}`).replace(/[<>:"/\\|?*]/g, '_');
+    const tempFilePath = path.join(tempDir, sanitizedFileName + '.pdf');
 
     fs.writeFileSync(tempFilePath, Buffer.from(pdfBuffer));
 
