@@ -96,7 +96,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
 
   if (invoice.company) {
     try {
-      const logoBase64 = await loadImageAsBase64('/image copy copy copy copy copy.png');
+      const logoBase64 = await loadImageAsBase64('/image copy copy copy copy copy copy.png');
       const logoWidth = 90;
       const logoHeight = 45;
       const logoX = pageWidth - margin - logoWidth;
