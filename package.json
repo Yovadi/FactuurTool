@@ -24,6 +24,9 @@
       "electron/**/*",
       "public/**/*"
     ],
+    "asarUnpack": [
+      "node_modules/@supabase/**/*"
+    ],
     "win": {
       "target": [
         {
@@ -33,7 +36,7 @@
       ],
       "artifactName": "${productName}-Setup-${version}.${ext}"
     },
-    "asar": false,
+    "asar": true,
     "nsis": {
       "oneClick": false,
       "perMachine": false,
