@@ -24,7 +24,16 @@ function createWindow() {
     mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    mainWindow.webContents.openDevTools();
   }
+
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    console.error('Failed to load:', errorCode, errorDescription);
+  });
+
+  mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+    console.log(`Console [${level}]:`, message);
+  });
 
   mainWindow.on('closed', () => {
     mainWindow = null;
