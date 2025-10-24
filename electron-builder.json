@@ -2,7 +2,8 @@
   "appId": "com.hal5.invoicemanager",
   "productName": "HAL5 Facturatie Manager",
   "directories": {
-    "output": "build"
+    "output": "release",
+    "buildResources": "public"
   },
   "files": [
     "dist/**/*",
