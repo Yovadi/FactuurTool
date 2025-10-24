@@ -1,8 +1,8 @@
 const { ipcRenderer } = require('electron');
 
 window.electronAPI = {
-  sendEmailWithPDF: (pdfBuffer, to, subject, body, fileName) => {
-    return ipcRenderer.invoke('send-email-with-pdf', pdfBuffer, to, subject, body, fileName);
+  sendEmailWithPDF: (pdfBuffer, to, subject, body, fileName, logoPath) => {
+    return ipcRenderer.invoke('send-email-with-pdf', pdfBuffer, to, subject, body, fileName, logoPath);
   },
   selectFolder: () => {
     return ipcRenderer.invoke('select-folder');

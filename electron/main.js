@@ -40,7 +40,7 @@ function createWindow() {
   });
 }
 
-ipcMain.handle('send-email-with-pdf', async (event, pdfBuffer, to, subject, body, fileName) => {
+ipcMain.handle('send-email-with-pdf', async (event, pdfBuffer, to, subject, body, fileName, logoPath) => {
   try {
     const fs = require('fs');
     const os = require('os');
@@ -54,13 +54,35 @@ ipcMain.handle('send-email-with-pdf', async (event, pdfBuffer, to, subject, body
       try {
         const { execSync } = require('child_process');
 
-        const psScript = `
+        const htmlBody = `
+          <html>
+          <body style="font-family: Arial, sans-serif; line-height: 1.6;">
+            <p>${body.replace(/\n/g, '<br>')}</p>
+            ${logoPath ? `<br><img src="cid:logo" alt="Hal 5 Overloon Logo" style="max-width: 300px;"><br>` : ''}
+          </body>
+          </html>
+        `;
+
+        let psScript = `
           $outlook = New-Object -ComObject Outlook.Application
           $mail = $outlook.CreateItem(0)
           $mail.To = "${to.replace(/"/g, '""')}"
           $mail.Subject = "${subject.replace(/"/g, '""')}"
-          $mail.Body = "${body.replace(/"/g, '""').replace(/\n/g, '`n')}"
+          $mail.HTMLBody = @"
+${htmlBody.replace(/"/g, '""')}
+"@
           $mail.Attachments.Add("${tempFilePath.replace(/\\/g, '\\\\')}")
+        `;
+
+        if (logoPath) {
+          const logoFullPath = path.resolve(logoPath);
+          psScript += `
+          $attachment = $mail.Attachments.Add("${logoFullPath.replace(/\\/g, '\\\\')}")
+          $attachment.PropertyAccessor.SetProperty("http://schemas.microsoft.com/mapi/proptag/0x3712001F", "logo")
+          `;
+        }
+
+        psScript += `
           $mail.Display()
         `;
 

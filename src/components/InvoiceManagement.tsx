@@ -460,7 +460,8 @@ Overloon`;
           tenant.email,
           `Factuur ${invoice.invoice_number.replace(/^INV-/, '')} van ${companySettings.company_name}`,
           emailBody,
-          invoice.invoice_number.replace(/^INV-/, '')
+          invoice.invoice_number.replace(/^INV-/, ''),
+          'public/Logo.png'
         );
 
         if (!result.success) {
