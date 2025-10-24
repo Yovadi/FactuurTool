@@ -440,21 +440,27 @@ export function InvoiceManagement() {
 
         const emailBody = `Beste ${tenant.name},
 
-Hierbij ontvangt u factuur ${invoice.invoice_number} van ${companySettings.company_name}.
+Hierbij ontvangt u factuur ${invoice.invoice_number.replace(/^INV-/, '')} van ${companySettings.company_name}.
 
-Gelieve het bedrag binnen de gestelde termijn over te maken naar bankrekening ${companySettings.bank_account}.
+Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companySettings.bank_account}.
 
 Met vriendelijke groet,
+
 ${companySettings.name || companySettings.company_name}
+T: ${companySettings.phone}
 ${companySettings.email}
-${companySettings.phone}`;
+https://hal5overloon.nl/
+
+De Oude Molen 5
+5825 KA
+Overloon`;
 
         const result = await window.electronAPI.sendEmailWithPDF(
           pdfBlob,
           tenant.email,
-          `Factuur ${invoice.invoice_number} van ${companySettings.company_name}`,
+          `Factuur ${invoice.invoice_number.replace(/^INV-/, '')} van ${companySettings.company_name}`,
           emailBody,
-          invoice.invoice_number
+          invoice.invoice_number.replace(/^INV-/, '')
         );
 
         if (!result.success) {
@@ -478,8 +484,8 @@ ${companySettings.phone}`;
             },
             body: JSON.stringify({
               to: tenant.email,
-              subject: `Factuur ${invoice.invoice_number} van ${companySettings.company_name}`,
-              invoiceNumber: invoice.invoice_number,
+              subject: `Factuur ${invoice.invoice_number.replace(/^INV-/, '')} van ${companySettings.company_name}`,
+              invoiceNumber: invoice.invoice_number.replace(/^INV-/, ''),
               tenantName: tenant.name,
               companyName: companySettings.company_name,
               amount: invoice.amount,
