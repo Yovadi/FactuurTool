@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 
 let mainWindow;
@@ -10,8 +10,9 @@ function createWindow() {
     minWidth: 1200,
     minHeight: 700,
     webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
+      nodeIntegration: true,
+      contextIsolation: false,
+      preload: path.join(__dirname, 'preload.js')
     },
     icon: path.join(__dirname, '../public/Logo.png'),
     title: 'HAL5 Overloon - Facturatie Manager',
@@ -39,6 +40,34 @@ function createWindow() {
     mainWindow = null;
   });
 }
+
+ipcMain.handle('send-email-with-pdf', async (event, pdfBuffer, to, subject, body) => {
+  try {
+    const fs = require('fs');
+    const os = require('os');
+    const tempDir = os.tmpdir();
+    const tempFilePath = path.join(tempDir, `invoice-${Date.now()}.pdf`);
+
+    fs.writeFileSync(tempFilePath, Buffer.from(pdfBuffer));
+
+    const mailtoUrl = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+    await shell.openExternal(mailtoUrl);
+
+    setTimeout(() => {
+      try {
+        fs.unlinkSync(tempFilePath);
+      } catch (err) {
+        console.error('Error deleting temp file:', err);
+      }
+    }, 10000);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error opening email client:', error);
+    return { success: false, error: error.message };
+  }
+});
 
 app.whenReady().then(createWindow);
 

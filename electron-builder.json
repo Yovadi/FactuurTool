@@ -14,6 +14,9 @@
     "artifactName": "${productName}-Setup-${version}.${ext}"
   },
   "asar": false,
+  "extraMetadata": {
+    "main": "electron/main.js"
+  },
   "nsis": {
     "oneClick": false,
     "perMachine": false,
