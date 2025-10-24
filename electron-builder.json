@@ -9,9 +9,6 @@
     "electron/**/*",
     "public/**/*"
   ],
-  "asarUnpack": [
-    "node_modules/@supabase/**/*"
-  ],
   "win": {
     "target": [
       {
@@ -23,7 +20,7 @@
     "signingHashAlgorithms": ["sha256"],
     "signDlls": false
   },
-  "asar": true,
+  "asar": false,
   "nsis": {
     "oneClick": false,
     "perMachine": false,
