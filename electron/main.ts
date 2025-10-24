@@ -1,7 +1,11 @@
 import { app, BrowserWindow, ipcMain, shell } from 'electron';
-import { join } from 'path';
+import { join, dirname } from 'path';
 import { writeFileSync } from 'fs';
 import { tmpdir } from 'os';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const isDev = process.env.NODE_ENV === 'development';
 
