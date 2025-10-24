@@ -447,6 +447,10 @@ ${companySettings.phone}`;
         if (!result.success) {
           throw new Error(result.error || 'Fout bij openen van Outlook');
         }
+
+        if (result.warning) {
+          alert(result.warning);
+        }
       } else {
         const pdfBase64 = await generateInvoicePDFBase64(invoiceData);
         const logoBase64 = await loadLogoAsBase64();
