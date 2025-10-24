@@ -380,14 +380,18 @@ export function LeaseManagement() {
                           <div className="flex gap-2 items-center">
                             <div className="flex-1">
                               <input
-                                type="number"
+                                type="text"
+                                inputMode="decimal"
                                 required
-                                step="0.01"
                                 placeholder="Prijs per m²"
                                 value={space.price_per_sqm}
-                                onChange={(e) => updateSpace(index, 'price_per_sqm', e.target.value)}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                                    updateSpace(index, 'price_per_sqm', value);
+                                  }
+                                }}
                                 className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                                min="0"
                               />
                             </div>
                             {selectedSpace && space.price_per_sqm && (
@@ -457,13 +461,17 @@ export function LeaseManagement() {
                     Voorschot Gas, Water & Electra
                   </label>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
                     required
-                    step="0.01"
                     value={formData.security_deposit}
-                    onChange={(e) => setFormData({ ...formData, security_deposit: e.target.value })}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                        setFormData({ ...formData, security_deposit: value });
+                      }
+                    }}
                     className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                    min="0"
                   />
                 </div>
                 <div>
