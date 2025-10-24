@@ -154,7 +154,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
   }
 
   yPosition = 57;
-  const invoiceInfoCol = pageWidth - margin - 38;
+  const invoiceInfoCol = pageWidth - margin - 45;
 
   pdf.setFontSize(8);
   pdf.setFont('helvetica', 'bold');
