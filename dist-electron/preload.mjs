@@ -1,1 +1,5 @@
-"use strict";const e=require("electron");e.contextBridge.exposeInMainWorld("electronAPI",{sendEmailWithPDF:(i,n,r,t)=>e.ipcRenderer.invoke("send-email-with-pdf",{pdfBlob:i,recipient:n,subject:r,body:t})});
+"use strict";
+const electron = require("electron");
+electron.contextBridge.exposeInMainWorld("electronAPI", {
+  sendEmailWithPDF: (pdfBlob, recipient, subject, body) => electron.ipcRenderer.invoke("send-email-with-pdf", { pdfBlob, recipient, subject, body })
+});
