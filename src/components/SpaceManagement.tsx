@@ -205,13 +205,17 @@ export function SpaceManagement() {
                   {formData.space_type === 'diversen' ? 'Bedrag *' : 'Oppervlakte (m²) *'}
                 </label>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
                   required
-                  step="0.01"
                   value={formData.square_footage}
-                  onChange={(e) => setFormData({ ...formData, square_footage: e.target.value })}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                      setFormData({ ...formData, square_footage: value });
+                    }
+                  }}
                   className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                  min="0"
                   placeholder={formData.space_type === 'diversen' ? 'bijv. 150.00' : 'bijv. 50.5'}
                 />
               </div>

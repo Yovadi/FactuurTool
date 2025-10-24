@@ -479,14 +479,20 @@ export function LeaseManagement() {
                     BTW-tarief (%)
                   </label>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
                     required
-                    step="0.01"
                     value={formData.vat_rate}
-                    onChange={(e) => setFormData({ ...formData, vat_rate: e.target.value })}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                        const numValue = parseFloat(value);
+                        if (value === '' || (numValue >= 0 && numValue <= 100)) {
+                          setFormData({ ...formData, vat_rate: value });
+                        }
+                      }
+                    }}
                     className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                    min="0"
-                    max="100"
                   />
                 </div>
               </div>

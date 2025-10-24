@@ -1052,22 +1052,31 @@ ${companySettings.phone}`;
                         />
                         {invoiceMode === 'manual' && (
                           <input
-                            type="number"
-                            step="1"
-                            min="0"
+                            type="text"
+                            inputMode="decimal"
                             placeholder="Aantal (optioneel)"
                             value={item.quantity || ''}
-                            onChange={(e) => updateLineItem(index, 'quantity', e.target.value)}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                                updateLineItem(index, 'quantity', value);
+                              }
+                            }}
                             className="w-32 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                           />
                         )}
                         <input
-                          type="number"
+                          type="text"
+                          inputMode="decimal"
                           required
-                          step="0.01"
                           placeholder="Prijs"
                           value={item.unit_price}
-                          onChange={(e) => updateLineItem(index, 'unit_price', e.target.value)}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                              updateLineItem(index, 'unit_price', value);
+                            }
+                          }}
                           className="w-32 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                         />
                         {lineItems.length > 1 && (
