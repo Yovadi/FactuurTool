@@ -39,34 +39,33 @@ export function SpaceManagement() {
 
     const spacesWithTenants: SpaceWithTenant[] = await Promise.all(
       (spacesData || []).map(async (space) => {
-        if (!space.is_available) {
-          const { data: leaseSpaces } = await supabase
-            .from('lease_spaces')
-            .select('lease_id')
-            .eq('space_id', space.id);
+        const { data: leaseSpaces } = await supabase
+          .from('lease_spaces')
+          .select('lease_id')
+          .eq('space_id', space.id);
 
-          if (leaseSpaces && leaseSpaces.length > 0) {
-            const { data: lease } = await supabase
-              .from('leases')
-              .select('tenant_id, status')
-              .eq('id', leaseSpaces[0].lease_id)
-              .eq('status', 'active')
+        if (leaseSpaces && leaseSpaces.length > 0) {
+          const { data: lease } = await supabase
+            .from('leases')
+            .select('tenant_id, status')
+            .eq('id', leaseSpaces[0].lease_id)
+            .eq('status', 'active')
+            .maybeSingle();
+
+          if (lease) {
+            const { data: tenant } = await supabase
+              .from('tenants')
+              .select('*')
+              .eq('id', lease.tenant_id)
               .maybeSingle();
 
-            if (lease) {
-              const { data: tenant } = await supabase
-                .from('tenants')
-                .select('*')
-                .eq('id', lease.tenant_id)
-                .maybeSingle();
-
-              if (tenant) {
-                return { ...space, tenant };
-              }
+            if (tenant) {
+              return { ...space, tenant, is_available: false };
             }
           }
         }
-        return space;
+
+        return { ...space, is_available: true };
       })
     );
 

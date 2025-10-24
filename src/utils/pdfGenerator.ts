@@ -74,14 +74,14 @@ async function generateInvoicePDFDocument(invoice: InvoiceData): Promise<jsPDF> 
   return pdf;
 }
 
-export async function generateInvoicePDF(invoice: InvoiceData, preview: boolean = false) {
+export async function generateInvoicePDF(invoice: InvoiceData, preview: boolean = false, skipDownload: boolean = false) {
   const pdf = await generateInvoicePDFDocument(invoice);
 
   if (preview) {
     const pdfBlob = pdf.output('blob');
     const pdfUrl = URL.createObjectURL(pdfBlob);
     window.open(pdfUrl, '_blank');
-  } else {
+  } else if (!skipDownload) {
     pdf.save(`${invoice.invoice_number}.pdf`);
   }
 

@@ -420,7 +420,7 @@ export function InvoiceManagement() {
       };
 
       if (window.electronAPI) {
-        const pdf = await generateInvoicePDF(invoiceData);
+        const pdf = await generateInvoicePDF(invoiceData, false, true);
         const pdfBlob = pdf.output('arraybuffer');
 
         if (companySettings.root_folder_path && window.electronAPI.savePDF) {
@@ -438,19 +438,9 @@ export function InvoiceManagement() {
           }
         }
 
-        const formattedAmount = new Intl.NumberFormat('nl-NL', {
-          style: 'currency',
-          currency: 'EUR',
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2
-        }).format(invoice.amount);
-
         const emailBody = `Beste ${tenant.name},
 
 Hierbij ontvangt u factuur ${invoice.invoice_number} van ${companySettings.company_name}.
-
-Factuurbedrag: ${formattedAmount}
-Vervaldatum: ${new Date(invoice.due_date).toLocaleDateString('nl-NL')}
 
 Gelieve het bedrag binnen de gestelde termijn over te maken naar bankrekening ${companySettings.bank_account}.
 
