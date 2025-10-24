@@ -96,9 +96,9 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
 
   if (invoice.company) {
     try {
-      const logoBase64 = await loadImageAsBase64('/Logo.png');
-      const logoWidth = 80;
-      const logoHeight = 40;
+      const logoBase64 = await loadImageAsBase64('/image copy copy copy copy copy.png');
+      const logoWidth = 90;
+      const logoHeight = 45;
       const logoX = pageWidth - margin - logoWidth;
       const logoY = yPosition;
       pdf.addImage(logoBase64, 'PNG', logoX, logoY, logoWidth, logoHeight);
@@ -113,9 +113,9 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
   const invoiceNumberDisplay = invoice.invoice_number.replace(/^INV-/, '');
   pdf.text(`FACTUUR ${invoiceNumberDisplay}`, margin, yPosition + 10);
 
-  yPosition += 25;
+  yPosition += 35;
 
-  yPosition = 50;
+  yPosition = 60;
 
   pdf.setFillColor(245, 245, 245);
   pdf.rect(margin, yPosition, 60, 35, 'F');
@@ -145,7 +145,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
     pdf.text(invoice.tenant_email, margin + 3, yPosition);
   }
 
-  yPosition = 56;
+  yPosition = 66;
   const invoiceInfoCol = pageWidth - margin - 60;
 
   pdf.setFontSize(8);
@@ -167,7 +167,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
   pdf.setFont('helvetica', 'normal');
   pdf.text(new Date(invoice.due_date).toLocaleDateString('nl-NL'), invoiceInfoCol + 35, yPosition);
 
-  yPosition = 85;
+  yPosition = 105;
 
   if (invoice.invoice_month) {
     pdf.setFontSize(8);

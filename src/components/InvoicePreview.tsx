@@ -84,10 +84,6 @@ export function InvoicePreview({
         </div>
 
         <div className="p-6 space-y-6">
-          <div className="flex items-center justify-center mb-6">
-            <img src="/Logo.png" alt="Hal 5 Overloon" className="h-20 object-contain" />
-          </div>
-
           <div className="grid grid-cols-2 gap-6 pb-6 border-b border-gray-200">
             <div>
               <h3 className="text-sm font-semibold text-gray-700 mb-2">Klant</h3>
@@ -158,27 +154,6 @@ export function InvoicePreview({
                 <span>€ {invoice.amount.toFixed(2)}</span>
               </div>
             </div>
-          </div>
-
-          <div className="flex gap-3 pt-4 border-t border-gray-200">
-            {onDownload && (
-              <button
-                onClick={onDownload}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
-              >
-                <Download size={18} />
-                Download PDF
-              </button>
-            )}
-            {onSend && (
-              <button
-                onClick={onSend}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg transition-colors"
-              >
-                <Send size={18} />
-                Verstuur E-mail
-              </button>
-            )}
           </div>
         </div>
       </div>
