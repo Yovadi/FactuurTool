@@ -326,18 +326,18 @@ export function InvoiceManagement() {
     try {
       const invoice = invoices.find(inv => inv.id === invoiceId);
       if (!invoice) {
-        alert('Factuur niet gevonden');
+        console.error('Factuur niet gevonden');
         return;
       }
 
       const tenant = getInvoiceTenant(invoice);
       if (!tenant || !tenant.email) {
-        alert('Geen email adres gevonden voor deze huurder');
+        console.error('Geen email adres gevonden voor deze huurder');
         return;
       }
 
       if (!companySettings) {
-        alert('Bedrijfsinstellingen niet gevonden');
+        console.error('Bedrijfsinstellingen niet gevonden');
         return;
       }
 
@@ -462,7 +462,7 @@ ${companySettings.phone}`;
         }
 
         if (result.warning) {
-          alert(result.warning);
+          console.warn(result.warning);
         }
       } else {
         const pdfBase64 = await generateInvoicePDFBase64(invoiceData);
@@ -507,21 +507,17 @@ ${companySettings.phone}`;
 
       if (error) {
         console.error('Error updating invoice status:', error);
-        alert('Email verzonden, maar status updaten mislukt');
-      } else {
-        alert('Factuur succesvol verzonden!');
-        loadData();
       }
+      loadData();
     } catch (error) {
       console.error('Error sending invoice:', error);
-      alert(`Fout bij verzenden: ${error instanceof Error ? error.message : 'Onbekende fout'}`);
     }
   };
 
   const deleteInvoice = async (invoiceId: string) => {
     const correctCode = companySettings?.delete_code || '1234';
     if (deletePassword !== correctCode) {
-      alert('Onjuiste code');
+      console.error('Onjuiste code');
       return;
     }
 
@@ -532,7 +528,6 @@ ${companySettings.phone}`;
 
     if (itemsError) {
       console.error('Error deleting line items:', itemsError);
-      alert('Fout bij verwijderen van factuur regels');
       return;
     }
 
@@ -543,12 +538,11 @@ ${companySettings.phone}`;
 
     if (error) {
       console.error('Error deleting invoice:', error);
-      alert('Fout bij verwijderen van factuur');
-    } else {
-      setShowDeleteConfirm(null);
-      setDeletePassword('');
-      loadData();
+      return;
     }
+    setShowDeleteConfirm(null);
+    setDeletePassword('');
+    loadData();
   };
 
   const viewInvoiceDetails = async (invoice: InvoiceWithDetails) => {
@@ -691,11 +685,11 @@ ${companySettings.phone}`;
     loadData();
 
     if (successCount > 0) {
-      alert(`${successCount} facturen succesvol aangemaakt${failCount > 0 ? ` (${failCount} gefaald)` : ''}`);
+      console.log(`${successCount} facturen succesvol aangemaakt${failCount > 0 ? ` (${failCount} gefaald)` : ''}`);
     } else if (failCount > 0) {
-      alert(`Alle facturen zijn mislukt. Controleer de console voor details.`);
+      console.error(`Alle facturen zijn mislukt. Controleer de console voor details.`);
     } else {
-      alert('Alle facturen voor deze maand zijn al aangemaakt.');
+      console.log('Alle facturen voor deze maand zijn al aangemaakt.');
     }
   };
 
@@ -1267,6 +1261,17 @@ ${companySettings.phone}`;
                   Markeer als Betaald
                 </button>
               )}
+              {selectedInvoice.status !== 'paid' && (
+                <button
+                  onClick={() => {
+                    setSelectedInvoice(null);
+                    setShowDeleteConfirm(selectedInvoice.id);
+                  }}
+                  className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  Verwijderen
+                </button>
+              )}
               <button
                 onClick={() => setSelectedInvoice(null)}
                 className="flex-1 bg-dark-800 text-gray-200 px-4 py-2 rounded-lg hover:bg-dark-700 transition-colors"
@@ -1441,12 +1446,20 @@ ${companySettings.phone}`;
                               </>
                             )}
                             {invoice.status === 'sent' && (
-                              <button
-                                onClick={() => markAsPaid(invoice.id)}
-                                className="flex items-center gap-1 text-green-400 hover:text-green-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-green-900"
-                              >
-                                <CheckCircle size={24} />
-                              </button>
+                              <>
+                                <button
+                                  onClick={() => markAsPaid(invoice.id)}
+                                  className="flex items-center gap-1 text-green-400 hover:text-green-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-green-900"
+                                >
+                                  <CheckCircle size={24} />
+                                </button>
+                                <button
+                                  onClick={() => setShowDeleteConfirm(invoice.id)}
+                                  className="flex items-center gap-1 text-red-400 hover:text-red-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-red-900"
+                                >
+                                  <Trash2 size={24} />
+                                </button>
+                              </>
                             )}
                             {invoice.status === 'paid' && (
                               <button
@@ -1627,12 +1640,20 @@ ${companySettings.phone}`;
                           </>
                         )}
                         {invoice.status === 'sent' && (
-                          <button
-                            onClick={() => markAsPaid(invoice.id)}
-                            className="flex items-center gap-1 text-green-400 hover:text-green-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-green-900"
-                          >
-                            <CheckCircle size={24} />
-                          </button>
+                          <>
+                            <button
+                              onClick={() => markAsPaid(invoice.id)}
+                              className="flex items-center gap-1 text-green-400 hover:text-green-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-green-900"
+                            >
+                              <CheckCircle size={24} />
+                            </button>
+                            <button
+                              onClick={() => setShowDeleteConfirm(invoice.id)}
+                              className="flex items-center gap-1 text-red-400 hover:text-red-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-red-900"
+                            >
+                              <Trash2 size={24} />
+                            </button>
+                          </>
                         )}
                         {invoice.status === 'paid' && (
                           <button

@@ -59,7 +59,6 @@ export function CompanySettings() {
 
       if (error) {
         console.error('Error updating settings:', error);
-        alert('Fout bij opslaan van instellingen');
         return;
       }
     } else {
@@ -69,7 +68,6 @@ export function CompanySettings() {
 
       if (error) {
         console.error('Error creating settings:', error);
-        alert('Fout bij opslaan van instellingen');
         return;
       }
     }
@@ -127,7 +125,7 @@ export function CompanySettings() {
         setFormData({ ...formData, root_folder_path: result.path });
       }
     } else {
-      alert('Folder selectie is alleen beschikbaar in de desktop applicatie');
+      console.warn('Folder selectie is alleen beschikbaar in de desktop applicatie');
     }
   };
 

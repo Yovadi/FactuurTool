@@ -69,7 +69,7 @@ export function LeaseManagement() {
     e.preventDefault();
 
     if (selectedSpaces.length === 0) {
-      alert('Selecteer minimaal één kantoorruimte');
+      console.error('Selecteer minimaal één kantoorruimte');
       return;
     }
 
