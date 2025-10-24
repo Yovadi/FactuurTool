@@ -97,8 +97,8 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
   if (invoice.company) {
     try {
       const logoBase64 = await loadImageAsBase64('/image copy copy copy copy copy copy.png');
-      const logoWidth = 90;
-      const logoHeight = 45;
+      const logoWidth = 60;
+      const logoHeight = 30;
       const logoX = pageWidth - margin - logoWidth;
       const logoY = yPosition;
       pdf.addImage(logoBase64, 'PNG', logoX, logoY, logoWidth, logoHeight);
@@ -107,18 +107,26 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
     }
   }
 
-  pdf.setFontSize(24);
+  pdf.setFontSize(18);
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(40, 40, 40);
   const invoiceNumberDisplay = invoice.invoice_number.replace(/^INV-/, '');
-  pdf.text(`FACTUUR ${invoiceNumberDisplay}`, margin, yPosition + 10);
+  pdf.text(`Factuur ${invoiceNumberDisplay}`, margin, yPosition + 10);
 
-  yPosition += 35;
+  yPosition = 45;
 
-  yPosition = 60;
+  let boxHeight = 28;
+  let addressLines = 1;
+  if (invoice.tenant_company_name) addressLines++;
+  if (invoice.tenant_billing_address) {
+    const lines = pdf.splitTextToSize(invoice.tenant_billing_address, 70);
+    addressLines += lines.length;
+  }
+  if (invoice.tenant_email) addressLines++;
+  boxHeight = 6 + (addressLines * 4) + 2;
 
-  pdf.setFillColor(245, 245, 245);
-  pdf.rect(margin, yPosition, 60, 35, 'F');
+  pdf.setFillColor(240, 240, 240);
+  pdf.rect(margin, yPosition, 80, boxHeight, 'F');
 
   yPosition += 6;
   pdf.setFontSize(9);
@@ -133,7 +141,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
   }
 
   if (invoice.tenant_billing_address) {
-    const lines = pdf.splitTextToSize(invoice.tenant_billing_address, 74);
+    const lines = pdf.splitTextToSize(invoice.tenant_billing_address, 70);
     for (const line of lines) {
       pdf.text(line, margin + 3, yPosition);
       yPosition += 4;
@@ -145,40 +153,40 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
     pdf.text(invoice.tenant_email, margin + 3, yPosition);
   }
 
-  yPosition = 66;
-  const invoiceInfoCol = pageWidth - margin - 60;
+  yPosition = 51;
+  const invoiceInfoCol = pageWidth - margin - 65;
 
   pdf.setFontSize(8);
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(80, 80, 80);
-  pdf.text('FACTUURNUMMER:', invoiceInfoCol, yPosition);
+  pdf.text('Factuurnummer:', invoiceInfoCol, yPosition);
   pdf.setFont('helvetica', 'normal');
-  pdf.text(invoiceNumberDisplay, invoiceInfoCol + 35, yPosition);
+  pdf.text(invoiceNumberDisplay, invoiceInfoCol + 30, yPosition);
 
   yPosition += 5;
   pdf.setFont('helvetica', 'bold');
-  pdf.text('FACTUURDATUM:', invoiceInfoCol, yPosition);
+  pdf.text('Factuurdatum:', invoiceInfoCol, yPosition);
   pdf.setFont('helvetica', 'normal');
-  pdf.text(new Date(invoice.invoice_date).toLocaleDateString('nl-NL'), invoiceInfoCol + 35, yPosition);
+  pdf.text(new Date(invoice.invoice_date).toLocaleDateString('nl-NL'), invoiceInfoCol + 30, yPosition);
 
   yPosition += 5;
   pdf.setFont('helvetica', 'bold');
-  pdf.text('VERVALDATUM:', invoiceInfoCol, yPosition);
+  pdf.text('Vervaldatum:', invoiceInfoCol, yPosition);
   pdf.setFont('helvetica', 'normal');
-  pdf.text(new Date(invoice.due_date).toLocaleDateString('nl-NL'), invoiceInfoCol + 35, yPosition);
+  pdf.text(new Date(invoice.due_date).toLocaleDateString('nl-NL'), invoiceInfoCol + 30, yPosition);
 
-  yPosition = 105;
+  yPosition = 90;
 
   if (invoice.invoice_month) {
-    pdf.setFontSize(8);
+    pdf.setFontSize(9);
     pdf.setFont('helvetica', 'bold');
     pdf.setTextColor(80, 80, 80);
-    pdf.text('FACTUURMAAND:', margin, yPosition);
+    pdf.text('Factuurmaand:', margin, yPosition);
     pdf.setFont('helvetica', 'normal');
     const [year, month] = invoice.invoice_month.split('-');
     const monthNames = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
     const monthName = monthNames[parseInt(month) - 1];
-    pdf.text(monthName + ' ' + year, margin + 33, yPosition);
+    pdf.text(monthName + ' ' + year, margin + 30, yPosition);
     yPosition += 5;
   }
 
@@ -196,8 +204,8 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
   pdf.setFontSize(9);
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(255, 255, 255);
-  pdf.text('OMSCHRIJVING', col1X + 2, tableTop + 5.5);
-  pdf.text('BEDRAG', col3X + 2, tableTop + 5.5);
+  pdf.text('Omschrijving', col1X + 2, tableTop + 5.5);
+  pdf.text('Bedrag', col3X + 2, tableTop + 5.5);
   pdf.text('BTW', col4X - 5, tableTop + 5.5);
 
   yPosition = tableTop + 12;
