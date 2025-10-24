@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Building, Users, FileText, TrendingUp, AlertCircle, Euro } from 'lucide-react';
+import { Building, Users, FileText, TrendingUp, AlertCircle, Euro, Calendar, Clock } from 'lucide-react';
 
 type DashboardStats = {
   totalTenants: number;
@@ -11,6 +11,13 @@ type DashboardStats = {
   paidRevenue: number;
   overdueInvoices: number;
   pendingAmount: number;
+};
+
+type Notification = {
+  type: 'danger' | 'warning' | 'info' | 'success';
+  icon: React.ReactNode;
+  title: string;
+  message: string;
 };
 
 export function Dashboard() {
@@ -24,6 +31,7 @@ export function Dashboard() {
     overdueInvoices: 0,
     pendingAmount: 0
   });
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -45,16 +53,36 @@ export function Dashboard() {
       .from('invoices')
       .select('amount, status, due_date');
 
+    const { data: leases } = await supabase
+      .from('leases')
+      .select('id, end_date, status, tenant_id, tenants(name)');
+
     const occupiedSpaces = spaces?.filter(s => !s.is_available).length || 0;
 
     const totalRevenue = invoices?.reduce((sum, inv) => sum + Number(inv.amount), 0) || 0;
     const paidRevenue = invoices?.filter(inv => inv.status === 'paid')
       .reduce((sum, inv) => sum + Number(inv.amount), 0) || 0;
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const thirtyDaysFromNow = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const thirtyDaysStr = thirtyDaysFromNow.toISOString().split('T')[0];
+
     const overdueInvoices = invoices?.filter(
-      inv => inv.status !== 'paid' && inv.due_date < today
+      inv => inv.status !== 'paid' && inv.due_date < todayStr
     ).length || 0;
+
+    const upcomingDueInvoices = invoices?.filter(
+      inv => inv.status !== 'paid' && inv.due_date >= todayStr && inv.due_date <= thirtyDaysStr
+    ).length || 0;
+
+    const expiringLeases = leases?.filter(
+      lease => lease.status === 'active' && lease.end_date >= todayStr && lease.end_date <= thirtyDaysStr
+    ) || [];
+
+    const expiredLeases = leases?.filter(
+      lease => lease.status === 'active' && lease.end_date < todayStr
+    ) || [];
 
     const pendingAmount = invoices?.filter(inv => inv.status !== 'paid')
       .reduce((sum, inv) => sum + Number(inv.amount), 0) || 0;
@@ -70,6 +98,64 @@ export function Dashboard() {
       pendingAmount
     });
 
+    const newNotifications: Notification[] = [];
+
+    if (overdueInvoices > 0) {
+      newNotifications.push({
+        type: 'danger',
+        icon: <AlertCircle size={18} />,
+        title: 'Achterstallige Facturen',
+        message: `${overdueInvoices} factu${overdueInvoices !== 1 ? 'ren' : 'ur'} over de vervaldatum`
+      });
+    }
+
+    if (expiredLeases.length > 0) {
+      newNotifications.push({
+        type: 'danger',
+        icon: <Calendar size={18} />,
+        title: 'Verlopen Contracten',
+        message: `${expiredLeases.length} contract${expiredLeases.length !== 1 ? 'en zijn' : ' is'} verlopen en moet${expiredLeases.length !== 1 ? 'en' : ''} worden verlengd of beëindigd`
+      });
+    }
+
+    if (expiringLeases.length > 0) {
+      newNotifications.push({
+        type: 'warning',
+        icon: <Clock size={18} />,
+        title: 'Contracten Verlopen Binnenkort',
+        message: `${expiringLeases.length} contract${expiringLeases.length !== 1 ? 'en verlopen' : ' verloopt'} binnen 30 dagen`
+      });
+    }
+
+    if (upcomingDueInvoices > 0) {
+      newNotifications.push({
+        type: 'warning',
+        icon: <FileText size={18} />,
+        title: 'Binnenkort Te Betalen',
+        message: `${upcomingDueInvoices} factu${upcomingDueInvoices !== 1 ? 'ren' : 'ur'} moet${upcomingDueInvoices !== 1 ? 'en' : ''} binnen 30 dagen betaald worden`
+      });
+    }
+
+    const availableSpaces = (stats.totalSpaces || spaces?.length || 0) - occupiedSpaces;
+    if (availableSpaces > 0) {
+      newNotifications.push({
+        type: 'info',
+        icon: <Building size={18} />,
+        title: 'Beschikbare Ruimtes',
+        message: `${availableSpaces} ruimte${availableSpaces !== 1 ? 's' : ''} beschikbaar voor verhuur`
+      });
+    }
+
+    if (newNotifications.length === 0) {
+      newNotifications.push({
+        type: 'success',
+        icon: <TrendingUp size={18} />,
+        title: 'Alles in Orde',
+        message: 'Geen urgente zaken die aandacht vereisen'
+      });
+    }
+
+    setNotifications(newNotifications);
     setLoading(false);
   };
 
@@ -201,41 +287,62 @@ export function Dashboard() {
             <h3 className="text-lg font-semibold text-gray-100">Meldingen & Notificaties</h3>
           </div>
           <div className="space-y-3">
-            {stats.overdueInvoices > 0 && (
-              <div className="flex items-start gap-3 p-3 bg-red-900 rounded-lg">
-                <AlertCircle className="text-red-400 mt-0.5" size={18} />
+            {notifications.map((notification, index) => (
+              <div
+                key={index}
+                className={`flex items-start gap-3 p-3 rounded-lg ${
+                  notification.type === 'danger'
+                    ? 'bg-red-900/50 border border-red-800'
+                    : notification.type === 'warning'
+                    ? 'bg-amber-900/50 border border-amber-800'
+                    : notification.type === 'info'
+                    ? 'bg-blue-900/50 border border-blue-800'
+                    : 'bg-green-900/50 border border-green-800'
+                }`}
+              >
+                <div
+                  className={`mt-0.5 ${
+                    notification.type === 'danger'
+                      ? 'text-red-400'
+                      : notification.type === 'warning'
+                      ? 'text-amber-400'
+                      : notification.type === 'info'
+                      ? 'text-blue-400'
+                      : 'text-green-400'
+                  }`}
+                >
+                  {notification.icon}
+                </div>
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-red-400">Achterstallige Facturen</p>
-                  <p className="text-xs text-red-300 mt-0.5">
-                    {stats.overdueInvoices} factu{stats.overdueInvoices !== 1 ? 'ren' : 'ur'} over de vervaldatum
+                  <p
+                    className={`text-sm font-medium ${
+                      notification.type === 'danger'
+                        ? 'text-red-400'
+                        : notification.type === 'warning'
+                        ? 'text-amber-400'
+                        : notification.type === 'info'
+                        ? 'text-blue-400'
+                        : 'text-green-400'
+                    }`}
+                  >
+                    {notification.title}
+                  </p>
+                  <p
+                    className={`text-xs mt-0.5 ${
+                      notification.type === 'danger'
+                        ? 'text-red-300'
+                        : notification.type === 'warning'
+                        ? 'text-amber-300'
+                        : notification.type === 'info'
+                        ? 'text-blue-300'
+                        : 'text-green-300'
+                    }`}
+                  >
+                    {notification.message}
                   </p>
                 </div>
               </div>
-            )}
-
-            {stats.totalSpaces - stats.occupiedSpaces > 0 && (
-              <div className="flex items-start gap-3 p-3 bg-dark-800 rounded-lg">
-                <Building className="text-gold-500 mt-0.5" size={18} />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-100">Beschikbare Ruimtes</p>
-                  <p className="text-xs text-gold-400 mt-0.5">
-                    {stats.totalSpaces - stats.occupiedSpaces} ruimte{stats.totalSpaces - stats.occupiedSpaces !== 1 ? 's' : ''} beschikbaar voor verhuur
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {stats.overdueInvoices === 0 && stats.totalSpaces === stats.occupiedSpaces && (
-              <div className="flex items-start gap-3 p-3 bg-green-900 rounded-lg">
-                <TrendingUp className="text-green-400 mt-0.5" size={18} />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-green-400">Alles in Orde</p>
-                  <p className="text-xs text-green-300 mt-0.5">
-                    Geen achterstallige facturen en volledige bezetting
-                  </p>
-                </div>
-              </div>
-            )}
+            ))}
           </div>
         </div>
       </div>
