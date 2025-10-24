@@ -97,8 +97,8 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
   if (invoice.company) {
     try {
       const logoBase64 = await loadImageAsBase64('/Logo.png');
-      const logoWidth = 60;
-      const logoHeight = 30;
+      const logoWidth = 80;
+      const logoHeight = 40;
       const logoX = pageWidth - margin - logoWidth;
       const logoY = yPosition;
       pdf.addImage(logoBase64, 'PNG', logoX, logoY, logoWidth, logoHeight);
@@ -115,18 +115,13 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
 
   yPosition += 25;
 
-  yPosition = 35;
+  yPosition = 50;
 
   pdf.setFillColor(245, 245, 245);
-  pdf.rect(margin, yPosition, 60, 40, 'F');
+  pdf.rect(margin, yPosition, 60, 35, 'F');
 
   yPosition += 6;
   pdf.setFontSize(9);
-  pdf.setFont('helvetica', 'bold');
-  pdf.setTextColor(40, 40, 40);
-  pdf.text('FACTUUR VOOR:', margin + 3, yPosition);
-
-  yPosition += 5;
   pdf.setFont('helvetica', 'normal');
   pdf.setTextColor(60, 60, 60);
   pdf.text(`t.a.v. ${invoice.tenant_name || ''}`, margin + 3, yPosition);
@@ -150,42 +145,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
     pdf.text(invoice.tenant_email, margin + 3, yPosition);
   }
 
-  let rightYPosition = 43;
-  const rightCol = margin + 65;
-
-  if (invoice.company) {
-    pdf.setFontSize(9);
-    pdf.setFont('helvetica', 'bold');
-    pdf.setTextColor(60, 60, 60);
-    pdf.text(invoice.company.name || '', rightCol, rightYPosition);
-    rightYPosition += 5;
-
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(8);
-    pdf.setTextColor(80, 80, 80);
-
-    pdf.text(invoice.company.address || '', rightCol, rightYPosition);
-    rightYPosition += 4;
-
-    pdf.text(`${invoice.company.postal_code || ''} ${invoice.company.city || ''}`, rightCol, rightYPosition);
-    rightYPosition += 4;
-
-    if (invoice.company.phone) {
-      pdf.text(`T: ${invoice.company.phone}`, rightCol, rightYPosition);
-      rightYPosition += 4;
-    }
-
-    if (invoice.company.email) {
-      pdf.text(`E: ${invoice.company.email}`, rightCol, rightYPosition);
-      rightYPosition += 4;
-    }
-
-    if (invoice.company.website) {
-      pdf.text(`W: ${invoice.company.website}`, rightCol, rightYPosition);
-    }
-  }
-
-  yPosition = 55;
+  yPosition = 56;
   const invoiceInfoCol = pageWidth - margin - 60;
 
   pdf.setFontSize(8);
