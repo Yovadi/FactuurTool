@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase, type Tenant } from '../lib/supabase';
+import { supabase, type Tenant, type CompanySettings } from '../lib/supabase';
 import { Plus, Edit2, Trash2, Mail, Phone, MapPin } from 'lucide-react';
 
 export function TenantManagement() {
@@ -7,6 +7,7 @@ export function TenantManagement() {
   const [showForm, setShowForm] = useState(false);
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
   const [loading, setLoading] = useState(true);
+  const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
 
   const [formData, setFormData] = useState({
     company_name: '',
@@ -18,6 +19,7 @@ export function TenantManagement() {
 
   useEffect(() => {
     loadTenants();
+    loadCompanySettings();
   }, []);
 
   const loadTenants = async () => {
@@ -33,6 +35,19 @@ export function TenantManagement() {
       setTenants(data || []);
     }
     setLoading(false);
+  };
+
+  const loadCompanySettings = async () => {
+    const { data } = await supabase
+      .from('company_settings')
+      .select('*')
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (data) {
+      setCompanySettings(data);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -56,6 +71,17 @@ export function TenantManagement() {
       if (error) {
         console.error('Error creating tenant:', error);
         return;
+      }
+
+      if (companySettings?.root_folder_path && window.electronAPI?.createTenantFolder) {
+        const result = await window.electronAPI.createTenantFolder(
+          companySettings.root_folder_path,
+          formData.company_name
+        );
+
+        if (!result.success) {
+          console.error('Error creating tenant folder:', result.error);
+        }
       }
     }
 

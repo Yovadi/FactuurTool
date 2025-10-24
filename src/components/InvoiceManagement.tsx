@@ -423,6 +423,21 @@ export function InvoiceManagement() {
         const pdf = await generateInvoicePDF(invoiceData);
         const pdfBlob = pdf.output('arraybuffer');
 
+        if (companySettings.root_folder_path && window.electronAPI.savePDF) {
+          const tenantFolderPath = `${companySettings.root_folder_path}/${tenant.company_name}`;
+          const fileName = `${invoice.invoice_number}.pdf`;
+
+          const saveResult = await window.electronAPI.savePDF(
+            pdfBlob,
+            tenantFolderPath,
+            fileName
+          );
+
+          if (!saveResult.success) {
+            console.error('Error saving PDF:', saveResult.error);
+          }
+        }
+
         const emailBody = `Beste ${tenant.name},
 
 Hierbij ontvangt u factuur ${invoice.invoice_number} van ${companySettings.company_name}.

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
 const path = require('path');
 
 let mainWindow;
@@ -112,6 +112,69 @@ ipcMain.handle('send-email-with-pdf', async (event, pdfBuffer, to, subject, body
     }
   } catch (error) {
     console.error('Error opening email client:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('select-folder', async () => {
+  try {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openDirectory']
+    });
+
+    if (result.canceled) {
+      return { success: false, canceled: true };
+    }
+
+    return { success: true, path: result.filePaths[0] };
+  } catch (error) {
+    console.error('Error selecting folder:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('create-tenant-folder', async (event, rootPath, tenantName) => {
+  try {
+    const fs = require('fs');
+
+    if (!rootPath || !tenantName) {
+      return { success: false, error: 'Root path en tenant naam zijn verplicht' };
+    }
+
+    const sanitizedName = tenantName.replace(/[<>:"/\\|?*]/g, '_');
+    const tenantFolderPath = path.join(rootPath, sanitizedName);
+
+    if (!fs.existsSync(tenantFolderPath)) {
+      fs.mkdirSync(tenantFolderPath, { recursive: true });
+    }
+
+    return { success: true, path: tenantFolderPath };
+  } catch (error) {
+    console.error('Error creating tenant folder:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('save-pdf', async (event, pdfBuffer, folderPath, fileName) => {
+  try {
+    const fs = require('fs');
+
+    if (!folderPath || !fileName) {
+      return { success: false, error: 'Folder path en bestandsnaam zijn verplicht' };
+    }
+
+    if (!fs.existsSync(folderPath)) {
+      fs.mkdirSync(folderPath, { recursive: true });
+    }
+
+    const sanitizedFileName = fileName.replace(/[<>:"/\\|?*]/g, '_');
+    const filePath = path.join(folderPath, sanitizedFileName);
+
+    fs.writeFileSync(filePath, Buffer.from(pdfBuffer));
+
+    return { success: true, path: filePath };
+  } catch (error) {
+    console.error('Error saving PDF:', error);
     return { success: false, error: error.message };
   }
 });

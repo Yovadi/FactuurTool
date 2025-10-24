@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, type CompanySettings } from '../lib/supabase';
-import { Building2, Edit2, Mail, Phone, MapPin, CreditCard, Lock } from 'lucide-react';
+import { Building2, Edit2, Mail, Phone, MapPin, CreditCard, Lock, FolderOpen } from 'lucide-react';
 
 export function CompanySettings() {
   const [settings, setSettings] = useState<CompanySettings | null>(null);
@@ -20,7 +20,8 @@ export function CompanySettings() {
     kvk_number: '',
     bank_account: '',
     delete_code: '1234',
-    resend_api_key: ''
+    resend_api_key: '',
+    root_folder_path: ''
   });
 
   useEffect(() => {
@@ -92,7 +93,8 @@ export function CompanySettings() {
         kvk_number: settings.kvk_number || '',
         bank_account: settings.bank_account || '',
         delete_code: settings.delete_code || '1234',
-        resend_api_key: settings.resend_api_key || ''
+        resend_api_key: settings.resend_api_key || '',
+        root_folder_path: settings.root_folder_path || ''
       });
     }
     setShowForm(true);
@@ -112,9 +114,21 @@ export function CompanySettings() {
       kvk_number: '',
       bank_account: '',
       delete_code: '1234',
-      resend_api_key: ''
+      resend_api_key: '',
+      root_folder_path: ''
     });
     setShowForm(false);
+  };
+
+  const handleSelectFolder = async () => {
+    if (window.electronAPI && window.electronAPI.selectFolder) {
+      const result = await window.electronAPI.selectFolder();
+      if (result.success && result.path) {
+        setFormData({ ...formData, root_folder_path: result.path });
+      }
+    } else {
+      alert('Folder selectie is alleen beschikbaar in de desktop applicatie');
+    }
   };
 
   if (loading) {
@@ -303,6 +317,36 @@ export function CompanySettings() {
               </div>
 
               <div className="border-t border-dark-700 pt-4 mt-4">
+                <h4 className="text-lg font-semibold text-gray-100 mb-3">Opslag Locatie</h4>
+                <div>
+                  <label className="block text-sm font-medium text-gray-200 mb-1">
+                    Root Folder voor Facturen
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={formData.root_folder_path}
+                      onChange={(e) => setFormData({ ...formData, root_folder_path: e.target.value })}
+                      className="flex-1 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                      placeholder="Selecteer een folder"
+                      readOnly
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSelectFolder}
+                      className="flex items-center gap-2 bg-dark-800 text-gray-200 px-4 py-2 rounded-lg hover:bg-dark-700 transition-colors border border-dark-600"
+                    >
+                      <FolderOpen size={18} />
+                      Bladeren
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Hier worden automatisch folders aangemaakt per huurder en worden facturen opgeslagen
+                  </p>
+                </div>
+              </div>
+
+              <div className="border-t border-dark-700 pt-4 mt-4">
                 <h4 className="text-lg font-semibold text-gray-100 mb-3">Email Instellingen</h4>
                 <div>
                   <label className="block text-sm font-medium text-gray-200 mb-1">
@@ -441,6 +485,21 @@ export function CompanySettings() {
                 )}
               </div>
             </div>
+
+            {settings.root_folder_path && (
+              <div>
+                <h4 className="text-sm font-semibold text-gray-400 uppercase mb-2">Opslag Locatie</h4>
+                <div className="space-y-2 text-gray-200">
+                  <div className="flex items-start gap-2">
+                    <FolderOpen size={16} className="mt-0.5 text-gray-500" />
+                    <div>
+                      <p className="text-xs text-gray-400">Root folder</p>
+                      <p className="break-all">{settings.root_folder_path}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       ) : (

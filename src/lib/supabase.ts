@@ -94,6 +94,8 @@ export type CompanySettings = {
   kvk_number: string;
   bank_account: string;
   delete_code: string;
+  resend_api_key: string | null;
+  root_folder_path: string | null;
   created_at: string;
   updated_at: string;
 };
