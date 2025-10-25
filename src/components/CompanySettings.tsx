@@ -20,7 +20,6 @@ export function CompanySettings() {
     kvk_number: '',
     bank_account: '',
     delete_code: '1234',
-    resend_api_key: '',
     root_folder_path: ''
   });
 
@@ -91,7 +90,6 @@ export function CompanySettings() {
         kvk_number: settings.kvk_number || '',
         bank_account: settings.bank_account || '',
         delete_code: settings.delete_code || '1234',
-        resend_api_key: settings.resend_api_key || '',
         root_folder_path: settings.root_folder_path || ''
       });
     }
@@ -112,7 +110,6 @@ export function CompanySettings() {
       kvk_number: '',
       bank_account: '',
       delete_code: '1234',
-      resend_api_key: '',
       root_folder_path: ''
     });
     setShowForm(false);
@@ -344,26 +341,7 @@ export function CompanySettings() {
                 </div>
               </div>
 
-              <div className="border-t border-dark-700 pt-4 mt-4">
-                <h4 className="text-lg font-semibold text-gray-100 mb-3">Email Instellingen</h4>
-                <div>
-                  <label className="block text-sm font-medium text-gray-200 mb-1">
-                    Resend API Key
-                  </label>
-                  <input
-                    type="password"
-                    value={formData.resend_api_key}
-                    onChange={(e) => setFormData({ ...formData, resend_api_key: e.target.value })}
-                    className="w-full px-3 py-2 border border-dark-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                    placeholder="re_xxxxxxxxxx"
-                  />
-                  <p className="text-xs text-gray-400 mt-1">
-                    API key van Resend voor het verzenden van facturen via email. <a href="https://resend.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-gold-500 hover:underline">Verkrijg hier je API key</a>
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-2 pt-2">
+              <div className="flex gap-2 pt-4 mt-4 border-t border-dark-700">
                 <button
                   type="submit"
                   className="flex-1 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors"

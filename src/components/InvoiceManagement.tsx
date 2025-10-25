@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase, type Invoice, type Lease, type Tenant, type LeaseSpace, type OfficeSpace, type InvoiceLineItem } from '../lib/supabase';
 import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, Edit } from 'lucide-react';
-import { generateInvoicePDF, generateInvoicePDFBase64 } from '../utils/pdfGenerator';
+import { generateInvoicePDF } from '../utils/pdfGenerator';
 import { InvoicePreview } from './InvoicePreview';
 import { checkAndRunScheduledJobs } from '../utils/scheduledJobs';
 
@@ -623,40 +623,6 @@ Overloon`;
 
         if (result.warning) {
           console.warn(result.warning);
-        }
-      } else {
-        const pdfBase64 = await generateInvoicePDFBase64(invoiceData);
-        const logoBase64 = await loadLogoAsBase64();
-
-        const response = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-invoice-email`,
-          {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              to: tenant.email,
-              subject: `Factuur ${invoice.invoice_number.replace(/^INV-/, '')} van ${companySettings.company_name}`,
-              invoiceNumber: invoice.invoice_number.replace(/^INV-/, ''),
-              tenantName: tenant.name,
-              companyName: companySettings.company_name,
-              amount: invoice.amount,
-              dueDate: invoice.due_date,
-              invoiceDate: invoice.invoice_date,
-              pdfBase64: pdfBase64,
-              logoBase64: logoBase64,
-              companyEmail: companySettings.email,
-              companyPhone: companySettings.phone
-            })
-          }
-        );
-
-        const result = await response.json();
-
-        if (!response.ok || !result.success) {
-          throw new Error(result.error || 'Email verzenden mislukt');
         }
       }
 
