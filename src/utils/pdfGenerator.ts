@@ -82,7 +82,8 @@ export async function generateInvoicePDF(invoice: InvoiceData, preview: boolean 
     const pdfUrl = URL.createObjectURL(pdfBlob);
     window.open(pdfUrl, '_blank');
   } else if (!skipDownload) {
-    pdf.save(`${invoice.invoice_number}.pdf`);
+    const invoiceNumber = invoice.invoice_number.replace(/^INV-/, '');
+    pdf.save(`${invoiceNumber}.pdf`);
   }
 
   return pdf;
