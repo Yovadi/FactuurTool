@@ -102,8 +102,6 @@ export function TenantManagement() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Weet je zeker dat je deze huurder wilt verwijderen?')) return;
-
     const { error } = await supabase
       .from('tenants')
       .delete()

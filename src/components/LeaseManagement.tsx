@@ -187,8 +187,6 @@ export function LeaseManagement() {
   };
 
   const handleDelete = async (lease: LeaseWithDetails) => {
-    if (!confirm('Weet je zeker dat je dit huurcontract wilt verwijderen?')) return;
-
     const spaceIds = lease.lease_spaces.map(ls => ls.space_id);
 
     const { error } = await supabase

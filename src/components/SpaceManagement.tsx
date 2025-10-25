@@ -122,8 +122,6 @@ export function SpaceManagement() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Weet je zeker dat je deze ruimte wilt verwijderen?')) return;
-
     const { error } = await supabase
       .from('office_spaces')
       .delete()
