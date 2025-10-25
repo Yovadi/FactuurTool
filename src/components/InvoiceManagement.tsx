@@ -1357,7 +1357,7 @@ Overloon`;
             )}
 
             <div className="flex gap-2">
-              {selectedInvoice.status === 'draft' && (
+              {selectedInvoice.status !== 'paid' && (
                 <button
                   onClick={async () => {
                     await sendInvoiceEmail(selectedInvoice.id);
@@ -1366,10 +1366,10 @@ Overloon`;
                   className="flex-1 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors flex items-center justify-center gap-2"
                 >
                   <Send size={24} />
-                  Verzenden via Email
+                  {selectedInvoice.status === 'draft' ? 'Verzenden via Email' : 'Opnieuw Verzenden'}
                 </button>
               )}
-              {selectedInvoice.status !== 'paid' && selectedInvoice.status !== 'draft' && (
+              {selectedInvoice.status !== 'paid' && (
                 <button
                   onClick={async () => {
                     await markAsPaid(selectedInvoice.id);
