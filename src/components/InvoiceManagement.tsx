@@ -411,27 +411,33 @@ export function InvoiceManagement() {
 
   const sendInvoiceEmail = async (invoiceId: string) => {
     try {
+      console.log('Starting sendInvoiceEmail for:', invoiceId);
       const invoice = invoices.find(inv => inv.id === invoiceId);
       if (!invoice) {
-        console.error('Factuur niet gevonden');
+        alert('Factuur niet gevonden');
         return;
       }
+      console.log('Invoice found:', invoice);
 
       const tenant = getInvoiceTenant(invoice);
+      console.log('Tenant:', tenant);
       if (!tenant || !tenant.email) {
-        console.error('Geen email adres gevonden voor deze huurder');
+        alert('Geen email adres gevonden voor deze huurder');
         return;
       }
 
       if (!companySettings) {
-        console.error('Bedrijfsinstellingen niet gevonden');
+        alert('Bedrijfsinstellingen niet gevonden. Ga naar de Verhuurder tab om deze in te stellen.');
         return;
       }
+      console.log('Company settings:', companySettings);
 
       const { data: items } = await supabase
         .from('invoice_line_items')
         .select('*')
         .eq('invoice_id', invoice.id);
+
+      console.log('Line items:', items);
 
       const spaces = items?.map(item => {
         let spaceType: string = 'diversen';
@@ -507,8 +513,11 @@ export function InvoiceManagement() {
       };
 
       if (window.electronAPI) {
+        console.log('Using Electron API to send email');
+        console.log('Generating PDF...');
         const pdf = await generateInvoicePDF(invoiceData, false, true);
         const pdfBlob = pdf.output('arraybuffer');
+        console.log('PDF generated, size:', pdfBlob.byteLength);
 
         if (companySettings.root_folder_path && window.electronAPI.savePDF) {
           const tenantFolderPath = `${companySettings.root_folder_path}/${tenant.company_name}`;
@@ -542,6 +551,7 @@ De Oude Molen 5
 5825 KA
 Overloon`;
 
+        console.log('Calling sendEmailWithPDF...');
         const result = await window.electronAPI.sendEmailWithPDF(
           pdfBlob,
           tenant.email,
@@ -550,6 +560,8 @@ Overloon`;
           invoice.invoice_number.replace(/^INV-/, ''),
           'public/Logo.png'
         );
+
+        console.log('sendEmailWithPDF result:', result);
 
         if (!result.success) {
           throw new Error(result.error || 'Fout bij openen van Outlook');
@@ -603,8 +615,10 @@ Overloon`;
         console.error('Error updating invoice status:', error);
       }
       loadData();
+      alert('Factuur succesvol verzonden!');
     } catch (error) {
       console.error('Error sending invoice:', error);
+      alert(`Fout bij verzenden: ${error instanceof Error ? error.message : 'Onbekende fout'}`);
     }
   };
 
@@ -1345,8 +1359,8 @@ Overloon`;
             <div className="flex gap-2">
               {selectedInvoice.status === 'draft' && (
                 <button
-                  onClick={() => {
-                    sendInvoiceEmail(selectedInvoice.id);
+                  onClick={async () => {
+                    await sendInvoiceEmail(selectedInvoice.id);
                     setSelectedInvoice(null);
                   }}
                   className="flex-1 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors flex items-center justify-center gap-2"
@@ -1357,8 +1371,8 @@ Overloon`;
               )}
               {selectedInvoice.status !== 'paid' && selectedInvoice.status !== 'draft' && (
                 <button
-                  onClick={() => {
-                    markAsPaid(selectedInvoice.id);
+                  onClick={async () => {
+                    await markAsPaid(selectedInvoice.id);
                     setSelectedInvoice(null);
                   }}
                   className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
