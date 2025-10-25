@@ -55,18 +55,46 @@ const generateMonthlyInvoices = async (job: ScheduledJob) => {
 
       if (existingInvoice.data) continue;
 
+      const { data: invoiceNumber } = await supabase.rpc('generate_invoice_number');
+
+      const baseAmount = Math.round((lease.lease_spaces.reduce((sum: number, ls: any) => sum + ls.monthly_rent, 0) + (lease.security_deposit || 0)) * 100) / 100;
+
+      const calculateVAT = (baseAmount: number, vatRate: number, vatInclusive: boolean) => {
+        if (vatInclusive) {
+          const total = Math.round(baseAmount * 100) / 100;
+          const subtotal = Math.round((baseAmount / (1 + (vatRate / 100))) * 100) / 100;
+          const vatAmount = Math.round((baseAmount - subtotal) * 100) / 100;
+          return { subtotal, vatAmount, total };
+        } else {
+          const subtotal = Math.round(baseAmount * 100) / 100;
+          const vatAmount = Math.round((baseAmount * (vatRate / 100)) * 100) / 100;
+          const total = Math.round((baseAmount + vatAmount) * 100) / 100;
+          return { subtotal, vatAmount, total };
+        }
+      };
+
+      const { subtotal, vatAmount, total } = calculateVAT(
+        baseAmount,
+        lease.vat_rate,
+        lease.vat_inclusive
+      );
+
       const { data: newInvoice, error: invoiceError } = await supabase
         .from('invoices')
         .insert({
           lease_id: lease.id,
           tenant_id: lease.tenant_id,
+          invoice_number: invoiceNumber,
           invoice_date: invoiceDate,
           due_date: dueDate,
           invoice_month: invoiceMonth,
+          subtotal: subtotal,
+          vat_amount: vatAmount,
+          amount: total,
           vat_rate: lease.vat_rate,
           vat_inclusive: lease.vat_inclusive,
-          status: 'concept',
-          notes: ''
+          status: 'draft',
+          notes: null
         })
         .select()
         .single();
