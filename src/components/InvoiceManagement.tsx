@@ -697,10 +697,6 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
   };
 
   const generateBulkInvoices = async () => {
-    if (!confirm(`Wil je facturen genereren voor alle ${leases.length} actieve huurcontracten voor de komende maand?`)) {
-      return;
-    }
-
     setGeneratingBulk(true);
 
     const nextMonth = getNextMonthString();
