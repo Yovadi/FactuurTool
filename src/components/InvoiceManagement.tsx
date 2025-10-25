@@ -170,8 +170,8 @@ export function InvoiceManagement() {
     if (items) {
       setLineItems(items.map(item => ({
         description: item.description,
-        unit_price: item.unit_price.toString(),
-        quantity: item.quantity ? item.quantity.toString() : undefined
+        unit_price: item.amount.toString(),
+        quantity: undefined
       })));
     }
 
