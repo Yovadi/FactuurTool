@@ -58,7 +58,6 @@ ipcMain.handle('send-email-with-pdf', async (event, pdfBuffer, to, subject, body
           <html>
           <body style="font-family: Arial, sans-serif; line-height: 1.6;">
             <p>${body.replace(/\n/g, '<br>')}</p>
-            ${logoPath ? `<br><img src="cid:logo" alt="Hal 5 Overloon Logo" style="max-width: 300px;"><br>` : ''}
           </body>
           </html>
         `;
@@ -72,17 +71,6 @@ ipcMain.handle('send-email-with-pdf', async (event, pdfBuffer, to, subject, body
 ${htmlBody.replace(/"/g, '""')}
 "@
           $mail.Attachments.Add("${tempFilePath.replace(/\\/g, '\\\\')}")
-        `;
-
-        if (logoPath) {
-          const logoFullPath = path.resolve(logoPath);
-          psScript += `
-          $attachment = $mail.Attachments.Add("${logoFullPath.replace(/\\/g, '\\\\')}")
-          $attachment.PropertyAccessor.SetProperty("http://schemas.microsoft.com/mapi/proptag/0x3712001F", "logo")
-          `;
-        }
-
-        psScript += `
           $mail.Display()
         `;
 
