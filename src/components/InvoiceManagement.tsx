@@ -273,6 +273,33 @@ export function InvoiceManagement() {
         console.error('Error updating line items:', lineItemsError);
         return;
       }
+
+      resetForm();
+
+      // Refresh only the edited invoice data
+      const { data: updatedInvoice } = await supabase
+        .from('invoices')
+        .select(`
+          *,
+          lease:leases(
+            *,
+            tenant:tenants(*),
+            lease_spaces:lease_spaces(
+              *,
+              space:office_spaces(*)
+            )
+          ),
+          tenant:tenants(*)
+        `)
+        .eq('id', editingInvoiceId)
+        .single();
+
+      if (updatedInvoice) {
+        setInvoices(prev => prev.map(inv =>
+          inv.id === editingInvoiceId ? updatedInvoice as InvoiceWithDetails : inv
+        ));
+      }
+      return;
     } else {
       const { data: invoiceNumber } = await supabase.rpc('generate_invoice_number');
 
@@ -321,10 +348,31 @@ export function InvoiceManagement() {
         console.error('Error creating line items:', lineItemsError);
         return;
       }
-    }
 
-    resetForm();
-    loadData();
+      resetForm();
+
+      // Add new invoice to the list with full details
+      const { data: fullInvoice } = await supabase
+        .from('invoices')
+        .select(`
+          *,
+          lease:leases(
+            *,
+            tenant:tenants(*),
+            lease_spaces:lease_spaces(
+              *,
+              space:office_spaces(*)
+            )
+          ),
+          tenant:tenants(*)
+        `)
+        .eq('id', newInvoice.id)
+        .single();
+
+      if (fullInvoice) {
+        setInvoices(prev => [fullInvoice as InvoiceWithDetails, ...prev]);
+      }
+    }
   };
 
   const handleLeaseSelect = (leaseId: string) => {
@@ -385,9 +433,15 @@ export function InvoiceManagement() {
 
     if (error) {
       console.error('Error updating invoice:', error);
-    } else {
-      loadData();
+      return;
     }
+
+    // Update local state without full reload
+    setInvoices(prev => prev.map(inv =>
+      inv.id === invoiceId
+        ? { ...inv, status: 'paid' as const, paid_at: new Date().toISOString() }
+        : inv
+    ));
   };
 
   const loadLogoAsBase64 = async (): Promise<string | null> => {
@@ -613,9 +667,15 @@ Overloon`;
 
       if (error) {
         console.error('Error updating invoice status:', error);
+        return;
       }
-      loadData();
-      alert('Factuur succesvol verzonden!');
+
+      // Update local state without full reload
+      setInvoices(prev => prev.map(inv =>
+        inv.id === invoiceId
+          ? { ...inv, status: 'sent' as const, sent_at: new Date().toISOString() }
+          : inv
+      ));
     } catch (error) {
       console.error('Error sending invoice:', error);
       alert(`Fout bij verzenden: ${error instanceof Error ? error.message : 'Onbekende fout'}`);
@@ -650,7 +710,9 @@ Overloon`;
     }
     setShowDeleteConfirm(null);
     setDeletePassword('');
-    loadData();
+
+    // Update local state without full reload
+    setInvoices(prev => prev.filter(inv => inv.id !== invoiceId));
   };
 
   const viewInvoiceDetails = async (invoice: InvoiceWithDetails) => {
@@ -783,6 +845,28 @@ Overloon`;
           failCount++;
         } else {
           successCount++;
+
+          // Add new invoice to local state immediately
+          const { data: fullInvoice } = await supabase
+            .from('invoices')
+            .select(`
+              *,
+              lease:leases(
+                *,
+                tenant:tenants(*),
+                lease_spaces:lease_spaces(
+                  *,
+                  space:office_spaces(*)
+                )
+              ),
+              tenant:tenants(*)
+            `)
+            .eq('id', newInvoice.id)
+            .single();
+
+          if (fullInvoice) {
+            setInvoices(prev => [fullInvoice as InvoiceWithDetails, ...prev]);
+          }
         }
       } catch (error) {
         console.error('Error processing lease:', error);
@@ -791,15 +875,6 @@ Overloon`;
     }
 
     setGeneratingBulk(false);
-    loadData();
-
-    if (successCount > 0) {
-      console.log(`${successCount} facturen succesvol aangemaakt${failCount > 0 ? ` (${failCount} gefaald)` : ''}`);
-    } else if (failCount > 0) {
-      console.error(`Alle facturen zijn mislukt. Controleer de console voor details.`);
-    } else {
-      console.log('Alle facturen voor deze maand zijn al aangemaakt.');
-    }
   };
 
   const getStatusColor = (status: string) => {
