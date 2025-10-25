@@ -54,21 +54,13 @@ ipcMain.handle('send-email-with-pdf', async (event, pdfBuffer, to, subject, body
       try {
         const { execSync } = require('child_process');
 
-        const htmlBody = `
-          <html>
-          <body style="font-family: Arial, sans-serif; line-height: 1.6;">
-            <p>${body.replace(/\n/g, '<br>')}</p>
-          </body>
-          </html>
-        `;
-
         let psScript = `
           $outlook = New-Object -ComObject Outlook.Application
           $mail = $outlook.CreateItem(0)
           $mail.To = "${to.replace(/"/g, '""')}"
           $mail.Subject = "${subject.replace(/"/g, '""')}"
-          $mail.HTMLBody = @"
-${htmlBody.replace(/"/g, '""')}
+          $mail.Body = @"
+${body.replace(/"/g, '""')}
 "@
           $mail.Attachments.Add("${tempFilePath.replace(/\\/g, '\\\\')}")
           $mail.Display()
