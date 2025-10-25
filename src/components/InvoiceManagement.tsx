@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, type Invoice, type Lease, type Tenant, type LeaseSpace, type OfficeSpace, type InvoiceLineItem } from '../lib/supabase';
-import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send } from 'lucide-react';
+import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, Edit } from 'lucide-react';
 import { generateInvoicePDF, generateInvoicePDFBase64 } from '../utils/pdfGenerator';
 import { InvoicePreview } from './InvoicePreview';
 
@@ -54,6 +54,7 @@ export function InvoiceManagement() {
   const [leases, setLeases] = useState<LeaseWithDetails[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceWithDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [companySettings, setCompanySettings] = useState<any>(null);
@@ -160,10 +161,38 @@ export function InvoiceManagement() {
     }
   };
 
+  const startEditInvoice = async (invoice: InvoiceWithDetails) => {
+    const { data: items } = await supabase
+      .from('invoice_line_items')
+      .select('*')
+      .eq('invoice_id', invoice.id);
+
+    if (items) {
+      setLineItems(items.map(item => ({
+        description: item.description,
+        unit_price: item.unit_price.toString(),
+        quantity: item.quantity ? item.quantity.toString() : undefined
+      })));
+    }
+
+    setFormData({
+      lease_id: invoice.lease_id || '',
+      tenant_id: invoice.tenant_id || '',
+      invoice_date: invoice.invoice_date,
+      due_date: invoice.due_date,
+      invoice_month: invoice.invoice_month || getNextMonthString(),
+      vat_rate: invoice.vat_rate.toString(),
+      vat_inclusive: invoice.vat_inclusive,
+      notes: invoice.notes || ''
+    });
+
+    setInvoiceMode(invoice.lease_id ? 'lease' : 'manual');
+    setEditingInvoiceId(invoice.id);
+    setShowForm(true);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    const { data: invoiceNumber } = await supabase.rpc('generate_invoice_number');
 
     const baseAmount = lineItems.reduce((sum, item) => {
       const quantity = item.quantity ? parseFloat(item.quantity) : 1;
@@ -190,50 +219,100 @@ export function InvoiceManagement() {
       vatInclusive
     );
 
-    const { data: newInvoice, error: invoiceError } = await supabase
-      .from('invoices')
-      .insert([{
-        lease_id: invoiceMode === 'lease' ? formData.lease_id : null,
-        tenant_id: invoiceMode === 'manual' ? formData.tenant_id : null,
-        invoice_number: invoiceNumber,
-        invoice_date: formData.invoice_date,
-        due_date: formData.due_date,
-        invoice_month: formData.invoice_month || null,
-        subtotal: subtotal,
-        vat_amount: vatAmount,
-        amount: total,
-        vat_rate: vatRate,
-        vat_inclusive: vatInclusive,
-        status: 'draft',
-        notes: formData.notes || null
-      }])
-      .select()
-      .single();
+    if (editingInvoiceId) {
+      const { error: invoiceError } = await supabase
+        .from('invoices')
+        .update({
+          invoice_date: formData.invoice_date,
+          due_date: formData.due_date,
+          invoice_month: formData.invoice_month || null,
+          subtotal: subtotal,
+          vat_amount: vatAmount,
+          amount: total,
+          vat_rate: vatRate,
+          vat_inclusive: vatInclusive,
+          notes: formData.notes || null
+        })
+        .eq('id', editingInvoiceId);
 
-    if (invoiceError) {
-      console.error('Error creating invoice:', invoiceError);
-      return;
-    }
+      if (invoiceError) {
+        console.error('Error updating invoice:', invoiceError);
+        return;
+      }
 
-    const lineItemsToInsert = lineItems.map(item => {
-      const quantity = item.quantity ? parseFloat(item.quantity) : 1;
-      const unitPrice = parseFloat(item.unit_price);
-      return {
-        invoice_id: newInvoice.id,
-        description: item.description,
-        quantity: quantity,
-        unit_price: unitPrice,
-        amount: quantity * unitPrice
-      };
-    });
+      await supabase
+        .from('invoice_line_items')
+        .delete()
+        .eq('invoice_id', editingInvoiceId);
 
-    const { error: lineItemsError } = await supabase
-      .from('invoice_line_items')
-      .insert(lineItemsToInsert);
+      const lineItemsToInsert = lineItems.map(item => {
+        const quantity = item.quantity ? parseFloat(item.quantity) : 1;
+        const unitPrice = parseFloat(item.unit_price);
+        return {
+          invoice_id: editingInvoiceId,
+          description: item.description,
+          quantity: quantity,
+          unit_price: unitPrice,
+          amount: quantity * unitPrice
+        };
+      });
 
-    if (lineItemsError) {
-      console.error('Error creating line items:', lineItemsError);
-      return;
+      const { error: lineItemsError } = await supabase
+        .from('invoice_line_items')
+        .insert(lineItemsToInsert);
+
+      if (lineItemsError) {
+        console.error('Error updating line items:', lineItemsError);
+        return;
+      }
+    } else {
+      const { data: invoiceNumber } = await supabase.rpc('generate_invoice_number');
+
+      const { data: newInvoice, error: invoiceError } = await supabase
+        .from('invoices')
+        .insert([{
+          lease_id: invoiceMode === 'lease' ? formData.lease_id : null,
+          tenant_id: invoiceMode === 'manual' ? formData.tenant_id : null,
+          invoice_number: invoiceNumber,
+          invoice_date: formData.invoice_date,
+          due_date: formData.due_date,
+          invoice_month: formData.invoice_month || null,
+          subtotal: subtotal,
+          vat_amount: vatAmount,
+          amount: total,
+          vat_rate: vatRate,
+          vat_inclusive: vatInclusive,
+          status: 'draft',
+          notes: formData.notes || null
+        }])
+        .select()
+        .single();
+
+      if (invoiceError) {
+        console.error('Error creating invoice:', invoiceError);
+        return;
+      }
+
+      const lineItemsToInsert = lineItems.map(item => {
+        const quantity = item.quantity ? parseFloat(item.quantity) : 1;
+        const unitPrice = parseFloat(item.unit_price);
+        return {
+          invoice_id: newInvoice.id,
+          description: item.description,
+          quantity: quantity,
+          unit_price: unitPrice,
+          amount: quantity * unitPrice
+        };
+      });
+
+      const { error: lineItemsError } = await supabase
+        .from('invoice_line_items')
+        .insert(lineItemsToInsert);
+
+      if (lineItemsError) {
+        console.error('Error creating line items:', lineItemsError);
+        return;
+      }
     }
 
     resetForm();
@@ -575,6 +654,7 @@ Overloon`;
     setLineItems([]);
     setShowForm(false);
     setInvoiceMode('lease');
+    setEditingInvoiceId(null);
   };
 
   const generateBulkInvoices = async () => {
@@ -873,38 +953,42 @@ Overloon`;
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
           <div className="bg-dark-900 rounded-lg p-6 w-full max-w-2xl my-8 mx-4">
-            <h3 className="text-xl font-bold text-gray-100 mb-4">Nieuwe Factuur Aanmaken</h3>
+            <h3 className="text-xl font-bold text-gray-100 mb-4">
+              {editingInvoiceId ? 'Factuur Bewerken' : 'Nieuwe Factuur Aanmaken'}
+            </h3>
 
-            <div className="flex gap-2 mb-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setInvoiceMode('lease');
-                  setLineItems([]);
-                }}
-                className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
-                  invoiceMode === 'lease'
-                    ? 'bg-gold-500 text-white'
-                    : 'bg-dark-800 text-gray-200 hover:bg-dark-700'
-                }`}
-              >
-                Van Huurcontract
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setInvoiceMode('manual');
-                  setLineItems([{ description: '', unit_price: '0', quantity: '' }]);
-                }}
-                className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
-                  invoiceMode === 'manual'
-                    ? 'bg-gold-500 text-white'
-                    : 'bg-dark-800 text-gray-200 hover:bg-dark-700'
-                }`}
-              >
-                Handmatig Samenstellen
-              </button>
-            </div>
+            {!editingInvoiceId && (
+              <div className="flex gap-2 mb-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInvoiceMode('lease');
+                    setLineItems([]);
+                  }}
+                  className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
+                    invoiceMode === 'lease'
+                      ? 'bg-gold-500 text-white'
+                      : 'bg-dark-800 text-gray-200 hover:bg-dark-700'
+                  }`}
+                >
+                  Van Huurcontract
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInvoiceMode('manual');
+                    setLineItems([{ description: '', unit_price: '0', quantity: '' }]);
+                  }}
+                  className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
+                    invoiceMode === 'manual'
+                      ? 'bg-gold-500 text-white'
+                      : 'bg-dark-800 text-gray-200 hover:bg-dark-700'
+                  }`}
+                >
+                  Handmatig Samenstellen
+                </button>
+              </div>
+            )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {invoiceMode === 'lease' ? (
@@ -914,9 +998,10 @@ Overloon`;
                   </label>
                   <select
                     required
+                    disabled={!!editingInvoiceId}
                     value={formData.lease_id}
                     onChange={(e) => handleLeaseSelect(e.target.value)}
-                    className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                    className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <option value="">Selecteer een huurcontract...</option>
                     {leases.map((lease) => {
@@ -942,9 +1027,10 @@ Overloon`;
                     </label>
                     <select
                       required
+                      disabled={!!editingInvoiceId}
                       value={formData.tenant_id}
                       onChange={(e) => setFormData({ ...formData, tenant_id: e.target.value })}
-                      className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                      className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <option value="">Selecteer een huurder...</option>
                       {tenants.map((tenant) => (
@@ -1136,7 +1222,7 @@ Overloon`;
                     (invoiceMode === 'manual' && !formData.tenant_id)
                   }
                 >
-                  Factuur Aanmaken
+                  {editingInvoiceId ? 'Factuur Opslaan' : 'Factuur Aanmaken'}
                 </button>
                 <button
                   type="button"
@@ -1388,6 +1474,13 @@ Overloon`;
                             </div>
                           </div>
                           <div className="flex gap-2">
+                            <button
+                              onClick={() => startEditInvoice(invoice)}
+                              className="flex items-center gap-1 text-blue-500 hover:text-blue-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
+                              title="Bewerken"
+                            >
+                              <Edit size={24} />
+                            </button>
                             <button
                               onClick={() => showInvoicePreview(invoice)}
                               className="flex items-center gap-1 text-gold-500 hover:text-gold-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"

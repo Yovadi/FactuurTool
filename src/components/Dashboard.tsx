@@ -65,19 +65,19 @@ export function Dashboard() {
 
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
-    const thirtyDaysFromNow = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
-    const thirtyDaysStr = thirtyDaysFromNow.toISOString().split('T')[0];
+    const fourteenDaysFromNow = new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000);
+    const fourteenDaysStr = fourteenDaysFromNow.toISOString().split('T')[0];
 
     const overdueInvoices = invoices?.filter(
       inv => inv.status !== 'paid' && inv.due_date < todayStr
     ).length || 0;
 
     const upcomingDueInvoices = invoices?.filter(
-      inv => inv.status !== 'paid' && inv.due_date >= todayStr && inv.due_date <= thirtyDaysStr
+      inv => inv.status !== 'paid' && inv.due_date >= todayStr && inv.due_date <= fourteenDaysStr
     ).length || 0;
 
     const expiringLeases = leases?.filter(
-      lease => lease.status === 'active' && lease.end_date >= todayStr && lease.end_date <= thirtyDaysStr
+      lease => lease.status === 'active' && lease.end_date >= todayStr && lease.end_date <= fourteenDaysStr
     ) || [];
 
     const expiredLeases = leases?.filter(
@@ -123,7 +123,7 @@ export function Dashboard() {
         type: 'warning',
         icon: <Clock size={18} />,
         title: 'Contracten Verlopen Binnenkort',
-        message: `${expiringLeases.length} contract${expiringLeases.length !== 1 ? 'en verlopen' : ' verloopt'} binnen 30 dagen`
+        message: `${expiringLeases.length} contract${expiringLeases.length !== 1 ? 'en verlopen' : ' verloopt'} binnen 14 dagen`
       });
     }
 
@@ -132,7 +132,7 @@ export function Dashboard() {
         type: 'warning',
         icon: <FileText size={18} />,
         title: 'Binnenkort Te Betalen',
-        message: `${upcomingDueInvoices} factu${upcomingDueInvoices !== 1 ? 'ren' : 'ur'} moet${upcomingDueInvoices !== 1 ? 'en' : ''} binnen 30 dagen betaald worden`
+        message: `${upcomingDueInvoices} factu${upcomingDueInvoices !== 1 ? 'ren' : 'ur'} moet${upcomingDueInvoices !== 1 ? 'en' : ''} binnen 14 dagen betaald worden`
       });
     }
 
