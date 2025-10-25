@@ -2,15 +2,25 @@
   "appId": "com.hal5.invoicemanager",
   "productName": "HAL5 Facturatie Manager",
   "directories": {
-    "output": "release"
+    "output": "release",
+    "buildResources": "public"
   },
   "files": [
     "dist/**/*",
     "electron/**/*",
-    "public/**/*"
+    "public/**/*",
+    "!node_modules/**/*",
+    "node_modules/@supabase/**/*",
+    "node_modules/jspdf/**/*",
+    "node_modules/html2canvas/**/*"
   ],
   "win": {
-    "target": "nsis",
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      }
+    ],
     "artifactName": "${productName}-Setup-${version}.${ext}"
   },
   "asar": false,
