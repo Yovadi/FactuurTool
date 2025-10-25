@@ -194,11 +194,11 @@ export function InvoiceManagement() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const baseAmount = lineItems.reduce((sum, item) => {
+    const baseAmount = Math.round(lineItems.reduce((sum, item) => {
       const quantity = item.quantity ? parseFloat(item.quantity) : 1;
       const unitPrice = parseFloat(item.unit_price);
       return sum + (quantity * unitPrice);
-    }, 0);
+    }, 0) * 100) / 100;
 
     let vatRate: number;
     let vatInclusive: boolean;
@@ -803,7 +803,7 @@ Overloon`;
     const baseAmount = lineItems.reduce((sum, item) => {
       const quantity = item.quantity ? parseFloat(item.quantity) : 1;
       const unitPrice = parseFloat(item.unit_price || '0');
-      return sum + Math.round((quantity * unitPrice) * 100) / 100;
+      return sum + (quantity * unitPrice);
     }, 0);
 
     let vatRate: number;
