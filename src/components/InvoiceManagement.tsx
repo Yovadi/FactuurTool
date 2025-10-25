@@ -377,19 +377,6 @@ export function InvoiceManagement() {
     setLineItems(lineItems.filter((_, i) => i !== index));
   };
 
-  const markAsSent = async (invoiceId: string) => {
-    const { error } = await supabase
-      .from('invoices')
-      .update({ status: 'sent', sent_at: new Date().toISOString() })
-      .eq('id', invoiceId);
-
-    if (error) {
-      console.error('Error updating invoice:', error);
-    } else {
-      loadData();
-    }
-  };
-
   const markAsPaid = async (invoiceId: string) => {
     const { error } = await supabase
       .from('invoices')
@@ -583,10 +570,6 @@ Overloon`;
         if (result.warning) {
           console.warn(result.warning);
         }
-
-        alert('Outlook email is voorbereid. Klik op "Verzenden" in Outlook om de email te versturen.');
-        loadData();
-        return;
       } else {
         const pdfBase64 = await generateInvoicePDFBase64(invoiceData);
         const logoBase64 = await loadLogoAsBase64();
@@ -621,18 +604,18 @@ Overloon`;
         if (!response.ok || !result.success) {
           throw new Error(result.error || 'Email verzenden mislukt');
         }
-
-        const { error } = await supabase
-          .from('invoices')
-          .update({ status: 'sent', sent_at: new Date().toISOString() })
-          .eq('id', invoiceId);
-
-        if (error) {
-          console.error('Error updating invoice status:', error);
-        }
-        loadData();
-        alert('Factuur succesvol verzonden!');
       }
+
+      const { error } = await supabase
+        .from('invoices')
+        .update({ status: 'sent', sent_at: new Date().toISOString() })
+        .eq('id', invoiceId);
+
+      if (error) {
+        console.error('Error updating invoice status:', error);
+      }
+      loadData();
+      alert('Factuur succesvol verzonden!');
     } catch (error) {
       console.error('Error sending invoice:', error);
       alert(`Fout bij verzenden: ${error instanceof Error ? error.message : 'Onbekende fout'}`);
@@ -1577,16 +1560,8 @@ Overloon`;
                                 <button
                                   onClick={() => sendInvoiceEmail(invoice.id)}
                                   className="flex items-center gap-1 text-gold-500 hover:text-gold-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
-                                  title="Email voorbereiden in Outlook"
                                 >
                                   <Send size={24} />
-                                </button>
-                                <button
-                                  onClick={() => markAsSent(invoice.id)}
-                                  className="flex items-center gap-1 text-blue-400 hover:text-blue-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-blue-900"
-                                  title="Markeer als verzonden"
-                                >
-                                  <CheckCircle size={24} />
                                 </button>
                                 <button
                                   onClick={() => setShowDeleteConfirm(invoice.id)}
