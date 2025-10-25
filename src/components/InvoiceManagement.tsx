@@ -3,6 +3,7 @@ import { supabase, type Invoice, type Lease, type Tenant, type LeaseSpace, type 
 import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, Edit } from 'lucide-react';
 import { generateInvoicePDF, generateInvoicePDFBase64 } from '../utils/pdfGenerator';
 import { InvoicePreview } from './InvoicePreview';
+import { checkAndRunScheduledJobs } from '../utils/scheduledJobs';
 
 type LeaseWithDetails = Lease & {
   tenant: Tenant;
@@ -93,6 +94,13 @@ export function InvoiceManagement() {
 
   useEffect(() => {
     loadData();
+    checkAndRunScheduledJobs();
+
+    const interval = setInterval(() => {
+      checkAndRunScheduledJobs();
+    }, 60 * 60 * 1000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const loadData = async () => {
@@ -588,7 +596,7 @@ Overloon`;
 
       const { error } = await supabase
         .from('invoices')
-        .update({ status: 'sent' })
+        .update({ status: 'sent', sent_at: new Date().toISOString() })
         .eq('id', invoiceId);
 
       if (error) {
@@ -785,6 +793,8 @@ Overloon`;
       case 'paid': return 'bg-green-900 text-green-400';
       case 'sent': return 'bg-dark-700 text-gold-400';
       case 'overdue': return 'bg-red-900 text-red-400';
+      case 'concept':
+      case 'draft': return 'bg-blue-900 text-blue-400';
       default: return 'bg-dark-700 text-gray-400';
     }
   };
