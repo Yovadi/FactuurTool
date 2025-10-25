@@ -11,7 +11,9 @@
   ],
   "win": {
     "target": "nsis",
-    "artifactName": "${productName}-Setup-${version}.${ext}"
+    "artifactName": "${productName}-Setup-${version}.${ext}",
+    "signingHashAlgorithms": [],
+    "sign": null
   },
   "asar": false,
   "extraMetadata": {
