@@ -1044,220 +1044,201 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="bg-dark-800 rounded-lg p-4 border border-dark-700">
-                <h4 className="text-sm font-semibold text-gray-200 mb-3 uppercase tracking-wide">Huurder Selectie</h4>
-                {invoiceMode === 'lease' ? (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {invoiceMode === 'lease' ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-200 mb-1">
+                    Huurcontract / Huurder *
+                  </label>
+                  <select
+                    required
+                    disabled={!!editingInvoiceId}
+                    value={formData.lease_id}
+                    onChange={(e) => handleLeaseSelect(e.target.value)}
+                    className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <option value="">Selecteer een huurcontract...</option>
+                    {leases.map((lease) => {
+                      const totalMonthlyRent = Math.round((lease.lease_spaces.reduce((sum, ls) => sum + ls.monthly_rent, 0) + lease.security_deposit) * 100) / 100;
+                      return (
+                        <option key={lease.id} value={lease.id}>
+                          {lease.tenant.company_name} - €{totalMonthlyRent.toFixed(2)}/mo ({lease.vat_rate}% BTW {lease.vat_inclusive ? 'incl.' : 'excl.'})
+                        </option>
+                      );
+                    })}
+                  </select>
+                  {leases.length === 0 && (
+                    <p className="text-xs text-amber-600 mt-1">
+                      Geen actieve huurcontracten beschikbaar. Gebruik handmatig samenstellen of maak eerst een huurcontract aan.
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <>
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Huurcontract *
+                    <label className="block text-sm font-medium text-gray-200 mb-1">
+                      Huurder *
                     </label>
                     <select
                       required
                       disabled={!!editingInvoiceId}
-                      value={formData.lease_id}
-                      onChange={(e) => handleLeaseSelect(e.target.value)}
-                      className="w-full px-3 py-2 bg-dark-900 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      value={formData.tenant_id}
+                      onChange={(e) => setFormData({ ...formData, tenant_id: e.target.value })}
+                      className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <option value="">Selecteer een huurcontract...</option>
-                      {leases.map((lease) => {
-                        const totalMonthlyRent = Math.round((lease.lease_spaces.reduce((sum, ls) => sum + ls.monthly_rent, 0) + lease.security_deposit) * 100) / 100;
-                        return (
-                          <option key={lease.id} value={lease.id}>
-                            {lease.tenant.company_name} - €{totalMonthlyRent.toFixed(2)}/maand ({lease.vat_rate}% BTW {lease.vat_inclusive ? 'incl.' : 'excl.'})
-                          </option>
-                        );
-                      })}
+                      <option value="">Selecteer een huurder...</option>
+                      {tenants.map((tenant) => (
+                        <option key={tenant.id} value={tenant.id}>
+                          {tenant.company_name} - {tenant.name}
+                        </option>
+                      ))}
                     </select>
-                    {leases.length === 0 && (
-                      <p className="text-xs text-amber-500 mt-2">
-                        Geen actieve huurcontracten beschikbaar. Gebruik handmatig samenstellen of maak eerst een huurcontract aan.
-                      </p>
-                    )}
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Huurder *
-                      </label>
-                      <select
-                        required
-                        disabled={!!editingInvoiceId}
-                        value={formData.tenant_id}
-                        onChange={(e) => setFormData({ ...formData, tenant_id: e.target.value })}
-                        className="w-full px-3 py-2 bg-dark-900 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <option value="">Selecteer een huurder...</option>
-                        {tenants.map((tenant) => (
-                          <option key={tenant.id} value={tenant.id}>
-                            {tenant.company_name} - {tenant.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">
-                          BTW Percentage *
-                        </label>
-                        <select
-                          value={formData.vat_rate}
-                          onChange={(e) => setFormData({ ...formData, vat_rate: e.target.value })}
-                          className="w-full px-3 py-2 bg-dark-900 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                        >
-                          <option value="0">0%</option>
-                          <option value="9">9%</option>
-                          <option value="21">21%</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">
-                          BTW Type *
-                        </label>
-                        <select
-                          value={formData.vat_inclusive ? 'inclusive' : 'exclusive'}
-                          onChange={(e) => setFormData({ ...formData, vat_inclusive: e.target.value === 'inclusive' })}
-                          className="w-full px-3 py-2 bg-dark-900 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                        >
-                          <option value="exclusive">Exclusief</option>
-                          <option value="inclusive">Inclusief</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="bg-dark-800 rounded-lg p-4 border border-dark-700">
-                <h4 className="text-sm font-semibold text-gray-200 mb-3 uppercase tracking-wide">Factuurgegevens</h4>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Factuurmaand
-                    </label>
-                    <input
-                      type="month"
-                      value={formData.invoice_month}
-                      onChange={(e) => setFormData({ ...formData, invoice_month: e.target.value })}
-                      className="w-full px-3 py-2 bg-dark-900 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">De maand waarvoor deze factuur is (optioneel)</p>
-                  </div>
-
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Factuurdatum *
+                      <label className="block text-sm font-medium text-gray-200 mb-1">
+                        BTW Percentage *
                       </label>
-                      <input
-                        type="date"
-                        required
-                        value={formData.invoice_date}
-                        onChange={(e) => setFormData({ ...formData, invoice_date: e.target.value })}
-                        className="w-full px-3 py-2 bg-dark-900 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                      />
+                      <select
+                        value={formData.vat_rate}
+                        onChange={(e) => setFormData({ ...formData, vat_rate: e.target.value })}
+                        className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                      >
+                        <option value="0">0%</option>
+                        <option value="9">9%</option>
+                        <option value="21">21%</option>
+                      </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Vervaldatum *
+                      <label className="block text-sm font-medium text-gray-200 mb-1">
+                        BTW Type *
                       </label>
-                      <input
-                        type="date"
-                        required
-                        value={formData.due_date}
-                        onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
-                        className="w-full px-3 py-2 bg-dark-900 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                      />
+                      <select
+                        value={formData.vat_inclusive ? 'inclusive' : 'exclusive'}
+                        onChange={(e) => setFormData({ ...formData, vat_inclusive: e.target.value === 'inclusive' })}
+                        className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                      >
+                        <option value="exclusive">Exclusief</option>
+                        <option value="inclusive">Inclusief</option>
+                      </select>
                     </div>
                   </div>
+                </>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-200 mb-1">
+                  Factuurmaand
+                </label>
+                <input
+                  type="month"
+                  value={formData.invoice_month}
+                  onChange={(e) => setFormData({ ...formData, invoice_month: e.target.value })}
+                  className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                />
+                <p className="text-xs text-gray-400 mt-1">De maand waarvoor deze factuur is (optioneel)</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-200 mb-1">
+                    Factuurdatum *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.invoice_date}
+                    onChange={(e) => setFormData({ ...formData, invoice_date: e.target.value })}
+                    className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-200 mb-1">
+                    Vervaldatum *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.due_date}
+                    onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+                    className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                  />
                 </div>
               </div>
 
               {((invoiceMode === 'lease' && formData.lease_id) || (invoiceMode === 'manual' && formData.tenant_id)) && (
-                <div className="bg-dark-800 rounded-lg p-4 border border-dark-700">
-                  <div className="flex justify-between items-center mb-3">
-                    <h4 className="text-sm font-semibold text-gray-200 uppercase tracking-wide">Factuurregels *</h4>
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-sm font-medium text-gray-200">
+                      Factuurregels *
+                    </label>
                     <button
                       type="button"
                       onClick={addLineItem}
-                      className="text-sm bg-gold-500 hover:bg-gold-600 text-white px-3 py-1 rounded transition-colors"
+                      className="text-sm text-gold-500 hover:text-gold-400"
                     >
                       + Regel Toevoegen
                     </button>
                   </div>
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {lineItems.map((item, index) => (
-                      <div key={index} className="flex gap-2 items-start bg-dark-900 p-3 rounded-lg border border-dark-600">
-                        <div className="flex-1 space-y-2">
+                      <div key={index} className="flex gap-2">
+                        <input
+                          type="text"
+                          required
+                          placeholder="Omschrijving"
+                          value={item.description}
+                          onChange={(e) => updateLineItem(index, 'description', e.target.value)}
+                          className="flex-1 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                        />
+                        {invoiceMode === 'manual' && (
                           <input
                             type="text"
-                            required
-                            placeholder="Omschrijving (bijv. Hal 1, Kantoor 2)"
-                            value={item.description}
-                            onChange={(e) => updateLineItem(index, 'description', e.target.value)}
-                            className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                            inputMode="decimal"
+                            placeholder="Aantal (optioneel)"
+                            value={item.quantity || ''}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                                updateLineItem(index, 'quantity', value);
+                              }
+                            }}
+                            className="w-32 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                           />
-                          <div className="flex gap-2">
-                            {invoiceMode === 'manual' && (
-                              <div className="flex-1">
-                                <label className="block text-xs text-gray-400 mb-1">Aantal</label>
-                                <input
-                                  type="text"
-                                  inputMode="decimal"
-                                  placeholder="Optioneel"
-                                  value={item.quantity || ''}
-                                  onChange={(e) => {
-                                    const value = e.target.value;
-                                    if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                                      updateLineItem(index, 'quantity', value);
-                                    }
-                                  }}
-                                  className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                                />
-                              </div>
-                            )}
-                            <div className="flex-1">
-                              <label className="block text-xs text-gray-400 mb-1">Prijs (€) *</label>
-                              <input
-                                type="text"
-                                inputMode="decimal"
-                                required
-                                placeholder="0.00"
-                                value={item.unit_price}
-                                onChange={(e) => {
-                                  const value = e.target.value;
-                                  if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                                    updateLineItem(index, 'unit_price', value);
-                                  }
-                                }}
-                                className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                              />
-                            </div>
-                          </div>
-                        </div>
+                        )}
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          required
+                          placeholder="Prijs"
+                          value={item.unit_price}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                              updateLineItem(index, 'unit_price', value);
+                            }
+                          }}
+                          className="w-32 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                        />
                         {lineItems.length > 1 && (
                           <button
                             type="button"
                             onClick={() => removeLineItem(index)}
-                            className="text-red-400 hover:text-red-300 px-2 py-1 mt-6"
-                            title="Verwijder regel"
+                            className="text-red-400 hover:text-red-300"
                           >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
+                            ×
                           </button>
                         )}
                       </div>
                     ))}
                   </div>
-                  <div className="mt-4 p-4 bg-dark-900 rounded-lg border border-dark-600 space-y-2 text-sm">
-                    <div className="flex justify-between text-gray-300">
-                      <span>Subtotaal:</span>
+                  <div className="mt-3 p-3 bg-dark-800 rounded-lg space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-300">Subtotaal:</span>
                       <span className="font-medium text-gray-100">€{getTotalAmount().subtotal.toFixed(2)}</span>
                     </div>
-                    <div className="flex justify-between text-gray-300">
-                      <span>
+                    <div className="flex justify-between">
+                      <span className="text-gray-300">
                         BTW ({invoiceMode === 'lease'
                           ? leases.find(l => l.id === formData.lease_id)?.vat_rate
                           : formData.vat_rate}%):
@@ -1265,21 +1246,21 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                       <span className="font-medium text-gray-100">€{getTotalAmount().vatAmount.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between pt-2 border-t border-dark-700">
-                      <span className="font-semibold text-gray-100">Totaal:</span>
-                      <span className="font-bold text-xl text-gold-400">€{getTotalAmount().total.toFixed(2)}</span>
+                      <span className="font-semibold text-gray-200">Total:</span>
+                      <span className="font-bold text-lg text-gray-100">€{getTotalAmount().total.toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
               )}
 
-              <div className="bg-dark-800 rounded-lg p-4 border border-dark-700">
-                <label className="block text-sm font-semibold text-gray-200 mb-2 uppercase tracking-wide">
-                  Notities (Optioneel)
+              <div>
+                <label className="block text-sm font-medium text-gray-200 mb-1">
+                  Notities
                 </label>
                 <textarea
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  className="w-full px-3 py-2 bg-dark-900 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                  className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                   rows={3}
                   placeholder="Aanvullende opmerkingen of betalingsinstructies..."
                 />
