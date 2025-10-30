@@ -111,7 +111,7 @@ export function MeetingRoomBookings() {
     const totalHours = calculateTotalHours(formData.start_time, formData.end_time);
     const totalAmount = totalHours * formData.hourly_rate;
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('meeting_room_bookings')
       .insert({
         space_id: formData.space_id,
@@ -124,10 +124,16 @@ export function MeetingRoomBookings() {
         total_amount: totalAmount,
         status: 'confirmed',
         notes: formData.notes
-      });
+      })
+      .select(`
+        *,
+        tenants(name, company_name),
+        office_spaces(space_number)
+      `)
+      .single();
 
     if (error) {
-      alert('Fout bij het aanmaken van de boeking: ' + error.message);
+      console.error('Error creating booking:', error.message);
       return;
     }
 
@@ -141,7 +147,10 @@ export function MeetingRoomBookings() {
       hourly_rate: 25,
       notes: ''
     });
-    loadData();
+
+    if (data) {
+      setBookings([data, ...bookings]);
+    }
   };
 
   const handleStatusChange = async (bookingId: string, newStatus: 'confirmed' | 'cancelled' | 'completed') => {
@@ -151,38 +160,31 @@ export function MeetingRoomBookings() {
       .eq('id', bookingId);
 
     if (error) {
-      alert('Fout bij het updaten van de status: ' + error.message);
+      console.error('Error updating status:', error.message);
       return;
     }
 
-    loadData();
+    setBookings(bookings.map(b =>
+      b.id === bookingId ? { ...b, status: newStatus } : b
+    ));
   };
 
   const handleDelete = async (bookingId: string) => {
-    if (!confirm('Weet je zeker dat je deze boeking wilt verwijderen?')) {
-      return;
-    }
-
     const { error } = await supabase
       .from('meeting_room_bookings')
       .delete()
       .eq('id', bookingId);
 
     if (error) {
-      alert('Fout bij het verwijderen: ' + error.message);
+      console.error('Error deleting booking:', error.message);
       return;
     }
 
-    loadData();
+    setBookings(bookings.filter(b => b.id !== bookingId));
   };
 
   const handleGenerateInvoice = async (booking: Booking) => {
     if (booking.invoice_id) {
-      alert('Deze boeking is al gefactureerd');
-      return;
-    }
-
-    if (!confirm(`Factuur aanmaken voor ${booking.tenants?.name}?\nBedrag: €${booking.total_amount.toFixed(2)}`)) {
       return;
     }
 
@@ -217,7 +219,7 @@ export function MeetingRoomBookings() {
       .single();
 
     if (invoiceError || !invoiceData) {
-      alert('Fout bij het aanmaken van de factuur: ' + invoiceError?.message);
+      console.error('Error creating invoice:', invoiceError?.message);
       return;
     }
 
@@ -227,12 +229,13 @@ export function MeetingRoomBookings() {
       .eq('id', booking.id);
 
     if (updateError) {
-      alert('Fout bij het linken van de boeking aan de factuur: ' + updateError.message);
+      console.error('Error linking booking to invoice:', updateError.message);
       return;
     }
 
-    alert('Factuur succesvol aangemaakt!');
-    loadData();
+    setBookings(bookings.map(b =>
+      b.id === booking.id ? { ...b, invoice_id: invoiceData.id } : b
+    ));
   };
 
   const handleSpaceChange = (spaceId: string) => {

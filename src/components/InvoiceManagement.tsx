@@ -468,7 +468,7 @@ export function InvoiceManagement() {
       console.log('Starting sendInvoiceEmail for:', invoiceId);
       const invoice = invoices.find(inv => inv.id === invoiceId);
       if (!invoice) {
-        alert('Factuur niet gevonden');
+        console.error('Invoice not found');
         return;
       }
       console.log('Invoice found:', invoice);
@@ -476,12 +476,12 @@ export function InvoiceManagement() {
       const tenant = getInvoiceTenant(invoice);
       console.log('Tenant:', tenant);
       if (!tenant || !tenant.email) {
-        alert('Geen email adres gevonden voor deze huurder');
+        console.error('No email address found for tenant');
         return;
       }
 
       if (!companySettings) {
-        alert('Bedrijfsinstellingen niet gevonden. Ga naar de Verhuurder tab om deze in te stellen.');
+        console.error('Company settings not found');
         return;
       }
       console.log('Company settings:', companySettings);
@@ -633,7 +633,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
       ));
     } catch (error) {
       console.error('Error sending invoice:', error);
-      alert(`Fout bij verzenden: ${error instanceof Error ? error.message : 'Onbekende fout'}`);
+      console.error('Error sending invoice:', error instanceof Error ? error.message : 'Unknown error');
     }
   };
 
