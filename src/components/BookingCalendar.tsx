@@ -165,26 +165,23 @@ export function BookingCalendar() {
       <div className="overflow-x-auto">
         <div className="min-w-[900px]">
           <div className="grid grid-cols-8 gap-px bg-dark-700">
-            <div className="bg-dark-900 p-3 text-sm font-semibold text-gray-400 sticky left-0">
+            <div className="bg-dark-900 p-2 text-xs font-semibold text-gray-400 sticky left-0">
               Tijd
             </div>
             {weekDays.map((day) => (
               <div
                 key={day.dateStr}
-                className={`bg-dark-900 p-3 text-center ${
+                className={`bg-dark-900 p-2 text-center ${
                   isToday(day.date) ? 'bg-gold-900/20 border-t-2 border-gold-500' : ''
                 }`}
               >
-                <div className="text-sm font-semibold text-gray-400">
+                <div className="text-xs font-semibold text-gray-400">
                   {day.date.toLocaleDateString('nl-NL', { weekday: 'short' })}
                 </div>
-                <div className={`text-lg font-bold ${
+                <div className={`text-base font-bold ${
                   isToday(day.date) ? 'text-gold-500' : 'text-gray-100'
                 }`}>
                   {day.date.getDate()}
-                </div>
-                <div className="text-xs text-gray-500">
-                  {day.date.toLocaleDateString('nl-NL', { month: 'short' })}
                 </div>
               </div>
             ))}
@@ -195,7 +192,7 @@ export function BookingCalendar() {
               {hours.map((hour) => (
                 <div
                   key={hour}
-                  className="h-20 border-t border-dark-700 p-2 text-xs text-gray-500 sticky left-0 bg-dark-900"
+                  className="h-12 border-t border-dark-700 p-1 text-xs text-gray-500 sticky left-0 bg-dark-900"
                 >
                   {String(hour).padStart(2, '0')}:00
                 </div>
@@ -214,7 +211,7 @@ export function BookingCalendar() {
                   return (
                     <div
                       key={hour}
-                      className="h-20 border-t border-dark-700 relative"
+                      className="h-12 border-t border-dark-700 relative"
                     >
                       {bookingsInSlot.map((booking) => {
                         if (!isFirstSlot(booking)) return null;
@@ -224,20 +221,17 @@ export function BookingCalendar() {
                         return (
                           <div
                             key={booking.id}
-                            className="absolute left-0 right-0 mx-1 bg-blue-900/70 border border-blue-700 rounded p-1 overflow-hidden z-10"
+                            className="absolute left-0 right-0 mx-0.5 bg-blue-900/70 border border-blue-700 rounded px-1 py-0.5 overflow-hidden z-10 text-xs"
                             style={{
-                              height: `${height * 80 - 4}px`,
+                              height: `${height * 48 - 2}px`,
                               maxHeight: '100%'
                             }}
                             title={`${booking.office_spaces?.space_number} - ${booking.tenants?.name} (${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)})`}
                           >
-                            <div className="text-xs font-semibold text-blue-200">
-                              {booking.start_time.substring(0, 5)} - {booking.end_time.substring(0, 5)}
+                            <div className="font-semibold text-blue-200 leading-tight">
+                              {booking.start_time.substring(0, 5)}
                             </div>
-                            <div className="text-xs text-blue-300 truncate">
-                              {booking.office_spaces?.space_number}
-                            </div>
-                            <div className="text-xs text-blue-300 truncate">
+                            <div className="text-blue-300 truncate leading-tight">
                               {booking.tenants?.name}
                             </div>
                           </div>
