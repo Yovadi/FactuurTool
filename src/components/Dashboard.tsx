@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Building, Users, FileText, TrendingUp, AlertCircle, Euro, Calendar, Clock } from 'lucide-react';
+import { Building, Users, FileText, TrendingUp, AlertCircle, Euro, Calendar, Clock, CalendarDays } from 'lucide-react';
 
 type DashboardStats = {
   totalTenants: number;
@@ -11,6 +11,7 @@ type DashboardStats = {
   paidRevenue: number;
   overdueInvoices: number;
   pendingAmount: number;
+  forecastNextMonth: number;
 };
 
 type Notification = {
@@ -29,7 +30,8 @@ export function Dashboard() {
     totalRevenue: 0,
     paidRevenue: 0,
     overdueInvoices: 0,
-    pendingAmount: 0
+    pendingAmount: 0,
+    forecastNextMonth: 0
   });
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,6 +89,21 @@ export function Dashboard() {
     const pendingAmount = invoices?.filter(inv => inv.status !== 'paid')
       .reduce((sum, inv) => sum + Number(inv.amount), 0) || 0;
 
+    const { data: leaseSpaces } = await supabase
+      .from('lease_spaces')
+      .select('monthly_rent, lease_id, leases!inner(status, start_date, end_date)');
+
+    const activeLeaseSpaces = leaseSpaces?.filter(ls => {
+      const lease = ls.leases;
+      return lease.status === 'active' &&
+             lease.start_date <= todayStr &&
+             lease.end_date >= todayStr;
+    }) || [];
+
+    const forecastNextMonth = activeLeaseSpaces.reduce((sum, ls) =>
+      sum + Number(ls.monthly_rent), 0
+    );
+
     setStats({
       totalTenants: tenants?.length || 0,
       totalSpaces: spaces?.length || 0,
@@ -95,7 +112,8 @@ export function Dashboard() {
       totalRevenue,
       paidRevenue,
       overdueInvoices,
-      pendingAmount
+      pendingAmount,
+      forecastNextMonth
     });
 
     const newNotifications: Notification[] = [];
@@ -178,7 +196,7 @@ export function Dashboard() {
         <p className="text-gray-300">Overzicht van je kantoorgebouw beheer</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
         <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="p-3 bg-dark-700 rounded-lg">
@@ -237,6 +255,23 @@ export function Dashboard() {
                 {stats.overdueInvoices} achterstallig
               </p>
             )}
+          </div>
+        </div>
+
+        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-dark-700 rounded-lg">
+              <CalendarDays className="text-blue-400" size={24} />
+            </div>
+          </div>
+          <div>
+            <p className="text-sm text-gray-300 mb-1">Prognose Volgende Maand</p>
+            <p className="text-3xl font-bold text-gray-100">
+              €{stats.forecastNextMonth.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+            <p className="text-xs text-gray-400 mt-1">
+              Op basis van actieve contracten
+            </p>
           </div>
         </div>
       </div>
