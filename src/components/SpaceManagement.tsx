@@ -80,7 +80,7 @@ export function SpaceManagement() {
     const spaceData: any = {
       space_number: formData.space_number,
       floor: 0,
-      square_footage: parseFloat(formData.square_footage),
+      square_footage: formData.space_type === 'Meeting Room' ? 0 : parseFloat(formData.square_footage),
       space_type: formData.space_type,
       base_rent: 0,
       is_available: formData.is_available
@@ -205,25 +205,27 @@ export function SpaceManagement() {
                   placeholder="bijv. Suite 101"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-200 mb-1">
-                  {formData.space_type === 'diversen' ? 'Bedrag *' : 'Oppervlakte (m²) *'}
-                </label>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  required
-                  value={formData.square_footage}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                      setFormData({ ...formData, square_footage: value });
-                    }
-                  }}
-                  className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                  placeholder={formData.space_type === 'diversen' ? 'bijv. 150.00' : 'bijv. 50.5'}
-                />
-              </div>
+              {formData.space_type !== 'Meeting Room' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-200 mb-1">
+                    {formData.space_type === 'diversen' ? 'Bedrag *' : 'Oppervlakte (m²) *'}
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    required
+                    value={formData.square_footage}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                        setFormData({ ...formData, square_footage: value });
+                      }
+                    }}
+                    className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                    placeholder={formData.space_type === 'diversen' ? 'bijv. 150.00' : 'bijv. 50.5'}
+                  />
+                </div>
+              )}
               {formData.space_type === 'Meeting Room' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-200 mb-1">
@@ -319,17 +321,16 @@ export function SpaceManagement() {
                             </span>
                           </div>
                           <div className="flex items-center gap-4 text-sm text-gray-300">
-                            <span className="flex items-center gap-1">
-                              <Square size={14} />
-                              {space.space_type === 'diversen'
-                                ? `€ ${space.square_footage.toLocaleString()}`
-                                : `${space.square_footage.toLocaleString()} m²`}
-                            </span>
+                            {space.space_type !== 'Meeting Room' && (
+                              <span className="flex items-center gap-1">
+                                <Square size={14} />
+                                {space.space_type === 'diversen'
+                                  ? `€ ${space.square_footage.toLocaleString()}`
+                                  : `${space.square_footage.toLocaleString()} m²`}
+                              </span>
+                            )}
                             {space.space_type === 'Meeting Room' && space.hourly_rate && (
-                              <>
-                                <span>•</span>
-                                <span>€{space.hourly_rate.toLocaleString()}/uur</span>
-                              </>
+                              <span>€{space.hourly_rate.toLocaleString()}/uur</span>
                             )}
                             {!space.is_available && space.tenant && (
                               <>
