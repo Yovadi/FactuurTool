@@ -481,30 +481,27 @@ export function MeetingRoomBookings() {
         <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-            <thead className="bg-dark-800">
+            <thead className="bg-dark-800 border-b border-dark-700">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                  Datum
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                  Datum & Tijd
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                  Tijd
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">
                   Ruimte
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">
                   Huurder
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                  Uren
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                  Duur
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">
                   Bedrag
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-300 uppercase tracking-wider">
                   Acties
                 </th>
               </tr>
@@ -512,48 +509,53 @@ export function MeetingRoomBookings() {
             <tbody className="divide-y divide-dark-700">
               {bookings.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-8 text-center text-gray-400">
+                  <td colSpan={7} className="px-4 py-8 text-center text-gray-400">
                     Geen boekingen gevonden
                   </td>
                 </tr>
               ) : (
                 bookings.map((booking) => (
-                  <tr key={booking.id} className="hover:bg-dark-800">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2 text-gray-200">
-                        <Calendar size={16} className="text-gray-400" />
-                        {new Date(booking.booking_date).toLocaleDateString('nl-NL')}
+                  <tr key={booking.id} className="hover:bg-dark-800/50 transition-colors">
+                    <td className="px-4 py-3">
+                      <div className="text-sm text-gray-200 font-medium">
+                        {new Date(booking.booking_date).toLocaleDateString('nl-NL', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2 text-gray-200">
-                        <Clock size={16} className="text-gray-400" />
+                      <div className="text-xs text-gray-400 mt-0.5">
                         {booking.start_time.substring(0, 5)} - {booking.end_time.substring(0, 5)}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-200">
-                      {booking.office_spaces?.space_number}
+                    <td className="px-4 py-3">
+                      <div className="text-sm font-medium text-gray-200">
+                        {booking.office_spaces?.space_number}
+                      </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="text-gray-200">{booking.tenants?.name}</div>
+                    <td className="px-4 py-3">
+                      <div className="text-sm text-gray-200">{booking.tenants?.name}</div>
                       {booking.tenants?.company_name && (
-                        <div className="text-xs text-gray-400">{booking.tenants.company_name}</div>
+                        <div className="text-xs text-gray-400 mt-0.5">{booking.tenants.company_name}</div>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-200">
-                      {booking.total_hours.toFixed(2)} uur
+                    <td className="px-4 py-3">
+                      <div className="text-sm text-gray-200">
+                        {booking.total_hours.toFixed(1)} uur
+                      </div>
+                      <div className="text-xs text-gray-400 mt-0.5">
+                        €{booking.hourly_rate}/uur
+                      </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-200">
-                      €{booking.total_amount.toFixed(2)}
+                    <td className="px-4 py-3">
+                      <div className="text-sm font-semibold text-gray-200">
+                        €{booking.total_amount.toFixed(2)}
+                      </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-3">
                       <span
-                        className={`px-2 py-1 text-xs rounded-full ${
+                        className={`inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full ${
                           booking.status === 'confirmed'
-                            ? 'bg-blue-900/50 text-blue-300'
+                            ? 'bg-blue-900/50 text-blue-300 border border-blue-700/50'
                             : booking.status === 'completed'
-                            ? 'bg-green-900/50 text-green-300'
-                            : 'bg-red-900/50 text-red-300'
+                            ? 'bg-green-900/50 text-green-300 border border-green-700/50'
+                            : 'bg-red-900/50 text-red-300 border border-red-700/50'
                         }`}
                       >
                         {booking.status === 'confirmed'
@@ -563,8 +565,8 @@ export function MeetingRoomBookings() {
                           : 'Geannuleerd'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-center gap-2">
                         {!booking.invoice_id && booking.status === 'completed' && (
                           <button
                             onClick={() => handleGenerateInvoice(booking)}

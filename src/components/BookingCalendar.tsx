@@ -8,7 +8,7 @@ type Booking = {
   start_time: string;
   end_time: string;
   tenants?: { name: string };
-  office_spaces?: { name: string };
+  office_spaces?: { space_number: string };
 };
 
 type CalendarDay = {
@@ -49,7 +49,7 @@ export function BookingCalendar() {
         start_time,
         end_time,
         tenants(name),
-        office_spaces(name)
+        office_spaces(space_number)
       `)
       .gte('booking_date', startDate.toISOString().split('T')[0])
       .lte('booking_date', endDate.toISOString().split('T')[0])
@@ -156,7 +156,7 @@ export function BookingCalendar() {
                 <div
                   key={booking.id}
                   className="text-xs bg-blue-900/50 text-blue-300 rounded p-1 truncate"
-                  title={`${booking.office_spaces?.name} - ${booking.tenants?.name} (${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)})`}
+                  title={`${booking.office_spaces?.space_number} - ${booking.tenants?.name} (${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)})`}
                 >
                   <div className="font-semibold truncate">{booking.start_time.substring(0, 5)}</div>
                   <div className="truncate">{booking.tenants?.name}</div>

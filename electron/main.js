@@ -4,9 +4,13 @@ const path = require('path');
 let mainWindow;
 
 function createWindow() {
+  const { screen } = require('electron');
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const { width, height } = primaryDisplay.workAreaSize;
+
   mainWindow = new BrowserWindow({
-    width: 1400,
-    height: 900,
+    width: width,
+    height: height,
     minWidth: 1200,
     minHeight: 700,
     webPreferences: {
@@ -16,7 +20,11 @@ function createWindow() {
     },
     icon: path.join(__dirname, '../public/Logo.png'),
     title: 'HAL5 Overloon - Facturatie Manager',
+    show: false
   });
+
+  mainWindow.maximize();
+  mainWindow.show();
 
   const isDev = process.env.NODE_ENV === 'development';
 
