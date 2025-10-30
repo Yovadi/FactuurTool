@@ -11,7 +11,7 @@ type Tenant = {
 
 type Space = {
   id: string;
-  name: string;
+  space_number: string;
   hourly_rate?: number;
 };
 
@@ -29,7 +29,7 @@ type Booking = {
   notes: string;
   invoice_id: string | null;
   tenants?: { name: string; company_name: string };
-  office_spaces?: { name: string };
+  office_spaces?: { space_number: string };
 };
 
 export function MeetingRoomBookings() {
@@ -65,16 +65,16 @@ export function MeetingRoomBookings() {
 
     const { data: spacesData } = await supabase
       .from('office_spaces')
-      .select('id, name, space_type, hourly_rate')
+      .select('id, space_number, hourly_rate')
       .eq('space_type', 'Meeting Room')
-      .order('name');
+      .order('space_number');
 
     let bookingsQuery = supabase
       .from('meeting_room_bookings')
       .select(`
         *,
         tenants(name, company_name),
-        office_spaces(name)
+        office_spaces(space_number)
       `)
       .order('booking_date', { ascending: false })
       .order('start_time', { ascending: false });
@@ -210,7 +210,7 @@ export function MeetingRoomBookings() {
         subtotal: subtotal,
         vat_amount: vatAmount,
         amount: totalAmount,
-        notes: `Vergaderruimte boeking - ${booking.office_spaces?.name}\n${new Date(booking.booking_date).toLocaleDateString('nl-NL')}, ${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)}\n${booking.total_hours} uur @ €${booking.hourly_rate}/uur`
+        notes: `Vergaderruimte boeking - ${booking.office_spaces?.space_number}\n${new Date(booking.booking_date).toLocaleDateString('nl-NL')}, ${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)}\n${booking.total_hours} uur @ €${booking.hourly_rate}/uur`
       })
       .select()
       .single();
@@ -352,7 +352,7 @@ export function MeetingRoomBookings() {
                   <option value="">Selecteer een ruimte</option>
                   {meetingRooms.map((room) => (
                     <option key={room.id} value={room.id}>
-                      {room.name} {room.hourly_rate && `- €${room.hourly_rate}/uur`}
+                      {room.space_number} {room.hourly_rate && `- €${room.hourly_rate}/uur`}
                     </option>
                   ))}
                 </select>
@@ -532,7 +532,7 @@ export function MeetingRoomBookings() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-gray-200">
-                      {booking.office_spaces?.name}
+                      {booking.office_spaces?.space_number}
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-gray-200">{booking.tenants?.name}</div>
