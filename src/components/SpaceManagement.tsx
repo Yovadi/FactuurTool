@@ -93,28 +93,45 @@ export function SpaceManagement() {
     }
 
     if (editingSpace) {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('office_spaces')
         .update(spaceData)
-        .eq('id', editingSpace.id);
+        .eq('id', editingSpace.id)
+        .select()
+        .single();
 
       if (error) {
         console.error('Error updating space:', error);
         return;
       }
+
+      if (data) {
+        const updatedSpace: SpaceWithTenant = {
+          ...data,
+          tenant: spaces.find(s => s.id === editingSpace.id)?.tenant,
+          is_available: data.is_available
+        };
+        setSpaces(spaces.map(s => s.id === editingSpace.id ? updatedSpace : s));
+      }
     } else {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('office_spaces')
-        .insert([spaceData]);
+        .insert([spaceData])
+        .select()
+        .single();
 
       if (error) {
         console.error('Error creating space:', error);
         return;
       }
+
+      if (data) {
+        const newSpace: SpaceWithTenant = { ...data, is_available: data.is_available };
+        setSpaces([...spaces, newSpace]);
+      }
     }
 
     resetForm();
-    loadSpaces();
   };
 
   const handleEdit = (space: OfficeSpace) => {
@@ -137,9 +154,10 @@ export function SpaceManagement() {
 
     if (error) {
       console.error('Error deleting space:', error);
-    } else {
-      loadSpaces();
+      return;
     }
+
+    setSpaces(spaces.filter(s => s.id !== id));
   };
 
   const resetForm = () => {

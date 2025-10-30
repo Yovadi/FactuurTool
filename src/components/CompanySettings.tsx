@@ -48,30 +48,41 @@ export function CompanySettings() {
     e.preventDefault();
 
     if (settings) {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('company_settings')
         .update({
           ...formData,
           updated_at: new Date().toISOString()
         })
-        .eq('id', settings.id);
+        .eq('id', settings.id)
+        .select()
+        .single();
 
       if (error) {
         console.error('Error updating settings:', error);
         return;
       }
+
+      if (data) {
+        setSettings(data);
+      }
     } else {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('company_settings')
-        .insert([formData]);
+        .insert([formData])
+        .select()
+        .single();
 
       if (error) {
         console.error('Error creating settings:', error);
         return;
       }
+
+      if (data) {
+        setSettings(data);
+      }
     }
 
-    await loadSettings();
     setShowForm(false);
   };
 

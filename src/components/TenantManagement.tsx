@@ -54,23 +54,35 @@ export function TenantManagement() {
     e.preventDefault();
 
     if (editingTenant) {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('tenants')
         .update(formData)
-        .eq('id', editingTenant.id);
+        .eq('id', editingTenant.id)
+        .select()
+        .single();
 
       if (error) {
         console.error('Error updating tenant:', error);
         return;
       }
+
+      if (data) {
+        setTenants(tenants.map(t => t.id === editingTenant.id ? data : t));
+      }
     } else {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('tenants')
-        .insert([formData]);
+        .insert([formData])
+        .select()
+        .single();
 
       if (error) {
         console.error('Error creating tenant:', error);
         return;
+      }
+
+      if (data) {
+        setTenants([...tenants, data].sort((a, b) => a.name.localeCompare(b.name)));
       }
 
       if (companySettings?.root_folder_path && window.electronAPI?.createTenantFolder) {
@@ -86,7 +98,6 @@ export function TenantManagement() {
     }
 
     resetForm();
-    loadTenants();
   };
 
   const handleEdit = (tenant: Tenant) => {
@@ -109,9 +120,10 @@ export function TenantManagement() {
 
     if (error) {
       console.error('Error deleting tenant:', error);
-    } else {
-      loadTenants();
+      return;
     }
+
+    setTenants(tenants.filter(t => t.id !== id));
   };
 
   const resetForm = () => {

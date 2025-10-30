@@ -125,6 +125,9 @@ export function LeaseManagement() {
         .update({ is_available: false })
         .in('id', spaceIds);
 
+      resetForm();
+      loadData();
+
     } else {
       const { data: newLease, error } = await supabase
         .from('leases')
@@ -162,10 +165,10 @@ export function LeaseManagement() {
         .from('office_spaces')
         .update({ is_available: false })
         .in('id', spaceIds);
-    }
 
-    resetForm();
-    loadData();
+      resetForm();
+      loadData();
+    }
   };
 
   const handleEdit = (lease: LeaseWithDetails) => {
@@ -196,13 +199,15 @@ export function LeaseManagement() {
 
     if (error) {
       console.error('Error deleting lease:', error);
-    } else {
-      await supabase
-        .from('office_spaces')
-        .update({ is_available: true })
-        .in('id', spaceIds);
-      loadData();
+      return;
     }
+
+    await supabase
+      .from('office_spaces')
+      .update({ is_available: true })
+      .in('id', spaceIds);
+
+    setLeases(leases.filter(l => l.id !== lease.id));
   };
 
   const addSpace = () => {
