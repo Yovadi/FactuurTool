@@ -41,6 +41,13 @@ export function BookingCalendar() {
     const endDate = new Date(lastDay);
     endDate.setDate(endDate.getDate() + (6 - endDate.getDay()));
 
+    const formatLocalDate = (date: Date) => {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    };
+
     const { data } = await supabase
       .from('meeting_room_bookings')
       .select(`
@@ -51,8 +58,8 @@ export function BookingCalendar() {
         tenants(name),
         office_spaces(space_number)
       `)
-      .gte('booking_date', startDate.toISOString().split('T')[0])
-      .lte('booking_date', endDate.toISOString().split('T')[0])
+      .gte('booking_date', formatLocalDate(startDate))
+      .lte('booking_date', formatLocalDate(endDate))
       .neq('status', 'cancelled')
       .order('start_time');
 
@@ -62,12 +69,15 @@ export function BookingCalendar() {
     const current = new Date(startDate);
 
     while (current <= endDate) {
-      const dateStr = current.toISOString().split('T')[0];
+      const year = current.getFullYear();
+      const month = String(current.getMonth() + 1).padStart(2, '0');
+      const day = String(current.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
       const dayBookings = (data || []).filter(b => b.booking_date === dateStr);
 
       days.push({
         date: new Date(current),
-        isCurrentMonth: current.getMonth() === month,
+        isCurrentMonth: current.getMonth() === currentDate.getMonth(),
         bookings: dayBookings
       });
 

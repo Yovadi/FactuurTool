@@ -79,14 +79,15 @@ export function MeetingRoomBookings() {
       .order('booking_date', { ascending: false })
       .order('start_time', { ascending: false });
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
     if (selectedFilter === 'upcoming') {
       bookingsQuery = bookingsQuery
-        .gte('booking_date', today)
+        .gte('booking_date', todayStr)
         .neq('status', 'cancelled');
     } else if (selectedFilter === 'past') {
-      bookingsQuery = bookingsQuery.lt('booking_date', today);
+      bookingsQuery = bookingsQuery.lt('booking_date', todayStr);
     }
 
     const { data: bookingsData } = await bookingsQuery;
@@ -518,7 +519,7 @@ export function MeetingRoomBookings() {
                   <tr key={booking.id} className="hover:bg-dark-800/50 transition-colors">
                     <td className="px-4 py-3">
                       <div className="text-sm text-gray-200 font-medium">
-                        {new Date(booking.booking_date).toLocaleDateString('nl-NL', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        {new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </div>
                       <div className="text-xs text-gray-400 mt-0.5">
                         {booking.start_time.substring(0, 5)} - {booking.end_time.substring(0, 5)}
