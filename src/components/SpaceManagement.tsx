@@ -80,14 +80,16 @@ export function SpaceManagement() {
     const spaceData: any = {
       space_number: formData.space_number,
       floor: 0,
-      square_footage: formData.space_type === 'Meeting Room' ? 0 : parseFloat(formData.square_footage),
+      square_footage: formData.space_type === 'Meeting Room' ? 0 : (parseFloat(formData.square_footage) || 0),
       space_type: formData.space_type,
       base_rent: 0,
       is_available: formData.is_available
     };
 
-    if (formData.space_type === 'Meeting Room' && formData.hourly_rate) {
-      spaceData.hourly_rate = parseFloat(formData.hourly_rate);
+    if (formData.space_type === 'Meeting Room') {
+      spaceData.hourly_rate = formData.hourly_rate ? parseFloat(formData.hourly_rate) : null;
+    } else {
+      spaceData.hourly_rate = null;
     }
 
     if (editingSpace) {
@@ -182,7 +184,15 @@ export function SpaceManagement() {
                 </label>
                 <select
                   value={formData.space_type}
-                  onChange={(e) => setFormData({ ...formData, space_type: e.target.value as 'bedrijfsruimte' | 'kantoor' | 'buitenterrein' | 'diversen' | 'Meeting Room' })}
+                  onChange={(e) => {
+                    const newType = e.target.value as 'bedrijfsruimte' | 'kantoor' | 'buitenterrein' | 'diversen' | 'Meeting Room';
+                    setFormData({
+                      ...formData,
+                      space_type: newType,
+                      square_footage: newType === 'Meeting Room' ? '0' : formData.square_footage,
+                      hourly_rate: newType === 'Meeting Room' ? formData.hourly_rate : ''
+                    });
+                  }}
                   className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                 >
                   <option value="bedrijfsruimte">Bedrijfsruimte</option>
