@@ -13,9 +13,10 @@ export function SpaceManagement() {
   const [loading, setLoading] = useState(true);
 
   const [formData, setFormData] = useState({
-    space_type: 'bedrijfsruimte' as 'bedrijfsruimte' | 'kantoor' | 'buitenterrein' | 'diversen',
+    space_type: 'bedrijfsruimte' as 'bedrijfsruimte' | 'kantoor' | 'buitenterrein' | 'diversen' | 'Meeting Room',
     space_number: '',
     square_footage: '',
+    hourly_rate: '',
     is_available: true
   });
 
@@ -76,7 +77,7 @@ export function SpaceManagement() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const spaceData = {
+    const spaceData: any = {
       space_number: formData.space_number,
       floor: 0,
       square_footage: parseFloat(formData.square_footage),
@@ -84,6 +85,10 @@ export function SpaceManagement() {
       base_rent: 0,
       is_available: formData.is_available
     };
+
+    if (formData.space_type === 'Meeting Room' && formData.hourly_rate) {
+      spaceData.hourly_rate = parseFloat(formData.hourly_rate);
+    }
 
     if (editingSpace) {
       const { error } = await supabase
@@ -116,6 +121,7 @@ export function SpaceManagement() {
       space_type: space.space_type,
       space_number: space.space_number,
       square_footage: space.square_footage.toString(),
+      hourly_rate: space.hourly_rate ? space.hourly_rate.toString() : '',
       is_available: space.is_available
     });
     setShowForm(true);
@@ -139,6 +145,7 @@ export function SpaceManagement() {
       space_type: 'bedrijfsruimte',
       space_number: '',
       square_footage: '',
+      hourly_rate: '',
       is_available: true
     });
     setEditingSpace(null);
@@ -175,13 +182,14 @@ export function SpaceManagement() {
                 </label>
                 <select
                   value={formData.space_type}
-                  onChange={(e) => setFormData({ ...formData, space_type: e.target.value as 'bedrijfsruimte' | 'kantoor' | 'buitenterrein' | 'diversen' })}
+                  onChange={(e) => setFormData({ ...formData, space_type: e.target.value as 'bedrijfsruimte' | 'kantoor' | 'buitenterrein' | 'diversen' | 'Meeting Room' })}
                   className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                 >
                   <option value="bedrijfsruimte">Bedrijfsruimte</option>
                   <option value="kantoor">Kantoor</option>
                   <option value="buitenterrein">Buitenterrein</option>
                   <option value="diversen">Diversen</option>
+                  <option value="Meeting Room">Vergaderruimte</option>
                 </select>
               </div>
               <div>
@@ -216,6 +224,26 @@ export function SpaceManagement() {
                   placeholder={formData.space_type === 'diversen' ? 'bijv. 150.00' : 'bijv. 50.5'}
                 />
               </div>
+              {formData.space_type === 'Meeting Room' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-200 mb-1">
+                    Uurtarief (€)
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={formData.hourly_rate}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                        setFormData({ ...formData, hourly_rate: value });
+                      }
+                    }}
+                    className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                    placeholder="bijv. 25.00"
+                  />
+                </div>
+              )}
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
@@ -249,7 +277,7 @@ export function SpaceManagement() {
       )}
 
       <div className="space-y-8">
-        {['bedrijfsruimte', 'kantoor', 'buitenterrein', 'diversen'].map(type => {
+        {['bedrijfsruimte', 'kantoor', 'buitenterrein', 'diversen', 'Meeting Room'].map(type => {
           const typedSpaces = spaces.filter(s => s.space_type === type);
           if (typedSpaces.length === 0) return null;
 
@@ -257,7 +285,8 @@ export function SpaceManagement() {
             bedrijfsruimte: 'Bedrijfsruimtes',
             kantoor: 'Kantoren',
             buitenterrein: 'Buitenterreinen',
-            diversen: 'Diversen'
+            diversen: 'Diversen',
+            'Meeting Room': 'Vergaderruimtes'
           };
 
           return (
@@ -296,6 +325,12 @@ export function SpaceManagement() {
                                 ? `€ ${space.square_footage.toLocaleString()}`
                                 : `${space.square_footage.toLocaleString()} m²`}
                             </span>
+                            {space.space_type === 'Meeting Room' && space.hourly_rate && (
+                              <>
+                                <span>•</span>
+                                <span>€{space.hourly_rate.toLocaleString()}/uur</span>
+                              </>
+                            )}
                             {!space.is_available && space.tenant && (
                               <>
                                 <span>•</span>
