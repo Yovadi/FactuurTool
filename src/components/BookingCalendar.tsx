@@ -137,48 +137,48 @@ export function BookingCalendar() {
   }
 
   return (
-    <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-100">{weekRange}</h2>
+    <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-bold text-gray-100">{weekRange}</h2>
         <div className="flex items-center gap-2">
           <button
             onClick={goToToday}
-            className="px-4 py-2 text-sm bg-dark-800 text-gray-300 rounded-lg hover:bg-dark-700 transition-colors"
+            className="px-3 py-1.5 text-sm bg-dark-800 text-gray-300 rounded-lg hover:bg-dark-700 transition-colors"
           >
             Deze week
           </button>
           <button
             onClick={previousWeek}
-            className="p-2 bg-dark-800 text-gray-300 rounded-lg hover:bg-dark-700 transition-colors"
+            className="p-1.5 bg-dark-800 text-gray-300 rounded-lg hover:bg-dark-700 transition-colors"
           >
-            <ChevronLeft size={20} />
+            <ChevronLeft size={18} />
           </button>
           <button
             onClick={nextWeek}
-            className="p-2 bg-dark-800 text-gray-300 rounded-lg hover:bg-dark-700 transition-colors"
+            className="p-1.5 bg-dark-800 text-gray-300 rounded-lg hover:bg-dark-700 transition-colors"
           >
-            <ChevronRight size={20} />
+            <ChevronRight size={18} />
           </button>
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <div className="min-w-[900px]">
+      <div className="overflow-x-auto max-h-[calc(100vh-280px)]">
+        <div className="min-w-[700px]">
           <div className="grid grid-cols-8 gap-px bg-dark-700">
-            <div className="bg-dark-900 p-2 text-xs font-semibold text-gray-400 sticky left-0">
+            <div className="bg-dark-900 p-1.5 text-xs font-semibold text-gray-400 sticky left-0">
               Tijd
             </div>
             {weekDays.map((day) => (
               <div
                 key={day.dateStr}
-                className={`bg-dark-900 p-2 text-center ${
+                className={`bg-dark-900 p-1.5 text-center ${
                   isToday(day.date) ? 'bg-gold-900/20 border-t-2 border-gold-500' : ''
                 }`}
               >
                 <div className="text-xs font-semibold text-gray-400">
                   {day.date.toLocaleDateString('nl-NL', { weekday: 'short' })}
                 </div>
-                <div className={`text-base font-bold ${
+                <div className={`text-sm font-bold ${
                   isToday(day.date) ? 'text-gold-500' : 'text-gray-100'
                 }`}>
                   {day.date.getDate()}
@@ -192,7 +192,7 @@ export function BookingCalendar() {
               {hours.map((hour) => (
                 <div
                   key={hour}
-                  className="h-12 border-t border-dark-700 p-1 text-xs text-gray-500 sticky left-0 bg-dark-900"
+                  className="h-10 border-t border-dark-700 p-0.5 text-xs text-gray-500 sticky left-0 bg-dark-900"
                 >
                   {String(hour).padStart(2, '0')}:00
                 </div>
@@ -211,7 +211,7 @@ export function BookingCalendar() {
                   return (
                     <div
                       key={hour}
-                      className="h-12 border-t border-dark-700 relative"
+                      className="h-10 border-t border-dark-700 relative"
                     >
                       {bookingsInSlot.map((booking) => {
                         if (!isFirstSlot(booking)) return null;
@@ -223,15 +223,15 @@ export function BookingCalendar() {
                             key={booking.id}
                             className="absolute left-0 right-0 mx-0.5 bg-blue-900/70 border border-blue-700 rounded px-1 py-0.5 overflow-hidden z-10 text-xs"
                             style={{
-                              height: `${height * 48 - 2}px`,
+                              height: `${height * 40 - 2}px`,
                               maxHeight: '100%'
                             }}
                             title={`${booking.office_spaces?.space_number} - ${booking.tenants?.name} (${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)})`}
                           >
-                            <div className="font-semibold text-blue-200 leading-tight">
+                            <div className="font-semibold text-blue-200 leading-tight text-[10px]">
                               {booking.start_time.substring(0, 5)}
                             </div>
-                            <div className="text-blue-300 truncate leading-tight">
+                            <div className="text-blue-300 truncate leading-tight text-[10px]">
                               {booking.tenants?.name}
                             </div>
                           </div>
@@ -246,13 +246,13 @@ export function BookingCalendar() {
         </div>
       </div>
 
-      <div className="mt-6 flex items-center gap-4 text-sm">
+      <div className="mt-4 flex items-center gap-4 text-xs">
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-blue-900/70 border border-blue-700 rounded"></div>
+          <div className="w-3 h-3 bg-blue-900/70 border border-blue-700 rounded"></div>
           <span className="text-gray-300">Boeking</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-gold-900/20 border-t-2 border-gold-500 rounded"></div>
+          <div className="w-3 h-3 bg-gold-900/20 border-t-2 border-gold-500 rounded"></div>
           <span className="text-gray-300">Vandaag</span>
         </div>
       </div>
