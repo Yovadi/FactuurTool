@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Building, Users, AlertCircle, Calendar, Clock } from 'lucide-react';
+import { Building, Users, AlertCircle, Calendar, Clock, CalendarClock, FileText, DollarSign } from 'lucide-react';
 
 type DashboardStats = {
   totalTenants: number;
   totalSpaces: number;
   occupiedSpaces: number;
+  todayBookings: number;
+  upcomingBookings: number;
+  totalBookings: number;
 };
 
 type Notification = {
@@ -19,7 +22,10 @@ export function Dashboard() {
   const [stats, setStats] = useState<DashboardStats>({
     totalTenants: 0,
     totalSpaces: 0,
-    occupiedSpaces: 0
+    occupiedSpaces: 0,
+    todayBookings: 0,
+    upcomingBookings: 0,
+    totalBookings: 0
   });
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,12 +49,27 @@ export function Dashboard() {
       .from('leases')
       .select('id, end_date, status, tenant_id, tenants(name)');
 
+    const { data: invoices } = await supabase
+      .from('invoices')
+      .select('amount, status, due_date');
+
+    const { data: bookings } = await supabase
+      .from('meeting_room_bookings')
+      .select('id, booking_date, start_time, end_time, status');
+
     const occupiedSpaces = spaces?.filter(s => !s.is_available).length || 0;
 
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
     const fourteenDaysFromNow = new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000);
     const fourteenDaysStr = fourteenDaysFromNow.toISOString().split('T')[0];
+    const sevenDaysFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const sevenDaysStr = sevenDaysFromNow.toISOString().split('T')[0];
+
+    const todayBookings = bookings?.filter(b => b.booking_date === todayStr && b.status === 'confirmed').length || 0;
+    const upcomingBookings = bookings?.filter(
+      b => b.booking_date >= todayStr && b.booking_date <= sevenDaysStr && b.status === 'confirmed'
+    ).length || 0;
 
     const expiringLeases = leases?.filter(
       lease => lease.status === 'active' && lease.end_date >= todayStr && lease.end_date <= fourteenDaysStr
@@ -58,13 +79,35 @@ export function Dashboard() {
       lease => lease.status === 'active' && lease.end_date < todayStr
     ) || [];
 
+    const overdueInvoices = invoices?.filter(
+      inv => inv.status !== 'paid' && inv.due_date < todayStr
+    ) || [];
+
+    const upcomingDueInvoices = invoices?.filter(
+      inv => inv.status !== 'paid' && inv.due_date >= todayStr && inv.due_date <= sevenDaysStr
+    ) || [];
+
+    const overdueAmount = overdueInvoices.reduce((sum, inv) => sum + Number(inv.amount), 0);
+
     setStats({
       totalTenants: tenants?.length || 0,
       totalSpaces: spaces?.length || 0,
-      occupiedSpaces
+      occupiedSpaces,
+      todayBookings,
+      upcomingBookings,
+      totalBookings: bookings?.length || 0
     });
 
     const newNotifications: Notification[] = [];
+
+    if (overdueInvoices.length > 0) {
+      newNotifications.push({
+        type: 'danger',
+        icon: <DollarSign size={18} />,
+        title: 'Achterstallige Facturen',
+        message: `${overdueInvoices.length} factu${overdueInvoices.length !== 1 ? 'ren' : 'ur'} over de vervaldatum (€${overdueAmount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`
+      });
+    }
 
     if (expiredLeases.length > 0) {
       newNotifications.push({
@@ -75,12 +118,30 @@ export function Dashboard() {
       });
     }
 
+    if (upcomingDueInvoices.length > 0) {
+      newNotifications.push({
+        type: 'warning',
+        icon: <FileText size={18} />,
+        title: 'Binnenkort Te Betalen',
+        message: `${upcomingDueInvoices.length} factu${upcomingDueInvoices.length !== 1 ? 'ren' : 'ur'} moet${upcomingDueInvoices.length !== 1 ? 'en' : ''} binnen 7 dagen betaald worden`
+      });
+    }
+
     if (expiringLeases.length > 0) {
       newNotifications.push({
         type: 'warning',
         icon: <Clock size={18} />,
         title: 'Contracten Verlopen Binnenkort',
         message: `${expiringLeases.length} contract${expiringLeases.length !== 1 ? 'en verlopen' : ' verloopt'} binnen 14 dagen`
+      });
+    }
+
+    if (todayBookings > 0) {
+      newNotifications.push({
+        type: 'info',
+        icon: <CalendarClock size={18} />,
+        title: 'Vergaderruimte Boekingen Vandaag',
+        message: `${todayBookings} boeking${todayBookings !== 1 ? 'en' : ''} gepland voor vandaag`
       });
     }
 
@@ -113,7 +174,7 @@ export function Dashboard() {
         <p className="text-gray-300">Overzicht van je kantoorgebouw beheer</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="p-3 bg-dark-700 rounded-lg">
@@ -156,6 +217,21 @@ export function Dashboard() {
                 style={{ width: `${occupancyRate}%` }}
               />
             </div>
+          </div>
+        </div>
+
+        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-dark-700 rounded-lg">
+              <CalendarClock className="text-purple-400" size={24} />
+            </div>
+          </div>
+          <div>
+            <p className="text-sm text-gray-300 mb-1">Vergaderruimte Boekingen</p>
+            <p className="text-3xl font-bold text-gray-100">{stats.todayBookings}</p>
+            <p className="text-xs text-gray-400 mt-1">
+              {stats.upcomingBookings} komende week
+            </p>
           </div>
         </div>
       </div>
