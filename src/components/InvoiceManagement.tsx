@@ -995,27 +995,46 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
     let combinedSubtotal = 0;
     let combinedVatAmount = 0;
     let combinedTotal = 0;
-    let combinedNotes: string[] = [];
+    const allLineItems: any[] = [];
 
     for (const invoice of invoicesToMerge) {
       combinedSubtotal += parseFloat(invoice.subtotal.toString());
       combinedVatAmount += parseFloat(invoice.vat_amount.toString());
       combinedTotal += parseFloat(invoice.amount.toString());
 
-      if (invoice.notes) {
-        combinedNotes.push(invoice.notes);
-      }
-
       const { data: items } = await supabase
         .from('invoice_line_items')
         .select('*')
-        .eq('invoice_id', invoice.id);
+        .eq('invoice_id', invoice.id)
+        .order('created_at', { ascending: true });
 
       if (items && items.length > 0) {
-        const itemDescriptions = items.map(item => `- ${item.description}: €${item.amount.toFixed(2)}`);
-        combinedNotes.push(...itemDescriptions);
+        allLineItems.push(...items);
       }
     }
+
+    allLineItems.sort((a, b) => {
+      const typeOrder: { [key: string]: number } = {
+        'bedrijfsruimte': 1,
+        'kantoor': 2,
+        'buitenterrein': 3,
+        'voorschot': 4,
+        'diversen': 5
+      };
+
+      const getTypeFromDescription = (desc: string) => {
+        if (desc.toLowerCase().includes('voorschot')) return 'voorschot';
+        if (desc.startsWith('Hal ')) return 'bedrijfsruimte';
+        if (desc.startsWith('Kantoor ')) return 'kantoor';
+        if (desc.startsWith('Buitenterrein ')) return 'buitenterrein';
+        return 'diversen';
+      };
+
+      const typeA = getTypeFromDescription(a.description);
+      const typeB = getTypeFromDescription(b.description);
+
+      return (typeOrder[typeA] || 999) - (typeOrder[typeB] || 999);
+    });
 
     const { data: invoiceNumberResult } = await supabase.rpc('generate_invoice_number');
     const invoiceNumber = invoiceNumberResult || 'INV-ERROR';
@@ -1035,7 +1054,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
         vat_rate: firstInvoice.vat_rate,
         vat_inclusive: firstInvoice.vat_inclusive,
         amount: combinedTotal,
-        notes: combinedNotes.join('\n')
+        notes: null
       })
       .select()
       .single();
@@ -1044,6 +1063,22 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
       console.error('Error creating merged invoice:', createError);
       setMergeError('Fout bij het aanmaken van samengevoegde factuur.');
       return;
+    }
+
+    for (const item of allLineItems) {
+      const { error: itemError } = await supabase
+        .from('invoice_line_items')
+        .insert({
+          invoice_id: mergedInvoice.id,
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          amount: item.amount
+        });
+
+      if (itemError) {
+        console.error('Error creating line item:', itemError);
+      }
     }
 
     for (const invoice of invoicesToMerge) {
