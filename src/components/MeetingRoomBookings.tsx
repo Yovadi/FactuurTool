@@ -187,7 +187,12 @@ export function MeetingRoomBookings() {
       return;
     }
 
-    showNotification('Boeking succesvol aangemaakt!', 'success');
+    if (data) {
+      await createOrUpdateInvoiceForBooking(data);
+      setBookings([data, ...bookings]);
+    }
+
+    showNotification('Boeking succesvol aangemaakt en factuur bijgewerkt!', 'success');
     setShowForm(false);
     setFormData({
       space_id: '',
@@ -198,10 +203,6 @@ export function MeetingRoomBookings() {
       hourly_rate: 25,
       notes: ''
     });
-
-    if (data) {
-      setBookings([data, ...bookings]);
-    }
   };
 
   const handleStatusChange = async (bookingId: string, newStatus: 'confirmed' | 'cancelled' | 'completed') => {
@@ -244,10 +245,9 @@ export function MeetingRoomBookings() {
     setBookings(bookings.filter(b => b.id !== bookingId));
   };
 
-  const handleGenerateInvoice = async (booking: Booking) => {
-    if (booking.invoice_id) {
-      return;
-    }
+  const createOrUpdateInvoiceForBooking = async (booking: Booking) => {
+    const bookingDate = new Date(booking.booking_date + 'T00:00:00');
+    const invoiceMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
 
     const { data: companySettings } = await supabase
       .from('company_settings')
@@ -255,51 +255,99 @@ export function MeetingRoomBookings() {
       .single();
 
     const vatRate = companySettings?.vat_rate || 0;
-    const subtotal = booking.total_amount;
-    const vatAmount = subtotal * (vatRate / 100);
-    const totalAmount = subtotal + vatAmount;
 
-    const invoiceDate = new Date().toISOString().split('T')[0];
-    const dueDate = new Date();
-    dueDate.setDate(dueDate.getDate() + 30);
-    const dueDateStr = dueDate.toISOString().split('T')[0];
-
-    const { data: invoiceData, error: invoiceError } = await supabase
+    const { data: existingInvoice } = await supabase
       .from('invoices')
-      .insert({
-        tenant_id: booking.tenant_id,
-        invoice_date: invoiceDate,
-        due_date: dueDateStr,
-        status: 'pending',
-        subtotal: subtotal,
-        vat_amount: vatAmount,
-        amount: totalAmount,
-        notes: `Vergaderruimte boeking - ${booking.office_spaces?.space_number}\n${new Date(booking.booking_date).toLocaleDateString('nl-NL')}, ${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)}\n${booking.total_hours} uur @ €${booking.hourly_rate}/uur`
-      })
-      .select()
-      .single();
+      .select('id, subtotal, vat_amount, amount, notes')
+      .eq('tenant_id', booking.tenant_id)
+      .eq('invoice_month', invoiceMonth)
+      .eq('status', 'pending')
+      .maybeSingle();
 
-    if (invoiceError || !invoiceData) {
-      console.error('Error creating invoice:', invoiceError?.message);
-      showNotification('Fout bij het aanmaken van de factuur.', 'error');
+    const bookingLine = `- ${booking.office_spaces?.space_number}: ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL')} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)} (${booking.total_hours}u @ €${booking.hourly_rate}/u) = €${booking.total_amount.toFixed(2)}`;
+
+    if (existingInvoice) {
+      const newSubtotal = parseFloat(existingInvoice.subtotal) + booking.total_amount;
+      const newVatAmount = newSubtotal * (vatRate / 100);
+      const newTotal = newSubtotal + newVatAmount;
+      const updatedNotes = existingInvoice.notes ? `${existingInvoice.notes}\n${bookingLine}` : `Vergaderruimte boekingen:\n${bookingLine}`;
+
+      const { error: updateError } = await supabase
+        .from('invoices')
+        .update({
+          subtotal: newSubtotal,
+          vat_amount: newVatAmount,
+          amount: newTotal,
+          notes: updatedNotes
+        })
+        .eq('id', existingInvoice.id);
+
+      if (updateError) {
+        console.error('Error updating invoice:', updateError.message);
+        showNotification('Fout bij het bijwerken van de factuur.', 'error');
+        return;
+      }
+
+      const { error: linkError } = await supabase
+        .from('meeting_room_bookings')
+        .update({ invoice_id: existingInvoice.id })
+        .eq('id', booking.id);
+
+      if (linkError) {
+        console.error('Error linking booking to invoice:', linkError.message);
+      }
+    } else {
+      const invoiceDate = new Date().toISOString().split('T')[0];
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + 30);
+      const dueDateStr = dueDate.toISOString().split('T')[0];
+
+      const subtotal = booking.total_amount;
+      const vatAmount = subtotal * (vatRate / 100);
+      const totalAmount = subtotal + vatAmount;
+
+      const { data: invoiceData, error: invoiceError } = await supabase
+        .from('invoices')
+        .insert({
+          tenant_id: booking.tenant_id,
+          invoice_date: invoiceDate,
+          due_date: dueDateStr,
+          invoice_month: invoiceMonth,
+          status: 'pending',
+          subtotal: subtotal,
+          vat_amount: vatAmount,
+          amount: totalAmount,
+          notes: `Vergaderruimte boekingen:\n${bookingLine}`
+        })
+        .select()
+        .single();
+
+      if (invoiceError || !invoiceData) {
+        console.error('Error creating invoice:', invoiceError?.message);
+        showNotification('Fout bij het aanmaken van de factuur.', 'error');
+        return;
+      }
+
+      const { error: linkError } = await supabase
+        .from('meeting_room_bookings')
+        .update({ invoice_id: invoiceData.id })
+        .eq('id', booking.id);
+
+      if (linkError) {
+        console.error('Error linking booking to invoice:', linkError.message);
+      }
+    }
+  };
+
+  const handleGenerateInvoice = async (booking: Booking) => {
+    if (booking.invoice_id) {
       return;
     }
 
-    const { error: updateError } = await supabase
-      .from('meeting_room_bookings')
-      .update({ invoice_id: invoiceData.id })
-      .eq('id', booking.id);
-
-    if (updateError) {
-      console.error('Error linking booking to invoice:', updateError.message);
-      showNotification('Fout bij het koppelen van de boeking aan de factuur.', 'error');
-      return;
-    }
+    await createOrUpdateInvoiceForBooking(booking);
 
     showNotification('Factuur succesvol aangemaakt!', 'success');
-    setBookings(bookings.map(b =>
-      b.id === booking.id ? { ...b, invoice_id: invoiceData.id } : b
-    ));
+    await loadData();
   };
 
   const handleSpaceChange = (spaceId: string) => {
