@@ -125,15 +125,15 @@ export function InvoicePreview({
                 {invoice.notes.split('\n')
                   .filter(line => line.trim())
                   .map((line, index) => {
-                    const match = line.match(/^-\s*(?:.*?:\s*)?(.+?)\s*\((\d+u)\s*@\s*€([\d.]+)\/u\)\s*=\s*€([\d.]+)$/);
+                    const match = line.match(/^-\s*(?:.*?:\s*)?(.+?)\s*\((\d+)u\s*@\s*€([\d.]+)\/u\)\s*=\s*€([\d.]+)$/);
                     if (match) {
-                      const [, dateTimeInfo, , , amount] = match;
+                      const [, dateTimeInfo, hours, , amount] = match;
                       return (
                         <div
                           key={index}
                           className="flex justify-between items-center py-2 px-3 rounded bg-gray-50"
                         >
-                          <span className="text-gray-700">{dateTimeInfo.trim()}</span>
+                          <span className="text-gray-700">- {dateTimeInfo.trim()} ({hours}u)</span>
                           <span className="font-medium text-gray-900">€ {amount}</span>
                         </div>
                       );

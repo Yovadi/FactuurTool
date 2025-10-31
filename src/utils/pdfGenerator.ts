@@ -240,10 +240,10 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
         pdf.rect(margin, yPosition - 4, pageWidth - 2 * margin, 7, 'F');
       }
 
-      const match = line.match(/^-\s*(?:.*?:\s*)?(.+?)\s*\((\d+u)\s*@\s*€([\d.]+)\/u\)\s*=\s*€([\d.]+)$/);
+      const match = line.match(/^-\s*(?:.*?:\s*)?(.+?)\s*\((\d+)u\s*@\s*€([\d.]+)\/u\)\s*=\s*€([\d.]+)$/);
       if (match) {
         const [, dateTimeInfo, hours, , amount] = match;
-        pdf.text(dateTimeInfo.trim(), col1X + 2, yPosition);
+        pdf.text(`- ${dateTimeInfo.trim()} (${hours}u)`, col1X + 2, yPosition);
         pdf.text(`€ ${amount}`, col3X + 2, yPosition);
         pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col4X - 5, yPosition);
       } else {
