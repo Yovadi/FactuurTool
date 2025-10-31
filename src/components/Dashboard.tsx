@@ -43,7 +43,8 @@ export function Dashboard() {
 
     const { data: spaces } = await supabase
       .from('office_spaces')
-      .select('is_available');
+      .select('is_available, space_type')
+      .in('space_type', ['office', 'business_unit']);
 
     const { data: leases } = await supabase
       .from('leases')
@@ -58,6 +59,7 @@ export function Dashboard() {
       .select('id, booking_date, start_time, end_time, status');
 
     const occupiedSpaces = spaces?.filter(s => !s.is_available).length || 0;
+    const totalRentableSpaces = spaces?.length || 0;
 
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
@@ -91,7 +93,7 @@ export function Dashboard() {
 
     setStats({
       totalTenants: tenants?.length || 0,
-      totalSpaces: spaces?.length || 0,
+      totalSpaces: totalRentableSpaces,
       occupiedSpaces,
       todayBookings,
       upcomingBookings,
@@ -145,7 +147,7 @@ export function Dashboard() {
       });
     }
 
-    const availableSpaces = (stats.totalSpaces || spaces?.length || 0) - occupiedSpaces;
+    const availableSpaces = totalRentableSpaces - occupiedSpaces;
     if (availableSpaces > 0) {
       newNotifications.push({
         type: 'info',

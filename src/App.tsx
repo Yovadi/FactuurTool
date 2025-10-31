@@ -6,9 +6,10 @@ import { LeaseManagement } from './components/LeaseManagement';
 import { InvoiceManagement } from './components/InvoiceManagement';
 import { CompanySettings } from './components/CompanySettings';
 import { MeetingRoomBookings } from './components/MeetingRoomBookings';
-import { LayoutDashboard, Users, Building, FileText, ScrollText, Settings, CalendarClock } from 'lucide-react';
+import { Analytics } from './components/Analytics';
+import { LayoutDashboard, Users, Building, FileText, ScrollText, Settings, CalendarClock, TrendingUp } from 'lucide-react';
 
-type Tab = 'dashboard' | 'tenants' | 'spaces' | 'leases' | 'invoices' | 'bookings' | 'settings';
+type Tab = 'dashboard' | 'tenants' | 'spaces' | 'leases' | 'invoices' | 'bookings' | 'analytics' | 'settings';
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -20,6 +21,7 @@ function App() {
     { id: 'leases' as Tab, label: 'Huurcontracten', icon: ScrollText },
     { id: 'invoices' as Tab, label: 'Facturen', icon: FileText },
     { id: 'bookings' as Tab, label: 'Vergaderruimte', icon: CalendarClock },
+    { id: 'analytics' as Tab, label: 'Analyses', icon: TrendingUp },
     { id: 'settings' as Tab, label: 'Verhuurder', icon: Settings },
   ];
 
@@ -60,6 +62,7 @@ function App() {
               {activeTab === 'leases' && <LeaseManagement />}
               {activeTab === 'invoices' && <InvoiceManagement />}
               {activeTab === 'bookings' && <MeetingRoomBookings />}
+              {activeTab === 'analytics' && <Analytics />}
               {activeTab === 'settings' && <CompanySettings />}
             </div>
           </main>
