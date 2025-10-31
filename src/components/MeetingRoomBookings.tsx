@@ -385,6 +385,33 @@ export function MeetingRoomBookings() {
                 <label className="block text-sm font-medium text-gray-200 mb-2">
                   Datum
                 </label>
+                <div className="grid grid-cols-7 gap-2 mb-2">
+                  {Array.from({ length: 14 }, (_, i) => {
+                    const date = new Date();
+                    date.setDate(date.getDate() + i);
+                    const dateStr = date.toISOString().split('T')[0];
+                    const isSelected = formData.booking_date === dateStr;
+                    const isToday = i === 0;
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, booking_date: dateStr })}
+                        className={`px-3 py-2 rounded-lg text-sm transition-colors ${
+                          isSelected
+                            ? 'bg-gold-600 text-white'
+                            : isToday
+                            ? 'bg-dark-700 text-gray-200 border border-gold-500/50 hover:bg-dark-600'
+                            : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
+                        }`}
+                      >
+                        <div className="text-xs font-medium">{date.toLocaleDateString('nl-NL', { weekday: 'short' })}</div>
+                        <div className="font-bold">{date.getDate()}</div>
+                        <div className="text-xs">{date.toLocaleDateString('nl-NL', { month: 'short' })}</div>
+                      </button>
+                    );
+                  })}
+                </div>
                 <input
                   type="date"
                   value={formData.booking_date}
@@ -399,6 +426,22 @@ export function MeetingRoomBookings() {
                   <label className="block text-sm font-medium text-gray-200 mb-2">
                     Starttijd
                   </label>
+                  <div className="grid grid-cols-4 gap-2 mb-2">
+                    {['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00'].map((time) => (
+                      <button
+                        key={time}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, start_time: time })}
+                        className={`px-3 py-2 rounded-lg text-sm transition-colors ${
+                          formData.start_time === time
+                            ? 'bg-gold-600 text-white'
+                            : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
+                        }`}
+                      >
+                        {time}
+                      </button>
+                    ))}
+                  </div>
                   <input
                     type="time"
                     value={formData.start_time}
@@ -412,6 +455,22 @@ export function MeetingRoomBookings() {
                   <label className="block text-sm font-medium text-gray-200 mb-2">
                     Eindtijd
                   </label>
+                  <div className="grid grid-cols-4 gap-2 mb-2">
+                    {['10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'].map((time) => (
+                      <button
+                        key={time}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, end_time: time })}
+                        className={`px-3 py-2 rounded-lg text-sm transition-colors ${
+                          formData.end_time === time
+                            ? 'bg-gold-600 text-white'
+                            : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
+                        }`}
+                      >
+                        {time}
+                      </button>
+                    ))}
+                  </div>
                   <input
                     type="time"
                     value={formData.end_time}
