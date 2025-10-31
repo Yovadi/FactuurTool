@@ -129,6 +129,21 @@ export function MeetingRoomBookings() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!formData.booking_date) {
+      showNotification('Selecteer een datum voor de boeking.', 'error');
+      return;
+    }
+
+    if (!formData.space_id) {
+      showNotification('Selecteer een vergaderruimte.', 'error');
+      return;
+    }
+
+    if (!formData.tenant_id) {
+      showNotification('Selecteer een huurder.', 'error');
+      return;
+    }
+
     const { data: existingBookings } = await supabase
       .from('meeting_room_bookings')
       .select('id, start_time, end_time')
@@ -399,7 +414,20 @@ export function MeetingRoomBookings() {
           <p className="text-gray-300">Beheer boekingen voor vergaderruimtes op uurbasis</p>
         </div>
         <button
-          onClick={() => setShowForm(true)}
+          onClick={() => {
+            const today = new Date();
+            const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            setFormData({
+              space_id: '',
+              tenant_id: '',
+              booking_date: todayStr,
+              start_time: '09:00',
+              end_time: '10:00',
+              hourly_rate: 25,
+              notes: ''
+            });
+            setShowForm(true);
+          }}
           className="bg-gold-600 text-white px-6 py-3 rounded-lg hover:bg-gold-700 transition-colors flex items-center gap-2"
         >
           <Plus size={20} />
