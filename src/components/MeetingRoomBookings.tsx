@@ -249,12 +249,7 @@ export function MeetingRoomBookings() {
     const bookingDate = new Date(booking.booking_date + 'T00:00:00');
     const invoiceMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
 
-    const { data: companySettings } = await supabase
-      .from('company_settings')
-      .select('vat_rate')
-      .single();
-
-    const vatRate = companySettings?.vat_rate || 0;
+    const vatRate = 21;
 
     const { data: existingInvoice } = await supabase
       .from('invoices')
@@ -306,16 +301,23 @@ export function MeetingRoomBookings() {
       const vatAmount = subtotal * (vatRate / 100);
       const totalAmount = subtotal + vatAmount;
 
+      const { data: invoiceNumberResult } = await supabase
+        .rpc('generate_invoice_number');
+
+      const invoiceNumber = invoiceNumberResult || 'INV-ERROR';
+
       const { data: invoiceData, error: invoiceError } = await supabase
         .from('invoices')
         .insert({
           tenant_id: booking.tenant_id,
+          invoice_number: invoiceNumber,
           invoice_date: invoiceDate,
           due_date: dueDateStr,
           invoice_month: invoiceMonth,
           status: 'pending',
           subtotal: subtotal,
           vat_amount: vatAmount,
+          vat_rate: vatRate,
           amount: totalAmount,
           notes: `Vergaderruimte boekingen:\n${bookingLine}`
         })
