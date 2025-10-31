@@ -119,10 +119,10 @@ export function Analytics() {
           </div>
           <div>
             <p className="text-sm text-gray-300 mb-1">Totale Omzet</p>
-            <p className="text-3xl font-bold text-gray-100">
+            <p className="text-3xl font-bold text-gray-100 h-10 flex items-center">
               €{stats.totalRevenue.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-gray-400 mt-1 h-4">
               Alle facturen
             </p>
           </div>
@@ -136,10 +136,10 @@ export function Analytics() {
           </div>
           <div>
             <p className="text-sm text-gray-300 mb-1">Geïnde Omzet</p>
-            <p className="text-3xl font-bold text-gray-100">
+            <p className="text-3xl font-bold text-gray-100 h-10 flex items-center">
               €{stats.paidRevenue.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-gray-400 mt-1 h-4">
               {stats.paidInvoices} betaalde facturen
             </p>
           </div>
@@ -153,10 +153,10 @@ export function Analytics() {
           </div>
           <div>
             <p className="text-sm text-gray-300 mb-1">Uitstaand Bedrag</p>
-            <p className="text-3xl font-bold text-gray-100">
+            <p className="text-3xl font-bold text-gray-100 h-10 flex items-center">
               €{stats.pendingAmount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-gray-400 mt-1 h-4">
               {stats.pendingInvoices} openstaande facturen
             </p>
           </div>
@@ -170,10 +170,10 @@ export function Analytics() {
           </div>
           <div>
             <p className="text-sm text-gray-300 mb-1">Prognose Volgende Maand</p>
-            <p className="text-3xl font-bold text-gray-100">
+            <p className="text-3xl font-bold text-gray-100 h-10 flex items-center">
               €{stats.forecastNextMonth.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-gray-400 mt-1 h-4">
               Actieve contracten
             </p>
           </div>

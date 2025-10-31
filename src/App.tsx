@@ -15,7 +15,7 @@ function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
 
   const navigation = [
-    { id: 'dashboard' as Tab, label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'dashboard' as Tab, label: 'Overzicht', icon: LayoutDashboard },
     { id: 'tenants' as Tab, label: 'Huurders', icon: Users },
     { id: 'spaces' as Tab, label: 'Ruimtes', icon: Building },
     { id: 'leases' as Tab, label: 'Huurcontracten', icon: ScrollText },

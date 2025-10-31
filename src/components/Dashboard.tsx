@@ -172,7 +172,7 @@ export function Dashboard() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-100 mb-2">Dashboard</h1>
+        <h1 className="text-3xl font-bold text-gray-100 mb-2">Overzicht</h1>
         <p className="text-gray-300">Overzicht van je kantoorgebouw beheer</p>
       </div>
 
@@ -185,7 +185,8 @@ export function Dashboard() {
           </div>
           <div>
             <p className="text-sm text-gray-300 mb-1">Totaal Huurders</p>
-            <p className="text-3xl font-bold text-gray-100">{stats.totalTenants}</p>
+            <p className="text-3xl font-bold text-gray-100 h-10 flex items-center">{stats.totalTenants}</p>
+            <p className="text-xs text-gray-400 mt-1 h-4 invisible">.</p>
           </div>
         </div>
 
@@ -197,8 +198,8 @@ export function Dashboard() {
           </div>
           <div>
             <p className="text-sm text-gray-300 mb-1">Totaal Ruimtes</p>
-            <p className="text-3xl font-bold text-gray-100">{stats.totalSpaces}</p>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-3xl font-bold text-gray-100 h-10 flex items-center">{stats.totalSpaces}</p>
+            <p className="text-xs text-gray-400 mt-1 h-4">
               {stats.occupiedSpaces} bezet, {stats.totalSpaces - stats.occupiedSpaces} beschikbaar
             </p>
           </div>
@@ -212,8 +213,8 @@ export function Dashboard() {
           </div>
           <div>
             <p className="text-sm text-gray-300 mb-1">Bezettingsgraad</p>
-            <p className="text-3xl font-bold text-gray-100">{occupancyRate}%</p>
-            <div className="w-full bg-dark-800 rounded-full h-2 mt-3">
+            <p className="text-3xl font-bold text-gray-100 h-10 flex items-center">{occupancyRate}%</p>
+            <div className="w-full bg-dark-800 rounded-full h-2 mt-1 h-4">
               <div
                 className="bg-gradient-to-r from-gold-500 to-gold-600 h-2 rounded-full transition-all duration-500"
                 style={{ width: `${occupancyRate}%` }}
@@ -230,8 +231,8 @@ export function Dashboard() {
           </div>
           <div>
             <p className="text-sm text-gray-300 mb-1">Vergaderruimte Boekingen</p>
-            <p className="text-3xl font-bold text-gray-100">{stats.todayBookings}</p>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-3xl font-bold text-gray-100 h-10 flex items-center">{stats.todayBookings}</p>
+            <p className="text-xs text-gray-400 mt-1 h-4">
               {stats.upcomingBookings} komende week
             </p>
           </div>
