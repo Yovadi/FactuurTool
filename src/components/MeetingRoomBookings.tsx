@@ -109,6 +109,34 @@ export function MeetingRoomBookings() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    const { data: existingBookings } = await supabase
+      .from('meeting_room_bookings')
+      .select('id, start_time, end_time')
+      .eq('space_id', formData.space_id)
+      .eq('booking_date', formData.booking_date)
+      .neq('status', 'cancelled');
+
+    if (existingBookings && existingBookings.length > 0) {
+      const newStart = formData.start_time;
+      const newEnd = formData.end_time;
+
+      const hasOverlap = existingBookings.some(booking => {
+        const existingStart = booking.start_time;
+        const existingEnd = booking.end_time;
+
+        return (
+          (newStart >= existingStart && newStart < existingEnd) ||
+          (newEnd > existingStart && newEnd <= existingEnd) ||
+          (newStart <= existingStart && newEnd >= existingEnd)
+        );
+      });
+
+      if (hasOverlap) {
+        alert('Deze ruimte is al geboekt voor de geselecteerde tijd. Kies een andere tijd of ruimte.');
+        return;
+      }
+    }
+
     const totalHours = calculateTotalHours(formData.start_time, formData.end_time);
     const totalAmount = totalHours * formData.hourly_rate;
 
@@ -135,6 +163,7 @@ export function MeetingRoomBookings() {
 
     if (error) {
       console.error('Error creating booking:', error.message);
+      alert('Er is een fout opgetreden bij het aanmaken van de boeking.');
       return;
     }
 
