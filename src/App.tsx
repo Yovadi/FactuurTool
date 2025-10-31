@@ -19,8 +19,8 @@ function App() {
     { id: 'tenants' as Tab, label: 'Huurders', icon: Users },
     { id: 'spaces' as Tab, label: 'Ruimtes', icon: Building },
     { id: 'leases' as Tab, label: 'Huurcontracten', icon: ScrollText },
-    { id: 'invoices' as Tab, label: 'Facturen', icon: FileText },
     { id: 'bookings' as Tab, label: 'Vergaderruimte', icon: CalendarClock },
+    { id: 'invoices' as Tab, label: 'Facturen', icon: FileText },
     { id: 'analytics' as Tab, label: 'Analyses', icon: TrendingUp },
     { id: 'settings' as Tab, label: 'Verhuurder', icon: Settings },
   ];
