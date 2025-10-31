@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Calendar, Clock, Plus, X, Check, AlertCircle, Trash2, CalendarDays, FileText } from 'lucide-react';
 import { BookingCalendar } from './BookingCalendar';
+import { InlineDatePicker } from './InlineDatePicker';
 
 type Tenant = {
   id: string;
@@ -385,39 +386,10 @@ export function MeetingRoomBookings() {
                 <label className="block text-sm font-medium text-gray-200 mb-2">
                   Datum
                 </label>
-                <div className="grid grid-cols-7 gap-2 mb-2">
-                  {Array.from({ length: 14 }, (_, i) => {
-                    const date = new Date();
-                    date.setDate(date.getDate() + i);
-                    const dateStr = date.toISOString().split('T')[0];
-                    const isSelected = formData.booking_date === dateStr;
-                    const isToday = i === 0;
-                    return (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => setFormData({ ...formData, booking_date: dateStr })}
-                        className={`px-3 py-2 rounded-lg text-sm transition-colors ${
-                          isSelected
-                            ? 'bg-gold-600 text-white'
-                            : isToday
-                            ? 'bg-dark-700 text-gray-200 border border-gold-500/50 hover:bg-dark-600'
-                            : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
-                        }`}
-                      >
-                        <div className="text-xs font-medium">{date.toLocaleDateString('nl-NL', { weekday: 'short' })}</div>
-                        <div className="font-bold">{date.getDate()}</div>
-                        <div className="text-xs">{date.toLocaleDateString('nl-NL', { month: 'short' })}</div>
-                      </button>
-                    );
-                  })}
-                </div>
-                <input
-                  type="date"
+                <InlineDatePicker
                   value={formData.booking_date}
-                  onChange={(e) => setFormData({ ...formData, booking_date: e.target.value })}
-                  className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                  required
+                  onChange={(date) => setFormData({ ...formData, booking_date: date })}
+                  minDate={new Date().toISOString().split('T')[0]}
                 />
               </div>
 
@@ -426,58 +398,54 @@ export function MeetingRoomBookings() {
                   <label className="block text-sm font-medium text-gray-200 mb-2">
                     Starttijd
                   </label>
-                  <div className="grid grid-cols-4 gap-2 mb-2">
-                    {['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00'].map((time) => (
-                      <button
-                        key={time}
-                        type="button"
-                        onClick={() => setFormData({ ...formData, start_time: time })}
-                        className={`px-3 py-2 rounded-lg text-sm transition-colors ${
-                          formData.start_time === time
-                            ? 'bg-gold-600 text-white'
-                            : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
-                        }`}
-                      >
-                        {time}
-                      </button>
-                    ))}
+                  <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto p-1 bg-dark-900 rounded-lg border border-dark-600">
+                    {Array.from({ length: 20 }, (_, i) => {
+                      const hour = Math.floor(i / 2) + 8;
+                      const minute = (i % 2) * 30;
+                      const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+                      return (
+                        <button
+                          key={time}
+                          type="button"
+                          onClick={() => setFormData({ ...formData, start_time: time })}
+                          className={`px-3 py-2 rounded text-sm transition-colors ${
+                            formData.start_time === time
+                              ? 'bg-gold-600 text-white'
+                              : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
+                          }`}
+                        >
+                          {time}
+                        </button>
+                      );
+                    })}
                   </div>
-                  <input
-                    type="time"
-                    value={formData.start_time}
-                    onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
-                    className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                    required
-                  />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-200 mb-2">
                     Eindtijd
                   </label>
-                  <div className="grid grid-cols-4 gap-2 mb-2">
-                    {['10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'].map((time) => (
-                      <button
-                        key={time}
-                        type="button"
-                        onClick={() => setFormData({ ...formData, end_time: time })}
-                        className={`px-3 py-2 rounded-lg text-sm transition-colors ${
-                          formData.end_time === time
-                            ? 'bg-gold-600 text-white'
-                            : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
-                        }`}
-                      >
-                        {time}
-                      </button>
-                    ))}
+                  <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto p-1 bg-dark-900 rounded-lg border border-dark-600">
+                    {Array.from({ length: 20 }, (_, i) => {
+                      const hour = Math.floor(i / 2) + 8;
+                      const minute = (i % 2) * 30;
+                      const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+                      return (
+                        <button
+                          key={time}
+                          type="button"
+                          onClick={() => setFormData({ ...formData, end_time: time })}
+                          className={`px-3 py-2 rounded text-sm transition-colors ${
+                            formData.end_time === time
+                              ? 'bg-gold-600 text-white'
+                              : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
+                          }`}
+                        >
+                          {time}
+                        </button>
+                      );
+                    })}
                   </div>
-                  <input
-                    type="time"
-                    value={formData.end_time}
-                    onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
-                    className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                    required
-                  />
                 </div>
               </div>
 
