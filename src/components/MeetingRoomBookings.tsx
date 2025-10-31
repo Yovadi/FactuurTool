@@ -1,8 +1,16 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Calendar, Clock, Plus, X, Check, AlertCircle, Trash2, CalendarDays, FileText } from 'lucide-react';
+import { Calendar, Clock, Plus, X, Check, AlertCircle, Trash2, CalendarDays, FileText, CheckCircle, XCircle, Info } from 'lucide-react';
 import { BookingCalendar } from './BookingCalendar';
 import { InlineDatePicker } from './InlineDatePicker';
+
+type NotificationType = 'success' | 'error' | 'info';
+
+type Notification = {
+  id: number;
+  message: string;
+  type: NotificationType;
+};
 
 type Tenant = {
   id: string;
@@ -41,6 +49,8 @@ export function MeetingRoomBookings() {
   const [showForm, setShowForm] = useState(false);
   const [selectedView, setSelectedView] = useState<'list' | 'calendar'>('list');
   const [selectedFilter, setSelectedFilter] = useState<'upcoming' | 'past' | 'all'>('upcoming');
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notificationId, setNotificationId] = useState(0);
 
   const [formData, setFormData] = useState({
     space_id: '',
@@ -99,6 +109,16 @@ export function MeetingRoomBookings() {
     setLoading(false);
   };
 
+  const showNotification = (message: string, type: NotificationType = 'info') => {
+    const id = notificationId;
+    setNotificationId(id + 1);
+    setNotifications(prev => [...prev, { id, message, type }]);
+
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    }, 5000);
+  };
+
   const calculateTotalHours = (startTime: string, endTime: string) => {
     const start = new Date(`2000-01-01T${startTime}`);
     const end = new Date(`2000-01-01T${endTime}`);
@@ -132,7 +152,7 @@ export function MeetingRoomBookings() {
       });
 
       if (hasOverlap) {
-        alert('Deze ruimte is al geboekt voor de geselecteerde tijd. Kies een andere tijd of ruimte.');
+        showNotification('Deze ruimte is al geboekt voor de geselecteerde tijd. Kies een andere tijd of ruimte.', 'error');
         return;
       }
     }
@@ -163,10 +183,11 @@ export function MeetingRoomBookings() {
 
     if (error) {
       console.error('Error creating booking:', error.message);
-      alert('Er is een fout opgetreden bij het aanmaken van de boeking.');
+      showNotification('Er is een fout opgetreden bij het aanmaken van de boeking.', 'error');
       return;
     }
 
+    showNotification('Boeking succesvol aangemaakt!', 'success');
     setShowForm(false);
     setFormData({
       space_id: '',
@@ -191,8 +212,12 @@ export function MeetingRoomBookings() {
 
     if (error) {
       console.error('Error updating status:', error.message);
+      showNotification('Fout bij het bijwerken van de status.', 'error');
       return;
     }
+
+    const statusText = newStatus === 'confirmed' ? 'bevestigd' : newStatus === 'cancelled' ? 'geannuleerd' : 'voltooid';
+    showNotification(`Boeking is ${statusText}.`, 'success');
 
     setBookings(bookings.map(b =>
       b.id === bookingId ? { ...b, status: newStatus } : b
@@ -200,6 +225,10 @@ export function MeetingRoomBookings() {
   };
 
   const handleDelete = async (bookingId: string) => {
+    if (!confirm('Weet je zeker dat je deze boeking wilt verwijderen?')) {
+      return;
+    }
+
     const { error } = await supabase
       .from('meeting_room_bookings')
       .delete()
@@ -207,9 +236,11 @@ export function MeetingRoomBookings() {
 
     if (error) {
       console.error('Error deleting booking:', error.message);
+      showNotification('Fout bij het verwijderen van de boeking.', 'error');
       return;
     }
 
+    showNotification('Boeking succesvol verwijderd.', 'success');
     setBookings(bookings.filter(b => b.id !== bookingId));
   };
 
@@ -250,6 +281,7 @@ export function MeetingRoomBookings() {
 
     if (invoiceError || !invoiceData) {
       console.error('Error creating invoice:', invoiceError?.message);
+      showNotification('Fout bij het aanmaken van de factuur.', 'error');
       return;
     }
 
@@ -260,9 +292,11 @@ export function MeetingRoomBookings() {
 
     if (updateError) {
       console.error('Error linking booking to invoice:', updateError.message);
+      showNotification('Fout bij het koppelen van de boeking aan de factuur.', 'error');
       return;
     }
 
+    showNotification('Factuur succesvol aangemaakt!', 'success');
     setBookings(bookings.map(b =>
       b.id === booking.id ? { ...b, invoice_id: invoiceData.id } : b
     ));
@@ -283,6 +317,32 @@ export function MeetingRoomBookings() {
 
   return (
     <div>
+      <div className="fixed top-4 right-4 z-50 space-y-2 max-w-md">
+        {notifications.map((notification) => (
+          <div
+            key={notification.id}
+            className={`flex items-start gap-3 p-4 rounded-lg shadow-lg border backdrop-blur-sm animate-slide-in ${
+              notification.type === 'success'
+                ? 'bg-green-900/90 border-green-700 text-green-100'
+                : notification.type === 'error'
+                ? 'bg-red-900/90 border-red-700 text-red-100'
+                : 'bg-blue-900/90 border-blue-700 text-blue-100'
+            }`}
+          >
+            {notification.type === 'success' && <CheckCircle size={20} className="flex-shrink-0 mt-0.5" />}
+            {notification.type === 'error' && <XCircle size={20} className="flex-shrink-0 mt-0.5" />}
+            {notification.type === 'info' && <Info size={20} className="flex-shrink-0 mt-0.5" />}
+            <p className="text-sm font-medium flex-1">{notification.message}</p>
+            <button
+              onClick={() => setNotifications(prev => prev.filter(n => n.id !== notification.id))}
+              className="flex-shrink-0 hover:opacity-70 transition-opacity"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        ))}
+      </div>
+
       <div className="mb-8 flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-100 mb-2">Vergaderruimte Boekingen</h1>
