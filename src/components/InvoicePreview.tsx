@@ -20,6 +20,7 @@ interface InvoicePreviewProps {
     vat_rate: number;
     vat_inclusive: boolean;
     status: string;
+    notes?: string;
   };
   tenant: {
     name: string;
@@ -117,28 +118,35 @@ export function InvoicePreview({
           </div>
 
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Kostenoverzicht</h3>
-            <div className="space-y-2">
-              {spaces.map((space, index) => {
-                let displayName = space.space_name;
-                if (space.square_footage && space.space_type !== 'voorschot' && space.space_type !== 'diversen') {
-                  const sqm = typeof space.square_footage === 'string' ? parseFloat(space.square_footage as string) : space.square_footage;
-                  if (!isNaN(sqm) && sqm > 0) {
-                    displayName = `${space.space_name} - ${sqm.toFixed(0)} m²`;
-                  }
-                }
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Omschrijving</h3>
 
-                return (
-                  <div
-                    key={index}
-                    className="flex justify-between items-center py-2 px-3 rounded bg-gray-50"
-                  >
-                    <span className="text-gray-700">{displayName}</span>
-                    <span className="font-medium text-gray-900">€ {space.monthly_rent.toFixed(2)}</span>
-                  </div>
-                );
-              })}
-            </div>
+            {invoice.notes ? (
+              <div className="bg-gray-50 rounded p-4 mb-4">
+                <pre className="text-gray-700 whitespace-pre-wrap font-sans text-sm">{invoice.notes}</pre>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {spaces.map((space, index) => {
+                  let displayName = space.space_name;
+                  if (space.square_footage && space.space_type !== 'voorschot' && space.space_type !== 'diversen') {
+                    const sqm = typeof space.square_footage === 'string' ? parseFloat(space.square_footage as string) : space.square_footage;
+                    if (!isNaN(sqm) && sqm > 0) {
+                      displayName = `${space.space_name} - ${sqm.toFixed(0)} m²`;
+                    }
+                  }
+
+                  return (
+                    <div
+                      key={index}
+                      className="flex justify-between items-center py-2 px-3 rounded bg-gray-50"
+                    >
+                      <span className="text-gray-700">{displayName}</span>
+                      <span className="font-medium text-gray-900">€ {space.monthly_rent.toFixed(2)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
             <div className="mt-6 pt-4 border-t-2 border-gray-200 space-y-2">
               <div className="flex justify-between text-gray-700">

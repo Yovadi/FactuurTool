@@ -8,6 +8,7 @@ interface InvoiceData {
   tenant_phone?: string;
   tenant_billing_address?: string;
   invoice_month?: string;
+  notes?: string;
   spaces: Array<{
     space_name: string;
     monthly_rent: number;
@@ -225,7 +226,24 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
   pdf.setTextColor(60, 60, 60);
   pdf.setFontSize(9);
 
-  invoice.spaces.forEach((space, index) => {
+  if (invoice.notes) {
+    const notesLines = pdf.splitTextToSize(invoice.notes, pageWidth - 2 * margin - 4);
+    notesLines.forEach((line: string, index: number) => {
+      if (yPosition > pageHeight - 70) {
+        pdf.addPage();
+        yPosition = 20;
+      }
+
+      if (index % 2 === 0) {
+        pdf.setFillColor(250, 250, 250);
+        pdf.rect(margin, yPosition - 4, pageWidth - 2 * margin, 7, 'F');
+      }
+
+      pdf.text(line, col1X + 2, yPosition);
+      yPosition += 7;
+    });
+  } else {
+    invoice.spaces.forEach((space, index) => {
     if (yPosition > pageHeight - 70) {
       pdf.addPage();
       yPosition = 20;
@@ -251,7 +269,8 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
     pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col4X - 5, yPosition);
 
     yPosition += 7;
-  });
+    });
+  }
 
   if (invoice.security_deposit && invoice.security_deposit > 0) {
     if (yPosition > pageHeight - 70) {
