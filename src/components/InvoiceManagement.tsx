@@ -896,6 +896,15 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
       return;
     }
 
+    const companyNames = new Set(invoicesToMerge.map(inv => {
+      const tenant = getInvoiceTenant(inv);
+      return tenant?.company_name || '';
+    }));
+    if (companyNames.size > 1) {
+      alert('Je kunt alleen facturen van hetzelfde bedrijf samenvoegen.');
+      return;
+    }
+
     const invoiceMonths = new Set(invoicesToMerge.map(inv => inv.invoice_month));
     if (invoiceMonths.size > 1) {
       alert('Je kunt alleen facturen voor dezelfde maand samenvoegen.');
