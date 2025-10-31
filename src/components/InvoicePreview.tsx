@@ -121,8 +121,29 @@ export function InvoicePreview({
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Omschrijving</h3>
 
             {invoice.notes ? (
-              <div className="bg-gray-50 rounded p-4 mb-4">
-                <pre className="text-gray-700 whitespace-pre-wrap font-sans text-sm">{invoice.notes}</pre>
+              <div className="space-y-2">
+                {invoice.notes.split('\n')
+                  .filter(line => line.trim() && !line.includes('Vergaderruimte boekingen:'))
+                  .map((line, index) => {
+                    const match = line.match(/^-\s*(?:.*?:\s*)?(.+?)\s*\((\d+u)\s*@\s*€([\d.]+)\/u\)\s*=\s*€([\d.]+)$/);
+                    if (match) {
+                      const [, dateTimeInfo, , , amount] = match;
+                      return (
+                        <div
+                          key={index}
+                          className="flex justify-between items-center py-2 px-3 rounded bg-gray-50"
+                        >
+                          <span className="text-gray-700">{dateTimeInfo.trim()}</span>
+                          <span className="font-medium text-gray-900">€ {amount}</span>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div key={index} className="py-2 px-3 rounded bg-gray-50">
+                        <span className="text-gray-700">{line.replace(/^-\s*/, '')}</span>
+                      </div>
+                    );
+                  })}
               </div>
             ) : (
               <div className="space-y-2">
