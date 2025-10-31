@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, type Invoice, type Lease, type Tenant, type LeaseSpace, type OfficeSpace, type InvoiceLineItem } from '../lib/supabase';
-import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, Edit } from 'lucide-react';
+import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, Edit, Merge } from 'lucide-react';
 import { generateInvoicePDF } from '../utils/pdfGenerator';
 import { InvoicePreview } from './InvoicePreview';
 import { checkAndRunScheduledJobs } from '../utils/scheduledJobs';
@@ -68,6 +68,8 @@ export function InvoiceManagement() {
     invoice: InvoiceWithDetails;
     spaces: any[];
   } | null>(null);
+  const [showMergeModal, setShowMergeModal] = useState(false);
+  const [selectedInvoicesForMerge, setSelectedInvoicesForMerge] = useState<string[]>([]);
 
   const getNextMonthString = () => {
     const nextMonth = new Date();
@@ -880,6 +882,110 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
     return invoice.tenant;
   };
 
+  const mergeInvoices = async () => {
+    if (selectedInvoicesForMerge.length < 2) {
+      alert('Selecteer minimaal 2 facturen om samen te voegen.');
+      return;
+    }
+
+    const invoicesToMerge = invoices.filter(inv => selectedInvoicesForMerge.includes(inv.id));
+
+    const tenantIds = new Set(invoicesToMerge.map(inv => inv.tenant_id || inv.lease?.tenant.id));
+    if (tenantIds.size > 1) {
+      alert('Je kunt alleen facturen van dezelfde huurder samenvoegen.');
+      return;
+    }
+
+    const invoiceMonths = new Set(invoicesToMerge.map(inv => inv.invoice_month));
+    if (invoiceMonths.size > 1) {
+      alert('Je kunt alleen facturen voor dezelfde maand samenvoegen.');
+      return;
+    }
+
+    const firstInvoice = invoicesToMerge[0];
+    const tenant = getInvoiceTenant(firstInvoice);
+
+    let combinedSubtotal = 0;
+    let combinedVatAmount = 0;
+    let combinedTotal = 0;
+    let combinedNotes: string[] = [];
+
+    for (const invoice of invoicesToMerge) {
+      combinedSubtotal += parseFloat(invoice.subtotal.toString());
+      combinedVatAmount += parseFloat(invoice.vat_amount.toString());
+      combinedTotal += parseFloat(invoice.amount.toString());
+
+      if (invoice.notes) {
+        combinedNotes.push(invoice.notes);
+      }
+
+      const { data: items } = await supabase
+        .from('invoice_line_items')
+        .select('*')
+        .eq('invoice_id', invoice.id);
+
+      if (items && items.length > 0) {
+        const itemDescriptions = items.map(item => `- ${item.description}: €${item.amount.toFixed(2)}`);
+        combinedNotes.push(...itemDescriptions);
+      }
+    }
+
+    const { data: invoiceNumberResult } = await supabase.rpc('generate_invoice_number');
+    const invoiceNumber = invoiceNumberResult || 'INV-ERROR';
+
+    const { data: mergedInvoice, error: createError } = await supabase
+      .from('invoices')
+      .insert({
+        tenant_id: firstInvoice.tenant_id || firstInvoice.lease?.tenant.id,
+        lease_id: firstInvoice.lease_id,
+        invoice_number: invoiceNumber,
+        invoice_date: firstInvoice.invoice_date,
+        due_date: firstInvoice.due_date,
+        invoice_month: firstInvoice.invoice_month,
+        status: 'draft',
+        subtotal: combinedSubtotal,
+        vat_amount: combinedVatAmount,
+        vat_rate: firstInvoice.vat_rate,
+        vat_inclusive: firstInvoice.vat_inclusive,
+        amount: combinedTotal,
+        notes: combinedNotes.join('\n')
+      })
+      .select()
+      .single();
+
+    if (createError || !mergedInvoice) {
+      console.error('Error creating merged invoice:', createError);
+      alert('Fout bij het aanmaken van samengevoegde factuur.');
+      return;
+    }
+
+    for (const invoice of invoicesToMerge) {
+      const { error: deleteError } = await supabase
+        .from('invoices')
+        .delete()
+        .eq('id', invoice.id);
+
+      if (deleteError) {
+        console.error('Error deleting invoice:', deleteError);
+      }
+    }
+
+    await loadData();
+    setSelectedInvoicesForMerge([]);
+    setShowMergeModal(false);
+    alert(`Facturen succesvol samengevoegd in factuur ${invoiceNumber}`);
+  };
+
+  const toggleInvoiceSelection = (invoiceId: string) => {
+    setSelectedInvoicesForMerge(prev => {
+      if (prev.includes(invoiceId)) {
+        return prev.filter(id => id !== invoiceId);
+      } else {
+        return [...prev, invoiceId];
+      }
+    });
+  };
+
   const showInvoicePreview = async (invoice: InvoiceWithDetails) => {
     const { data: items } = await supabase
       .from('invoice_line_items')
@@ -1458,9 +1564,40 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
           return (
             <div>
-              <h2 className="text-xl font-bold text-gray-100 mb-4 pb-2 border-b-2 border-dark-600">
-                Concept Facturen
-              </h2>
+              <div className="flex justify-between items-center mb-4 pb-2 border-b-2 border-dark-600">
+                <h2 className="text-xl font-bold text-gray-100">
+                  Concept Facturen
+                </h2>
+                {!showMergeModal && (
+                  <button
+                    onClick={() => setShowMergeModal(true)}
+                    className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
+                  >
+                    <Merge size={18} />
+                    Facturen Samenvoegen
+                  </button>
+                )}
+                {showMergeModal && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={mergeInvoices}
+                      disabled={selectedInvoicesForMerge.length < 2}
+                      className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
+                    >
+                      Samenvoegen ({selectedInvoicesForMerge.length})
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowMergeModal(false);
+                        setSelectedInvoicesForMerge([]);
+                      }}
+                      className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+                    >
+                      Annuleren
+                    </button>
+                  </div>
+                )}
+              </div>
               <div className="space-y-3">
                 {groupedInvoices.map((invoice) => {
                   const tenant = getInvoiceTenant(invoice);
@@ -1470,10 +1607,22 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                   return (
                     <div
                       key={invoice.id}
-                      className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-5 hover:shadow-md transition-shadow"
+                      className={`bg-dark-900 rounded-lg shadow-sm border p-5 hover:shadow-md transition-shadow ${
+                        showMergeModal && selectedInvoicesForMerge.includes(invoice.id)
+                          ? 'border-purple-500 bg-purple-900/20'
+                          : 'border-dark-700'
+                      }`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4 flex-1">
+                          {showMergeModal && (
+                            <input
+                              type="checkbox"
+                              checked={selectedInvoicesForMerge.includes(invoice.id)}
+                              onChange={() => toggleInvoiceSelection(invoice.id)}
+                              className="w-5 h-5 rounded border-gray-600 text-purple-600 focus:ring-purple-500"
+                            />
+                          )}
                           <FileText className="text-gray-500" size={24} />
                           <div className="flex-1">
                             <div className="flex items-center gap-3 mb-1">
