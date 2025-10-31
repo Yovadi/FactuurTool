@@ -73,8 +73,18 @@ export function InvoiceManagement() {
   const [mergeError, setMergeError] = useState<string | null>(null);
   const [mergeSuccess, setMergeSuccess] = useState<string | null>(null);
 
-  const getNextMonthString = () => {
-    const nextMonth = new Date();
+  const getNextMonthString = async () => {
+    const { data: settings } = await supabase
+      .from('company_settings')
+      .select('test_mode, test_date')
+      .maybeSingle();
+
+    let currentDate = new Date();
+    if (settings?.test_mode && settings?.test_date) {
+      currentDate = new Date(settings.test_date);
+    }
+
+    const nextMonth = new Date(currentDate);
     nextMonth.setMonth(nextMonth.getMonth() + 1);
     return `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}`;
   };
@@ -82,9 +92,9 @@ export function InvoiceManagement() {
   const [formData, setFormData] = useState({
     lease_id: '',
     tenant_id: '',
-    invoice_date: new Date().toISOString().split('T')[0],
-    due_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    invoice_month: getNextMonthString(),
+    invoice_date: '',
+    due_date: '',
+    invoice_month: '',
     vat_rate: '21',
     vat_inclusive: false,
     notes: ''
@@ -97,6 +107,30 @@ export function InvoiceManagement() {
   }>>([]);
 
   useEffect(() => {
+    const initializeForm = async () => {
+      const { data: settings } = await supabase
+        .from('company_settings')
+        .select('test_mode, test_date')
+        .maybeSingle();
+
+      let currentDate = new Date();
+      if (settings?.test_mode && settings?.test_date) {
+        currentDate = new Date(settings.test_date);
+      }
+
+      const dueDateObj = new Date(currentDate);
+      dueDateObj.setDate(dueDateObj.getDate() + 14);
+
+      const nextMonth = await getNextMonthString();
+      setFormData(prev => ({
+        ...prev,
+        invoice_month: nextMonth,
+        invoice_date: currentDate.toISOString().split('T')[0],
+        due_date: dueDateObj.toISOString().split('T')[0]
+      }));
+    };
+
+    initializeForm();
     loadData();
     checkAndRunScheduledJobs();
 
@@ -704,9 +738,21 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
   const generateBulkInvoices = async () => {
     setGeneratingBulk(true);
 
-    const nextMonth = getNextMonthString();
-    const invoiceDate = new Date().toISOString().split('T')[0];
-    const dueDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const { data: settings } = await supabase
+      .from('company_settings')
+      .select('test_mode, test_date')
+      .maybeSingle();
+
+    let currentDate = new Date();
+    if (settings?.test_mode && settings?.test_date) {
+      currentDate = new Date(settings.test_date);
+    }
+
+    const nextMonth = await getNextMonthString();
+    const invoiceDate = currentDate.toISOString().split('T')[0];
+    const dueDateObj = new Date(currentDate);
+    dueDateObj.setDate(dueDateObj.getDate() + 14);
+    const dueDate = dueDateObj.toISOString().split('T')[0];
 
     let successCount = 0;
     let failCount = 0;
