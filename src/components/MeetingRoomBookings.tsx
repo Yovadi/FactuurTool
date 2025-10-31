@@ -394,92 +394,94 @@ export function MeetingRoomBookings() {
                   />
                 </div>
 
-                <div className="flex gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-200 mb-2">
-                      Starttijd
-                    </label>
-                    <select
-                      value={formData.start_time}
-                      onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
-                      className="px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                      required
-                    >
-                      <option value="">Selecteer tijd</option>
-                      {Array.from({ length: 20 }, (_, i) => {
-                        const hour = Math.floor(i / 2) + 8;
-                        const minute = (i % 2) * 30;
-                        const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-                        return (
-                          <option key={time} value={time}>
-                            {time}
-                          </option>
-                        );
-                      })}
-                    </select>
+                <div className="flex flex-col gap-4 flex-1">
+                  <div className="flex gap-4">
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium text-gray-200 mb-2">
+                        Starttijd
+                      </label>
+                      <select
+                        value={formData.start_time}
+                        onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
+                        className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent max-h-48 overflow-y-auto"
+                        size={8}
+                        required
+                      >
+                        {Array.from({ length: 20 }, (_, i) => {
+                          const hour = Math.floor(i / 2) + 8;
+                          const minute = (i % 2) * 30;
+                          const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+                          return (
+                            <option key={time} value={time}>
+                              {time}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium text-gray-200 mb-2">
+                        Eindtijd
+                      </label>
+                      <select
+                        value={formData.end_time}
+                        onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
+                        className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent max-h-48 overflow-y-auto"
+                        size={8}
+                        required
+                      >
+                        {Array.from({ length: 20 }, (_, i) => {
+                          const hour = Math.floor(i / 2) + 8;
+                          const minute = (i % 2) * 30;
+                          const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+                          return (
+                            <option key={time} value={time}>
+                              {time}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4">
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium text-gray-200 mb-2">
+                        Uurtarief (€)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={formData.hourly_rate}
+                        onChange={(e) => setFormData({ ...formData, hourly_rate: parseFloat(e.target.value) })}
+                        className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                        required
+                      />
+                    </div>
+
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium text-gray-200 mb-2">
+                        Totaalbedrag
+                      </label>
+                      <div className="px-4 py-2 border border-dark-600 rounded-lg bg-dark-800 text-gray-100">
+                        €{(calculateTotalHours(formData.start_time, formData.end_time) * formData.hourly_rate).toFixed(2)}
+                      </div>
+                    </div>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-200 mb-2">
-                      Eindtijd
+                      Notities
                     </label>
-                    <select
-                      value={formData.end_time}
-                      onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
-                      className="px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                      required
-                    >
-                      <option value="">Selecteer tijd</option>
-                      {Array.from({ length: 20 }, (_, i) => {
-                        const hour = Math.floor(i / 2) + 8;
-                        const minute = (i % 2) * 30;
-                        const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-                        return (
-                          <option key={time} value={time}>
-                            {time}
-                          </option>
-                        );
-                      })}
-                    </select>
+                    <textarea
+                      value={formData.notes}
+                      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                      rows={2}
+                      className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                    />
                   </div>
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-200 mb-2">
-                  Uurtarief (€)
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={formData.hourly_rate}
-                  onChange={(e) => setFormData({ ...formData, hourly_rate: parseFloat(e.target.value) })}
-                  className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-200 mb-2">
-                  Notities
-                </label>
-                <textarea
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  rows={3}
-                  className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                />
-              </div>
-
-              <div className="bg-dark-700 p-4 rounded-lg">
-                <p className="text-sm text-gray-300">
-                  <strong>Totale uren:</strong>{' '}
-                  {calculateTotalHours(formData.start_time, formData.end_time).toFixed(2)} uur
-                </p>
-                <p className="text-sm text-gray-300 mt-1">
-                  <strong>Totaalbedrag:</strong> €
-                  {(calculateTotalHours(formData.start_time, formData.end_time) * formData.hourly_rate).toFixed(2)}
-                </p>
               </div>
 
               <div className="flex gap-4 justify-end">
