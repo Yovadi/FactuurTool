@@ -70,6 +70,8 @@ export function InvoiceManagement() {
   } | null>(null);
   const [showMergeModal, setShowMergeModal] = useState(false);
   const [selectedInvoicesForMerge, setSelectedInvoicesForMerge] = useState<string[]>([]);
+  const [mergeError, setMergeError] = useState<string | null>(null);
+  const [mergeSuccess, setMergeSuccess] = useState<string | null>(null);
 
   const getNextMonthString = () => {
     const nextMonth = new Date();
@@ -883,8 +885,11 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
   };
 
   const mergeInvoices = async () => {
+    setMergeError(null);
+    setMergeSuccess(null);
+
     if (selectedInvoicesForMerge.length < 2) {
-      alert('Selecteer minimaal 2 facturen om samen te voegen.');
+      setMergeError('Selecteer minimaal 2 facturen om samen te voegen.');
       return;
     }
 
@@ -892,7 +897,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
     const tenantIds = new Set(invoicesToMerge.map(inv => inv.tenant_id || inv.lease?.tenant.id));
     if (tenantIds.size > 1) {
-      alert('Je kunt alleen facturen van dezelfde huurder samenvoegen.');
+      setMergeError('Je kunt alleen facturen van dezelfde huurder samenvoegen.');
       return;
     }
 
@@ -901,13 +906,13 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
       return tenant?.company_name || '';
     }));
     if (companyNames.size > 1) {
-      alert('Je kunt alleen facturen van hetzelfde bedrijf samenvoegen.');
+      setMergeError('Je kunt alleen facturen van hetzelfde bedrijf samenvoegen.');
       return;
     }
 
     const invoiceMonths = new Set(invoicesToMerge.map(inv => inv.invoice_month));
     if (invoiceMonths.size > 1) {
-      alert('Je kunt alleen facturen voor dezelfde maand samenvoegen.');
+      setMergeError('Je kunt alleen facturen voor dezelfde maand samenvoegen.');
       return;
     }
 
@@ -964,7 +969,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
     if (createError || !mergedInvoice) {
       console.error('Error creating merged invoice:', createError);
-      alert('Fout bij het aanmaken van samengevoegde factuur.');
+      setMergeError('Fout bij het aanmaken van samengevoegde factuur.');
       return;
     }
 
@@ -982,7 +987,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
     await loadData();
     setSelectedInvoicesForMerge([]);
     setShowMergeModal(false);
-    alert(`Facturen succesvol samengevoegd in factuur ${invoiceNumber}`);
+    setMergeSuccess(`Facturen succesvol samengevoegd in factuur ${invoiceNumber}`);
+    setTimeout(() => setMergeSuccess(null), 5000);
   };
 
   const toggleInvoiceSelection = (invoiceId: string) => {
@@ -1599,6 +1605,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                       onClick={() => {
                         setShowMergeModal(false);
                         setSelectedInvoicesForMerge([]);
+                        setMergeError(null);
                       }}
                       className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
                     >
@@ -1607,6 +1614,28 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                   </div>
                 )}
               </div>
+              {mergeError && (
+                <div className="mb-4 bg-red-900/30 border border-red-500 text-red-200 px-4 py-3 rounded-lg flex items-center justify-between">
+                  <span>{mergeError}</span>
+                  <button
+                    onClick={() => setMergeError(null)}
+                    className="text-red-400 hover:text-red-300 font-bold"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+              {mergeSuccess && (
+                <div className="mb-4 bg-green-900/30 border border-green-500 text-green-200 px-4 py-3 rounded-lg flex items-center justify-between">
+                  <span>{mergeSuccess}</span>
+                  <button
+                    onClick={() => setMergeSuccess(null)}
+                    className="text-green-400 hover:text-green-300 font-bold"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
               <div className="space-y-3">
                 {groupedInvoices.map((invoice) => {
                   const tenant = getInvoiceTenant(invoice);
