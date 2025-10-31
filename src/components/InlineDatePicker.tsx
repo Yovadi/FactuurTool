@@ -99,7 +99,7 @@ export function InlineDatePicker({ value, onChange, minDate }: InlineDatePickerP
   const days = getDaysInMonth(currentDate);
 
   return (
-    <div className="bg-dark-800 border border-dark-600 rounded-lg p-4 inline-block">
+    <div className="bg-dark-800 border border-dark-600 rounded-lg p-4 inline-block w-72">
       <div className="flex items-center justify-between mb-4">
         <div className="text-sm font-medium text-gray-200">
           {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
@@ -122,7 +122,7 @@ export function InlineDatePicker({ value, onChange, minDate }: InlineDatePickerP
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-1 mb-2">
+      <div className="grid grid-cols-7 gap-2 mb-2">
         {dayNames.map((day) => (
           <div
             key={day}
@@ -133,7 +133,7 @@ export function InlineDatePicker({ value, onChange, minDate }: InlineDatePickerP
         ))}
       </div>
 
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7 gap-2">
         {days.map((day, index) => (
           <button
             key={index}
