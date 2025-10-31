@@ -20,7 +20,9 @@ export function CompanySettings() {
     kvk_number: '',
     bank_account: '',
     delete_code: '1234',
-    root_folder_path: ''
+    root_folder_path: '',
+    test_mode: false,
+    test_date: ''
   });
 
   useEffect(() => {
@@ -101,7 +103,9 @@ export function CompanySettings() {
         kvk_number: settings.kvk_number || '',
         bank_account: settings.bank_account || '',
         delete_code: settings.delete_code || '1234',
-        root_folder_path: settings.root_folder_path || ''
+        root_folder_path: settings.root_folder_path || '',
+        test_mode: settings.test_mode || false,
+        test_date: settings.test_date || ''
       });
     }
     setShowForm(true);
@@ -121,7 +125,9 @@ export function CompanySettings() {
       kvk_number: '',
       bank_account: '',
       delete_code: '1234',
-      root_folder_path: ''
+      root_folder_path: '',
+      test_mode: false,
+      test_date: ''
     });
     setShowForm(false);
   };
@@ -352,6 +358,40 @@ export function CompanySettings() {
                 </div>
               </div>
 
+              <div className="border-t border-dark-700 pt-4 mt-4">
+                <h4 className="text-lg font-semibold text-gray-100 mb-3">Test Modus</h4>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="test_mode"
+                      checked={formData.test_mode}
+                      onChange={(e) => setFormData({ ...formData, test_mode: e.target.checked })}
+                      className="w-5 h-5 rounded border-gray-600 text-gold-500 focus:ring-gold-500"
+                    />
+                    <label htmlFor="test_mode" className="text-sm font-medium text-gray-200">
+                      Activeer test modus
+                    </label>
+                  </div>
+                  {formData.test_mode && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-200 mb-1">
+                        Test Datum
+                      </label>
+                      <input
+                        type="date"
+                        value={formData.test_date}
+                        onChange={(e) => setFormData({ ...formData, test_date: e.target.value })}
+                        className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                      />
+                      <p className="text-xs text-gray-400 mt-1">
+                        Deze datum wordt gebruikt in plaats van de huidige datum voor test doeleinden
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <div className="flex gap-2 pt-4 mt-4 border-t border-dark-700">
                 <button
                   type="submit"
@@ -484,6 +524,24 @@ export function CompanySettings() {
                       <p className="break-all">{settings.root_folder_path}</p>
                     </div>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {settings.test_mode && (
+              <div className="border-t border-dark-700 pt-4">
+                <h4 className="text-sm font-semibold text-gray-400 uppercase mb-2">Test Modus</h4>
+                <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-3">
+                  <p className="text-yellow-200 text-sm font-medium mb-1">Test modus actief</p>
+                  {settings.test_date && (
+                    <p className="text-gray-300 text-sm">
+                      Gesimuleerde datum: {new Date(settings.test_date).toLocaleDateString('nl-NL', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </p>
+                  )}
                 </div>
               </div>
             )}

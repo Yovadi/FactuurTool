@@ -95,6 +95,8 @@ export type CompanySettings = {
   bank_account: string;
   delete_code: string;
   root_folder_path: string | null;
+  test_mode: boolean;
+  test_date: string | null;
   created_at: string;
   updated_at: string;
 };
