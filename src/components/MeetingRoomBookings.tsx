@@ -103,9 +103,22 @@ export function MeetingRoomBookings() {
 
     const { data: bookingsData } = await bookingsQuery;
 
+    const sortedBookings = (bookingsData || []).sort((a, b) => {
+      const companyA = a.tenants?.company_name || a.tenants?.name || '';
+      const companyB = b.tenants?.company_name || b.tenants?.name || '';
+
+      const companyCompare = companyA.localeCompare(companyB);
+      if (companyCompare !== 0) return companyCompare;
+
+      const dateCompare = a.booking_date.localeCompare(b.booking_date);
+      if (dateCompare !== 0) return dateCompare;
+
+      return a.start_time.localeCompare(b.start_time);
+    });
+
     setTenants(tenantsData || []);
     setMeetingRooms(spacesData || []);
-    setBookings(bookingsData || []);
+    setBookings(sortedBookings);
     setLoading(false);
   };
 
