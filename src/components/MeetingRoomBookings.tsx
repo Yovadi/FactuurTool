@@ -256,7 +256,7 @@ export function MeetingRoomBookings() {
       .select('id, subtotal, vat_amount, amount, notes')
       .eq('tenant_id', booking.tenant_id)
       .eq('invoice_month', invoiceMonth)
-      .eq('status', 'pending')
+      .eq('status', 'draft')
       .maybeSingle();
 
     const bookingLine = `- ${booking.office_spaces?.space_number}: ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL')} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)} (${booking.total_hours}u @ €${booking.hourly_rate}/u) = €${booking.total_amount.toFixed(2)}`;
@@ -314,7 +314,7 @@ export function MeetingRoomBookings() {
           invoice_date: invoiceDate,
           due_date: dueDateStr,
           invoice_month: invoiceMonth,
-          status: 'pending',
+          status: 'draft',
           subtotal: subtotal,
           vat_amount: vatAmount,
           vat_rate: vatRate,
