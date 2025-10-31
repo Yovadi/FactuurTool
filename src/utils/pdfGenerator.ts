@@ -227,7 +227,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
   pdf.setFontSize(9);
 
   if (invoice.notes) {
-    const lines = invoice.notes.split('\n').filter(line => line.trim() && !line.includes('Vergaderruimte boekingen:'));
+    const lines = invoice.notes.split('\n').filter(line => line.trim());
 
     lines.forEach((line: string, index: number) => {
       if (yPosition > pageHeight - 70) {

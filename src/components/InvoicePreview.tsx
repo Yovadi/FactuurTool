@@ -123,7 +123,7 @@ export function InvoicePreview({
             {invoice.notes ? (
               <div className="space-y-2">
                 {invoice.notes.split('\n')
-                  .filter(line => line.trim() && !line.includes('Vergaderruimte boekingen:'))
+                  .filter(line => line.trim())
                   .map((line, index) => {
                     const match = line.match(/^-\s*(?:.*?:\s*)?(.+?)\s*\((\d+u)\s*@\s*€([\d.]+)\/u\)\s*=\s*€([\d.]+)$/);
                     if (match) {
