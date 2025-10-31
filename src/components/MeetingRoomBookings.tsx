@@ -403,8 +403,10 @@ export function MeetingRoomBookings() {
                       <select
                         value={formData.start_time}
                         onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
+                        onFocus={(e) => e.target.size = 5}
+                        onBlur={(e) => e.target.size = 1}
                         className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent overflow-y-auto"
-                        size={5}
+                        size={1}
                         required
                       >
                         {Array.from({ length: 20 }, (_, i) => {
@@ -427,8 +429,10 @@ export function MeetingRoomBookings() {
                       <select
                         value={formData.end_time}
                         onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
+                        onFocus={(e) => e.target.size = 5}
+                        onBlur={(e) => e.target.size = 1}
                         className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent overflow-y-auto"
-                        size={5}
+                        size={1}
                         required
                       >
                         {Array.from({ length: 20 }, (_, i) => {
