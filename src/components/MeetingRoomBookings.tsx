@@ -402,15 +402,16 @@ export function MeetingRoomBookings() {
                     <select
                       value={formData.start_time}
                       onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
-                      className="px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent h-[320px]"
-                      size={10}
+                      className="px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                      required
                     >
+                      <option value="">Selecteer tijd</option>
                       {Array.from({ length: 20 }, (_, i) => {
                         const hour = Math.floor(i / 2) + 8;
                         const minute = (i % 2) * 30;
                         const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
                         return (
-                          <option key={time} value={time} className="py-2">
+                          <option key={time} value={time}>
                             {time}
                           </option>
                         );
@@ -425,15 +426,16 @@ export function MeetingRoomBookings() {
                     <select
                       value={formData.end_time}
                       onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
-                      className="px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent h-[320px]"
-                      size={10}
+                      className="px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                      required
                     >
+                      <option value="">Selecteer tijd</option>
                       {Array.from({ length: 20 }, (_, i) => {
                         const hour = Math.floor(i / 2) + 8;
                         const minute = (i % 2) * 30;
                         const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
                         return (
-                          <option key={time} value={time} className="py-2">
+                          <option key={time} value={time}>
                             {time}
                           </option>
                         );

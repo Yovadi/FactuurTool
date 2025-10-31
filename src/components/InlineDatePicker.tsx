@@ -49,8 +49,9 @@ export function InlineDatePicker({ value, onChange, minDate }: InlineDatePickerP
   };
 
   const handleDateClick = (day: number) => {
-    const selectedDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
-    const dateStr = selectedDate.toISOString().split('T')[0];
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
     if (minDate && dateStr < minDate) {
       return;
@@ -61,7 +62,10 @@ export function InlineDatePicker({ value, onChange, minDate }: InlineDatePickerP
 
   const handleToday = () => {
     const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const day = today.getDate();
+    const todayStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     setCurrentDate(today);
     onChange(todayStr);
   };
