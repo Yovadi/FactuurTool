@@ -27,7 +27,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-dark-950">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex gap-6">
           <aside className="w-64 flex-shrink-0">
             <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2">
