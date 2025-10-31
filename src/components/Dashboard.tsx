@@ -50,6 +50,10 @@ export function Dashboard() {
       .from('leases')
       .select('id, end_date, status, tenant_id, tenants(name)');
 
+    const { data: leaseSpaces } = await supabase
+      .from('lease_spaces')
+      .select('space_id, lease_id, leases!inner(status)');
+
     const { data: invoices } = await supabase
       .from('invoices')
       .select('amount, status, due_date');
@@ -58,7 +62,13 @@ export function Dashboard() {
       .from('meeting_room_bookings')
       .select('id, booking_date, start_time, end_time, status');
 
-    const occupiedSpaces = spaces?.filter(s => !s.is_available).length || 0;
+    const activeLeaseSpaceIds = new Set(
+      leaseSpaces
+        ?.filter(ls => ls.leases?.status === 'active')
+        .map(ls => ls.space_id) || []
+    );
+
+    const occupiedSpaces = activeLeaseSpaceIds.size;
     const totalRentableSpaces = spaces?.length || 0;
 
     const today = new Date();
