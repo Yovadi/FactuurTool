@@ -786,7 +786,15 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
         console.log('Creating invoice for', lease.tenant?.company_name, 'for month:', nextMonth);
 
-        const { data: invoiceNumber } = await supabase.rpc('generate_invoice_number');
+        const { data: invoiceNumber, error: numberError } = await supabase.rpc('generate_invoice_number');
+
+        if (numberError || !invoiceNumber) {
+          console.error('Error generating invoice number:', numberError);
+          failCount++;
+          continue;
+        }
+
+        console.log('Generated invoice number:', invoiceNumber);
 
         const baseAmount = Math.round((lease.lease_spaces.reduce((sum, ls) => sum + ls.monthly_rent, 0) + lease.security_deposit) * 100) / 100;
 
