@@ -2,7 +2,8 @@
   "appId": "com.hal5.invoicemanager",
   "productName": "HAL5 Facturatie Manager",
   "directories": {
-    "output": "release"
+    "output": "release",
+    "buildResources": "public"
   },
   "files": [
     "dist/**/*",
@@ -11,7 +12,9 @@
   ],
   "win": {
     "target": "nsis",
-    "artifactName": "${productName}-Setup-${version}.${ext}"
+    "artifactName": "${productName}-Setup-${version}.${ext}",
+    "sign": null,
+    "signingHashAlgorithms": []
   },
   "asar": false,
   "extraMetadata": {
