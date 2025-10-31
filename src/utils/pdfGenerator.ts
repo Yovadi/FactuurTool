@@ -207,9 +207,8 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
 
   const tableTop = yPosition;
   const col1X = margin;
-  const col2X = pageWidth - margin - 85;
-  const col3X = pageWidth - margin - 50;
-  const col4X = pageWidth - margin - 10;
+  const col2X = pageWidth - margin - 40;
+  const col3X = pageWidth - margin - 15;
 
   pdf.setFillColor(234, 179, 8);
   pdf.rect(margin, tableTop, pageWidth - 2 * margin, 8, 'F');
@@ -217,9 +216,9 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
   pdf.setFontSize(9);
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(255, 255, 255);
-  pdf.text('Omschrijving', col1X + 2, tableTop + 5.5);
-  pdf.text('Bedrag', col3X + 2, tableTop + 5.5);
-  pdf.text('BTW', col4X - 5, tableTop + 5.5);
+  pdf.text('OMSCHRIJVING', col1X + 2, tableTop + 5.5);
+  pdf.text('BEDRAG', col2X - 15, tableTop + 5.5, { align: 'right' });
+  pdf.text('BTW', col3X - 5, tableTop + 5.5, { align: 'right' });
 
   yPosition = tableTop + 12;
   pdf.setFont('helvetica', 'normal');
@@ -244,8 +243,8 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
       if (match) {
         const [, dateTimeInfo, hours, , amount] = match;
         pdf.text(`- ${dateTimeInfo.trim()} (${hours}u)`, col1X + 2, yPosition);
-        pdf.text(`€ ${amount}`, col3X + 2, yPosition);
-        pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col4X - 5, yPosition);
+        pdf.text(`€ ${amount}`, col2X - 15, yPosition, { align: 'right' });
+        pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col3X - 5, yPosition, { align: 'right' });
       } else {
         pdf.text(line.replace(/^-\s*/, ''), col1X + 2, yPosition);
       }
@@ -275,8 +274,8 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
     }
 
     pdf.text(displayName, col1X + 2, yPosition);
-    pdf.text(`€ ${space.monthly_rent.toFixed(2)}`, col3X + 2, yPosition);
-    pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col4X - 5, yPosition);
+    pdf.text(`€ ${space.monthly_rent.toFixed(2)}`, col2X - 15, yPosition, { align: 'right' });
+    pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col3X - 5, yPosition, { align: 'right' });
 
     yPosition += 7;
     });
@@ -293,9 +292,9 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
       pdf.rect(margin, yPosition - 4, pageWidth - 2 * margin, 7, 'F');
     }
 
-    pdf.text('Voorschot gas, water & elektra', col1X + 2, yPosition);
-    pdf.text(`€ ${invoice.security_deposit.toFixed(2)}`, col3X + 2, yPosition);
-    pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col4X - 5, yPosition);
+    pdf.text('Voorschot Gas, Water & Electra', col1X + 2, yPosition);
+    pdf.text(`€ ${invoice.security_deposit.toFixed(2)}`, col2X - 15, yPosition, { align: 'right' });
+    pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col3X - 5, yPosition, { align: 'right' });
     yPosition += 7;
   }
 
