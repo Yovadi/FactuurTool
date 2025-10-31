@@ -80,13 +80,23 @@ export function InvoiceManagement() {
       .maybeSingle();
 
     let currentDate = new Date();
-    if (settings?.test_mode && settings?.test_date) {
+    if (settings?.test_mode === true && settings?.test_date) {
       currentDate = new Date(settings.test_date);
     }
 
-    const nextMonth = new Date(currentDate);
-    nextMonth.setMonth(nextMonth.getMonth() + 1);
-    return `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}`;
+    console.log('Current date for invoice generation:', currentDate.toISOString());
+
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+
+    const nextMonth = month + 1;
+    const nextYear = nextMonth > 11 ? year + 1 : year;
+    const finalMonth = nextMonth > 11 ? 0 : nextMonth;
+
+    const result = `${nextYear}-${String(finalMonth + 1).padStart(2, '0')}`;
+    console.log('Next month string:', result);
+
+    return result;
   };
 
   const [formData, setFormData] = useState({
@@ -744,7 +754,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
       .maybeSingle();
 
     let currentDate = new Date();
-    if (settings?.test_mode && settings?.test_date) {
+    if (settings?.test_mode === true && settings?.test_date) {
       currentDate = new Date(settings.test_date);
     }
 
@@ -754,18 +764,27 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
     dueDateObj.setDate(dueDateObj.getDate() + 14);
     const dueDate = dueDateObj.toISOString().split('T')[0];
 
+    console.log('Starting bulk invoice generation for month:', nextMonth);
+    console.log('Total leases to process:', leases.length);
+    console.log('Leases:', leases.map(l => ({ id: l.id, tenant: l.tenant?.company_name })));
+
     let successCount = 0;
     let failCount = 0;
 
     for (const lease of leases) {
       try {
+        console.log('Processing lease:', lease.id, 'Tenant:', lease.tenant?.company_name);
+
         const existingInvoice = invoices.find(
           inv => inv.lease_id === lease.id && inv.invoice_month === nextMonth
         );
 
         if (existingInvoice) {
+          console.log('Skipping - invoice already exists for', lease.tenant?.company_name, 'month:', nextMonth);
           continue;
         }
+
+        console.log('Creating invoice for', lease.tenant?.company_name, 'for month:', nextMonth);
 
         const { data: invoiceNumber } = await supabase.rpc('generate_invoice_number');
 
