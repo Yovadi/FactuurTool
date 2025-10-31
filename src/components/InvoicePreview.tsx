@@ -147,8 +147,8 @@ export function InvoicePreview({
               <table className="w-full">
                 <thead>
                   <tr className="bg-amber-500 text-white">
-                    <th className="px-4 py-2 text-left font-semibold">OMSCHRIJVING</th>
-                    <th className="px-4 py-2 text-right font-semibold">BEDRAG</th>
+                    <th className="px-4 py-2 text-left font-semibold">Omschrijving</th>
+                    <th className="px-4 py-2 text-right font-semibold">Bedrag</th>
                     <th className="px-4 py-2 text-right font-semibold">BTW</th>
                   </tr>
                 </thead>
@@ -164,7 +164,7 @@ export function InvoicePreview({
 
                     return (
                       <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                        <td className="px-4 py-3 text-gray-900">{displayName}</td>
+                        <td className="px-4 py-3 text-left text-gray-900">{displayName}</td>
                         <td className="px-4 py-3 text-right text-gray-900">€ {space.monthly_rent.toFixed(2)}</td>
                         <td className="px-4 py-3 text-right text-gray-900">{invoice.vat_rate.toFixed(0)}%</td>
                       </tr>
