@@ -382,69 +382,63 @@ export function MeetingRoomBookings() {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-200 mb-2">
-                  Datum
-                </label>
-                <InlineDatePicker
-                  value={formData.booking_date}
-                  onChange={(date) => setFormData({ ...formData, booking_date: date })}
-                  minDate={new Date().toISOString().split('T')[0]}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
+              <div className="flex gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-200 mb-2">
-                    Starttijd
+                    Datum
                   </label>
-                  <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto p-1 bg-dark-900 rounded-lg border border-dark-600">
-                    {Array.from({ length: 20 }, (_, i) => {
-                      const hour = Math.floor(i / 2) + 8;
-                      const minute = (i % 2) * 30;
-                      const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-                      return (
-                        <button
-                          key={time}
-                          type="button"
-                          onClick={() => setFormData({ ...formData, start_time: time })}
-                          className={`px-3 py-2 rounded text-sm transition-colors ${
-                            formData.start_time === time
-                              ? 'bg-gold-600 text-white'
-                              : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
-                          }`}
-                        >
-                          {time}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <InlineDatePicker
+                    value={formData.booking_date}
+                    onChange={(date) => setFormData({ ...formData, booking_date: date })}
+                    minDate={new Date().toISOString().split('T')[0]}
+                  />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-200 mb-2">
-                    Eindtijd
-                  </label>
-                  <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto p-1 bg-dark-900 rounded-lg border border-dark-600">
-                    {Array.from({ length: 20 }, (_, i) => {
-                      const hour = Math.floor(i / 2) + 8;
-                      const minute = (i % 2) * 30;
-                      const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-                      return (
-                        <button
-                          key={time}
-                          type="button"
-                          onClick={() => setFormData({ ...formData, end_time: time })}
-                          className={`px-3 py-2 rounded text-sm transition-colors ${
-                            formData.end_time === time
-                              ? 'bg-gold-600 text-white'
-                              : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
-                          }`}
-                        >
-                          {time}
-                        </button>
-                      );
-                    })}
+                <div className="flex gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-200 mb-2">
+                      Starttijd
+                    </label>
+                    <select
+                      value={formData.start_time}
+                      onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
+                      className="px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent h-[320px]"
+                      size={10}
+                    >
+                      {Array.from({ length: 20 }, (_, i) => {
+                        const hour = Math.floor(i / 2) + 8;
+                        const minute = (i % 2) * 30;
+                        const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+                        return (
+                          <option key={time} value={time} className="py-2">
+                            {time}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-200 mb-2">
+                      Eindtijd
+                    </label>
+                    <select
+                      value={formData.end_time}
+                      onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
+                      className="px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent h-[320px]"
+                      size={10}
+                    >
+                      {Array.from({ length: 20 }, (_, i) => {
+                        const hour = Math.floor(i / 2) + 8;
+                        const minute = (i % 2) * 30;
+                        const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+                        return (
+                          <option key={time} value={time} className="py-2">
+                            {time}
+                          </option>
+                        );
+                      })}
+                    </select>
                   </div>
                 </div>
               </div>

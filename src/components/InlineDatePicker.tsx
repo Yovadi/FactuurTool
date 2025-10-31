@@ -134,15 +134,15 @@ export function InlineDatePicker({ value, onChange, minDate }: InlineDatePickerP
           <button
             key={index}
             type="button"
-            onClick={() => day && handleDateClick(day)}
+            onClick={() => day && !isPastDate(day) && handleDateClick(day)}
             disabled={!day || isPastDate(day)}
             className={`
-              aspect-square flex items-center justify-center text-sm rounded transition-colors
+              aspect-square flex items-center justify-center text-sm rounded transition-colors cursor-pointer
               ${!day ? 'invisible' : ''}
               ${isPastDate(day) ? 'text-gray-600 cursor-not-allowed' : ''}
               ${isSelected(day) ? 'bg-blue-600 text-white font-bold' : ''}
               ${isToday(day) && !isSelected(day) ? 'bg-dark-700 text-gray-200 ring-1 ring-gold-500' : ''}
-              ${!isSelected(day) && !isToday(day) && !isPastDate(day) ? 'text-gray-300 hover:bg-dark-700' : ''}
+              ${!isSelected(day) && !isToday(day) && !isPastDate(day) ? 'text-gray-300 hover:bg-dark-700 cursor-pointer' : ''}
             `}
           >
             {day}
