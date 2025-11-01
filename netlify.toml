@@ -1,6 +1,11 @@
 [build]
-  command = "mkdir -p dist && cp public/booking.html dist/index.html && cp public/.nojekyll dist/.nojekyll"
-  publish = "dist"
+  publish = "public"
+  command = "echo 'Deploying booking page only'"
+
+[[redirects]]
+  from = "/"
+  to = "/booking.html"
+  status = 200
 
 [build.environment]
   NODE_VERSION = "20"
