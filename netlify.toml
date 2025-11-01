@@ -1,9 +1,9 @@
 [build]
   publish = "public"
-  command = "echo 'Deploying booking page only'"
+  command = "echo 'No build needed'"
 
 [[redirects]]
-  from = "/"
+  from = "/*"
   to = "/booking.html"
   status = 200
 
