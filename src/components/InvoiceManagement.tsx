@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, type Invoice, type Lease, type Tenant, type LeaseSpace, type OfficeSpace, type InvoiceLineItem } from '../lib/supabase';
-import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, Edit, Merge } from 'lucide-react';
+import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, Edit } from 'lucide-react';
 import { generateInvoicePDF } from '../utils/pdfGenerator';
 import { InvoicePreview } from './InvoicePreview';
 import { checkAndRunScheduledJobs } from '../utils/scheduledJobs';
@@ -68,10 +68,6 @@ export function InvoiceManagement() {
     invoice: InvoiceWithDetails;
     spaces: any[];
   } | null>(null);
-  const [showMergeModal, setShowMergeModal] = useState(false);
-  const [selectedInvoicesForMerge, setSelectedInvoicesForMerge] = useState<string[]>([]);
-  const [mergeError, setMergeError] = useState<string | null>(null);
-  const [mergeSuccess, setMergeSuccess] = useState<string | null>(null);
 
   const getNextMonthString = async () => {
     const { data: settings } = await supabase
@@ -957,157 +953,6 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
     return invoice.tenant;
   };
 
-  const mergeInvoices = async () => {
-    setMergeError(null);
-    setMergeSuccess(null);
-
-    if (selectedInvoicesForMerge.length < 2) {
-      setMergeError('Selecteer minimaal 2 facturen om samen te voegen.');
-      return;
-    }
-
-    const invoicesToMerge = invoices.filter(inv => selectedInvoicesForMerge.includes(inv.id));
-
-    const tenantIds = new Set(invoicesToMerge.map(inv => inv.tenant_id || inv.lease?.tenant.id));
-    if (tenantIds.size > 1) {
-      setMergeError('Je kunt alleen facturen van dezelfde huurder samenvoegen.');
-      return;
-    }
-
-    const companyNames = new Set(invoicesToMerge.map(inv => {
-      const tenant = getInvoiceTenant(inv);
-      return tenant?.company_name || '';
-    }));
-    if (companyNames.size > 1) {
-      setMergeError('Je kunt alleen facturen van hetzelfde bedrijf samenvoegen.');
-      return;
-    }
-
-    const invoiceMonths = new Set(invoicesToMerge.map(inv => inv.invoice_month));
-    if (invoiceMonths.size > 1) {
-      setMergeError('Je kunt alleen facturen voor dezelfde maand samenvoegen.');
-      return;
-    }
-
-    const firstInvoice = invoicesToMerge[0];
-    const tenant = getInvoiceTenant(firstInvoice);
-
-    let combinedSubtotal = 0;
-    let combinedVatAmount = 0;
-    let combinedTotal = 0;
-    const allLineItems: any[] = [];
-
-    for (const invoice of invoicesToMerge) {
-      combinedSubtotal += parseFloat(invoice.subtotal.toString());
-      combinedVatAmount += parseFloat(invoice.vat_amount.toString());
-      combinedTotal += parseFloat(invoice.amount.toString());
-
-      const { data: items } = await supabase
-        .from('invoice_line_items')
-        .select('*')
-        .eq('invoice_id', invoice.id)
-        .order('created_at', { ascending: true });
-
-      if (items && items.length > 0) {
-        allLineItems.push(...items);
-      }
-    }
-
-    allLineItems.sort((a, b) => {
-      const typeOrder: { [key: string]: number } = {
-        'bedrijfsruimte': 1,
-        'kantoor': 2,
-        'buitenterrein': 3,
-        'voorschot': 4,
-        'diversen': 5
-      };
-
-      const getTypeFromDescription = (desc: string) => {
-        if (desc.toLowerCase().includes('voorschot')) return 'voorschot';
-        if (desc.startsWith('Hal ')) return 'bedrijfsruimte';
-        if (desc.startsWith('Kantoor ')) return 'kantoor';
-        if (desc.startsWith('Buitenterrein ')) return 'buitenterrein';
-        return 'diversen';
-      };
-
-      const typeA = getTypeFromDescription(a.description);
-      const typeB = getTypeFromDescription(b.description);
-
-      return (typeOrder[typeA] || 999) - (typeOrder[typeB] || 999);
-    });
-
-    const { data: invoiceNumberResult } = await supabase.rpc('generate_invoice_number');
-    const invoiceNumber = invoiceNumberResult || 'INV-ERROR';
-
-    const { data: mergedInvoice, error: createError } = await supabase
-      .from('invoices')
-      .insert({
-        tenant_id: firstInvoice.tenant_id || firstInvoice.lease?.tenant.id,
-        lease_id: firstInvoice.lease_id,
-        invoice_number: invoiceNumber,
-        invoice_date: firstInvoice.invoice_date,
-        due_date: firstInvoice.due_date,
-        invoice_month: firstInvoice.invoice_month,
-        status: 'draft',
-        subtotal: combinedSubtotal,
-        vat_amount: combinedVatAmount,
-        vat_rate: firstInvoice.vat_rate,
-        vat_inclusive: firstInvoice.vat_inclusive,
-        amount: combinedTotal,
-        notes: null
-      })
-      .select()
-      .single();
-
-    if (createError || !mergedInvoice) {
-      console.error('Error creating merged invoice:', createError);
-      setMergeError('Fout bij het aanmaken van samengevoegde factuur.');
-      return;
-    }
-
-    for (const item of allLineItems) {
-      const { error: itemError } = await supabase
-        .from('invoice_line_items')
-        .insert({
-          invoice_id: mergedInvoice.id,
-          description: item.description,
-          quantity: item.quantity,
-          unit_price: item.unit_price,
-          amount: item.amount
-        });
-
-      if (itemError) {
-        console.error('Error creating line item:', itemError);
-      }
-    }
-
-    for (const invoice of invoicesToMerge) {
-      const { error: deleteError } = await supabase
-        .from('invoices')
-        .delete()
-        .eq('id', invoice.id);
-
-      if (deleteError) {
-        console.error('Error deleting invoice:', deleteError);
-      }
-    }
-
-    await loadData();
-    setSelectedInvoicesForMerge([]);
-    setShowMergeModal(false);
-    setMergeSuccess(`Facturen succesvol samengevoegd in factuur ${invoiceNumber}`);
-    setTimeout(() => setMergeSuccess(null), 5000);
-  };
-
-  const toggleInvoiceSelection = (invoiceId: string) => {
-    setSelectedInvoicesForMerge(prev => {
-      if (prev.includes(invoiceId)) {
-        return prev.filter(id => id !== invoiceId);
-      } else {
-        return [...prev, invoiceId];
-      }
-    });
-  };
 
   const showInvoicePreview = async (invoice: InvoiceWithDetails) => {
     const { data: items } = await supabase
@@ -1691,59 +1536,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                 <h2 className="text-xl font-bold text-gray-100">
                   Concept Facturen
                 </h2>
-                {!showMergeModal && (
-                  <button
-                    onClick={() => setShowMergeModal(true)}
-                    className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
-                  >
-                    <Merge size={18} />
-                    Facturen Samenvoegen
-                  </button>
-                )}
-                {showMergeModal && (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={mergeInvoices}
-                      disabled={selectedInvoicesForMerge.length < 2}
-                      className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
-                    >
-                      Samenvoegen ({selectedInvoicesForMerge.length})
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowMergeModal(false);
-                        setSelectedInvoicesForMerge([]);
-                        setMergeError(null);
-                      }}
-                      className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
-                    >
-                      Annuleren
-                    </button>
-                  </div>
-                )}
               </div>
-              {mergeError && (
-                <div className="mb-4 bg-red-900/30 border border-red-500 text-red-200 px-4 py-3 rounded-lg flex items-center justify-between">
-                  <span>{mergeError}</span>
-                  <button
-                    onClick={() => setMergeError(null)}
-                    className="text-red-400 hover:text-red-300 font-bold"
-                  >
-                    ✕
-                  </button>
-                </div>
-              )}
-              {mergeSuccess && (
-                <div className="mb-4 bg-green-900/30 border border-green-500 text-green-200 px-4 py-3 rounded-lg flex items-center justify-between">
-                  <span>{mergeSuccess}</span>
-                  <button
-                    onClick={() => setMergeSuccess(null)}
-                    className="text-green-400 hover:text-green-300 font-bold"
-                  >
-                    ✕
-                  </button>
-                </div>
-              )}
               <div className="space-y-3">
                 {groupedInvoices.map((invoice) => {
                   const tenant = getInvoiceTenant(invoice);
@@ -1753,22 +1546,10 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                   return (
                     <div
                       key={invoice.id}
-                      className={`bg-dark-900 rounded-lg shadow-sm border p-5 hover:shadow-md transition-shadow ${
-                        showMergeModal && selectedInvoicesForMerge.includes(invoice.id)
-                          ? 'border-purple-500 bg-purple-900/20'
-                          : 'border-dark-700'
-                      }`}
+                      className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-5 hover:shadow-md transition-shadow"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4 flex-1">
-                          {showMergeModal && (
-                            <input
-                              type="checkbox"
-                              checked={selectedInvoicesForMerge.includes(invoice.id)}
-                              onChange={() => toggleInvoiceSelection(invoice.id)}
-                              className="w-5 h-5 rounded border-gray-600 text-purple-600 focus:ring-purple-500"
-                            />
-                          )}
                           <FileText className="text-gray-500" size={24} />
                           <div className="flex-1">
                             <div className="flex items-center gap-3 mb-1">
