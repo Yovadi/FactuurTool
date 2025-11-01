@@ -101,7 +101,11 @@ export function LeaseManagement() {
 
       const leaseSpacesData = selectedSpaces.map(space => {
         const officeSpace = spaces.find(s => s.id === space.space_id);
-        const monthlyRent = officeSpace ? (officeSpace.square_footage * parseFloat(space.price_per_sqm)) / 12 : 0;
+        let monthlyRent = 0;
+        if (officeSpace) {
+          const yearlyRent = officeSpace.square_footage * parseFloat(space.price_per_sqm);
+          monthlyRent = officeSpace.space_type === 'bedrijfsruimte' ? yearlyRent / 12 : yearlyRent;
+        }
         return {
           lease_id: editingLease.id,
           space_id: space.space_id,
@@ -142,7 +146,11 @@ export function LeaseManagement() {
 
       const leaseSpacesData = selectedSpaces.map(space => {
         const officeSpace = spaces.find(s => s.id === space.space_id);
-        const monthlyRent = officeSpace ? (officeSpace.square_footage * parseFloat(space.price_per_sqm)) / 12 : 0;
+        let monthlyRent = 0;
+        if (officeSpace) {
+          const yearlyRent = officeSpace.square_footage * parseFloat(space.price_per_sqm);
+          monthlyRent = officeSpace.space_type === 'bedrijfsruimte' ? yearlyRent / 12 : yearlyRent;
+        }
         return {
           lease_id: newLease.id,
           space_id: space.space_id,
@@ -243,7 +251,7 @@ export function LeaseManagement() {
     const space = spaces.find(s => s.id === spaceId);
     if (!space || !pricePerSqm) return 0;
     const yearlyRent = space.square_footage * parseFloat(pricePerSqm);
-    return yearlyRent / 12;
+    return space.space_type === 'bedrijfsruimte' ? yearlyRent / 12 : yearlyRent;
   };
 
   const getTotalMonthlyRent = () => {
@@ -399,7 +407,10 @@ export function LeaseManagement() {
                             </div>
                             {selectedSpace && space.price_per_sqm && (
                               <div className="text-sm text-gray-300 whitespace-nowrap">
-                                ({selectedSpace.square_footage} m² × €{parseFloat(space.price_per_sqm).toFixed(2)} / 12) = €{monthlyRent.toFixed(2)}/mnd
+                                {selectedSpace.space_type === 'bedrijfsruimte'
+                                  ? `(${selectedSpace.square_footage} m² × €${parseFloat(space.price_per_sqm).toFixed(2)} / 12) = €${monthlyRent.toFixed(2)}/mnd`
+                                  : `(${selectedSpace.square_footage} m² × €${parseFloat(space.price_per_sqm).toFixed(2)}) = €${monthlyRent.toFixed(2)}/mnd`
+                                }
                               </div>
                             )}
                           </div>
