@@ -1,6 +1,13 @@
-# Netlify Deployment Instructies
+# Netlify Deployment - Alleen Boekingspagina
 
-Deze applicatie is geconfigureerd voor automatische deployment naar Netlify (100% gratis).
+Deze configuratie zorgt ervoor dat **alleen de boekingspagina** online komt op Netlify.
+De facturatie tool draait lokaal op je Windows PC als Electron app.
+
+## Overzicht
+
+- **Facturatie tool** → Lokaal op Windows (Electron app via `npm run electron:build`)
+- **Boekingspagina** → Online op Netlify (voor klanten die willen boeken)
+- **Database** → Gedeelde Supabase database voor beide
 
 ## Stap 1: Netlify Account aanmaken
 
@@ -9,46 +16,86 @@ Deze applicatie is geconfigureerd voor automatische deployment naar Netlify (100
 3. Kies **Sign up with GitHub** (makkelijkst)
 4. Geef Netlify toestemming om je repositories te zien
 
-## Stap 2: Project deployen
+## Stap 2: Boekingspagina deployen
 
-### Via Netlify Dashboard (makkelijkst):
+### Via Netlify Dashboard:
 
 1. Klik op **Add new site** → **Import an existing project**
 2. Kies **Deploy with GitHub**
 3. Selecteer je repository uit de lijst
    - Zie je je repo niet? Klik op "Configure Netlify on GitHub" en geef toegang
-4. Build settings (laat deze staan, is al geconfigureerd):
-   - **Build command**: `npm run build`
-   - **Publish directory**: `dist`
+4. Build settings worden automatisch ingelezen uit `netlify.toml` (laat staan)
 5. Klik op **Deploy site**
 
-Klaar! Na 1-2 minuten is je site live.
+Klaar! Na 1 minuut is alleen de boekingspagina live.
 
-## Stap 3: Je URLs vinden
+## Stap 3: Je boekingspagina URL
 
-Na deployment zie je:
+Na deployment:
 
-- **Admin app**: `https://jouw-site-naam.netlify.app/`
-- **Boekingspagina**: `https://jouw-site-naam.netlify.app/booking.html`
+- **Boekingspagina**: `https://jouw-site-naam.netlify.app/`
 
-### Custom sitenaam instellen (optioneel):
+Let op: Netlify host **alleen** de boekingspagina, niet de admin tool!
+
+### Custom sitenaam instellen:
 
 1. Ga naar **Site settings** → **Site details**
 2. Bij **Site name** klik op **Change site name**
-3. Kies een naam zoals: `hal5-facturatie`
-4. Je nieuwe URL wordt: `https://hal5-facturatie.netlify.app/`
+3. Kies een naam zoals: `hal5-boeken`
+4. Je nieuwe URL wordt: `https://hal5-boeken.netlify.app/`
 
-## Stap 4: Automatische updates
+## Stap 4: Windows Facturatie App bouwen
 
-Elke keer dat je naar GitHub pusht, deployt Netlify automatisch:
+Voor de lokale facturatie tool op je Windows PC:
 
 ```bash
-git add .
+# In je project folder
+npm run electron:build
+```
+
+Dit maakt een Windows installer in de `dist` folder. Installeer deze op je Windows PC.
+
+## Hoe het werkt
+
+1. **Jij** gebruikt de lokale Electron app op je Windows PC voor:
+   - Facturen beheren
+   - Huurders beheren
+   - Ruimtes beheren
+   - Boekingen bekijken
+
+2. **Klanten** gebruiken de online boekingspagina voor:
+   - Vergaderruimte boeken
+   - Datum en tijd kiezen
+   - Automatisch in jouw systeem
+
+3. **Database** (Supabase):
+   - Beide systemen gebruiken dezelfde database
+   - Boekingen van klanten verschijnen direct in jouw admin app
+   - Real-time synchronisatie
+
+## Updates maken
+
+### Boekingspagina updaten:
+
+Als je wijzigingen maakt aan `public/booking.html`:
+
+```bash
+git add public/booking.html
 git commit -m "Update booking page"
 git push origin main
 ```
 
-Netlify bouwt en publiceert automatisch de nieuwe versie!
+Netlify deployt automatisch binnen 1 minuut!
+
+### Facturatie app updaten:
+
+Als je wijzigingen maakt aan de admin tool:
+
+```bash
+npm run electron:build
+```
+
+Installeer de nieuwe versie op je Windows PC.
 
 ## Deploy status checken
 
@@ -61,11 +108,11 @@ Netlify bouwt en publiceert automatisch de nieuwe versie!
 
 ## Custom Domain koppelen (optioneel)
 
-Als je een eigen domeinnaam hebt (zoals `hal5overloon.nl`):
+Als je een eigen domeinnaam hebt (zoals `boeken.hal5overloon.nl`):
 
 1. Ga naar **Site settings** → **Domain management**
 2. Klik op **Add custom domain**
-3. Voer je domeinnaam in
+3. Voer je subdomain in (bijv. `boeken.hal5overloon.nl`)
 4. Volg de instructies om DNS in te stellen bij je domain provider
 
 Netlify geeft automatisch:
@@ -75,22 +122,26 @@ Netlify geeft automatisch:
 ## Kosten
 
 **Volledig gratis** voor:
-- 100 GB bandbreedte per maand
+- 100 GB bandbreedte per maand (meer dan genoeg)
 - 300 build minuten per maand
 - Private én publieke repositories
 - SSL certificaten
 - Automatische deployments
 
-Dit is **meer dan genoeg** voor een boekingspagina en admin tool.
+## Belangrijke bestanden
+
+- **`public/booking.html`** - De boekingspagina (online via Netlify)
+- **`src/`** - De admin tool (lokaal als Electron app)
+- **`netlify.toml`** - Netlify configuratie (deploy alleen booking.html)
+- **`electron/`** - Electron configuratie voor Windows app
 
 ## Troubleshooting
 
 ### Site bouwt niet
 
 1. Check **Deploys** tab voor error logs
-2. Test lokaal: `npm run build`
-3. Los eventuele TypeScript/build errors op
-4. Push opnieuw naar GitHub
+2. Controleer of `public/booking.html` bestaat
+3. Push opnieuw naar GitHub
 
 ### Wijzigingen niet zichtbaar
 
@@ -104,21 +155,11 @@ Dit is **meer dan genoeg** voor een boekingspagina en admin tool.
 2. Scroll naar beneden → **Configure Netlify on GitHub**
 3. Geef toegang tot je specifieke repository
 
-## Extra features (optioneel)
+### Boekingen verschijnen niet in admin app
 
-### Deploy previews
-- Elke pull request krijgt automatisch een preview URL
-- Test wijzigingen voordat je merged
-
-### Environment variables
-Als je API keys wilt toevoegen:
-1. **Site settings** → **Environment variables**
-2. Voeg variabelen toe (bijv. voor emails)
-
-### Formulier notificaties
-Netlify kan automatisch emails sturen bij nieuwe boekingen:
-1. **Site settings** → **Forms**
-2. Stel notificaties in
+- Beide systemen gebruiken dezelfde Supabase database
+- Check of je Supabase credentials correct zijn in `.env`
+- Herstart je Electron app
 
 ## Handige links
 
@@ -128,9 +169,9 @@ Netlify kan automatisch emails sturen bij nieuwe boekingen:
 
 ## Volgende stappen
 
-Na deployment kun je:
+Na deployment:
 
-1. Je boekingspagina URL delen met klanten
-2. Custom domain koppelen voor professionele uitstraling
-3. Analytics bekijken in Netlify dashboard
-4. Wijzigingen pushen - automatisch live binnen 2 minuten
+1. Test de boekingspagina op Netlify URL
+2. Deel de URL met klanten
+3. Check nieuwe boekingen in je lokale admin app
+4. Optioneel: Koppel custom domain voor professionele uitstraling
