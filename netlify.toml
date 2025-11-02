@@ -1,6 +1,6 @@
 [build]
   publish = "public"
-  command = "cp public/booking.html public/index.html"
+  command = "echo 'Static files only'"
 
 [build.environment]
   NODE_VERSION = "20"
