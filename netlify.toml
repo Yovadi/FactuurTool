@@ -1,11 +1,6 @@
 [build]
   publish = "public"
-  command = "echo 'No build needed'"
-
-[[redirects]]
-  from = "/*"
-  to = "/booking.html"
-  status = 200
+  command = "cp public/booking.html public/index.html"
 
 [build.environment]
   NODE_VERSION = "20"

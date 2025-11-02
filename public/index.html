@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vergaderruimte Boeken - HAL5 Overloon</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #0A0A0B;
+            color: #F3F4F6;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid #3A3A3E;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #D4AF37;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            font-size: 1.125rem;
+            color: #9CA3AF;
+        }
+
+        .card {
+            background-color: #1A1A1C;
+            border-radius: 0.5rem;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 1px solid #3A3A3E;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .card h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            color: #F3F4F6;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #E5E7EB;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background-color: #2A2A2D;
+            border: 1px solid #4A4A4F;
+            border-radius: 0.5rem;
+            color: #F3F4F6;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #D4AF37;
+            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
+        }
+
+        .form-control option {
+            background-color: #2A2A2D;
+            color: #F3F4F6;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background-color: #D4AF37;
+            color: #0A0A0B;
+        }
+
+        .btn-primary:hover {
+            background-color: #C19A2E;
+        }
+
+        .btn-primary:disabled {
+            background-color: #4A4A4F;
+            cursor: not-allowed;
+        }
+
+        .grid {
+            display: grid;
+            gap: 1.5rem;
+        }
+
+        .grid-2 {
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        }
+
+        .time-slots {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        .time-slot {
+            padding: 0.75rem;
+            background-color: #2A2A2D;
+            border: 2px solid #4A4A4F;
+            border-radius: 0.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.875rem;
+        }
+
+        .time-slot:hover {
+            border-color: #D4AF37;
+            background-color: #3A3A3E;
+        }
+
+        .time-slot.selected {
+            background-color: #D4AF37;
+            border-color: #D4AF37;
+            color: #0A0A0B;
+            font-weight: 600;
+        }
+
+        .time-slot.unavailable {
+            background-color: #2A2A2D;
+            border-color: #4A4A4F;
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .time-slot.unavailable:hover {
+            border-color: #4A4A4F;
+            background-color: #2A2A2D;
+        }
+
+        .calendar {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .calendar-header {
+            text-align: center;
+            font-weight: 600;
+            padding: 0.5rem;
+            color: #9CA3AF;
+            font-size: 0.875rem;
+        }
+
+        .calendar-day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #2A2A2D;
+            border: 1px solid #4A4A4F;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.875rem;
+        }
+
+        .calendar-day:hover {
+            border-color: #D4AF37;
+            background-color: #3A3A3E;
+        }
+
+        .calendar-day.selected {
+            background-color: #D4AF37;
+            border-color: #D4AF37;
+            color: #0A0A0B;
+            font-weight: 600;
+        }
+
+        .calendar-day.disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .calendar-day.disabled:hover {
+            border-color: #4A4A4F;
+            background-color: #2A2A2D;
+        }
+
+        .calendar-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .calendar-nav button {
+            background: none;
+            border: none;
+            color: #D4AF37;
+            cursor: pointer;
+            padding: 0.5rem;
+            font-size: 1.25rem;
+        }
+
+        .calendar-nav h3 {
+            font-size: 1.125rem;
+            color: #F3F4F6;
+        }
+
+        .notification {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            padding: 1rem 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            display: none;
+            max-width: 400px;
+        }
+
+        .notification.show {
+            display: block;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .notification.success {
+            background-color: rgba(16, 185, 129, 0.9);
+            border: 1px solid #059669;
+        }
+
+        .notification.error {
+            background-color: rgba(239, 68, 68, 0.9);
+            border: 1px solid #DC2626;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #9CA3AF;
+        }
+
+        .room-card {
+            background-color: #2A2A2D;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            border: 2px solid #4A4A4F;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .room-card:hover {
+            border-color: #D4AF37;
+        }
+
+        .room-card.selected {
+            border-color: #D4AF37;
+            background-color: #3A3A3E;
+        }
+
+        .room-card h3 {
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+            color: #F3F4F6;
+        }
+
+        .room-card .price {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #D4AF37;
+        }
+
+        .summary {
+            background-color: #2A2A2D;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            border-left: 4px solid #D4AF37;
+        }
+
+        .summary h3 {
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+            color: #F3F4F6;
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            color: #9CA3AF;
+        }
+
+        .summary-row.total {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #F3F4F6;
+            border-top: 1px solid #4A4A4F;
+            padding-top: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .time-slots {
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Vergaderruimte Boeken</h1>
+            <p>Reserveer eenvoudig een vergaderruimte voor uw zakelijke bijeenkomsten</p>
+        </div>
+
+        <div id="loading" class="loading">
+            <p>Gegevens laden...</p>
+        </div>
+
+        <div id="content" style="display: none;">
+            <div class="card">
+                <h2>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                    Selecteer een datum
+                </h2>
+                <div class="calendar-nav">
+                    <button onclick="previousMonth()">&#8249;</button>
+                    <h3 id="currentMonth"></h3>
+                    <button onclick="nextMonth()">&#8250;</button>
+                </div>
+                <div class="calendar" id="calendar"></div>
+            </div>
+
+            <div class="card">
+                <h2>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                    </svg>
+                    Kies een vergaderruimte
+                </h2>
+                <div class="grid grid-2" id="roomsList"></div>
+            </div>
+
+            <div class="card" id="timeSlotsCard" style="display: none;">
+                <h2>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    Beschikbare tijdsloten
+                </h2>
+                <div class="time-slots" id="timeSlots"></div>
+            </div>
+
+            <div class="card">
+                <h2>Uw gegevens</h2>
+                <form id="bookingForm">
+                    <div class="grid grid-2">
+                        <div class="form-group">
+                            <label for="name">Naam *</label>
+                            <input type="text" id="name" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="company">Bedrijfsnaam</label>
+                            <input type="text" id="company" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="email">E-mail *</label>
+                            <input type="email" id="email" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="phone">Telefoonnummer</label>
+                            <input type="tel" id="phone" class="form-control">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="notes">Opmerkingen</label>
+                        <textarea id="notes" class="form-control" rows="3"></textarea>
+                    </div>
+
+                    <div class="summary" id="summary" style="display: none;">
+                        <h3>Overzicht van uw boeking</h3>
+                        <div class="summary-row">
+                            <span>Datum:</span>
+                            <span id="summaryDate"></span>
+                        </div>
+                        <div class="summary-row">
+                            <span>Tijd:</span>
+                            <span id="summaryTime"></span>
+                        </div>
+                        <div class="summary-row">
+                            <span>Vergaderruimte:</span>
+                            <span id="summaryRoom"></span>
+                        </div>
+                        <div class="summary-row">
+                            <span>Duur:</span>
+                            <span id="summaryDuration"></span>
+                        </div>
+                        <div class="summary-row">
+                            <span>Uurtarief:</span>
+                            <span id="summaryRate"></span>
+                        </div>
+                        <div class="summary-row total">
+                            <span>Totaal:</span>
+                            <span id="summaryTotal"></span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 2rem; text-align: center;">
+                        <button type="submit" class="btn btn-primary" id="submitBtn" disabled>
+                            Boeking Aanvragen
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="notification" class="notification"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        const SUPABASE_URL = 'https://qlvndvpxhqmjljjpehkn.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFsdm5kdnB4aHFtamxqanBlaGtuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA5MjI1MzQsImV4cCI6MjA3NjQ5ODUzNH0.q1Kel_GCQqUx2J5Nd9WFOVz7okodFPcoAJkKL6YVkUk';
+
+        const { createClient } = supabase;
+        const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let meetingRooms = [];
+        let selectedDate = null;
+        let selectedRoom = null;
+        let selectedStartTime = null;
+        let selectedEndTime = null;
+        let currentMonth = new Date();
+        let existingBookings = [];
+
+        async function init() {
+            try {
+                const { data: rooms } = await sb
+                    .from('office_spaces')
+                    .select('id, space_number, hourly_rate')
+                    .eq('space_type', 'Meeting Room')
+                    .order('space_number');
+
+                meetingRooms = rooms || [];
+
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('content').style.display = 'block';
+
+                renderCalendar();
+                renderRooms();
+            } catch (error) {
+                console.error('Error loading data:', error);
+                showNotification('Er is een fout opgetreden bij het laden van de gegevens.', 'error');
+            }
+        }
+
+        function renderCalendar() {
+            const calendar = document.getElementById('calendar');
+            const monthName = currentMonth.toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' });
+            document.getElementById('currentMonth').textContent = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+
+            calendar.innerHTML = '';
+
+            const days = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'];
+            days.forEach(day => {
+                const header = document.createElement('div');
+                header.className = 'calendar-header';
+                header.textContent = day;
+                calendar.appendChild(header);
+            });
+
+            const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+            const lastDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            let startDay = firstDay.getDay() - 1;
+            if (startDay === -1) startDay = 6;
+
+            for (let i = 0; i < startDay; i++) {
+                const emptyDay = document.createElement('div');
+                calendar.appendChild(emptyDay);
+            }
+
+            for (let day = 1; day <= lastDay.getDate(); day++) {
+                const dayElement = document.createElement('div');
+                dayElement.className = 'calendar-day';
+                dayElement.textContent = day;
+
+                const dayDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+                dayDate.setHours(0, 0, 0, 0);
+
+                if (dayDate < today) {
+                    dayElement.classList.add('disabled');
+                } else {
+                    const dateStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+                    if (selectedDate === dateStr) {
+                        dayElement.classList.add('selected');
+                    }
+
+                    dayElement.onclick = () => selectDate(dateStr, dayElement);
+                }
+
+                calendar.appendChild(dayElement);
+            }
+        }
+
+        function previousMonth() {
+            currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
+            renderCalendar();
+        }
+
+        function nextMonth() {
+            currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
+            renderCalendar();
+        }
+
+        function selectDate(dateStr, element) {
+            document.querySelectorAll('.calendar-day').forEach(el => el.classList.remove('selected'));
+            element.classList.add('selected');
+            selectedDate = dateStr;
+            updateTimeSlots();
+            updateSummary();
+        }
+
+        function renderRooms() {
+            const roomsList = document.getElementById('roomsList');
+            roomsList.innerHTML = '';
+
+            meetingRooms.forEach(room => {
+                const roomCard = document.createElement('div');
+                roomCard.className = 'room-card';
+                roomCard.innerHTML = `
+                    <h3>${room.space_number}</h3>
+                    <div class="price">€${room.hourly_rate || 25}/uur</div>
+                `;
+
+                if (selectedRoom?.id === room.id) {
+                    roomCard.classList.add('selected');
+                }
+
+                roomCard.onclick = () => selectRoom(room, roomCard);
+                roomsList.appendChild(roomCard);
+            });
+        }
+
+        function selectRoom(room, element) {
+            document.querySelectorAll('.room-card').forEach(el => el.classList.remove('selected'));
+            element.classList.add('selected');
+            selectedRoom = room;
+            updateTimeSlots();
+            updateSummary();
+        }
+
+        async function updateTimeSlots() {
+            const timeSlotsCard = document.getElementById('timeSlotsCard');
+            const timeSlots = document.getElementById('timeSlots');
+
+            if (!selectedDate || !selectedRoom) {
+                timeSlotsCard.style.display = 'none';
+                return;
+            }
+
+            timeSlotsCard.style.display = 'block';
+
+            const { data: bookings } = await sb
+                .from('meeting_room_bookings')
+                .select('start_time, end_time')
+                .eq('space_id', selectedRoom.id)
+                .eq('booking_date', selectedDate)
+                .neq('status', 'cancelled');
+
+            existingBookings = bookings || [];
+
+            timeSlots.innerHTML = '';
+
+            const slots = [];
+            for (let hour = 8; hour < 18; hour++) {
+                slots.push(`${String(hour).padStart(2, '0')}:00`);
+                slots.push(`${String(hour).padStart(2, '0')}:30`);
+            }
+
+            slots.forEach((slot, index) => {
+                const slotElement = document.createElement('div');
+                slotElement.className = 'time-slot';
+                slotElement.textContent = slot;
+
+                const isUnavailable = existingBookings.some(booking => {
+                    return slot >= booking.start_time && slot < booking.end_time;
+                });
+
+                if (isUnavailable) {
+                    slotElement.classList.add('unavailable');
+                    slotElement.title = 'Niet beschikbaar';
+                } else {
+                    if (selectedStartTime === slot) {
+                        slotElement.classList.add('selected');
+                    }
+
+                    slotElement.onclick = () => {
+                        if (!selectedStartTime) {
+                            selectStartTime(slot, slotElement);
+                        } else if (!selectedEndTime) {
+                            selectEndTime(slot, slotElement);
+                        } else {
+                            clearTimeSelection();
+                            selectStartTime(slot, slotElement);
+                        }
+                    };
+                }
+
+                timeSlots.appendChild(slotElement);
+            });
+        }
+
+        function selectStartTime(time, element) {
+            document.querySelectorAll('.time-slot').forEach(el => el.classList.remove('selected'));
+            element.classList.add('selected');
+            selectedStartTime = time;
+            selectedEndTime = null;
+            updateSummary();
+        }
+
+        function selectEndTime(time, element) {
+            if (time <= selectedStartTime) {
+                showNotification('De eindtijd moet na de starttijd liggen.', 'error');
+                return;
+            }
+
+            const hasOverlap = existingBookings.some(booking => {
+                return (
+                    (selectedStartTime >= booking.start_time && selectedStartTime < booking.end_time) ||
+                    (time > booking.start_time && time <= booking.end_time) ||
+                    (selectedStartTime <= booking.start_time && time >= booking.end_time)
+                );
+            });
+
+            if (hasOverlap) {
+                showNotification('Deze tijd overlapt met een bestaande boeking.', 'error');
+                return;
+            }
+
+            selectedEndTime = time;
+
+            const startIndex = Array.from(document.querySelectorAll('.time-slot')).findIndex(
+                el => el.textContent === selectedStartTime
+            );
+            const endIndex = Array.from(document.querySelectorAll('.time-slot')).findIndex(
+                el => el.textContent === selectedEndTime
+            );
+
+            document.querySelectorAll('.time-slot').forEach((el, index) => {
+                if (index >= startIndex && index <= endIndex && !el.classList.contains('unavailable')) {
+                    el.classList.add('selected');
+                }
+            });
+
+            updateSummary();
+        }
+
+        function clearTimeSelection() {
+            selectedStartTime = null;
+            selectedEndTime = null;
+            document.querySelectorAll('.time-slot').forEach(el => el.classList.remove('selected'));
+        }
+
+        function calculateHours(start, end) {
+            const startDate = new Date(`2000-01-01T${start}`);
+            const endDate = new Date(`2000-01-01T${end}`);
+            return (endDate - startDate) / (1000 * 60 * 60);
+        }
+
+        function updateSummary() {
+            const summary = document.getElementById('summary');
+            const submitBtn = document.getElementById('submitBtn');
+
+            if (!selectedDate || !selectedRoom || !selectedStartTime || !selectedEndTime) {
+                summary.style.display = 'none';
+                submitBtn.disabled = true;
+                return;
+            }
+
+            summary.style.display = 'block';
+            submitBtn.disabled = false;
+
+            const dateObj = new Date(selectedDate + 'T00:00:00');
+            document.getElementById('summaryDate').textContent = dateObj.toLocaleDateString('nl-NL', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+
+            document.getElementById('summaryTime').textContent = `${selectedStartTime} - ${selectedEndTime}`;
+            document.getElementById('summaryRoom').textContent = selectedRoom.space_number;
+
+            const hours = calculateHours(selectedStartTime, selectedEndTime);
+            document.getElementById('summaryDuration').textContent = `${hours.toFixed(1)} uur`;
+            document.getElementById('summaryRate').textContent = `€${selectedRoom.hourly_rate || 25}/uur`;
+
+            const total = hours * (selectedRoom.hourly_rate || 25);
+            document.getElementById('summaryTotal').textContent = `€${total.toFixed(2)}`;
+        }
+
+        document.getElementById('bookingForm').onsubmit = async (e) => {
+            e.preventDefault();
+
+            const name = document.getElementById('name').value;
+            const company = document.getElementById('company').value;
+            const email = document.getElementById('email').value;
+            const phone = document.getElementById('phone').value;
+            const notes = document.getElementById('notes').value;
+
+            if (!selectedDate || !selectedRoom || !selectedStartTime || !selectedEndTime) {
+                showNotification('Vul alle vereiste velden in.', 'error');
+                return;
+            }
+
+            try {
+                let tenantId = null;
+
+                const { data: existingTenant } = await sb
+                    .from('tenants')
+                    .select('id')
+                    .eq('email', email)
+                    .maybeSingle();
+
+                if (existingTenant) {
+                    tenantId = existingTenant.id;
+                } else {
+                    const { data: newTenant, error: tenantError } = await sb
+                        .from('tenants')
+                        .insert({
+                            name: name,
+                            company_name: company || name,
+                            email: email,
+                            phone: phone
+                        })
+                        .select()
+                        .single();
+
+                    if (tenantError) throw tenantError;
+                    tenantId = newTenant.id;
+                }
+
+                const hours = calculateHours(selectedStartTime, selectedEndTime);
+                const hourlyRate = selectedRoom.hourly_rate || 25;
+                const totalAmount = hours * hourlyRate;
+
+                const { error: bookingError } = await sb
+                    .from('meeting_room_bookings')
+                    .insert({
+                        space_id: selectedRoom.id,
+                        tenant_id: tenantId,
+                        booking_date: selectedDate,
+                        start_time: selectedStartTime,
+                        end_time: selectedEndTime,
+                        hourly_rate: hourlyRate,
+                        total_hours: hours,
+                        total_amount: totalAmount,
+                        status: 'confirmed',
+                        notes: notes
+                    });
+
+                if (bookingError) throw bookingError;
+
+                showNotification('Uw boeking is succesvol aangemaakt! We nemen zo spoedig mogelijk contact met u op.', 'success');
+
+                setTimeout(() => {
+                    location.reload();
+                }, 3000);
+
+            } catch (error) {
+                console.error('Booking error:', error);
+                showNotification('Er is een fout opgetreden. Probeer het later opnieuw.', 'error');
+            }
+        };
+
+        function showNotification(message, type) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = `notification ${type} show`;
+
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 5000);
+        }
+
+        init();
+    </script>
+</body>
+</html>
