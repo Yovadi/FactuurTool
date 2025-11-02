@@ -80,7 +80,10 @@
             border-radius: 0.5rem;
             border: 1px solid #3A3A3E;
             overflow-x: auto;
+            overflow-y: auto;
+            max-height: 600px;
             margin-bottom: 1rem;
+            position: relative;
         }
 
         .schedule-grid {
@@ -96,6 +99,9 @@
             border-bottom: 2px solid #4A4A4F;
             font-size: 0.75rem;
             font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 20;
         }
 
         .schedule-header.corner {
@@ -109,16 +115,22 @@
             color: #9CA3AF;
             border-right: 1px solid #3A3A3E;
             border-bottom: 1px solid #2A2A2D;
+            background-color: #1A1A1C;
+            position: sticky;
+            left: 0;
+            z-index: 15;
         }
 
         .schedule-cell {
-            padding: 0.15rem;
+            padding: 0;
             border-right: 1px solid #2A2A2D;
             border-bottom: 1px solid #2A2A2D;
             min-height: 28px;
+            height: 28px;
             cursor: pointer;
-            transition: background-color 0.2s;
+            transition: background-color 0.1s;
             position: relative;
+            user-select: none;
         }
 
         .schedule-cell.business-hours {
@@ -129,12 +141,13 @@
             background-color: #0F0F10;
         }
 
-        .schedule-cell:hover:not(.has-booking) {
-            background-color: rgba(212, 175, 55, 0.1);
+        .schedule-cell:hover:not(.has-booking):not(.past) {
+            background-color: rgba(212, 175, 55, 0.15);
         }
 
         .schedule-cell.selected {
-            background-color: rgba(212, 175, 55, 0.3);
+            background-color: rgba(212, 175, 55, 0.4);
+            border: 1px solid rgba(212, 175, 55, 0.6);
         }
 
         .schedule-cell.past {
@@ -151,16 +164,17 @@
             font-weight: 600;
             overflow: hidden;
             text-overflow: ellipsis;
-            white-space: nowrap;
             cursor: default;
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
-            bottom: 0;
             display: flex;
             align-items: center;
             justify-content: center;
+            border: 1px solid #B8942A;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+            pointer-events: none;
         }
 
         .room-selector {
@@ -451,10 +465,14 @@
         let selectedCells = [];
 
         const timeSlots = [];
-        for (let hour = 8; hour < 18; hour++) {
+        for (let hour = 0; hour < 24; hour++) {
             timeSlots.push(`${String(hour).padStart(2, '0')}:00`);
             timeSlots.push(`${String(hour).padStart(2, '0')}:30`);
         }
+
+        let isDragging = false;
+        let dragStartCell = null;
+        let dragCurrentDate = null;
 
         function getMonday(date) {
             const d = new Date(date);
@@ -633,7 +651,9 @@
                         if (booking) {
                             cell.classList.add('has-booking');
                         } else {
-                            cell.onclick = () => toggleCell(dateStr, time, cell);
+                            cell.onmousedown = (e) => startDrag(e, dateStr, time);
+                            cell.onmouseenter = () => continueDrag(dateStr, time);
+                            cell.onmouseup = () => endDrag();
                         }
                     }
 
@@ -642,34 +662,82 @@
                         cell.classList.add('selected');
                     }
 
+                    cell.dataset.date = dateStr;
+                    cell.dataset.time = time;
+
                     grid.appendChild(cell);
                 });
             });
+
+            const scheduleContainer = document.getElementById('scheduleGrid').parentElement;
+            scheduleContainer.scrollTop = 8 * 2 * 28;
         }
 
-        function getPreviousTimeSlot(time) {
-            const index = timeSlots.indexOf(time);
-            return index > 0 ? timeSlots[index - 1] : null;
-        }
-
-        function toggleCell(date, time, cell) {
+        function startDrag(e, date, time) {
+            e.preventDefault();
             if (!selectedRoom) {
                 showNotification('Selecteer eerst een vergaderruimte.', 'error');
                 return;
             }
 
-            const cellKey = `${date}-${time}`;
-            const existingIndex = selectedCells.findIndex(sc => sc.key === cellKey);
+            isDragging = true;
+            dragStartCell = time;
+            dragCurrentDate = date;
+            selectedCells = [];
 
-            if (existingIndex >= 0) {
-                selectedCells.splice(existingIndex, 1);
-                cell.classList.remove('selected');
-            } else {
-                selectedCells.push({ key: cellKey, date, time });
-                cell.classList.add('selected');
+            const cellKey = `${date}-${time}`;
+            selectedCells.push({ key: cellKey, date, time });
+
+            updateCellSelection();
+        }
+
+        function continueDrag(date, time) {
+            if (!isDragging || !dragStartCell || date !== dragCurrentDate) return;
+
+            const startIndex = timeSlots.indexOf(dragStartCell);
+            const currentIndex = timeSlots.indexOf(time);
+
+            const minIndex = Math.min(startIndex, currentIndex);
+            const maxIndex = Math.max(startIndex, currentIndex);
+
+            selectedCells = [];
+            for (let i = minIndex; i <= maxIndex; i++) {
+                const t = timeSlots[i];
+                const cellKey = `${date}-${t}`;
+                selectedCells.push({ key: cellKey, date, time: t });
             }
 
-            updateSummary();
+            updateCellSelection();
+        }
+
+        function endDrag() {
+            if (isDragging) {
+                isDragging = false;
+                dragStartCell = null;
+                dragCurrentDate = null;
+                updateSummary();
+            }
+        }
+
+        function updateCellSelection() {
+            document.querySelectorAll('.schedule-cell').forEach(cell => {
+                const date = cell.dataset.date;
+                const time = cell.dataset.time;
+                const cellKey = `${date}-${time}`;
+
+                if (selectedCells.some(sc => sc.key === cellKey)) {
+                    cell.classList.add('selected');
+                } else {
+                    cell.classList.remove('selected');
+                }
+            });
+        }
+
+        document.addEventListener('mouseup', endDrag);
+
+        function getPreviousTimeSlot(time) {
+            const index = timeSlots.indexOf(time);
+            return index > 0 ? timeSlots[index - 1] : null;
         }
 
         function updateSummary() {
