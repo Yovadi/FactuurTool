@@ -32,14 +32,14 @@
         }
 
         .header h1 {
-            font-size: 1.75rem;
+            font-size: 1.25rem;
             font-weight: bold;
             color: #D4AF37;
             margin-bottom: 0.25rem;
         }
 
         .header p {
-            font-size: 0.875rem;
+            font-size: 0.75rem;
             color: #9CA3AF;
         }
 
@@ -47,8 +47,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 1rem;
-            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            padding: 0.5rem;
             background-color: #1A1A1C;
             border-radius: 0.5rem;
             border: 1px solid #3A3A3E;
@@ -59,8 +59,8 @@
             border: 1px solid #4A4A4F;
             color: #D4AF37;
             cursor: pointer;
-            padding: 0.5rem 1rem;
-            font-size: 1rem;
+            padding: 0.35rem 0.75rem;
+            font-size: 0.875rem;
             border-radius: 0.5rem;
             transition: all 0.2s;
         }
@@ -71,7 +71,7 @@
         }
 
         .week-nav h3 {
-            font-size: 1rem;
+            font-size: 0.875rem;
             color: #F3F4F6;
         }
 
@@ -85,16 +85,16 @@
 
         .schedule-grid {
             display: grid;
-            grid-template-columns: 80px repeat(7, 1fr);
+            grid-template-columns: 60px repeat(7, 1fr);
             min-width: 800px;
         }
 
         .schedule-header {
             background-color: #2A2A2D;
-            padding: 0.75rem 0.5rem;
+            padding: 0.5rem 0.25rem;
             text-align: center;
             border-bottom: 2px solid #4A4A4F;
-            font-size: 0.875rem;
+            font-size: 0.75rem;
             font-weight: 600;
         }
 
@@ -103,22 +103,30 @@
         }
 
         .time-label {
-            padding: 0.5rem;
+            padding: 0.25rem;
             text-align: center;
-            font-size: 0.75rem;
+            font-size: 0.65rem;
             color: #9CA3AF;
             border-right: 1px solid #3A3A3E;
             border-bottom: 1px solid #2A2A2D;
         }
 
         .schedule-cell {
-            padding: 0.25rem;
+            padding: 0.15rem;
             border-right: 1px solid #2A2A2D;
             border-bottom: 1px solid #2A2A2D;
-            min-height: 40px;
+            min-height: 28px;
             cursor: pointer;
             transition: background-color 0.2s;
             position: relative;
+        }
+
+        .schedule-cell.business-hours {
+            background-color: #1F1F21;
+        }
+
+        .schedule-cell.outside-hours {
+            background-color: #0F0F10;
         }
 
         .schedule-cell:hover:not(.has-booking) {
@@ -139,34 +147,42 @@
             color: #0A0A0B;
             padding: 0.25rem;
             border-radius: 0.25rem;
-            font-size: 0.7rem;
+            font-size: 0.65rem;
             font-weight: 600;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
             cursor: default;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .room-selector {
             display: flex;
             gap: 0.5rem;
-            margin-bottom: 1rem;
+            margin-bottom: 0.5rem;
             flex-wrap: wrap;
             background-color: #1A1A1C;
-            padding: 1rem;
+            padding: 0.75rem;
             border-radius: 0.5rem;
             border: 1px solid #3A3A3E;
         }
 
         .room-btn {
-            padding: 0.5rem 1rem;
+            padding: 0.4rem 0.75rem;
             background-color: #2A2A2D;
             border: 2px solid #4A4A4F;
             border-radius: 0.5rem;
             color: #F3F4F6;
             cursor: pointer;
             transition: all 0.2s;
-            font-size: 0.875rem;
+            font-size: 0.8rem;
         }
 
         .room-btn:hover {
@@ -188,7 +204,7 @@
         }
 
         .form-card h2 {
-            font-size: 1.125rem;
+            font-size: 1rem;
             font-weight: 600;
             margin-bottom: 0.75rem;
             color: #F3F4F6;
@@ -557,6 +573,20 @@
             const today = new Date();
             today.setHours(0, 0, 0, 0);
 
+            const bookingBlocks = {};
+
+            existingBookings.forEach(booking => {
+                const key = `${booking.booking_date}-${booking.start_time}`;
+                if (!bookingBlocks[key]) {
+                    bookingBlocks[key] = {
+                        date: booking.booking_date,
+                        startTime: booking.start_time,
+                        endTime: booking.end_time,
+                        name: booking.tenants?.name || 'Geboekt'
+                    };
+                }
+            });
+
             timeSlots.forEach(time => {
                 const timeLabel = document.createElement('div');
                 timeLabel.className = 'time-label';
@@ -566,6 +596,13 @@
                 weekDates.forEach(date => {
                     const cell = document.createElement('div');
                     cell.className = 'schedule-cell';
+
+                    const hour = parseInt(time.split(':')[0]);
+                    if (hour >= 8 && hour < 17) {
+                        cell.classList.add('business-hours');
+                    } else {
+                        cell.classList.add('outside-hours');
+                    }
 
                     const dateStr = formatDate(date);
                     const isPast = date < today;
@@ -579,18 +616,21 @@
                             time < b.end_time
                         );
 
+                        if (booking && time === booking.start_time) {
+                            const startIndex = timeSlots.indexOf(booking.start_time);
+                            const endIndex = timeSlots.indexOf(booking.end_time);
+                            const duration = endIndex - startIndex;
+
+                            const bookingEl = document.createElement('div');
+                            bookingEl.className = 'booking';
+                            bookingEl.textContent = booking.tenants?.name || 'Geboekt';
+                            bookingEl.title = `${booking.start_time} - ${booking.end_time}`;
+                            bookingEl.style.height = `${duration * 28}px`;
+                            bookingEl.style.zIndex = '10';
+                            cell.appendChild(bookingEl);
+                        }
+
                         if (booking) {
-                            if (time === booking.start_time || !existingBookings.find(b2 =>
-                                b2.booking_date === dateStr &&
-                                b2.start_time === getPreviousTimeSlot(time) &&
-                                b2.tenants?.name === booking.tenants?.name
-                            )) {
-                                const bookingEl = document.createElement('div');
-                                bookingEl.className = 'booking';
-                                bookingEl.textContent = booking.tenants?.name || 'Geboekt';
-                                bookingEl.title = `${booking.start_time} - ${booking.end_time}`;
-                                cell.appendChild(bookingEl);
-                            }
                             cell.classList.add('has-booking');
                         } else {
                             cell.onclick = () => toggleCell(dateStr, time, cell);
