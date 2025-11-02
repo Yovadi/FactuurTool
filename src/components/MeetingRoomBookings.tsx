@@ -43,6 +43,7 @@ type Booking = {
 
 export function MeetingRoomBookings() {
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [allBookings, setAllBookings] = useState<Booking[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [meetingRooms, setMeetingRooms] = useState<Space[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,7 +65,7 @@ export function MeetingRoomBookings() {
 
   useEffect(() => {
     loadData();
-  }, [selectedFilter]);
+  }, []);
 
   const loadData = async () => {
     setLoading(true);
@@ -80,7 +81,7 @@ export function MeetingRoomBookings() {
       .eq('space_type', 'Meeting Room')
       .order('space_number');
 
-    let bookingsQuery = supabase
+    const { data: bookingsData } = await supabase
       .from('meeting_room_bookings')
       .select(`
         *,
@@ -89,19 +90,6 @@ export function MeetingRoomBookings() {
       `)
       .order('booking_date', { ascending: false })
       .order('start_time', { ascending: false });
-
-    const today = new Date();
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-
-    if (selectedFilter === 'upcoming') {
-      bookingsQuery = bookingsQuery
-        .gte('booking_date', todayStr)
-        .neq('status', 'cancelled');
-    } else if (selectedFilter === 'past') {
-      bookingsQuery = bookingsQuery.lt('booking_date', todayStr);
-    }
-
-    const { data: bookingsData } = await bookingsQuery;
 
     const sortedBookings = (bookingsData || []).sort((a, b) => {
       const companyA = a.tenants?.company_name || a.tenants?.name || '';
@@ -118,8 +106,24 @@ export function MeetingRoomBookings() {
 
     setTenants(tenantsData || []);
     setMeetingRooms(spacesData || []);
-    setBookings(sortedBookings);
+    setAllBookings(sortedBookings);
+    applyFilter(sortedBookings, selectedFilter);
     setLoading(false);
+  };
+
+  const applyFilter = (bookingsList: Booking[], filter: 'upcoming' | 'past' | 'all') => {
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+    let filtered = bookingsList;
+
+    if (filter === 'upcoming') {
+      filtered = bookingsList.filter(b => b.booking_date >= todayStr && b.status !== 'cancelled');
+    } else if (filter === 'past') {
+      filtered = bookingsList.filter(b => b.booking_date < todayStr);
+    }
+
+    setBookings(filtered);
   };
 
   const showNotification = (message: string, type: NotificationType = 'info') => {
@@ -488,7 +492,10 @@ export function MeetingRoomBookings() {
         {selectedView === 'list' && (
           <div className="flex gap-4">
             <button
-              onClick={() => setSelectedFilter('upcoming')}
+              onClick={() => {
+                setSelectedFilter('upcoming');
+                applyFilter(allBookings, 'upcoming');
+              }}
               className={`px-4 py-2 rounded-lg transition-colors ${
                 selectedFilter === 'upcoming'
                   ? 'bg-gold-600 text-white'
@@ -498,7 +505,10 @@ export function MeetingRoomBookings() {
               Aankomend
             </button>
             <button
-              onClick={() => setSelectedFilter('past')}
+              onClick={() => {
+                setSelectedFilter('past');
+                applyFilter(allBookings, 'past');
+              }}
               className={`px-4 py-2 rounded-lg transition-colors ${
                 selectedFilter === 'past'
                   ? 'bg-gold-600 text-white'
@@ -508,7 +518,10 @@ export function MeetingRoomBookings() {
               Afgelopen
             </button>
             <button
-              onClick={() => setSelectedFilter('all')}
+              onClick={() => {
+                setSelectedFilter('all');
+                applyFilter(allBookings, 'all');
+              }}
               className={`px-4 py-2 rounded-lg transition-colors ${
                 selectedFilter === 'all'
                   ? 'bg-gold-600 text-white'
