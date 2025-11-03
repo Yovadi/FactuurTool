@@ -487,6 +487,11 @@
             return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
         }
 
+        function normalizeTime(timeStr) {
+            if (!timeStr) return timeStr;
+            return timeStr.substring(0, 5);
+        }
+
         async function init() {
             try {
                 const { data: rooms } = await sb
@@ -556,7 +561,13 @@
                 .lte('booking_date', formatDate(weekEnd))
                 .neq('status', 'cancelled');
 
-            existingBookings = bookings || [];
+            existingBookings = (bookings || []).map(b => ({
+                ...b,
+                start_time: normalizeTime(b.start_time),
+                end_time: normalizeTime(b.end_time)
+            }));
+
+            console.log('Loaded bookings:', existingBookings);
         }
 
         function renderSchedule() {
@@ -630,6 +641,15 @@
                         time >= b.start_time &&
                         time < b.end_time
                     );
+
+                    if (dateStr === '2025-11-05' && time === '08:30') {
+                        console.log('Checking cell 2025-11-05 08:30:', {
+                            existingBookings,
+                            booking,
+                            time,
+                            dateStr
+                        });
+                    }
 
                     if (booking && time === booking.start_time) {
                         const startIndex = timeSlots.indexOf(booking.start_time);
