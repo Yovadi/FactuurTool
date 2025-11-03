@@ -94,6 +94,7 @@ export type CompanySettings = {
   kvk_number: string;
   bank_account: string;
   delete_code: string;
+  booking_pin_code: string | null;
   root_folder_path: string | null;
   test_mode: boolean;
   test_date: string | null;

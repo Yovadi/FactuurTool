@@ -20,6 +20,7 @@ export function CompanySettings() {
     kvk_number: '',
     bank_account: '',
     delete_code: '1234',
+    booking_pin_code: '',
     root_folder_path: '',
     test_mode: false,
     test_date: ''
@@ -103,6 +104,7 @@ export function CompanySettings() {
         kvk_number: settings.kvk_number || '',
         bank_account: settings.bank_account || '',
         delete_code: settings.delete_code || '1234',
+        booking_pin_code: settings.booking_pin_code || '',
         root_folder_path: settings.root_folder_path || '',
         test_mode: settings.test_mode || false,
         test_date: settings.test_date || ''
@@ -125,6 +127,7 @@ export function CompanySettings() {
       kvk_number: '',
       bank_account: '',
       delete_code: '1234',
+      booking_pin_code: '',
       root_folder_path: '',
       test_mode: false,
       test_date: ''
@@ -311,20 +314,38 @@ export function CompanySettings() {
 
               <div>
                 <h4 className="text-lg font-semibold text-gray-100 mb-3">Beveiliging</h4>
-                <div>
-                  <label className="block text-sm font-medium text-gray-200 mb-1">
-                    Wis-code (voor het verwijderen van betaalde facturen)
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.delete_code}
-                    onChange={(e) => setFormData({ ...formData, delete_code: e.target.value })}
-                    className="w-full px-3 py-2 border border-dark-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                    placeholder="1234"
-                  />
-                  <p className="text-xs text-gray-400 mt-1">
-                    Deze code wordt gevraagd bij het verwijderen van betaalde facturen
-                  </p>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-200 mb-1">
+                      Wis-code (voor het verwijderen van betaalde facturen)
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.delete_code}
+                      onChange={(e) => setFormData({ ...formData, delete_code: e.target.value })}
+                      className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                      placeholder="1234"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">
+                      Deze code wordt gevraagd bij het verwijderen van betaalde facturen
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-200 mb-1">
+                      Boekings PIN-code (voor het beschermen van de boekingskalender)
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.booking_pin_code}
+                      onChange={(e) => setFormData({ ...formData, booking_pin_code: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+                      className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                      placeholder="4-cijferige PIN"
+                      maxLength={4}
+                    />
+                    <p className="text-xs text-gray-400 mt-1">
+                      Voer een 4-cijferige PIN in om boekingen te beschermen. Laat leeg om toegang zonder PIN toe te staan.
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -507,6 +528,15 @@ export function CompanySettings() {
                     <div>
                       <p className="text-xs text-gray-400">Wis-code</p>
                       <p className="font-mono">{'•'.repeat(settings.delete_code.length)}</p>
+                    </div>
+                  </div>
+                )}
+                {settings.booking_pin_code && (
+                  <div className="flex items-start gap-2">
+                    <Lock size={16} className="mt-0.5 text-gray-500" />
+                    <div>
+                      <p className="text-xs text-gray-400">Boekings PIN-code</p>
+                      <p className="font-mono">{'•'.repeat(settings.booking_pin_code.length)}</p>
                     </div>
                   </div>
                 )}

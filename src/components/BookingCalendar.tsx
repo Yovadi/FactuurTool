@@ -81,6 +81,11 @@ export function BookingCalendar() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [draggedBooking, setDraggedBooking] = useState<Booking | null>(null);
   const [isDraggingBooking, setIsDraggingBooking] = useState(false);
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pinInput, setPinInput] = useState('');
+  const [pinError, setPinError] = useState(false);
+  const [bookingPinCode, setBookingPinCode] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -125,7 +130,7 @@ export function BookingCalendar() {
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekEnd.getDate() + 6);
 
-    const [bookingsRes, spacesRes, tenantsRes] = await Promise.all([
+    const [bookingsRes, spacesRes, tenantsRes, settingsRes] = await Promise.all([
       supabase
         .from('meeting_room_bookings')
         .select(`
@@ -149,7 +154,13 @@ export function BookingCalendar() {
       supabase
         .from('tenants')
         .select('id, name, company_name')
-        .order('name')
+        .order('name'),
+      supabase
+        .from('company_settings')
+        .select('booking_pin_code')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
     ]);
 
     const days: WeekDay[] = [];
@@ -176,6 +187,11 @@ export function BookingCalendar() {
     }
 
     setTenants(tenantsRes.data || []);
+
+    // Load PIN code from settings
+    const pinCode = settingsRes.data?.booking_pin_code || null;
+    setBookingPinCode(pinCode);
+
     setLoading(false);
   };
 
@@ -214,6 +230,12 @@ export function BookingCalendar() {
 
     if (cellDate < today) return;
 
+    // Check if PIN is required and user is not authenticated
+    if (bookingPinCode && !isAuthenticated) {
+      setShowPinModal(true);
+      return;
+    }
+
     setIsDragging(true);
     setDragStart({ date: dateStr, time });
     setSelectedCells([{ date: dateStr, time }]);
@@ -240,6 +262,19 @@ export function BookingCalendar() {
 
   const isCellSelected = (dateStr: string, time: string) => {
     return selectedCells.some(c => c.date === dateStr && c.time === time);
+  };
+
+  const handlePinSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pinInput === bookingPinCode) {
+      setIsAuthenticated(true);
+      setShowPinModal(false);
+      setPinInput('');
+      setPinError(false);
+    } else {
+      setPinError(true);
+      setPinInput('');
+    }
   };
 
   const handleSubmitBooking = async (e: React.FormEvent) => {
@@ -719,6 +754,74 @@ export function BookingCalendar() {
                 Sluiten
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showPinModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-dark-800 rounded-lg p-6 max-w-sm w-full">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-gray-100">Toegangscode Vereist</h3>
+              <button
+                onClick={() => {
+                  setShowPinModal(false);
+                  setPinInput('');
+                  setPinError(false);
+                }}
+                className="text-gray-400 hover:text-gray-200"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <form onSubmit={handlePinSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-200 mb-2">
+                  Voer uw 4-cijferige PIN in
+                </label>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={pinInput}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, '');
+                    setPinInput(value);
+                    setPinError(false);
+                  }}
+                  className={`w-full px-4 py-3 text-center text-2xl tracking-widest border rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent ${
+                    pinError ? 'border-red-500' : 'border-dark-600'
+                  }`}
+                  placeholder="••••"
+                  autoFocus
+                  required
+                />
+                {pinError && (
+                  <p className="text-red-500 text-sm mt-2">Onjuiste PIN-code. Probeer opnieuw.</p>
+                )}
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPinModal(false);
+                    setPinInput('');
+                    setPinError(false);
+                  }}
+                  className="flex-1 px-6 py-2 border border-dark-600 rounded-lg text-gray-300 hover:bg-dark-700 transition-colors"
+                >
+                  Annuleren
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-6 py-2 bg-gold-600 text-white rounded-lg hover:bg-gold-700 transition-colors"
+                >
+                  Bevestigen
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
