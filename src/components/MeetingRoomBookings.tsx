@@ -48,7 +48,7 @@ export function MeetingRoomBookings() {
   const [meetingRooms, setMeetingRooms] = useState<Space[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [selectedView, setSelectedView] = useState<'list' | 'calendar' | 'rates'>('list');
+  const [selectedView, setSelectedView] = useState<'list' | 'calendar' | 'rates'>('calendar');
   const [selectedFilter, setSelectedFilter] = useState<'upcoming' | 'past' | 'all'>('upcoming');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationId, setNotificationId] = useState(0);
@@ -433,17 +433,6 @@ export function MeetingRoomBookings() {
       <div className="mb-6 flex justify-between items-center">
         <div className="flex gap-4">
           <button
-            onClick={() => setSelectedView('list')}
-            className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
-              selectedView === 'list'
-                ? 'bg-gold-600 text-white'
-                : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
-            }`}
-          >
-            <AlertCircle size={18} />
-            Lijst
-          </button>
-          <button
             onClick={() => setSelectedView('calendar')}
             className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
               selectedView === 'calendar'
@@ -453,6 +442,17 @@ export function MeetingRoomBookings() {
           >
             <CalendarDays size={18} />
             Kalender
+          </button>
+          <button
+            onClick={() => setSelectedView('list')}
+            className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
+              selectedView === 'list'
+                ? 'bg-gold-600 text-white'
+                : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
+            }`}
+          >
+            <AlertCircle size={18} />
+            Lijst
           </button>
           <button
             onClick={() => setSelectedView('rates')}
