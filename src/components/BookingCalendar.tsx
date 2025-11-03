@@ -168,7 +168,14 @@ export function BookingCalendar() {
     }
 
     setWeekDays(days);
-    setMeetingRooms(spacesRes.data || []);
+    const rooms = spacesRes.data || [];
+    setMeetingRooms(rooms);
+
+    // Automatically select the first room if there's only one
+    if (rooms.length === 1 && !selectedRoom) {
+      setSelectedRoom(rooms[0]);
+    }
+
     setTenants(tenantsRes.data || []);
     setLoading(false);
   };
@@ -286,7 +293,7 @@ export function BookingCalendar() {
     setShowForm(false);
     setSelectedCells([]);
     setFormData({ tenant_id: '', room_id: '', notes: '' });
-    loadData();
+    await loadData();
   };
 
   const previousWeek = () => {
@@ -326,7 +333,7 @@ export function BookingCalendar() {
 
     setShowDeleteConfirm(false);
     setSelectedBooking(null);
-    loadData();
+    await loadData();
   };
 
   const handleDeleteBooking = async () => {
@@ -345,7 +352,7 @@ export function BookingCalendar() {
 
     setShowDeleteConfirm(false);
     setSelectedBooking(null);
-    loadData();
+    await loadData();
   };
 
   const handleBookingDragStart = (booking: Booking, e: React.MouseEvent) => {
@@ -411,7 +418,7 @@ export function BookingCalendar() {
 
     setDraggedBooking(null);
     setIsDraggingBooking(false);
-    loadData();
+    await loadData();
   };
 
   const isToday = (date: Date) => {
