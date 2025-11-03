@@ -505,7 +505,7 @@ export function BookingCalendar() {
               {timeSlots.map((time) => (
                 <div
                   key={time}
-                  className="text-xs text-gray-500 bg-dark-900 px-1"
+                  className="text-xs text-gray-500 bg-dark-900 px-1 border-r border-b border-dark-700"
                   style={{ height: `${CELL_HEIGHT}px`, lineHeight: `${CELL_HEIGHT}px` }}
                 >
                   {time}
@@ -528,7 +528,7 @@ export function BookingCalendar() {
                   return (
                     <div
                       key={time}
-                      className={`relative ${
+                      className={`relative border-r border-b border-dark-700 ${
                         !hasBookingHere && !isPast ? 'cursor-pointer hover:bg-gold-900/20' : ''
                       } ${isSelected ? 'bg-gold-600/50 border border-gold-500' : ''} ${isPast ? 'bg-dark-900/50' : ''} ${isDraggingBooking && !hasBookingHere && !isPast ? 'bg-green-900/20' : ''}`}
                       style={{ height: `${CELL_HEIGHT}px` }}
