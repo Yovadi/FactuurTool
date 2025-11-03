@@ -75,8 +75,7 @@ export function BookingCalendar() {
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     tenant_id: '',
-    room_id: '',
-    notes: ''
+    room_id: ''
   });
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -280,8 +279,7 @@ export function BookingCalendar() {
         hourly_rate: hourlyRate,
         total_hours: totalHours,
         total_amount: totalAmount,
-        status: 'confirmed',
-        notes: formData.notes
+        status: 'confirmed'
       });
 
     if (error) {
@@ -292,7 +290,7 @@ export function BookingCalendar() {
 
     setShowForm(false);
     setSelectedCells([]);
-    setFormData({ tenant_id: '', room_id: '', notes: '' });
+    setFormData({ tenant_id: '', room_id: '' });
     await loadData();
   };
 
@@ -479,7 +477,7 @@ export function BookingCalendar() {
 
       <div className="overflow-x-auto max-h-[calc(100vh-350px)] overflow-y-auto">
         <div className="min-w-[700px]">
-          <div className="grid grid-cols-8 gap-px bg-dark-700 sticky top-0 z-20">
+          <div className="grid grid-cols-8 sticky top-0 z-20">
             <div className="bg-dark-900 p-1.5 text-xs font-semibold text-gray-400">
               Tijd
             </div>
@@ -502,7 +500,7 @@ export function BookingCalendar() {
             ))}
           </div>
 
-          <div className="grid grid-cols-8 gap-px bg-dark-700">
+          <div className="grid grid-cols-8">
             <div className="bg-dark-900">
               {timeSlots.map((time) => (
                 <div
@@ -530,7 +528,7 @@ export function BookingCalendar() {
                   return (
                     <div
                       key={time}
-                      className={`border-t border-dark-700 relative ${
+                      className={`relative ${
                         !hasBookingHere && !isPast ? 'cursor-pointer hover:bg-gold-900/20' : ''
                       } ${isSelected ? 'bg-gold-600/50 border border-gold-500' : ''} ${isPast ? 'bg-dark-900/50' : ''} ${isDraggingBooking && !hasBookingHere && !isPast ? 'bg-green-900/20' : ''}`}
                       style={{ height: `${CELL_HEIGHT}px` }}
@@ -646,25 +644,13 @@ export function BookingCalendar() {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-200 mb-2">
-                  Notities
-                </label>
-                <textarea
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  rows={2}
-                  className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                />
-              </div>
-
               <div className="flex gap-4 justify-end">
                 <button
                   type="button"
                   onClick={() => {
                     setShowForm(false);
                     setSelectedCells([]);
-                    setFormData({ tenant_id: '', room_id: '', notes: '' });
+                    setFormData({ tenant_id: '', room_id: '' });
                   }}
                   className="px-6 py-2 border border-dark-600 rounded-lg text-gray-300 hover:bg-dark-700 transition-colors"
                 >
