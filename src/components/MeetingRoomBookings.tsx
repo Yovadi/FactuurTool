@@ -425,31 +425,9 @@ export function MeetingRoomBookings() {
         ))}
       </div>
 
-      <div className="mb-8 flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-100 mb-2">Vergaderruimte Boekingen</h1>
-          <p className="text-gray-300">Beheer boekingen voor vergaderruimtes op uurbasis</p>
-        </div>
-        <button
-          onClick={() => {
-            const today = new Date();
-            const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-            setFormData({
-              space_id: '',
-              tenant_id: '',
-              booking_date: todayStr,
-              start_time: '09:00',
-              end_time: '10:00',
-              hourly_rate: 25,
-              notes: ''
-            });
-            setShowForm(true);
-          }}
-          className="bg-gold-600 text-white px-6 py-3 rounded-lg hover:bg-gold-700 transition-colors flex items-center gap-2"
-        >
-          <Plus size={20} />
-          Nieuwe Boeking
-        </button>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-100 mb-2">Vergaderruimte Boekingen</h1>
+        <p className="text-gray-300">Beheer boekingen voor vergaderruimtes op uurbasis</p>
       </div>
 
       <div className="mb-6 flex justify-between items-center">
