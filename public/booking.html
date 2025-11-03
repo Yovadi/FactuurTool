@@ -625,36 +625,34 @@
                     const dateStr = formatDate(date);
                     const isPast = date < today;
 
-                    if (isPast) {
+                    const booking = existingBookings.find(b =>
+                        b.booking_date === dateStr &&
+                        time >= b.start_time &&
+                        time < b.end_time
+                    );
+
+                    if (booking && time === booking.start_time) {
+                        const startIndex = timeSlots.indexOf(booking.start_time);
+                        const endIndex = timeSlots.indexOf(booking.end_time);
+                        const duration = endIndex - startIndex;
+
+                        const bookingEl = document.createElement('div');
+                        bookingEl.className = 'booking';
+                        bookingEl.textContent = booking.tenants?.name || 'Geboekt';
+                        bookingEl.title = `${booking.start_time} - ${booking.end_time}`;
+                        bookingEl.style.height = `${duration * 28}px`;
+                        bookingEl.style.zIndex = '10';
+                        cell.appendChild(bookingEl);
+                    }
+
+                    if (booking) {
+                        cell.classList.add('has-booking');
+                    } else if (isPast) {
                         cell.classList.add('past');
                     } else {
-                        const booking = existingBookings.find(b =>
-                            b.booking_date === dateStr &&
-                            time >= b.start_time &&
-                            time < b.end_time
-                        );
-
-                        if (booking && time === booking.start_time) {
-                            const startIndex = timeSlots.indexOf(booking.start_time);
-                            const endIndex = timeSlots.indexOf(booking.end_time);
-                            const duration = endIndex - startIndex;
-
-                            const bookingEl = document.createElement('div');
-                            bookingEl.className = 'booking';
-                            bookingEl.textContent = booking.tenants?.name || 'Geboekt';
-                            bookingEl.title = `${booking.start_time} - ${booking.end_time}`;
-                            bookingEl.style.height = `${duration * 28}px`;
-                            bookingEl.style.zIndex = '10';
-                            cell.appendChild(bookingEl);
-                        }
-
-                        if (booking) {
-                            cell.classList.add('has-booking');
-                        } else {
-                            cell.onmousedown = (e) => startDrag(e, dateStr, time);
-                            cell.onmouseenter = () => continueDrag(dateStr, time);
-                            cell.onmouseup = () => endDrag();
-                        }
+                        cell.onmousedown = (e) => startDrag(e, dateStr, time);
+                        cell.onmouseenter = () => continueDrag(dateStr, time);
+                        cell.onmouseup = () => endDrag();
                     }
 
                     const cellKey = `${dateStr}-${time}`;
