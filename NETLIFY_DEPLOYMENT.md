@@ -1,13 +1,14 @@
-# Netlify Deployment - Alleen Boekingspagina
+# Netlify Deployment - Boekingspagina
 
-Deze configuratie zorgt ervoor dat **alleen de boekingspagina** online komt op Netlify.
-De facturatie tool draait lokaal op je Windows PC als Electron app.
+Deze configuratie zorgt ervoor dat de **React boekingspagina** online komt op Netlify.
+De admin tool draait lokaal op je Windows PC als Electron app.
 
 ## Overzicht
 
-- **Facturatie tool** → Lokaal op Windows (Electron app via `npm run electron:build`)
-- **Boekingspagina** → Online op Netlify (voor klanten die willen boeken)
+- **Admin tool** → Lokaal op Windows (Electron app via `npm run electron:build`)
+- **Boekingspagina** → Online op Netlify (React app met mooie calendar interface)
 - **Database** → Gedeelde Supabase database voor beide
+- **Automatische detectie** → Dezelfde code toont booking calendar op web en admin interface in Electron
 
 ## Stap 1: Netlify Account aanmaken
 
@@ -24,10 +25,15 @@ De facturatie tool draait lokaal op je Windows PC als Electron app.
 2. Kies **Deploy with GitHub**
 3. Selecteer je repository uit de lijst
    - Zie je je repo niet? Klik op "Configure Netlify on GitHub" en geef toegang
-4. Build settings worden automatisch ingelezen uit `netlify.toml` (laat staan)
-5. Klik op **Deploy site**
+4. Build settings worden automatisch ingelezen uit `netlify.toml`:
+   - Build command: `npm run build`
+   - Publish directory: `dist`
+5. **Belangrijk**: Voeg environment variables toe:
+   - `VITE_SUPABASE_URL` = jouw Supabase project URL
+   - `VITE_SUPABASE_ANON_KEY` = jouw Supabase anon key
+6. Klik op **Deploy site**
 
-Klaar! Na 1 minuut is alleen de boekingspagina live.
+Klaar! Na 2-3 minuten is de React booking calendar live.
 
 ## Stap 3: Je boekingspagina URL
 
@@ -77,15 +83,15 @@ Dit maakt een Windows installer in de `dist` folder. Installeer deze op je Windo
 
 ### Boekingspagina updaten:
 
-Als je wijzigingen maakt aan `public/booking.html`:
+Als je wijzigingen maakt aan de booking calendar (bijvoorbeeld `src/components/BookingCalendar.tsx`):
 
 ```bash
-git add public/booking.html
-git commit -m "Update booking page"
+git add .
+git commit -m "Update booking calendar"
 git push origin main
 ```
 
-Netlify deployt automatisch binnen 1 minuut!
+Netlify bouwt en deployt automatisch binnen 2-3 minuten!
 
 ### Facturatie app updaten:
 
@@ -130,9 +136,10 @@ Netlify geeft automatisch:
 
 ## Belangrijke bestanden
 
-- **`public/booking.html`** - De boekingspagina (online via Netlify)
-- **`src/`** - De admin tool (lokaal als Electron app)
-- **`netlify.toml`** - Netlify configuratie (deploy alleen booking.html)
+- **`src/App.tsx`** - Detecteert of app draait op web (booking only) of Electron (full admin)
+- **`src/components/BookingCalendar.tsx`** - De booking calendar component (gedeeld door web en Electron)
+- **`src/`** - Alle React components (gedeeld door beide platforms)
+- **`netlify.toml`** - Netlify configuratie (bouwt React app naar `dist`)
 - **`electron/`** - Electron configuratie voor Windows app
 
 ## Troubleshooting
@@ -140,8 +147,9 @@ Netlify geeft automatisch:
 ### Site bouwt niet
 
 1. Check **Deploys** tab voor error logs
-2. Controleer of `public/booking.html` bestaat
-3. Push opnieuw naar GitHub
+2. Controleer of environment variables zijn ingesteld (VITE_SUPABASE_URL en VITE_SUPABASE_ANON_KEY)
+3. Controleer of `npm run build` lokaal werkt
+4. Push opnieuw naar GitHub
 
 ### Wijzigingen niet zichtbaar
 

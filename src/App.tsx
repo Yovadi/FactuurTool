@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dashboard } from './components/Dashboard';
 import { TenantManagement } from './components/TenantManagement';
 import { SpaceManagement } from './components/SpaceManagement';
@@ -6,6 +6,7 @@ import { LeaseManagement } from './components/LeaseManagement';
 import { InvoiceManagement } from './components/InvoiceManagement';
 import { CompanySettings } from './components/CompanySettings';
 import { MeetingRoomBookings } from './components/MeetingRoomBookings';
+import { BookingCalendar } from './components/BookingCalendar';
 import { Analytics } from './components/Analytics';
 import { LayoutDashboard, Users, Building, FileText, ScrollText, Settings, CalendarClock, TrendingUp } from 'lucide-react';
 
@@ -13,6 +14,13 @@ type Tab = 'dashboard' | 'tenants' | 'spaces' | 'leases' | 'invoices' | 'booking
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
+  const [isElectron, setIsElectron] = useState(false);
+
+  useEffect(() => {
+    // Detect if running in Electron
+    const electron = typeof window !== 'undefined' && (window as any).electron;
+    setIsElectron(!!electron);
+  }, []);
 
   const navigation = [
     { id: 'dashboard' as Tab, label: 'Overzicht', icon: LayoutDashboard },
@@ -25,6 +33,16 @@ function App() {
     { id: 'settings' as Tab, label: 'Verhuurder', icon: Settings },
   ];
 
+  // If running on web (Netlify), show only booking calendar
+  if (!isElectron) {
+    return (
+      <div className="min-h-screen bg-dark-950">
+        <BookingCalendar />
+      </div>
+    );
+  }
+
+  // If running in Electron, show full admin interface
   return (
     <div className="min-h-screen bg-dark-950">
       <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
