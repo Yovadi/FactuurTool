@@ -597,7 +597,6 @@
                 document.getElementById('content').style.display = 'block';
 
                 populateRoomDropdown();
-                setupPinVerification();
                 setupBookingForm();
                 await loadBookings();
                 renderSchedule();
@@ -877,6 +876,9 @@
 
             document.getElementById('modalSummary').style.display = 'block';
             document.getElementById('bookingModal').classList.add('show');
+
+            // Setup PIN verification when modal opens
+            setupPinVerification();
         }
 
         function closeModal() {
@@ -896,36 +898,54 @@
             return (endDate - startDate) / (1000 * 60 * 60);
         }
 
+        let pinVerificationSetup = false;
+
         function setupPinVerification() {
             const pinInput = document.getElementById('pinCode');
-            if (!pinInput) return;
+            if (!pinInput) {
+                console.error('PIN input element not found!');
+                return;
+            }
 
-            pinInput.addEventListener('input', (e) => {
-                const pinValue = e.target.value.replace(/\D/g, '');
-                e.target.value = pinValue;
+            // Avoid adding multiple event listeners
+            if (!pinVerificationSetup) {
+                console.log('PIN verification setup complete');
+                pinVerificationSetup = true;
 
-                document.getElementById('pinError').style.display = 'none';
+                pinInput.addEventListener('input', (e) => {
+                    const pinValue = e.target.value.replace(/\D/g, '');
+                    e.target.value = pinValue;
 
-                if (pinValue.length === 4) {
-                    const matchingTenant = tenants.find(t => t.booking_pin_code === pinValue);
+                    document.getElementById('pinError').style.display = 'none';
 
-                    if (matchingTenant) {
-                        authenticatedTenant = matchingTenant;
-                        document.getElementById('tenantName').textContent = matchingTenant.company_name || matchingTenant.name;
-                        document.getElementById('tenantInfo').style.display = 'block';
-                        e.target.style.borderColor = '#10B981';
+                    if (pinValue.length === 4) {
+                        const matchingTenant = tenants.find(t => t.booking_pin_code === pinValue);
+
+                        if (matchingTenant) {
+                            authenticatedTenant = matchingTenant;
+                            document.getElementById('tenantName').textContent = matchingTenant.company_name || matchingTenant.name;
+                            document.getElementById('tenantInfo').style.display = 'block';
+                            e.target.style.borderColor = '#10B981';
+                        } else {
+                            authenticatedTenant = null;
+                            document.getElementById('tenantInfo').style.display = 'none';
+                            document.getElementById('pinError').style.display = 'block';
+                            e.target.style.borderColor = '#EF4444';
+                        }
                     } else {
                         authenticatedTenant = null;
                         document.getElementById('tenantInfo').style.display = 'none';
-                        document.getElementById('pinError').style.display = 'block';
-                        e.target.style.borderColor = '#EF4444';
+                        e.target.style.borderColor = '';
                     }
-                } else {
-                    authenticatedTenant = null;
-                    document.getElementById('tenantInfo').style.display = 'none';
-                    e.target.style.borderColor = '';
-                }
-            });
+                });
+            }
+
+            // Reset PIN field and states when modal opens
+            pinInput.value = '';
+            pinInput.style.borderColor = '';
+            authenticatedTenant = null;
+            document.getElementById('tenantInfo').style.display = 'none';
+            document.getElementById('pinError').style.display = 'none';
         }
 
         function setupBookingForm() {
