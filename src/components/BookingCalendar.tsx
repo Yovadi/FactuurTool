@@ -470,22 +470,6 @@ export function BookingCalendar() {
         </div>
       </div>
 
-      <div className="mb-4 flex gap-2 flex-wrap">
-        {meetingRooms.map((room) => (
-          <button
-            key={room.id}
-            onClick={() => setSelectedRoom(room)}
-            className={`px-4 py-2 rounded-lg border-2 transition-colors ${
-              selectedRoom?.id === room.id
-                ? 'bg-gold-600 border-gold-600 text-white'
-                : 'bg-dark-800 border-dark-600 text-gray-300 hover:border-gold-600'
-            }`}
-          >
-            {room.space_number}
-          </button>
-        ))}
-      </div>
-
       <div className="overflow-x-auto max-h-[calc(100vh-350px)] overflow-y-auto">
         <div className="min-w-[700px]">
           <div className="grid grid-cols-8 gap-px bg-dark-700 sticky top-0 z-20">
