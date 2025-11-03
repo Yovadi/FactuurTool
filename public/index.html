@@ -647,6 +647,8 @@
                         const endIndex = timeSlots.indexOf(booking.end_time);
                         const duration = endIndex - startIndex;
 
+                        console.log(`Booking: ${booking.start_time} - ${booking.end_time}, startIndex: ${startIndex}, endIndex: ${endIndex}, duration: ${duration}, height: ${duration * 28}px`);
+
                         const bookingEl = document.createElement('div');
                         bookingEl.className = 'booking';
                         const displayName = booking.tenants?.company_name || booking.tenants?.name || 'Geboekt';
@@ -664,7 +666,6 @@
                     } else {
                         cell.onmousedown = (e) => startDrag(e, dateStr, time);
                         cell.onmouseenter = () => continueDrag(dateStr, time);
-                        cell.onmouseup = () => endDrag();
                     }
 
                     const cellKey = `${dateStr}-${time}`;
@@ -682,6 +683,8 @@
             const scheduleContainer = document.getElementById('scheduleGrid').parentElement;
             scheduleContainer.scrollTop = 8 * 2 * 28;
         }
+
+        document.addEventListener('mouseup', endDrag);
 
         function startDrag(e, date, time) {
             e.preventDefault();
