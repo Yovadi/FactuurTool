@@ -119,29 +119,45 @@ export function InvoicePreview({
 
           <div>
             {invoice.notes ? (
-              <div className="space-y-2">
-                {invoice.notes.split('\n')
-                  .filter(line => line.trim())
-                  .map((line, index) => {
-                    const match = line.match(/^-\s*(?:.*?:\s*)?(.+?)\s*\((\d+)u\s*@\s*€([\d.]+)\/u\)\s*=\s*€([\d.]+)$/);
-                    if (match) {
-                      const [, dateTimeInfo, hours, , amount] = match;
-                      return (
-                        <div
-                          key={index}
-                          className="flex justify-between items-center py-2 px-3 rounded bg-gray-50"
-                        >
-                          <span className="text-gray-700">- {dateTimeInfo.trim()} ({hours}u)</span>
-                          <span className="font-medium text-gray-900">€ {amount}</span>
-                        </div>
-                      );
-                    }
-                    return (
-                      <div key={index} className="py-2 px-3 rounded bg-gray-50">
-                        <span className="text-gray-700">{line.replace(/^-\s*/, '')}</span>
-                      </div>
-                    );
-                  })}
+              <div>
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-amber-500 text-white">
+                      <th className="px-4 py-2 text-left font-semibold">Omschrijving</th>
+                      <th className="px-4 py-2 text-right font-semibold">Bedrag</th>
+                      <th className="px-4 py-2 text-right font-semibold">BTW</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {invoice.notes.split('\n')
+                      .filter(line => line.trim())
+                      .map((line, lineIndex) => {
+                        if (line.includes(':') && !line.includes('(') && !line.includes('-')) {
+                          return (
+                            <tr key={lineIndex}>
+                              <td colSpan={3} className="px-4 py-2 font-semibold text-gray-900 bg-gray-100">
+                                {line}
+                              </td>
+                            </tr>
+                          );
+                        }
+                        return null;
+                      })
+                      .filter(Boolean)}
+                    {invoice.notes.split('\n')
+                      .filter(line => line.trim() && line.startsWith('-'))
+                      .map((line, lineIndex) => {
+                        const cleanLine = line.replace(/^-\s*/, '');
+                        return (
+                          <tr key={`line-${lineIndex}`} className={lineIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                            <td className="px-4 py-3 text-left text-gray-900">{cleanLine}</td>
+                            <td className="px-4 py-3 text-right text-gray-900"></td>
+                            <td className="px-4 py-3 text-right text-gray-900">{invoice.vat_rate.toFixed(0)}%</td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
               </div>
             ) : (
               <table className="w-full">

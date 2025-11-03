@@ -236,11 +236,16 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
       }
 
       // Skip header lines like "Vergaderruimte boekingen:"
-      if (line.includes(':') && !line.includes('(') && !line.includes('€')) {
+      if (line.includes(':') && !line.includes('(') && !line.includes('-', 1)) {
         pdf.setFont('helvetica', 'bold');
         pdf.text(line, col1X + 2, yPosition);
         pdf.setFont('helvetica', 'normal');
         yPosition += 7;
+        return;
+      }
+
+      // Only process lines that start with "-"
+      if (!line.startsWith('-')) {
         return;
       }
 
@@ -249,28 +254,10 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
         pdf.rect(margin, yPosition - 4, pageWidth - 2 * margin, 7, 'F');
       }
 
-      // Match pattern: - Ruimte 2: 5-11-2025 08:30-10:00 (1.5u @ €25/u) = €37.50
-      const fullMatch = line.match(/^-\s*(.+?):\s*(.+?)\s+(.+?)\s*\((.+?)u\s*@\s*€([\d.]+)\/u\)\s*=\s*€([\d.]+)$/);
-
-      if (fullMatch) {
-        const [, room, date, time, hours, rate, amount] = fullMatch;
-        const description = `${room}: ${date} ${time} (${hours}u @ €${rate}/u)`;
-        pdf.text(description, col1X + 2, yPosition);
-        pdf.text(`€ ${amount}`, col2X - 2, yPosition, { align: 'right' });
-        pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col3X - 2, yPosition, { align: 'right' });
-      } else {
-        // Fallback: try to extract just the amount
-        const amountMatch = line.match(/€([\d.]+)\s*$/);
-        if (amountMatch) {
-          const amount = amountMatch[1];
-          const description = line.substring(0, line.lastIndexOf('€')).replace(/^-\s*/, '').trim();
-          pdf.text(description, col1X + 2, yPosition);
-          pdf.text(`€ ${amount}`, col2X - 2, yPosition, { align: 'right' });
-          pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col3X - 2, yPosition, { align: 'right' });
-        } else {
-          pdf.text(line.replace(/^-\s*/, ''), col1X + 2, yPosition);
-        }
-      }
+      // Simple format: - 04-11-2025 04:00-06:30 (2.5u)
+      const cleanLine = line.replace(/^-\s*/, '').trim();
+      pdf.text(cleanLine, col1X + 2, yPosition);
+      pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col3X - 2, yPosition, { align: 'right' });
 
       lineIndex++;
       yPosition += 7;

@@ -291,7 +291,7 @@ export function MeetingRoomBookings() {
       .eq('status', 'draft')
       .maybeSingle();
 
-    const bookingLine = `- ${booking.office_spaces?.space_number}: ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL')} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)} (${booking.total_hours}u @ €${booking.hourly_rate}/u) = €${booking.total_amount.toFixed(2)}`;
+    const bookingLine = `- ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)} (${booking.total_hours}u)`;
 
     if (existingInvoice) {
       const newSubtotal = parseFloat(existingInvoice.subtotal) + booking.total_amount;
