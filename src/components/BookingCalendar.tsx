@@ -402,7 +402,7 @@ export function BookingCalendar() {
                       key={time}
                       className={`border-t border-dark-700 relative ${
                         !hasBookingHere && !isPast ? 'cursor-pointer hover:bg-gold-900/20' : ''
-                      } ${isSelected ? 'bg-gold-900/40' : ''} ${isPast ? 'bg-dark-900/50' : ''}`}
+                      } ${isSelected ? 'bg-gold-600/50 border border-gold-500' : ''} ${isPast ? 'bg-dark-900/50' : ''}`}
                       style={{ height: `${CELL_HEIGHT}px` }}
                       onMouseDown={() => handleCellMouseDown(day.dateStr, time)}
                       onMouseEnter={() => handleCellMouseEnter(day.dateStr, time)}
@@ -414,13 +414,13 @@ export function BookingCalendar() {
                             height: `${getBookingHeight(booking) * CELL_HEIGHT}px`,
                             top: 0
                           }}
-                          title={`${booking.office_spaces?.space_number} - ${booking.tenants?.company_name || booking.tenants?.name} (${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)})`}
+                          title={`${booking.office_spaces?.space_number} - ${booking.tenants?.company_name || ''} (${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)})`}
                         >
                           <div className="font-semibold text-dark-900 leading-tight text-[10px]">
                             {booking.start_time.substring(0, 5)}
                           </div>
                           <div className="text-dark-900 truncate leading-tight text-[10px]">
-                            {booking.tenants?.company_name || booking.tenants?.name}
+                            {booking.tenants?.company_name || ''}
                           </div>
                         </div>
                       )}
@@ -452,7 +452,7 @@ export function BookingCalendar() {
             <form onSubmit={handleSubmitBooking} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-200 mb-2">
-                  Huurder
+                  Bedrijf
                 </label>
                 <select
                   value={formData.tenant_id}
@@ -460,10 +460,10 @@ export function BookingCalendar() {
                   className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
                   required
                 >
-                  <option value="">Selecteer een huurder</option>
+                  <option value="">Selecteer een bedrijf</option>
                   {tenants.map((tenant) => (
                     <option key={tenant.id} value={tenant.id}>
-                      {tenant.name} {tenant.company_name && `(${tenant.company_name})`}
+                      {tenant.company_name || tenant.name}
                     </option>
                   ))}
                 </select>
