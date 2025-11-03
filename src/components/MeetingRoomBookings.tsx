@@ -238,6 +238,19 @@ export function MeetingRoomBookings() {
   };
 
   const handleStatusChange = async (bookingId: string, newStatus: 'confirmed' | 'cancelled' | 'completed') => {
+    // Haal de boeking op voordat we de status wijzigen
+    const booking = bookings.find(b => b.id === bookingId);
+
+    if (!booking) {
+      showNotification('Boeking niet gevonden.', 'error');
+      return;
+    }
+
+    // Als de status verandert naar cancelled, update de factuur
+    if (newStatus === 'cancelled' && booking.invoice_id) {
+      await removeBookingFromInvoice(booking);
+    }
+
     const { error } = await supabase
       .from('meeting_room_bookings')
       .update({ status: newStatus })
@@ -262,6 +275,19 @@ export function MeetingRoomBookings() {
       return;
     }
 
+    // Haal de boeking op voordat we deze verwijderen
+    const booking = bookings.find(b => b.id === bookingId);
+
+    if (!booking) {
+      showNotification('Boeking niet gevonden.', 'error');
+      return;
+    }
+
+    // Als de boeking aan een factuur is gekoppeld, update de factuur
+    if (booking.invoice_id) {
+      await removeBookingFromInvoice(booking);
+    }
+
     const { error } = await supabase
       .from('meeting_room_bookings')
       .delete()
@@ -275,6 +301,83 @@ export function MeetingRoomBookings() {
 
     showNotification('Boeking succesvol verwijderd.', 'success');
     setBookings(bookings.filter(b => b.id !== bookingId));
+  };
+
+  const removeBookingFromInvoice = async (booking: Booking) => {
+    if (!booking.invoice_id) {
+      return;
+    }
+
+    // Haal de factuur op
+    const { data: invoice, error: invoiceError } = await supabase
+      .from('invoices')
+      .select('*')
+      .eq('id', booking.invoice_id)
+      .single();
+
+    if (invoiceError || !invoice) {
+      console.error('Error fetching invoice:', invoiceError);
+      return;
+    }
+
+    // Alleen draft facturen kunnen worden aangepast
+    if (invoice.status !== 'draft') {
+      showNotification('Deze factuur is al verstuurd en kan niet meer worden gewijzigd.', 'error');
+      return;
+    }
+
+    const vatRate = invoice.vat_rate;
+
+    // Bereken nieuwe bedragen zonder deze boeking
+    const newSubtotal = Math.max(0, parseFloat(invoice.subtotal) - booking.total_amount);
+    const newVatAmount = newSubtotal * (vatRate / 100);
+    const newTotal = newSubtotal + newVatAmount;
+
+    // Verwijder de boeking uit de notes
+    const bookingLine = `- ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)} (${booking.total_hours}u) = €${booking.total_amount.toFixed(2)}`;
+
+    let updatedNotes = invoice.notes || '';
+    const lines = updatedNotes.split('\n');
+    const filteredLines = lines.filter(line => line.trim() !== bookingLine.trim());
+    updatedNotes = filteredLines.join('\n').trim();
+
+    // Als er geen boekingen meer zijn, verwijder de factuur
+    const remainingBookingLines = filteredLines.filter(line => line.startsWith('-')).length;
+
+    if (remainingBookingLines === 0) {
+      const { error: deleteError } = await supabase
+        .from('invoices')
+        .delete()
+        .eq('id', booking.invoice_id);
+
+      if (deleteError) {
+        console.error('Error deleting invoice:', deleteError);
+        showNotification('Fout bij het verwijderen van de factuur.', 'error');
+        return;
+      }
+
+      showNotification('Factuur is verwijderd omdat er geen boekingen meer zijn.', 'info');
+      return;
+    }
+
+    // Update de factuur
+    const { error: updateError } = await supabase
+      .from('invoices')
+      .update({
+        subtotal: newSubtotal,
+        vat_amount: newVatAmount,
+        amount: newTotal,
+        notes: updatedNotes || null
+      })
+      .eq('id', booking.invoice_id);
+
+    if (updateError) {
+      console.error('Error updating invoice:', updateError);
+      showNotification('Fout bij het bijwerken van de factuur.', 'error');
+      return;
+    }
+
+    showNotification('Factuur is bijgewerkt.', 'info');
   };
 
   const createOrUpdateInvoiceForBooking = async (booking: Booking) => {
