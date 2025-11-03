@@ -75,10 +75,13 @@ export function BookingCalendar() {
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     tenant_id: '',
+    room_id: '',
     notes: ''
   });
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [draggedBooking, setDraggedBooking] = useState<Booking | null>(null);
+  const [isDraggingBooking, setIsDraggingBooking] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -92,11 +95,15 @@ export function BookingCalendar() {
           setShowForm(true);
         }
       }
+      if (isDraggingBooking) {
+        setIsDraggingBooking(false);
+        setDraggedBooking(null);
+      }
     };
 
     document.addEventListener('mouseup', handleMouseUp);
     return () => document.removeEventListener('mouseup', handleMouseUp);
-  }, [isDragging, selectedCells]);
+  }, [isDragging, selectedCells, isDraggingBooking]);
 
   const getWeekStart = (date: Date) => {
     const d = new Date(date);
@@ -193,11 +200,6 @@ export function BookingCalendar() {
   };
 
   const handleCellMouseDown = (dateStr: string, time: string) => {
-    if (!selectedRoom) {
-      alert('Selecteer eerst een vergaderruimte');
-      return;
-    }
-
     if (hasBooking(dateStr, time)) return;
 
     const cellDate = new Date(dateStr + 'T00:00:00');
@@ -237,7 +239,10 @@ export function BookingCalendar() {
   const handleSubmitBooking = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (selectedCells.length === 0 || !selectedRoom) return;
+    if (selectedCells.length === 0 || !formData.room_id) return;
+
+    const selectedRoomForBooking = meetingRooms.find(r => r.id === formData.room_id);
+    if (!selectedRoomForBooking) return;
 
     const sortedCells = [...selectedCells].sort((a, b) => a.time.localeCompare(b.time));
     const startTime = sortedCells[0].time;
@@ -254,13 +259,13 @@ export function BookingCalendar() {
     };
 
     const totalHours = calculateTotalHours(startTime, endTime);
-    const hourlyRate = selectedRoom.hourly_rate || 25;
+    const hourlyRate = selectedRoomForBooking.hourly_rate || 25;
     const totalAmount = totalHours * hourlyRate;
 
     const { error } = await supabase
       .from('meeting_room_bookings')
       .insert({
-        space_id: selectedRoom.id,
+        space_id: selectedRoomForBooking.id,
         tenant_id: formData.tenant_id,
         booking_date: selectedCells[0].date,
         start_time: startTime,
@@ -280,7 +285,7 @@ export function BookingCalendar() {
 
     setShowForm(false);
     setSelectedCells([]);
-    setFormData({ tenant_id: '', notes: '' });
+    setFormData({ tenant_id: '', room_id: '', notes: '' });
     loadData();
   };
 
@@ -340,6 +345,72 @@ export function BookingCalendar() {
 
     setShowDeleteConfirm(false);
     setSelectedBooking(null);
+    loadData();
+  };
+
+  const handleBookingDragStart = (booking: Booking, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDraggedBooking(booking);
+    setIsDraggingBooking(true);
+  };
+
+  const handleBookingDrop = async (dateStr: string, time: string) => {
+    if (!draggedBooking || !isDraggingBooking) return;
+
+    const cellDate = new Date(dateStr + 'T00:00:00');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (cellDate < today) {
+      alert('Kan geen boeking verplaatsen naar het verleden');
+      setDraggedBooking(null);
+      setIsDraggingBooking(false);
+      return;
+    }
+
+    if (hasBooking(dateStr, time)) {
+      alert('Er is al een boeking op dit tijdstip');
+      setDraggedBooking(null);
+      setIsDraggingBooking(false);
+      return;
+    }
+
+    const startTime = normalizeTime(draggedBooking.start_time);
+    const endTime = normalizeTime(draggedBooking.end_time);
+
+    const startIndex = timeSlots.indexOf(startTime);
+    const endIndex = timeSlots.indexOf(endTime);
+    const duration = endIndex - startIndex;
+
+    const newStartIndex = timeSlots.indexOf(time);
+    const newEndIndex = newStartIndex + duration;
+
+    if (newEndIndex >= timeSlots.length) {
+      alert('Boeking past niet meer in de dag');
+      setDraggedBooking(null);
+      setIsDraggingBooking(false);
+      return;
+    }
+
+    const newStartTime = timeSlots[newStartIndex];
+    const newEndTime = timeSlots[newEndIndex];
+
+    const { error } = await supabase
+      .from('meeting_room_bookings')
+      .update({
+        booking_date: dateStr,
+        start_time: newStartTime,
+        end_time: newEndTime
+      })
+      .eq('id', draggedBooking.id);
+
+    if (error) {
+      console.error('Error moving booking:', error);
+      alert('Fout bij het verplaatsen van de boeking');
+    }
+
+    setDraggedBooking(null);
+    setIsDraggingBooking(false);
     loadData();
   };
 
@@ -470,24 +541,45 @@ export function BookingCalendar() {
                       key={time}
                       className={`border-t border-dark-700 relative ${
                         !hasBookingHere && !isPast ? 'cursor-pointer hover:bg-gold-900/20' : ''
-                      } ${isSelected ? 'bg-gold-600/50 border border-gold-500' : ''} ${isPast ? 'bg-dark-900/50' : ''}`}
+                      } ${isSelected ? 'bg-gold-600/50 border border-gold-500' : ''} ${isPast ? 'bg-dark-900/50' : ''} ${isDraggingBooking && !hasBookingHere && !isPast ? 'bg-green-900/20' : ''}`}
                       style={{ height: `${CELL_HEIGHT}px` }}
-                      onMouseDown={() => handleCellMouseDown(day.dateStr, time)}
-                      onMouseEnter={() => handleCellMouseEnter(day.dateStr, time)}
+                      onMouseDown={(e) => {
+                        if (!isDraggingBooking) {
+                          handleCellMouseDown(day.dateStr, time);
+                        }
+                      }}
+                      onMouseEnter={() => {
+                        if (!isDraggingBooking) {
+                          handleCellMouseEnter(day.dateStr, time);
+                        }
+                      }}
+                      onMouseUp={() => {
+                        if (isDraggingBooking && !hasBookingHere && !isPast) {
+                          handleBookingDrop(day.dateStr, time);
+                        }
+                      }}
                     >
                       {booking && (() => {
                         const colors = getTenantColor(booking.tenant_id);
+                        const isBeingDragged = draggedBooking?.id === booking.id;
                         return (
                           <div
-                            className={`absolute left-0 right-0 mx-0.5 ${colors.bg} border ${colors.border} rounded px-1 overflow-hidden z-10 cursor-pointer hover:opacity-90 transition-opacity`}
+                            className={`absolute left-0 right-0 mx-0.5 ${colors.bg} border ${colors.border} rounded px-1 overflow-hidden z-10 cursor-move hover:opacity-90 transition-opacity select-none ${isBeingDragged ? 'opacity-50' : ''}`}
                             style={{
                               height: `${getBookingHeight(booking) * CELL_HEIGHT}px`,
                               top: 0
                             }}
-                            title={`${booking.office_spaces?.space_number} - ${booking.tenants?.company_name || ''} (${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)})\nKlik om te annuleren/verwijderen`}
+                            title={`${booking.office_spaces?.space_number} - ${booking.tenants?.company_name || ''} (${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)})\nKlik om te beheren, sleep om te verplaatsen`}
+                            onMouseDown={(e) => {
+                              if (e.button === 0) {
+                                handleBookingDragStart(booking, e);
+                              }
+                            }}
                             onClick={(e) => {
-                              e.stopPropagation();
-                              handleBookingClick(booking);
+                              if (!isDraggingBooking) {
+                                e.stopPropagation();
+                                handleBookingClick(booking);
+                              }
                             }}
                           >
                             <div className={`font-semibold ${colors.text} leading-tight text-[10px]`}>
@@ -527,7 +619,26 @@ export function BookingCalendar() {
             <form onSubmit={handleSubmitBooking} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-200 mb-2">
-                  Bedrijf
+                  Vergaderruimte *
+                </label>
+                <select
+                  value={formData.room_id}
+                  onChange={(e) => setFormData({ ...formData, room_id: e.target.value })}
+                  className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                  required
+                >
+                  <option value="">Selecteer een vergaderruimte</option>
+                  {meetingRooms.map((room) => (
+                    <option key={room.id} value={room.id}>
+                      {room.space_number} {room.hourly_rate && `(€${room.hourly_rate}/u)`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-200 mb-2">
+                  Bedrijf *
                 </label>
                 <select
                   value={formData.tenant_id}
@@ -562,6 +673,7 @@ export function BookingCalendar() {
                   onClick={() => {
                     setShowForm(false);
                     setSelectedCells([]);
+                    setFormData({ tenant_id: '', room_id: '', notes: '' });
                   }}
                   className="px-6 py-2 border border-dark-600 rounded-lg text-gray-300 hover:bg-dark-700 transition-colors"
                 >
