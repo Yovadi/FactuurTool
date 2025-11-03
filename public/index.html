@@ -433,8 +433,6 @@
         </div>
 
         <div id="content" style="display: none;">
-            <div class="room-selector" id="roomSelector"></div>
-
             <div class="week-nav">
                 <button onclick="previousWeek()">&#8249; Vorige week</button>
                 <h3 id="weekRange"></h3>
@@ -454,27 +452,29 @@
                 <button class="close-btn" onclick="closeModal()">&times;</button>
             </div>
 
-            <div class="summary" id="modalSummary">
-                <h3>Overzicht van uw boeking</h3>
-                <div class="summary-row">
-                    <span>Datum:</span>
-                    <span id="summaryDate"></span>
-                </div>
-                <div class="summary-row">
-                    <span>Tijd:</span>
-                    <span id="summaryTime"></span>
-                </div>
-                <div class="summary-row">
-                    <span>Vergaderruimte:</span>
-                    <span id="summaryRoom"></span>
-                </div>
-                <div class="summary-row">
-                    <span>Duur:</span>
-                    <span id="summaryDuration"></span>
-                </div>
-            </div>
-
             <form id="bookingForm">
+                <div class="form-group">
+                    <label for="modalRoomSelect">Vergaderruimte *</label>
+                    <select id="modalRoomSelect" class="form-control" required>
+                        <option value="">Selecteer een vergaderruimte</option>
+                    </select>
+                </div>
+
+                <div class="summary" id="modalSummary" style="display: none;">
+                    <h3>Overzicht van uw boeking</h3>
+                    <div class="summary-row">
+                        <span>Datum:</span>
+                        <span id="summaryDate"></span>
+                    </div>
+                    <div class="summary-row">
+                        <span>Tijd:</span>
+                        <span id="summaryTime"></span>
+                    </div>
+                    <div class="summary-row">
+                        <span>Duur:</span>
+                        <span id="summaryDuration"></span>
+                    </div>
+                </div>
                 <div class="form-group">
                     <label for="name">Naam *</label>
                     <input type="text" id="name" class="form-control" required>
@@ -587,58 +587,36 @@
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('content').style.display = 'block';
 
-                renderRoomSelector();
-                if (meetingRooms.length > 0) {
-                    selectRoom(meetingRooms[0]);
-                }
+                populateRoomDropdown();
+                await loadBookings();
+                renderSchedule();
             } catch (error) {
                 console.error('Error loading data:', error);
                 showNotification('Er is een fout opgetreden bij het laden van de gegevens.', 'error');
             }
         }
 
-        function renderRoomSelector() {
-            const selector = document.getElementById('roomSelector');
-            selector.innerHTML = '';
+        function populateRoomDropdown() {
+            const select = document.getElementById('modalRoomSelect');
+            select.innerHTML = '<option value="">Selecteer een vergaderruimte</option>';
 
             meetingRooms.forEach(room => {
-                const btn = document.createElement('button');
-                btn.className = 'room-btn';
-                btn.textContent = room.space_number;
-                btn.onclick = (e) => {
-                    e.preventDefault();
-                    selectRoom(room);
-                };
-                selector.appendChild(btn);
+                const option = document.createElement('option');
+                option.value = room.id;
+                option.textContent = room.space_number;
+                option.dataset.hourlyRate = room.hourly_rate;
+                select.appendChild(option);
             });
         }
 
-        async function selectRoom(room) {
-            selectedRoom = room;
-            selectedCells = [];
-
-            document.querySelectorAll('.room-btn').forEach(btn => {
-                btn.classList.remove('selected');
-                if (btn.textContent === room.space_number) {
-                    btn.classList.add('selected');
-                }
-            });
-
-            await loadBookings();
-            renderSchedule();
-            updateSummary();
-        }
 
         async function loadBookings() {
-            if (!selectedRoom) return;
-
             const weekEnd = new Date(currentWeekStart);
             weekEnd.setDate(weekEnd.getDate() + 6);
 
             const { data: bookings } = await sb
                 .from('meeting_room_bookings')
-                .select('booking_date, start_time, end_time, tenant_id, tenants(name, company_name)')
-                .eq('space_id', selectedRoom.id)
+                .select('booking_date, start_time, end_time, tenant_id, space_id, tenants(name, company_name)')
                 .gte('booking_date', formatDate(currentWeekStart))
                 .lte('booking_date', formatDate(weekEnd))
                 .neq('status', 'cancelled');
@@ -648,7 +626,6 @@
                 start_time: normalizeTime(b.start_time),
                 end_time: normalizeTime(b.end_time)
             }));
-
         }
 
         function renderSchedule() {
@@ -774,10 +751,6 @@
 
         function startDrag(e, date, time) {
             e.preventDefault();
-            if (!selectedRoom) {
-                showNotification('Selecteer eerst een vergaderruimte.', 'error');
-                return;
-            }
 
             isDragging = true;
             dragStartCell = time;
@@ -842,7 +815,7 @@
         }
 
         function openModal() {
-            if (!selectedRoom || selectedCells.length === 0) return;
+            if (selectedCells.length === 0) return;
 
             selectedCells.sort((a, b) => {
                 if (a.date !== b.date) return a.date.localeCompare(b.date);
@@ -887,11 +860,11 @@
             });
 
             document.getElementById('summaryTime').textContent = `${startTime} - ${endTime}`;
-            document.getElementById('summaryRoom').textContent = selectedRoom.space_number;
 
             const hours = calculateHours(startTime, endTime);
             document.getElementById('summaryDuration').textContent = `${hours.toFixed(1)} uur`;
 
+            document.getElementById('modalSummary').style.display = 'block';
             document.getElementById('bookingModal').classList.add('show');
         }
 
@@ -911,8 +884,19 @@
         document.getElementById('bookingForm').onsubmit = async (e) => {
             e.preventDefault();
 
-            if (!selectedRoom || selectedCells.length === 0) {
-                showNotification('Vul alle vereiste velden in.', 'error');
+            const roomSelect = document.getElementById('modalRoomSelect');
+            const selectedRoomId = roomSelect.value;
+
+            if (!selectedRoomId || selectedCells.length === 0) {
+                showNotification('Selecteer eerst een vergaderruimte.', 'error');
+                return;
+            }
+
+            const selectedRoomOption = roomSelect.options[roomSelect.selectedIndex];
+            const selectedRoomData = meetingRooms.find(r => r.id === selectedRoomId);
+
+            if (!selectedRoomData) {
+                showNotification('Geselecteerde ruimte niet gevonden.', 'error');
                 return;
             }
 
@@ -929,6 +913,20 @@
             const bookingDate = selectedCells[0].date;
 
             try {
+                // Check if room is available
+                const conflictingBooking = existingBookings.find(b =>
+                    b.space_id === selectedRoomId &&
+                    b.booking_date === bookingDate &&
+                    ((startTime >= b.start_time && startTime < b.end_time) ||
+                     (endTime > b.start_time && endTime <= b.end_time) ||
+                     (startTime <= b.start_time && endTime >= b.end_time))
+                );
+
+                if (conflictingBooking) {
+                    showNotification('Deze ruimte is niet beschikbaar voor de geselecteerde tijd.', 'error');
+                    return;
+                }
+
                 let tenantId = null;
 
                 const { data: existingTenant } = await sb
@@ -956,13 +954,13 @@
                 }
 
                 const hours = calculateHours(startTime, endTime);
-                const hourlyRate = selectedRoom.hourly_rate || 25;
+                const hourlyRate = selectedRoomData.hourly_rate || 25;
                 const totalAmount = hours * hourlyRate;
 
                 const { error: bookingError } = await sb
                     .from('meeting_room_bookings')
                     .insert({
-                        space_id: selectedRoom.id,
+                        space_id: selectedRoomId,
                         tenant_id: tenantId,
                         booking_date: bookingDate,
                         start_time: startTime,
