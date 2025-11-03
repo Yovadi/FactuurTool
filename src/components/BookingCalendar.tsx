@@ -84,8 +84,7 @@ export function BookingCalendar() {
   const [showPinModal, setShowPinModal] = useState(false);
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState(false);
-  const [bookingPinCode, setBookingPinCode] = useState<string | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authenticatedTenant, setAuthenticatedTenant] = useState<Tenant | null>(null);
 
   useEffect(() => {
     loadData();
@@ -130,7 +129,7 @@ export function BookingCalendar() {
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekEnd.getDate() + 6);
 
-    const [bookingsRes, spacesRes, tenantsRes, settingsRes] = await Promise.all([
+    const [bookingsRes, spacesRes, tenantsRes] = await Promise.all([
       supabase
         .from('meeting_room_bookings')
         .select(`
@@ -153,14 +152,8 @@ export function BookingCalendar() {
         .order('space_number'),
       supabase
         .from('tenants')
-        .select('id, name, company_name')
-        .order('name'),
-      supabase
-        .from('company_settings')
-        .select('booking_pin_code')
-        .order('updated_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
+        .select('id, name, company_name, booking_pin_code')
+        .order('name')
     ]);
 
     const days: WeekDay[] = [];
@@ -187,11 +180,6 @@ export function BookingCalendar() {
     }
 
     setTenants(tenantsRes.data || []);
-
-    // Load PIN code from settings
-    const pinCode = settingsRes.data?.booking_pin_code || null;
-    setBookingPinCode(pinCode);
-
     setLoading(false);
   };
 
@@ -230,8 +218,8 @@ export function BookingCalendar() {
 
     if (cellDate < today) return;
 
-    // Check if PIN is required and user is not authenticated
-    if (bookingPinCode && !isAuthenticated) {
+    // Check if user is authenticated
+    if (!authenticatedTenant) {
       setShowPinModal(true);
       return;
     }
@@ -266,8 +254,13 @@ export function BookingCalendar() {
 
   const handlePinSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (pinInput === bookingPinCode) {
-      setIsAuthenticated(true);
+
+    // Find tenant with matching PIN
+    const matchingTenant = tenants.find(t => t.booking_pin_code === pinInput);
+
+    if (matchingTenant) {
+      setAuthenticatedTenant(matchingTenant);
+      setFormData({ ...formData, tenant_id: matchingTenant.id });
       setShowPinModal(false);
       setPinInput('');
       setPinError(false);
@@ -662,21 +655,11 @@ export function BookingCalendar() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-200 mb-2">
-                  Bedrijf *
+                  Bedrijf
                 </label>
-                <select
-                  value={formData.tenant_id}
-                  onChange={(e) => setFormData({ ...formData, tenant_id: e.target.value })}
-                  className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                  required
-                >
-                  <option value="">Selecteer een bedrijf</option>
-                  {tenants.map((tenant) => (
-                    <option key={tenant.id} value={tenant.id}>
-                      {tenant.company_name || tenant.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-800 text-gray-100">
+                  {authenticatedTenant ? authenticatedTenant.company_name || authenticatedTenant.name : 'Onbekend'}
+                </div>
               </div>
 
               <div className="flex gap-4 justify-end">
@@ -762,7 +745,7 @@ export function BookingCalendar() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-dark-800 rounded-lg p-6 max-w-sm w-full">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-gray-100">Toegangscode Vereist</h3>
+              <h3 className="text-xl font-bold text-gray-100">Vergaderruimte Boeken</h3>
               <button
                 onClick={() => {
                   setShowPinModal(false);
@@ -777,8 +760,11 @@ export function BookingCalendar() {
 
             <form onSubmit={handlePinSubmit} className="space-y-4">
               <div>
+                <p className="text-sm text-gray-300 mb-3">
+                  Voer uw persoonlijke 4-cijferige PIN-code in om een boeking te maken
+                </p>
                 <label className="block text-sm font-medium text-gray-200 mb-2">
-                  Voer uw 4-cijferige PIN in
+                  PIN-code
                 </label>
                 <input
                   type="password"

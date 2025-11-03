@@ -14,7 +14,8 @@ export function TenantManagement() {
     name: '',
     email: '',
     phone: '',
-    billing_address: ''
+    billing_address: '',
+    booking_pin_code: ''
   });
 
   useEffect(() => {
@@ -107,7 +108,8 @@ export function TenantManagement() {
       name: tenant.name,
       email: tenant.email,
       phone: tenant.phone || '',
-      billing_address: tenant.billing_address || ''
+      billing_address: tenant.billing_address || '',
+      booking_pin_code: tenant.booking_pin_code || ''
     });
     setShowForm(true);
   };
@@ -127,7 +129,7 @@ export function TenantManagement() {
   };
 
   const resetForm = () => {
-    setFormData({ company_name: '', name: '', email: '', phone: '', billing_address: '' });
+    setFormData({ company_name: '', name: '', email: '', phone: '', billing_address: '', booking_pin_code: '' });
     setEditingTenant(null);
     setShowForm(false);
   };
@@ -212,6 +214,22 @@ export function TenantManagement() {
                   className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                   rows={3}
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-200 mb-1">
+                  Boekings PIN-code (voor vergaderruimtes)
+                </label>
+                <input
+                  type="text"
+                  value={formData.booking_pin_code}
+                  onChange={(e) => setFormData({ ...formData, booking_pin_code: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+                  className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                  placeholder="4-cijferige PIN"
+                  maxLength={4}
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Deze huurder kan met deze PIN-code vergaderruimtes boeken
+                </p>
               </div>
               <div className="flex gap-2 pt-2">
                 <button
