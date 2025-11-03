@@ -81,10 +81,6 @@ export function BookingCalendar() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [draggedBooking, setDraggedBooking] = useState<Booking | null>(null);
   const [isDraggingBooking, setIsDraggingBooking] = useState(false);
-  const [showPinModal, setShowPinModal] = useState(false);
-  const [pinInput, setPinInput] = useState('');
-  const [pinError, setPinError] = useState(false);
-  const [authenticatedTenant, setAuthenticatedTenant] = useState<Tenant | null>(null);
 
   useEffect(() => {
     loadData();
@@ -152,7 +148,7 @@ export function BookingCalendar() {
         .order('space_number'),
       supabase
         .from('tenants')
-        .select('id, name, company_name, booking_pin_code')
+        .select('id, name, company_name')
         .order('name')
     ]);
 
@@ -218,12 +214,6 @@ export function BookingCalendar() {
 
     if (cellDate < today) return;
 
-    // Check if user is authenticated
-    if (!authenticatedTenant) {
-      setShowPinModal(true);
-      return;
-    }
-
     setIsDragging(true);
     setDragStart({ date: dateStr, time });
     setSelectedCells([{ date: dateStr, time }]);
@@ -250,24 +240,6 @@ export function BookingCalendar() {
 
   const isCellSelected = (dateStr: string, time: string) => {
     return selectedCells.some(c => c.date === dateStr && c.time === time);
-  };
-
-  const handlePinSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // Find tenant with matching PIN
-    const matchingTenant = tenants.find(t => t.booking_pin_code === pinInput);
-
-    if (matchingTenant) {
-      setAuthenticatedTenant(matchingTenant);
-      setFormData({ ...formData, tenant_id: matchingTenant.id });
-      setShowPinModal(false);
-      setPinInput('');
-      setPinError(false);
-    } else {
-      setPinError(true);
-      setPinInput('');
-    }
   };
 
   const handleSubmitBooking = async (e: React.FormEvent) => {
@@ -655,11 +627,21 @@ export function BookingCalendar() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-200 mb-2">
-                  Bedrijf
+                  Bedrijf *
                 </label>
-                <div className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-800 text-gray-100">
-                  {authenticatedTenant ? authenticatedTenant.company_name || authenticatedTenant.name : 'Onbekend'}
-                </div>
+                <select
+                  value={formData.tenant_id}
+                  onChange={(e) => setFormData({ ...formData, tenant_id: e.target.value })}
+                  className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                  required
+                >
+                  <option value="">Selecteer een bedrijf</option>
+                  {tenants.map((tenant) => (
+                    <option key={tenant.id} value={tenant.id}>
+                      {tenant.company_name || tenant.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="flex gap-4 justify-end">
@@ -737,77 +719,6 @@ export function BookingCalendar() {
                 Sluiten
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {showPinModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-dark-800 rounded-lg p-6 max-w-sm w-full">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-gray-100">Vergaderruimte Boeken</h3>
-              <button
-                onClick={() => {
-                  setShowPinModal(false);
-                  setPinInput('');
-                  setPinError(false);
-                }}
-                className="text-gray-400 hover:text-gray-200"
-              >
-                <X size={24} />
-              </button>
-            </div>
-
-            <form onSubmit={handlePinSubmit} className="space-y-4">
-              <div>
-                <p className="text-sm text-gray-300 mb-3">
-                  Voer uw persoonlijke 4-cijferige PIN-code in om een boeking te maken
-                </p>
-                <label className="block text-sm font-medium text-gray-200 mb-2">
-                  PIN-code
-                </label>
-                <input
-                  type="password"
-                  inputMode="numeric"
-                  maxLength={4}
-                  value={pinInput}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/\D/g, '');
-                    setPinInput(value);
-                    setPinError(false);
-                  }}
-                  className={`w-full px-4 py-3 text-center text-2xl tracking-widest border rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent ${
-                    pinError ? 'border-red-500' : 'border-dark-600'
-                  }`}
-                  placeholder="••••"
-                  autoFocus
-                  required
-                />
-                {pinError && (
-                  <p className="text-red-500 text-sm mt-2">Onjuiste PIN-code. Probeer opnieuw.</p>
-                )}
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowPinModal(false);
-                    setPinInput('');
-                    setPinError(false);
-                  }}
-                  className="flex-1 px-6 py-2 border border-dark-600 rounded-lg text-gray-300 hover:bg-dark-700 transition-colors"
-                >
-                  Annuleren
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-6 py-2 bg-gold-600 text-white rounded-lg hover:bg-gold-700 transition-colors"
-                >
-                  Bevestigen
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}
