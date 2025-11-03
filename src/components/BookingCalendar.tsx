@@ -481,7 +481,7 @@ export function BookingCalendar() {
                 : 'bg-dark-800 border-dark-600 text-gray-300 hover:border-gold-600'
             }`}
           >
-            {room.space_number} {room.hourly_rate && `(€${room.hourly_rate}/u)`}
+            {room.space_number}
           </button>
         ))}
       </div>
