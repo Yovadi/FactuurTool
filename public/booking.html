@@ -19,7 +19,7 @@
         }
 
         .container {
-            max-width: 100%;
+            max-width: 1200px;
             margin: 0 auto;
             padding: 1rem;
         }
@@ -88,16 +88,16 @@
 
         .schedule-grid {
             display: grid;
-            grid-template-columns: 50px repeat(7, 1fr);
-            min-width: 700px;
+            grid-template-columns: 45px repeat(7, 1fr);
+            min-width: 650px;
         }
 
         .schedule-header {
             background-color: #2A2A2D;
-            padding: 0.5rem 0.25rem;
+            padding: 0.4rem 0.2rem;
             text-align: center;
             border-bottom: 2px solid #4A4A4F;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             font-weight: 600;
             position: sticky;
             top: 0;
@@ -109,9 +109,9 @@
         }
 
         .time-label {
-            padding: 0.25rem;
+            padding: 0.15rem;
             text-align: center;
-            font-size: 0.65rem;
+            font-size: 0.6rem;
             color: #9CA3AF;
             border-right: 1px solid #3A3A3E;
             border-bottom: 1px solid #2A2A2D;
@@ -125,8 +125,8 @@
             padding: 0;
             border-right: 1px solid #2A2A2D;
             border-bottom: 1px solid #2A2A2D;
-            min-height: 20px;
-            height: 20px;
+            min-height: 18px;
+            height: 18px;
             cursor: pointer;
             transition: background-color 0.1s;
             position: relative;
@@ -740,7 +740,7 @@
                         const displayName = booking.tenants?.company_name || booking.tenants?.name || 'Geboekt';
                         bookingEl.textContent = displayName;
                         bookingEl.title = `${displayName}\n${booking.start_time} - ${booking.end_time}`;
-                        bookingEl.style.height = `${duration * 20}px`;
+                        bookingEl.style.height = `${duration * 18}px`;
                         bookingEl.style.zIndex = '10';
                         cell.appendChild(bookingEl);
                     }
@@ -767,7 +767,7 @@
             });
 
             const scheduleContainer = document.getElementById('scheduleGrid').parentElement;
-            scheduleContainer.scrollTop = 8 * 2 * 20;
+            scheduleContainer.scrollTop = 8 * 2 * 18;
         }
 
         document.addEventListener('mouseup', endDrag);
@@ -873,9 +873,6 @@
                 updateCellSelection();
                 return;
             }
-
-            summary.style.display = 'block';
-            submitBtn.disabled = false;
 
             const startTime = times[0];
             const endTimeIndex = timeSlots.indexOf(times[times.length - 1]) + 1;
