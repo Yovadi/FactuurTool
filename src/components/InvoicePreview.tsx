@@ -130,21 +130,6 @@ export function InvoicePreview({
                   </thead>
                   <tbody>
                     {invoice.notes.split('\n')
-                      .filter(line => line.trim())
-                      .map((line, lineIndex) => {
-                        if (line.includes(':') && !line.includes('(') && !line.includes('-')) {
-                          return (
-                            <tr key={lineIndex}>
-                              <td colSpan={3} className="px-4 py-2 font-semibold text-gray-900 bg-gray-100">
-                                {line}
-                              </td>
-                            </tr>
-                          );
-                        }
-                        return null;
-                      })
-                      .filter(Boolean)}
-                    {invoice.notes.split('\n')
                       .filter(line => line.trim() && line.startsWith('-'))
                       .map((line, lineIndex) => {
                         let cleanLine = line.replace(/^-\s*/, '');

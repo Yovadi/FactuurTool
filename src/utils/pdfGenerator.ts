@@ -235,15 +235,6 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
         yPosition = 20;
       }
 
-      // Skip header lines like "Vergaderruimte boekingen:"
-      if (line.includes(':') && !line.includes('(') && !line.includes('-', 1)) {
-        pdf.setFont('helvetica', 'bold');
-        pdf.text(line, col1X + 2, yPosition);
-        pdf.setFont('helvetica', 'normal');
-        yPosition += 7;
-        return;
-      }
-
       // Only process lines that start with "-"
       if (!line.startsWith('-')) {
         return;
