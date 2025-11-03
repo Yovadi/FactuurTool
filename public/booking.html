@@ -476,24 +476,26 @@
                     </div>
                 </div>
                 <div class="form-group">
-                    <label for="name">Naam *</label>
-                    <input type="text" id="name" class="form-control" required>
+                    <label for="pinCode" style="font-size: 0.875rem; color: #F3F4F6; margin-bottom: 0.5rem; display: block;">PIN-code *</label>
+                    <p style="font-size: 0.8rem; color: #9CA3AF; margin-bottom: 0.75rem;">Voer uw persoonlijke 4-cijferige PIN-code in</p>
+                    <input
+                        type="password"
+                        id="pinCode"
+                        class="form-control"
+                        inputmode="numeric"
+                        maxlength="4"
+                        pattern="[0-9]{4}"
+                        placeholder="••••"
+                        style="text-align: center; font-size: 1.5rem; letter-spacing: 0.5rem; padding: 1rem;"
+                        required
+                        autocomplete="off">
+                    <div id="pinError" style="display: none; color: #EF4444; font-size: 0.8rem; margin-top: 0.5rem;">
+                        Onjuiste PIN-code. Probeer opnieuw.
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="company">Bedrijfsnaam *</label>
-                    <input type="text" id="company" class="form-control" required>
-                </div>
-                <div class="form-group">
-                    <label for="email">E-mail *</label>
-                    <input type="email" id="email" class="form-control" required>
-                </div>
-                <div class="form-group">
-                    <label for="phone">Telefoonnummer</label>
-                    <input type="tel" id="phone" class="form-control">
-                </div>
-                <div class="form-group">
-                    <label for="notes">Opmerkingen</label>
-                    <textarea id="notes" class="form-control" rows="2"></textarea>
+                <div id="tenantInfo" style="display: none; background-color: #2A2A2D; border: 1px solid #4A4A4F; border-radius: 0.5rem; padding: 1rem; margin-top: 1rem;">
+                    <p style="font-size: 0.875rem; color: #9CA3AF; margin-bottom: 0.25rem;">Bedrijf:</p>
+                    <p id="tenantName" style="font-size: 1rem; color: #F3F4F6; font-weight: 600;"></p>
                 </div>
 
                 <div style="margin-top: 1.5rem; display: flex; gap: 1rem;">
@@ -523,6 +525,8 @@
         let currentWeekStart = getMonday(new Date());
         let existingBookings = [];
         let selectedCells = [];
+        let tenants = [];
+        let authenticatedTenant = null;
 
         const timeSlots = [];
         for (let hour = 0; hour < 24; hour++) {
@@ -576,13 +580,18 @@
 
         async function init() {
             try {
-                const { data: rooms } = await sb
-                    .from('office_spaces')
-                    .select('id, space_number, hourly_rate')
-                    .eq('space_type', 'Meeting Room')
-                    .order('space_number');
+                const [roomsResult, tenantsResult] = await Promise.all([
+                    sb.from('office_spaces')
+                        .select('id, space_number, hourly_rate')
+                        .eq('space_type', 'Meeting Room')
+                        .order('space_number'),
+                    sb.from('tenants')
+                        .select('id, name, company_name, email, booking_pin_code')
+                        .order('name')
+                ]);
 
-                meetingRooms = rooms || [];
+                meetingRooms = roomsResult.data || [];
+                tenants = tenantsResult.data || [];
 
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('content').style.display = 'block';
@@ -873,6 +882,10 @@
             selectedCells = [];
             updateCellSelection();
             document.getElementById('bookingForm').reset();
+            authenticatedTenant = null;
+            document.getElementById('tenantInfo').style.display = 'none';
+            document.getElementById('pinError').style.display = 'none';
+            document.getElementById('pinCode').style.borderColor = '';
         }
 
         function calculateHours(start, end) {
@@ -880,6 +893,34 @@
             const endDate = new Date(`2000-01-01T${end}`);
             return (endDate - startDate) / (1000 * 60 * 60);
         }
+
+        // PIN verification
+        document.getElementById('pinCode').addEventListener('input', (e) => {
+            const pinValue = e.target.value.replace(/\D/g, '');
+            e.target.value = pinValue;
+
+            document.getElementById('pinError').style.display = 'none';
+
+            if (pinValue.length === 4) {
+                const matchingTenant = tenants.find(t => t.booking_pin_code === pinValue);
+
+                if (matchingTenant) {
+                    authenticatedTenant = matchingTenant;
+                    document.getElementById('tenantName').textContent = matchingTenant.company_name || matchingTenant.name;
+                    document.getElementById('tenantInfo').style.display = 'block';
+                    e.target.style.borderColor = '#10B981';
+                } else {
+                    authenticatedTenant = null;
+                    document.getElementById('tenantInfo').style.display = 'none';
+                    document.getElementById('pinError').style.display = 'block';
+                    e.target.style.borderColor = '#EF4444';
+                }
+            } else {
+                authenticatedTenant = null;
+                document.getElementById('tenantInfo').style.display = 'none';
+                e.target.style.borderColor = '';
+            }
+        });
 
         document.getElementById('bookingForm').onsubmit = async (e) => {
             e.preventDefault();
@@ -892,7 +933,6 @@
                 return;
             }
 
-            const selectedRoomOption = roomSelect.options[roomSelect.selectedIndex];
             const selectedRoomData = meetingRooms.find(r => r.id === selectedRoomId);
 
             if (!selectedRoomData) {
@@ -900,11 +940,13 @@
                 return;
             }
 
-            const name = document.getElementById('name').value;
-            const company = document.getElementById('company').value;
-            const email = document.getElementById('email').value;
-            const phone = document.getElementById('phone').value;
-            const notes = document.getElementById('notes').value;
+            const pinCode = document.getElementById('pinCode').value;
+
+            if (!authenticatedTenant || pinCode !== authenticatedTenant.booking_pin_code) {
+                document.getElementById('pinError').style.display = 'block';
+                showNotification('Voer een geldige PIN-code in.', 'error');
+                return;
+            }
 
             const times = selectedCells.map(sc => sc.time).sort();
             const startTime = times[0];
@@ -927,32 +969,7 @@
                     return;
                 }
 
-                let tenantId = null;
-
-                const { data: existingTenant } = await sb
-                    .from('tenants')
-                    .select('id')
-                    .eq('email', email)
-                    .maybeSingle();
-
-                if (existingTenant) {
-                    tenantId = existingTenant.id;
-                } else {
-                    const { data: newTenant, error: tenantError } = await sb
-                        .from('tenants')
-                        .insert({
-                            name: name,
-                            company_name: company || name,
-                            email: email,
-                            phone: phone
-                        })
-                        .select()
-                        .single();
-
-                    if (tenantError) throw tenantError;
-                    tenantId = newTenant.id;
-                }
-
+                const tenantId = authenticatedTenant.id;
                 const hours = calculateHours(startTime, endTime);
                 const hourlyRate = selectedRoomData.hourly_rate || 25;
                 const totalAmount = hours * hourlyRate;
@@ -968,8 +985,7 @@
                         hourly_rate: hourlyRate,
                         total_hours: hours,
                         total_amount: totalAmount,
-                        status: 'confirmed',
-                        notes: notes
+                        status: 'confirmed'
                     });
 
                 if (bookingError) throw bookingError;
