@@ -30,6 +30,7 @@ type Tenant = {
   id: string;
   name: string;
   company_name: string;
+  booking_pin_code?: string;
 };
 
 type SelectedCell = {
@@ -81,6 +82,23 @@ export function BookingCalendar() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [draggedBooking, setDraggedBooking] = useState<Booking | null>(null);
   const [isDraggingBooking, setIsDraggingBooking] = useState(false);
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pinInput, setPinInput] = useState('');
+  const [isPinVerified, setIsPinVerified] = useState(false);
+  const [isProduction, setIsProduction] = useState(false);
+
+  useEffect(() => {
+    // Detect if running in production (not dev, not Electron)
+    const isDev = import.meta.env.DEV;
+    const electron = typeof window !== 'undefined' && (window as any).electron;
+    const isProd = !isDev && !electron;
+    setIsProduction(isProd);
+
+    // Show PIN modal on production if not verified
+    if (isProd && !isPinVerified) {
+      setShowPinModal(true);
+    }
+  }, [isPinVerified]);
 
   useEffect(() => {
     loadData();
@@ -148,7 +166,7 @@ export function BookingCalendar() {
         .order('space_number'),
       supabase
         .from('tenants')
-        .select('id, name, company_name')
+        .select('id, name, company_name, booking_pin_code')
         .order('name')
     ]);
 
@@ -310,6 +328,19 @@ export function BookingCalendar() {
     setCurrentDate(new Date());
   };
 
+  const handlePinVerification = () => {
+    // Check if any tenant has this PIN code
+    const validTenant = tenants.find(t => t.booking_pin_code === pinInput);
+    if (validTenant) {
+      setIsPinVerified(true);
+      setShowPinModal(false);
+      setPinInput('');
+    } else {
+      alert('Onjuiste PIN-code. Neem contact op met de beheerder.');
+      setPinInput('');
+    }
+  };
+
   const handleBookingClick = (booking: Booking) => {
     setSelectedBooking(booking);
     setShowDeleteConfirm(true);
@@ -445,6 +476,54 @@ export function BookingCalendar() {
 
   if (loading) {
     return <div className="text-center py-8 text-gray-300">Kalender laden...</div>;
+  }
+
+  // On production, show PIN modal first
+  if (isProduction && !isPinVerified) {
+    return (
+      <div className="min-h-screen bg-dark-950 flex items-center justify-center">
+        {showPinModal && (
+          <div className="bg-dark-800 rounded-lg p-8 max-w-md w-full">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold text-gold-500 mb-2">Welkom bij HAL5 Overloon</h2>
+              <p className="text-gray-300">Voer je PIN-code in om een vergaderruimte te boeken</p>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-200 mb-2">
+                  PIN-code
+                </label>
+                <input
+                  type="password"
+                  value={pinInput}
+                  onChange={(e) => setPinInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handlePinVerification();
+                    }
+                  }}
+                  className="w-full px-4 py-3 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent text-center text-xl tracking-wider"
+                  placeholder="••••"
+                  autoFocus
+                />
+              </div>
+
+              <button
+                onClick={handlePinVerification}
+                className="w-full px-6 py-3 bg-gold-600 text-white rounded-lg hover:bg-gold-700 transition-colors font-semibold"
+              >
+                Verifiëren
+              </button>
+
+              <p className="text-sm text-gray-400 text-center mt-4">
+                Geen PIN-code? Neem contact op met de beheerder.
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    );
   }
 
   const CELL_HEIGHT = 28;
@@ -606,6 +685,48 @@ export function BookingCalendar() {
             </div>
 
             <form onSubmit={handleSubmitBooking} className="space-y-4">
+              {selectedCells.length > 0 && (() => {
+                const sortedCells = [...selectedCells].sort((a, b) => a.time.localeCompare(b.time));
+                const startTime = sortedCells[0].time;
+                const lastSlotTime = sortedCells[sortedCells.length - 1].time;
+                const endIndex = timeSlots.indexOf(lastSlotTime) + 1;
+                const endTime = timeSlots[endIndex] || '23:59';
+                const bookingDate = new Date(sortedCells[0].date + 'T00:00:00');
+
+                const calculateTotalHours = (start: string, end: string) => {
+                  const [startHour, startMin] = start.split(':').map(Number);
+                  const [endHour, endMin] = end.split(':').map(Number);
+                  const startMinutes = startHour * 60 + startMin;
+                  const endMinutes = endHour * 60 + endMin;
+                  return (endMinutes - startMinutes) / 60;
+                };
+
+                const totalHours = calculateTotalHours(startTime, endTime);
+                const selectedRoomForCalc = meetingRooms.find(r => r.id === formData.room_id);
+                const hourlyRate = selectedRoomForCalc?.hourly_rate || 25;
+                const totalAmount = totalHours * hourlyRate;
+
+                return (
+                  <div className="bg-dark-700 rounded-lg p-4 space-y-2">
+                    <h4 className="font-semibold text-gold-500 mb-2">Geselecteerde tijd</h4>
+                    <p className="text-gray-300">
+                      <strong>Datum:</strong> {bookingDate.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                    </p>
+                    <p className="text-gray-300">
+                      <strong>Tijd:</strong> {startTime} - {endTime}
+                    </p>
+                    <p className="text-gray-300">
+                      <strong>Duur:</strong> {totalHours.toFixed(1)} uur
+                    </p>
+                    {formData.room_id && (
+                      <p className="text-gray-300">
+                        <strong>Kosten:</strong> €{totalAmount.toFixed(2)} (€{hourlyRate}/uur)
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
+
               <div>
                 <label className="block text-sm font-medium text-gray-200 mb-2">
                   Vergaderruimte *
