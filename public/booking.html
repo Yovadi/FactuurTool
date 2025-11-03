@@ -81,15 +81,15 @@
             border: 1px solid #3A3A3E;
             overflow-x: auto;
             overflow-y: auto;
-            max-height: 600px;
+            max-height: 70vh;
             margin-bottom: 1rem;
             position: relative;
         }
 
         .schedule-grid {
             display: grid;
-            grid-template-columns: 60px repeat(7, 1fr);
-            min-width: 800px;
+            grid-template-columns: 50px repeat(7, 1fr);
+            min-width: 700px;
         }
 
         .schedule-header {
@@ -125,8 +125,8 @@
             padding: 0;
             border-right: 1px solid #2A2A2D;
             border-bottom: 1px solid #2A2A2D;
-            min-height: 28px;
-            height: 28px;
+            min-height: 20px;
+            height: 20px;
             cursor: pointer;
             transition: background-color 0.1s;
             position: relative;
@@ -156,9 +156,9 @@
         }
 
         .booking {
-            padding: 0.25rem;
+            padding: 0.15rem;
             border-radius: 0.25rem;
-            font-size: 0.65rem;
+            font-size: 0.6rem;
             font-weight: 600;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -208,12 +208,66 @@
             color: #0A0A0B;
         }
 
-        .form-card {
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
             background-color: #1A1A1C;
-            border-radius: 0.5rem;
-            padding: 1rem;
-            margin-bottom: 1rem;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
             border: 1px solid #3A3A3E;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-header h2 {
+            font-size: 1.25rem;
+            color: #F3F4F6;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: #9CA3AF;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0.25rem;
+            transition: all 0.2s;
+        }
+
+        .close-btn:hover {
+            background-color: #2A2A2D;
+            color: #F3F4F6;
         }
 
         .form-card h2 {
@@ -390,60 +444,67 @@
             <div class="schedule-container">
                 <div class="schedule-grid" id="scheduleGrid"></div>
             </div>
+        </div>
+    </div>
 
-            <div class="form-card">
-                <h2>Uw gegevens</h2>
-                <form id="bookingForm">
-                    <div class="grid-2">
-                        <div class="form-group">
-                            <label for="name">Naam *</label>
-                            <input type="text" id="name" class="form-control" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="company">Bedrijfsnaam</label>
-                            <input type="text" id="company" class="form-control">
-                        </div>
-                        <div class="form-group">
-                            <label for="email">E-mail *</label>
-                            <input type="email" id="email" class="form-control" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="phone">Telefoonnummer</label>
-                            <input type="tel" id="phone" class="form-control">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="notes">Opmerkingen</label>
-                        <textarea id="notes" class="form-control" rows="2"></textarea>
-                    </div>
-
-                    <div class="summary" id="summary" style="display: none;">
-                        <h3>Overzicht van uw boeking</h3>
-                        <div class="summary-row">
-                            <span>Datum:</span>
-                            <span id="summaryDate"></span>
-                        </div>
-                        <div class="summary-row">
-                            <span>Tijd:</span>
-                            <span id="summaryTime"></span>
-                        </div>
-                        <div class="summary-row">
-                            <span>Vergaderruimte:</span>
-                            <span id="summaryRoom"></span>
-                        </div>
-                        <div class="summary-row">
-                            <span>Duur:</span>
-                            <span id="summaryDuration"></span>
-                        </div>
-                    </div>
-
-                    <div style="margin-top: 1rem; text-align: center;">
-                        <button type="submit" class="btn btn-primary" id="submitBtn" disabled>
-                            Boeking Aanvragen
-                        </button>
-                    </div>
-                </form>
+    <div id="bookingModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Boeking aanvragen</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
             </div>
+
+            <div class="summary" id="modalSummary">
+                <h3>Overzicht van uw boeking</h3>
+                <div class="summary-row">
+                    <span>Datum:</span>
+                    <span id="summaryDate"></span>
+                </div>
+                <div class="summary-row">
+                    <span>Tijd:</span>
+                    <span id="summaryTime"></span>
+                </div>
+                <div class="summary-row">
+                    <span>Vergaderruimte:</span>
+                    <span id="summaryRoom"></span>
+                </div>
+                <div class="summary-row">
+                    <span>Duur:</span>
+                    <span id="summaryDuration"></span>
+                </div>
+            </div>
+
+            <form id="bookingForm">
+                <div class="form-group">
+                    <label for="name">Naam *</label>
+                    <input type="text" id="name" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="company">Bedrijfsnaam *</label>
+                    <input type="text" id="company" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">E-mail *</label>
+                    <input type="email" id="email" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="phone">Telefoonnummer</label>
+                    <input type="tel" id="phone" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="notes">Opmerkingen</label>
+                    <textarea id="notes" class="form-control" rows="2"></textarea>
+                </div>
+
+                <div style="margin-top: 1.5rem; display: flex; gap: 1rem;">
+                    <button type="button" class="btn" onclick="closeModal()" style="background-color: #2A2A2D; color: #F3F4F6; flex: 1;">
+                        Annuleren
+                    </button>
+                    <button type="submit" class="btn btn-primary" style="flex: 1;">
+                        Boeking Aanvragen
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -679,7 +740,7 @@
                         const displayName = booking.tenants?.company_name || booking.tenants?.name || 'Geboekt';
                         bookingEl.textContent = displayName;
                         bookingEl.title = `${displayName}\n${booking.start_time} - ${booking.end_time}`;
-                        bookingEl.style.height = `${duration * 28}px`;
+                        bookingEl.style.height = `${duration * 20}px`;
                         bookingEl.style.zIndex = '10';
                         cell.appendChild(bookingEl);
                     }
@@ -706,7 +767,7 @@
             });
 
             const scheduleContainer = document.getElementById('scheduleGrid').parentElement;
-            scheduleContainer.scrollTop = 8 * 2 * 28;
+            scheduleContainer.scrollTop = 8 * 2 * 20;
         }
 
         document.addEventListener('mouseup', endDrag);
@@ -753,7 +814,9 @@
                 isDragging = false;
                 dragStartCell = null;
                 dragCurrentDate = null;
-                updateSummary();
+                if (selectedCells.length > 0) {
+                    openModal();
+                }
             }
         }
 
@@ -778,15 +841,8 @@
             return index > 0 ? timeSlots[index - 1] : null;
         }
 
-        function updateSummary() {
-            const summary = document.getElementById('summary');
-            const submitBtn = document.getElementById('submitBtn');
-
-            if (!selectedRoom || selectedCells.length === 0) {
-                summary.style.display = 'none';
-                submitBtn.disabled = true;
-                return;
-            }
+        function openModal() {
+            if (!selectedRoom || selectedCells.length === 0) return;
 
             selectedCells.sort((a, b) => {
                 if (a.date !== b.date) return a.date.localeCompare(b.date);
@@ -798,8 +854,8 @@
 
             if (!allSameDate) {
                 showNotification('Selecteer tijdsloten op dezelfde dag.', 'error');
-                summary.style.display = 'none';
-                submitBtn.disabled = true;
+                selectedCells = [];
+                updateCellSelection();
                 return;
             }
 
@@ -813,8 +869,8 @@
 
             if (!isConsecutive) {
                 showNotification('Selecteer aaneengesloten tijdsloten.', 'error');
-                summary.style.display = 'none';
-                submitBtn.disabled = true;
+                selectedCells = [];
+                updateCellSelection();
                 return;
             }
 
@@ -838,6 +894,15 @@
 
             const hours = calculateHours(startTime, endTime);
             document.getElementById('summaryDuration').textContent = `${hours.toFixed(1)} uur`;
+
+            document.getElementById('bookingModal').classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('bookingModal').classList.remove('show');
+            selectedCells = [];
+            updateCellSelection();
+            document.getElementById('bookingForm').reset();
         }
 
         function calculateHours(start, end) {
@@ -915,6 +980,9 @@
                 if (bookingError) throw bookingError;
 
                 showNotification('Uw boeking is succesvol aangemaakt! We nemen zo spoedig mogelijk contact met u op.', 'success');
+                closeModal();
+                await loadBookings();
+                renderSchedule();
 
                 setTimeout(() => {
                     location.reload();
