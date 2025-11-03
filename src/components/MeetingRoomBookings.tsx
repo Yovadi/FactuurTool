@@ -400,7 +400,7 @@ export function MeetingRoomBookings() {
       const newSubtotal = parseFloat(existingInvoice.subtotal) + booking.total_amount;
       const newVatAmount = newSubtotal * (vatRate / 100);
       const newTotal = newSubtotal + newVatAmount;
-      const updatedNotes = existingInvoice.notes ? `${existingInvoice.notes}\n${bookingLine}` : bookingLine;
+      const updatedNotes = existingInvoice.notes ? `${existingInvoice.notes}\n${bookingLine}` : `Vergaderruimte boekingen:\n${bookingLine}`;
 
       const { error: updateError } = await supabase
         .from('invoices')
