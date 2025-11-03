@@ -8,6 +8,8 @@ type Booking = {
   start_time: string;
   end_time: string;
   tenant_id?: string;
+  status?: 'confirmed' | 'cancelled' | 'completed';
+  invoice_id?: string | null;
   tenants?: { name: string; company_name: string };
   office_spaces?: { space_number: string };
 };
@@ -75,6 +77,8 @@ export function BookingCalendar() {
     tenant_id: '',
     notes: ''
   });
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -296,6 +300,49 @@ export function BookingCalendar() {
     setCurrentDate(new Date());
   };
 
+  const handleBookingClick = (booking: Booking) => {
+    setSelectedBooking(booking);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleCancelBooking = async () => {
+    if (!selectedBooking) return;
+
+    const { error } = await supabase
+      .from('meeting_room_bookings')
+      .update({ status: 'cancelled' })
+      .eq('id', selectedBooking.id);
+
+    if (error) {
+      console.error('Error cancelling booking:', error);
+      alert('Fout bij het annuleren van de boeking');
+      return;
+    }
+
+    setShowDeleteConfirm(false);
+    setSelectedBooking(null);
+    loadData();
+  };
+
+  const handleDeleteBooking = async () => {
+    if (!selectedBooking) return;
+
+    const { error } = await supabase
+      .from('meeting_room_bookings')
+      .delete()
+      .eq('id', selectedBooking.id);
+
+    if (error) {
+      console.error('Error deleting booking:', error);
+      alert('Fout bij het verwijderen van de boeking');
+      return;
+    }
+
+    setShowDeleteConfirm(false);
+    setSelectedBooking(null);
+    loadData();
+  };
+
   const isToday = (date: Date) => {
     const today = new Date();
     return date.getDate() === today.getDate() &&
@@ -432,12 +479,16 @@ export function BookingCalendar() {
                         const colors = getTenantColor(booking.tenant_id);
                         return (
                           <div
-                            className={`absolute left-0 right-0 mx-0.5 ${colors.bg} border ${colors.border} rounded px-1 overflow-hidden z-10`}
+                            className={`absolute left-0 right-0 mx-0.5 ${colors.bg} border ${colors.border} rounded px-1 overflow-hidden z-10 cursor-pointer hover:opacity-90 transition-opacity`}
                             style={{
                               height: `${getBookingHeight(booking) * CELL_HEIGHT}px`,
                               top: 0
                             }}
-                            title={`${booking.office_spaces?.space_number} - ${booking.tenants?.company_name || ''} (${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)})`}
+                            title={`${booking.office_spaces?.space_number} - ${booking.tenants?.company_name || ''} (${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)})\nKlik om te annuleren/verwijderen`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleBookingClick(booking);
+                            }}
                           >
                             <div className={`font-semibold ${colors.text} leading-tight text-[10px]`}>
                               {booking.start_time.substring(0, 5)}
@@ -524,6 +575,61 @@ export function BookingCalendar() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {showDeleteConfirm && selectedBooking && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-dark-800 rounded-lg p-6 max-w-md w-full">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-gray-100">Boeking Beheren</h3>
+              <button
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setSelectedBooking(null);
+                }}
+                className="text-gray-400 hover:text-gray-200"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="mb-6 space-y-2 text-gray-300">
+              <p><strong>Ruimte:</strong> {selectedBooking.office_spaces?.space_number}</p>
+              <p><strong>Bedrijf:</strong> {selectedBooking.tenants?.company_name || selectedBooking.tenants?.name}</p>
+              <p><strong>Datum:</strong> {new Date(selectedBooking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL')}</p>
+              <p><strong>Tijd:</strong> {selectedBooking.start_time.substring(0, 5)} - {selectedBooking.end_time.substring(0, 5)}</p>
+              {selectedBooking.invoice_id && (
+                <p className="text-amber-500"><strong>Let op:</strong> Deze boeking is al gefactureerd</p>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              {selectedBooking.status !== 'cancelled' && (
+                <button
+                  onClick={handleCancelBooking}
+                  className="w-full px-6 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+                >
+                  Boeking Annuleren
+                </button>
+              )}
+              <button
+                onClick={handleDeleteBooking}
+                className="w-full px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Boeking Verwijderen
+              </button>
+              <button
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setSelectedBooking(null);
+                }}
+                className="w-full px-6 py-2 border border-dark-600 rounded-lg text-gray-300 hover:bg-dark-700 transition-colors"
+              >
+                Sluiten
+              </button>
+            </div>
           </div>
         </div>
       )}

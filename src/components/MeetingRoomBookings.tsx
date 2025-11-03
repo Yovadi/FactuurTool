@@ -381,7 +381,17 @@ export function MeetingRoomBookings() {
     await createOrUpdateInvoiceForBooking(booking);
 
     showNotification('Factuur succesvol aangemaakt!', 'success');
-    await loadData();
+
+    // Reload only the bookings data without refreshing the entire component
+    const { data: bookingsData } = await supabase
+      .from('meeting_room_bookings')
+      .select('*, tenants(name, company_name), office_spaces(space_number)')
+      .order('booking_date', { ascending: true });
+
+    if (bookingsData) {
+      setAllBookings(bookingsData as Booking[]);
+      applyFilter(bookingsData as Booking[], selectedFilter);
+    }
   };
 
   const handleSpaceChange = (spaceId: string) => {

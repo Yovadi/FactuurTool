@@ -227,28 +227,52 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
 
   if (invoice.notes) {
     const lines = invoice.notes.split('\n').filter(line => line.trim());
+    let lineIndex = 0;
 
-    lines.forEach((line: string, index: number) => {
+    lines.forEach((line: string) => {
       if (yPosition > pageHeight - 70) {
         pdf.addPage();
         yPosition = 20;
       }
 
-      if (index % 2 === 0) {
+      // Skip header lines like "Vergaderruimte boekingen:"
+      if (line.includes(':') && !line.includes('(') && !line.includes('€')) {
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(line, col1X + 2, yPosition);
+        pdf.setFont('helvetica', 'normal');
+        yPosition += 7;
+        return;
+      }
+
+      if (lineIndex % 2 === 0) {
         pdf.setFillColor(250, 250, 250);
         pdf.rect(margin, yPosition - 4, pageWidth - 2 * margin, 7, 'F');
       }
 
-      const match = line.match(/^-\s*(?:.*?:\s*)?(.+?)\s*\((\d+)u\s*@\s*€([\d.]+)\/u\)\s*=\s*€([\d.]+)$/);
-      if (match) {
-        const [, dateTimeInfo, hours, , amount] = match;
-        pdf.text(`- ${dateTimeInfo.trim()} (${hours}u)`, col1X + 2, yPosition);
+      // Match pattern: - Ruimte 2: 5-11-2025 08:30-10:00 (1.5u @ €25/u) = €37.50
+      const fullMatch = line.match(/^-\s*(.+?):\s*(.+?)\s+(.+?)\s*\((.+?)u\s*@\s*€([\d.]+)\/u\)\s*=\s*€([\d.]+)$/);
+
+      if (fullMatch) {
+        const [, room, date, time, hours, rate, amount] = fullMatch;
+        const description = `${room}: ${date} ${time} (${hours}u @ €${rate}/u)`;
+        pdf.text(description, col1X + 2, yPosition);
         pdf.text(`€ ${amount}`, col2X - 2, yPosition, { align: 'right' });
         pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col3X - 2, yPosition, { align: 'right' });
       } else {
-        pdf.text(line.replace(/^-\s*/, ''), col1X + 2, yPosition);
+        // Fallback: try to extract just the amount
+        const amountMatch = line.match(/€([\d.]+)\s*$/);
+        if (amountMatch) {
+          const amount = amountMatch[1];
+          const description = line.substring(0, line.lastIndexOf('€')).replace(/^-\s*/, '').trim();
+          pdf.text(description, col1X + 2, yPosition);
+          pdf.text(`€ ${amount}`, col2X - 2, yPosition, { align: 'right' });
+          pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col3X - 2, yPosition, { align: 'right' });
+        } else {
+          pdf.text(line.replace(/^-\s*/, ''), col1X + 2, yPosition);
+        }
       }
 
+      lineIndex++;
       yPosition += 7;
     });
   } else {
