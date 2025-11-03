@@ -17,9 +17,11 @@ function App() {
   const [isElectron, setIsElectron] = useState(false);
 
   useEffect(() => {
-    // Detect if running in Electron
+    // Detect if running in Electron or development mode
     const electron = typeof window !== 'undefined' && (window as any).electron;
-    setIsElectron(!!electron);
+    const isDev = import.meta.env.DEV;
+    // Show admin interface in Electron OR in development mode
+    setIsElectron(!!electron || isDev);
   }, []);
 
   const navigation = [
@@ -33,7 +35,8 @@ function App() {
     { id: 'settings' as Tab, label: 'Verhuurder', icon: Settings },
   ];
 
-  // If running on web (Netlify), show only booking calendar
+  // If running on production web (Netlify), show only booking calendar
+  // In development (Bolt/localhost) or Electron, show full admin interface
   if (!isElectron) {
     return (
       <div className="min-h-screen bg-dark-950">
