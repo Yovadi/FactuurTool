@@ -555,7 +555,7 @@
 
             const { data: bookings } = await sb
                 .from('meeting_room_bookings')
-                .select('booking_date, start_time, end_time, tenants(name)')
+                .select('booking_date, start_time, end_time, tenants(name, company_name)')
                 .eq('space_id', selectedRoom.id)
                 .gte('booking_date', formatDate(currentWeekStart))
                 .lte('booking_date', formatDate(weekEnd))
@@ -567,7 +567,6 @@
                 end_time: normalizeTime(b.end_time)
             }));
 
-            console.log('Loaded bookings:', existingBookings);
         }
 
         function renderSchedule() {
@@ -642,14 +641,6 @@
                         time < b.end_time
                     );
 
-                    if (dateStr === '2025-11-05' && time === '08:30') {
-                        console.log('Checking cell 2025-11-05 08:30:', {
-                            existingBookings,
-                            booking,
-                            time,
-                            dateStr
-                        });
-                    }
 
                     if (booking && time === booking.start_time) {
                         const startIndex = timeSlots.indexOf(booking.start_time);
@@ -658,8 +649,9 @@
 
                         const bookingEl = document.createElement('div');
                         bookingEl.className = 'booking';
-                        bookingEl.textContent = booking.tenants?.name || 'Geboekt';
-                        bookingEl.title = `${booking.start_time} - ${booking.end_time}`;
+                        const displayName = booking.tenants?.company_name || booking.tenants?.name || 'Geboekt';
+                        bookingEl.textContent = displayName;
+                        bookingEl.title = `${displayName}\n${booking.start_time} - ${booking.end_time}`;
                         bookingEl.style.height = `${duration * 28}px`;
                         bookingEl.style.zIndex = '10';
                         cell.appendChild(bookingEl);
