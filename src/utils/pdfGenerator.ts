@@ -254,9 +254,20 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
         pdf.rect(margin, yPosition - 4, pageWidth - 2 * margin, 7, 'F');
       }
 
-      // Simple format: - 04-11-2025 04:00-06:30 (2.5u)
-      const cleanLine = line.replace(/^-\s*/, '').trim();
-      pdf.text(cleanLine, col1X + 2, yPosition);
+      // Format: - 04-11-2025 04:00-06:30 (2.5u) = €62.50
+      const amountMatch = line.match(/=\s*€([\d.]+)\s*$/);
+      let description = line.replace(/^-\s*/, '').trim();
+      let amount = '';
+
+      if (amountMatch) {
+        amount = amountMatch[1];
+        description = description.substring(0, description.lastIndexOf('=')).trim();
+      }
+
+      pdf.text(description, col1X + 2, yPosition);
+      if (amount) {
+        pdf.text(`€ ${amount}`, col2X - 2, yPosition, { align: 'right' });
+      }
       pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col3X - 2, yPosition, { align: 'right' });
 
       lineIndex++;

@@ -147,11 +147,19 @@ export function InvoicePreview({
                     {invoice.notes.split('\n')
                       .filter(line => line.trim() && line.startsWith('-'))
                       .map((line, lineIndex) => {
-                        const cleanLine = line.replace(/^-\s*/, '');
+                        let cleanLine = line.replace(/^-\s*/, '');
+                        let amount = '';
+
+                        const amountMatch = cleanLine.match(/=\s*€([\d.]+)\s*$/);
+                        if (amountMatch) {
+                          amount = amountMatch[1];
+                          cleanLine = cleanLine.substring(0, cleanLine.lastIndexOf('=')).trim();
+                        }
+
                         return (
                           <tr key={`line-${lineIndex}`} className={lineIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                             <td className="px-4 py-3 text-left text-gray-900">{cleanLine}</td>
-                            <td className="px-4 py-3 text-right text-gray-900"></td>
+                            <td className="px-4 py-3 text-right text-gray-900">{amount ? `€ ${amount}` : ''}</td>
                             <td className="px-4 py-3 text-right text-gray-900">{invoice.vat_rate.toFixed(0)}%</td>
                           </tr>
                         );
