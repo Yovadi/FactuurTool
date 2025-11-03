@@ -7,6 +7,7 @@ type Booking = {
   booking_date: string;
   start_time: string;
   end_time: string;
+  tenant_id?: string;
   tenants?: { name: string; company_name: string };
   office_spaces?: { space_number: string };
 };
@@ -39,6 +40,25 @@ const timeSlots = Array.from({ length: 48 }, (_, i) => {
   const minute = (i % 2) * 30;
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 });
+
+const tenantColors = [
+  { bg: 'bg-blue-600', border: 'border-blue-500', text: 'text-white' },
+  { bg: 'bg-green-600', border: 'border-green-500', text: 'text-white' },
+  { bg: 'bg-purple-600', border: 'border-purple-500', text: 'text-white' },
+  { bg: 'bg-red-600', border: 'border-red-500', text: 'text-white' },
+  { bg: 'bg-orange-600', border: 'border-orange-500', text: 'text-white' },
+  { bg: 'bg-pink-600', border: 'border-pink-500', text: 'text-white' },
+  { bg: 'bg-teal-600', border: 'border-teal-500', text: 'text-white' },
+  { bg: 'bg-cyan-600', border: 'border-cyan-500', text: 'text-white' },
+  { bg: 'bg-indigo-600', border: 'border-indigo-500', text: 'text-white' },
+  { bg: 'bg-amber-600', border: 'border-amber-500', text: 'text-white' },
+];
+
+const getTenantColor = (tenantId: string | undefined) => {
+  if (!tenantId) return tenantColors[0];
+  const hash = tenantId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return tenantColors[hash % tenantColors.length];
+};
 
 export function BookingCalendar() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -103,6 +123,7 @@ export function BookingCalendar() {
           booking_date,
           start_time,
           end_time,
+          tenant_id,
           tenants(name, company_name),
           office_spaces(space_number)
         `)
@@ -407,23 +428,26 @@ export function BookingCalendar() {
                       onMouseDown={() => handleCellMouseDown(day.dateStr, time)}
                       onMouseEnter={() => handleCellMouseEnter(day.dateStr, time)}
                     >
-                      {booking && (
-                        <div
-                          className="absolute left-0 right-0 mx-0.5 bg-gold-600 border border-gold-500 rounded px-1 overflow-hidden z-10"
-                          style={{
-                            height: `${getBookingHeight(booking) * CELL_HEIGHT}px`,
-                            top: 0
-                          }}
-                          title={`${booking.office_spaces?.space_number} - ${booking.tenants?.company_name || ''} (${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)})`}
-                        >
-                          <div className="font-semibold text-dark-900 leading-tight text-[10px]">
-                            {booking.start_time.substring(0, 5)}
+                      {booking && (() => {
+                        const colors = getTenantColor(booking.tenant_id);
+                        return (
+                          <div
+                            className={`absolute left-0 right-0 mx-0.5 ${colors.bg} border ${colors.border} rounded px-1 overflow-hidden z-10`}
+                            style={{
+                              height: `${getBookingHeight(booking) * CELL_HEIGHT}px`,
+                              top: 0
+                            }}
+                            title={`${booking.office_spaces?.space_number} - ${booking.tenants?.company_name || ''} (${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)})`}
+                          >
+                            <div className={`font-semibold ${colors.text} leading-tight text-[10px]`}>
+                              {booking.start_time.substring(0, 5)}
+                            </div>
+                            <div className={`${colors.text} truncate leading-tight text-[10px]`}>
+                              {booking.tenants?.company_name || ''}
+                            </div>
                           </div>
-                          <div className="text-dark-900 truncate leading-tight text-[10px]">
-                            {booking.tenants?.company_name || ''}
-                          </div>
-                        </div>
-                      )}
+                        );
+                      })()}
                     </div>
                   );
                 })}

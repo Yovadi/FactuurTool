@@ -156,8 +156,6 @@
         }
 
         .booking {
-            background-color: #D4AF37;
-            color: #0A0A0B;
             padding: 0.25rem;
             border-radius: 0.25rem;
             font-size: 0.65rem;
@@ -172,7 +170,8 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            border: 1px solid #B8942A;
+            border-width: 1px;
+            border-style: solid;
             box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
             pointer-events: none;
         }
@@ -474,6 +473,28 @@
         let dragStartCell = null;
         let dragCurrentDate = null;
 
+        const tenantColors = [
+            { bg: '#2563EB', border: '#3B82F6' },
+            { bg: '#059669', border: '#10B981' },
+            { bg: '#9333EA', border: '#A855F7' },
+            { bg: '#DC2626', border: '#EF4444' },
+            { bg: '#EA580C', border: '#F97316' },
+            { bg: '#DB2777', border: '#EC4899' },
+            { bg: '#0D9488', border: '#14B8A6' },
+            { bg: '#0891B2', border: '#06B6D4' },
+            { bg: '#4F46E5', border: '#6366F1' },
+            { bg: '#D97706', border: '#F59E0B' },
+        ];
+
+        function getTenantColor(tenantId) {
+            if (!tenantId) return tenantColors[0];
+            let hash = 0;
+            for (let i = 0; i < tenantId.length; i++) {
+                hash += tenantId.charCodeAt(i);
+            }
+            return tenantColors[hash % tenantColors.length];
+        }
+
         function getMonday(date) {
             const d = new Date(date);
             const day = d.getDay();
@@ -555,7 +576,7 @@
 
             const { data: bookings } = await sb
                 .from('meeting_room_bookings')
-                .select('booking_date, start_time, end_time, tenants(name, company_name)')
+                .select('booking_date, start_time, end_time, tenant_id, tenants(name, company_name)')
                 .eq('space_id', selectedRoom.id)
                 .gte('booking_date', formatDate(currentWeekStart))
                 .lte('booking_date', formatDate(weekEnd))
@@ -610,7 +631,8 @@
                         date: booking.booking_date,
                         startTime: booking.start_time,
                         endTime: booking.end_time,
-                        name: booking.tenants?.name || 'Geboekt'
+                        name: booking.tenants?.company_name || booking.tenants?.name || 'Geboekt',
+                        tenantId: booking.tenant_id
                     };
                 }
             });
@@ -647,10 +669,13 @@
                         const endIndex = timeSlots.indexOf(booking.end_time);
                         const duration = endIndex - startIndex;
 
-                        console.log(`Booking: ${booking.start_time} - ${booking.end_time}, startIndex: ${startIndex}, endIndex: ${endIndex}, duration: ${duration}, height: ${duration * 28}px`);
+                        const colors = getTenantColor(booking.tenant_id);
 
                         const bookingEl = document.createElement('div');
                         bookingEl.className = 'booking';
+                        bookingEl.style.backgroundColor = colors.bg;
+                        bookingEl.style.borderColor = colors.border;
+                        bookingEl.style.color = '#FFFFFF';
                         const displayName = booking.tenants?.company_name || booking.tenants?.name || 'Geboekt';
                         bookingEl.textContent = displayName;
                         bookingEl.title = `${displayName}\n${booking.start_time} - ${booking.end_time}`;
