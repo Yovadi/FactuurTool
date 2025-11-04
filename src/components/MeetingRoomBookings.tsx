@@ -549,8 +549,11 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     return <div className="text-center py-8">Boekingen laden...</div>;
   }
 
+  // Check if running in production (Netlify) - only show calendar view
+  const isProduction = !import.meta.env.DEV && typeof window !== 'undefined' && !(window as any).electron;
+
   return (
-    <div>
+    <div className={isProduction ? 'min-h-screen bg-dark-950' : ''}>
       <div className="fixed top-4 right-4 z-50 space-y-2 max-w-md">
         {notifications.map((notification) => (
           <div
@@ -577,94 +580,98 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
         ))}
       </div>
 
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-100 mb-2">Vergaderruimte Boekingen</h1>
-        <p className="text-gray-300">Beheer boekingen voor vergaderruimtes op uurbasis</p>
-      </div>
-
-      <div className="mb-6 flex justify-between items-center">
-        <div className="flex gap-4">
-          <button
-            onClick={() => setSelectedView('calendar')}
-            className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
-              selectedView === 'calendar'
-                ? 'bg-gold-600 text-white'
-                : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
-            }`}
-          >
-            <CalendarDays size={18} />
-            Kalender
-          </button>
-          <button
-            onClick={() => setSelectedView('list')}
-            className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
-              selectedView === 'list'
-                ? 'bg-gold-600 text-white'
-                : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
-            }`}
-          >
-            <AlertCircle size={18} />
-            Lijst
-          </button>
-          <button
-            onClick={() => setSelectedView('rates')}
-            className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
-              selectedView === 'rates'
-                ? 'bg-gold-600 text-white'
-                : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
-            }`}
-          >
-            <DollarSign size={18} />
-            Tarieven
-          </button>
-        </div>
-
-        {selectedView === 'list' && (
-          <div className="flex gap-4">
-            <button
-              onClick={() => {
-                setSelectedFilter('upcoming');
-                applyFilter(allBookings, 'upcoming');
-              }}
-              className={`px-4 py-2 rounded-lg transition-colors ${
-                selectedFilter === 'upcoming'
-                  ? 'bg-gold-600 text-white'
-                  : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
-              }`}
-            >
-              Aankomend
-            </button>
-            <button
-              onClick={() => {
-                setSelectedFilter('past');
-                applyFilter(allBookings, 'past');
-              }}
-              className={`px-4 py-2 rounded-lg transition-colors ${
-                selectedFilter === 'past'
-                  ? 'bg-gold-600 text-white'
-                  : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
-              }`}
-            >
-              Afgelopen
-            </button>
-            <button
-              onClick={() => {
-                setSelectedFilter('all');
-                applyFilter(allBookings, 'all');
-              }}
-              className={`px-4 py-2 rounded-lg transition-colors ${
-                selectedFilter === 'all'
-                  ? 'bg-gold-600 text-white'
-                  : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
-              }`}
-            >
-              Alle
-            </button>
+      {!isProduction && (
+        <>
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-100 mb-2">Vergaderruimte Boekingen</h1>
+            <p className="text-gray-300">Beheer boekingen voor vergaderruimtes op uurbasis</p>
           </div>
-        )}
-      </div>
 
-      {showForm && (
+          <div className="mb-6 flex justify-between items-center">
+            <div className="flex gap-4">
+              <button
+                onClick={() => setSelectedView('calendar')}
+                className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
+                  selectedView === 'calendar'
+                    ? 'bg-gold-600 text-white'
+                    : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
+                }`}
+              >
+                <CalendarDays size={18} />
+                Kalender
+              </button>
+              <button
+                onClick={() => setSelectedView('list')}
+                className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
+                  selectedView === 'list'
+                    ? 'bg-gold-600 text-white'
+                    : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
+                }`}
+              >
+                <AlertCircle size={18} />
+                Lijst
+              </button>
+              <button
+                onClick={() => setSelectedView('rates')}
+                className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
+                  selectedView === 'rates'
+                    ? 'bg-gold-600 text-white'
+                    : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
+                }`}
+              >
+                <DollarSign size={18} />
+                Tarieven
+              </button>
+            </div>
+
+            {selectedView === 'list' && (
+              <div className="flex gap-4">
+                <button
+                  onClick={() => {
+                    setSelectedFilter('upcoming');
+                    applyFilter(allBookings, 'upcoming');
+                  }}
+                  className={`px-4 py-2 rounded-lg transition-colors ${
+                    selectedFilter === 'upcoming'
+                      ? 'bg-gold-600 text-white'
+                      : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
+                  }`}
+                >
+                  Aankomend
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedFilter('past');
+                    applyFilter(allBookings, 'past');
+                  }}
+                  className={`px-4 py-2 rounded-lg transition-colors ${
+                    selectedFilter === 'past'
+                      ? 'bg-gold-600 text-white'
+                      : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
+                  }`}
+                >
+                  Afgelopen
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedFilter('all');
+                    applyFilter(allBookings, 'all');
+                  }}
+                  className={`px-4 py-2 rounded-lg transition-colors ${
+                    selectedFilter === 'all'
+                      ? 'bg-gold-600 text-white'
+                      : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
+                  }`}
+                >
+                  Alle
+                </button>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {!isProduction && showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-dark-800 rounded-lg p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
@@ -840,7 +847,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
         </div>
       )}
 
-      {selectedView === 'calendar' ? (
+      {(isProduction || selectedView === 'calendar') ? (
         <BookingCalendar loggedInTenantId={loggedInTenantId} onBookingChange={async (action, bookingId) => {
           if (action === 'cancelled') {
             // Remove cancelled booking from lists
