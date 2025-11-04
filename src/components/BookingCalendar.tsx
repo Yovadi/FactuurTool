@@ -825,15 +825,17 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
         {/* Calendar grid */}
         <div className="grid grid-cols-8 gap-1">
           {Array.from({ length: 6 }).map((_, weekIdx) => {
-            const weekStart = days[weekIdx * 7];
-            const weekNum = weekStart && weekStart.date ? getWeekNumber(new Date(weekStart.date)) : '';
+            const weekDays = days.slice(weekIdx * 7, (weekIdx + 1) * 7);
+            const hasCurrentMonthDay = weekDays.some(day => day.isCurrentMonth);
+            const weekStart = weekDays.find(day => day.date);
+            const weekNum = hasCurrentMonthDay && weekStart && weekStart.date ? getWeekNumber(new Date(weekStart.date)) : '';
 
             return (
               <>
                 <div key={`week-${weekIdx}`} className="text-[10px] text-gray-500 text-center py-1">
                   {weekNum}
                 </div>
-                {days.slice(weekIdx * 7, (weekIdx + 1) * 7).map((dayInfo, idx) => {
+                {weekDays.map((dayInfo, idx) => {
                   const isSelected = dayInfo.isSelected;
                   const isTodayDate = dayInfo.date && isToday(new Date(dayInfo.date));
 
