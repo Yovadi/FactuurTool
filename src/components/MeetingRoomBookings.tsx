@@ -53,6 +53,14 @@ export function MeetingRoomBookings() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationId, setNotificationId] = useState(0);
 
+  const getWeekNumber = (date: Date): number => {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  };
+
   const [formData, setFormData] = useState({
     space_id: '',
     tenant_id: '',
@@ -921,7 +929,7 @@ export function MeetingRoomBookings() {
                   <tr key={booking.id} className="hover:bg-dark-800/50 transition-colors">
                     <td className="px-4 py-3">
                       <div className="text-sm text-gray-200 font-medium">
-                        {new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        Week {getWeekNumber(new Date(booking.booking_date + 'T00:00:00'))} - {new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </div>
                       <div className="text-xs text-gray-400 mt-0.5">
                         {booking.start_time.substring(0, 5)} - {booking.end_time.substring(0, 5)}

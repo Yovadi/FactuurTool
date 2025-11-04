@@ -482,8 +482,16 @@ export function BookingCalendar() {
     return slots;
   };
 
+  const getWeekNumber = (date: Date): number => {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  };
+
   const weekRange = weekDays.length > 0
-    ? `${weekDays[0].date.getDate()} ${weekDays[0].date.toLocaleDateString('nl-NL', { month: 'short' })} - ${weekDays[6].date.getDate()} ${weekDays[6].date.toLocaleDateString('nl-NL', { month: 'short', year: 'numeric' })}`
+    ? `Week ${getWeekNumber(weekDays[0].date)} - ${weekDays[0].date.getDate()} ${weekDays[0].date.toLocaleDateString('nl-NL', { month: 'short' })} - ${weekDays[6].date.getDate()} ${weekDays[6].date.toLocaleDateString('nl-NL', { month: 'short', year: 'numeric' })}`
     : '';
 
   if (loading) {
