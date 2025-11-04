@@ -331,8 +331,8 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
       return;
     }
 
-    // On production, use verified tenant ID, otherwise use selected tenant from form
-    const tenantIdToUse = isProduction && verifiedTenantId ? verifiedTenantId : formData.tenant_id;
+    // Use loggedInTenantId if available, otherwise use selected tenant from form
+    const tenantIdToUse = loggedInTenantId || formData.tenant_id;
     if (!tenantIdToUse) {
       showToast('Selecteer een bedrijf', 'error');
       return;
@@ -1199,7 +1199,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
                     <p className="text-gray-300">
                       <strong>Duur:</strong> {totalHours.toFixed(1)} uur
                     </p>
-                    {!isProduction && formData.room_id && (
+                    {!loggedInTenantId && formData.room_id && (
                       <p className="text-gray-300">
                         <strong>Kosten:</strong> €{totalAmount.toFixed(2)} (€{hourlyRate}/uur)
                       </p>
@@ -1221,20 +1221,20 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
                   <option value="">Selecteer een vergaderruimte</option>
                   {meetingRooms.map((room) => (
                     <option key={room.id} value={room.id}>
-                      {room.space_number} {!isProduction && room.hourly_rate && `(€${room.hourly_rate}/u)`}
+                      {room.space_number} {!loggedInTenantId && room.hourly_rate && `(€${room.hourly_rate}/u)`}
                     </option>
                   ))}
                 </select>
               </div>
 
-              {isProduction && verifiedTenantId ? (
+              {loggedInTenantId ? (
                 <div>
                   <label className="block text-sm font-medium text-gray-200 mb-2">
                     Bedrijf
                   </label>
                   <div className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-700 text-gray-100">
-                    {tenants.find(t => t.id === verifiedTenantId)?.company_name ||
-                     tenants.find(t => t.id === verifiedTenantId)?.name || 'Onbekend'}
+                    {tenants.find(t => t.id === loggedInTenantId)?.company_name ||
+                     tenants.find(t => t.id === loggedInTenantId)?.name || 'Onbekend'}
                   </div>
                 </div>
               ) : (
@@ -1315,13 +1315,18 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
             </div>
 
             <div className="space-y-3">
-              {selectedBooking.status !== 'cancelled' && (
+              {selectedBooking.status !== 'cancelled' && (!loggedInTenantId || selectedBooking.tenant_id === loggedInTenantId) && (
                 <button
                   onClick={handleCancelBooking}
                   className="w-full px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                 >
                   Boeking Annuleren
                 </button>
+              )}
+              {loggedInTenantId && selectedBooking.tenant_id !== loggedInTenantId && selectedBooking.status !== 'cancelled' && (
+                <div className="w-full px-6 py-3 bg-amber-900/30 border border-amber-700 rounded-lg text-amber-300 text-center text-sm">
+                  Je kunt alleen je eigen boekingen annuleren
+                </div>
               )}
               <button
                 onClick={() => {

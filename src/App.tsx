@@ -99,13 +99,13 @@ function App() {
     );
   }
 
-  // Show login if not logged in
-  if (!loggedInUser) {
-    return <Login onLogin={handleLogin} showAdminOption={isElectron} />;
+  // Show login only on production (Netlify) if not logged in
+  if (!isElectron && !loggedInUser) {
+    return <Login onLogin={handleLogin} showAdminOption={false} />;
   }
 
   // If running on production web (Netlify) and logged in as tenant, show only booking calendar
-  if (!isElectron && !loggedInUser.isAdmin) {
+  if (!isElectron && loggedInUser) {
     return (
       <div className="min-h-screen bg-dark-950 p-4">
         <div className="max-w-[1920px] mx-auto">
