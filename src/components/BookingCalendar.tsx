@@ -63,7 +63,11 @@ const getTenantColor = (tenantId: string | undefined) => {
   return tenantColors[hash % tenantColors.length];
 };
 
-export function BookingCalendar() {
+type BookingCalendarProps = {
+  onBookingChange?: () => void;
+};
+
+export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [weekDays, setWeekDays] = useState<WeekDay[]>([]);
   const [loading, setLoading] = useState(true);
@@ -296,16 +300,18 @@ export function BookingCalendar() {
 
   const handleSubmitBooking = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Submit booking clicked', { selectedCells, formData, isProduction, verifiedTenantId });
 
     if (selectedCells.length === 0 || !formData.room_id) {
-      console.log('Missing required fields');
+      showToast('Selecteer tijdslots en vergaderruimte', 'error');
       return;
     }
 
     // On production, use verified tenant ID, otherwise use selected tenant from form
     const tenantIdToUse = isProduction && verifiedTenantId ? verifiedTenantId : formData.tenant_id;
-    if (!tenantIdToUse) return;
+    if (!tenantIdToUse) {
+      showToast('Selecteer een bedrijf', 'error');
+      return;
+    }
 
     const selectedRoomForBooking = meetingRooms.find(r => r.id === formData.room_id);
     if (!selectedRoomForBooking) return;
@@ -353,6 +359,9 @@ export function BookingCalendar() {
     setSelectedCells([]);
     setFormData({ tenant_id: '', room_id: '' });
     await loadData();
+    if (onBookingChange) {
+      onBookingChange();
+    }
   };
 
   const previousWeek = () => {
@@ -411,6 +420,9 @@ export function BookingCalendar() {
     setShowDeleteConfirm(false);
     setSelectedBooking(null);
     await loadData();
+    if (onBookingChange) {
+      onBookingChange();
+    }
   };
 
   const handleBookingDragStart = (booking: Booking, e: React.MouseEvent) => {

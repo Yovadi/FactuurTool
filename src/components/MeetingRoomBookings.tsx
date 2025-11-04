@@ -53,6 +53,7 @@ export function MeetingRoomBookings() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationId, setNotificationId] = useState(0);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const getWeekNumber = (date: Date): number => {
     const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -78,6 +79,7 @@ export function MeetingRoomBookings() {
 
   const loadData = async () => {
     setLoading(true);
+    setRefreshKey(prev => prev + 1);
 
     const { data: tenantsData } = await supabase
       .from('tenants')
@@ -97,7 +99,7 @@ export function MeetingRoomBookings() {
         tenants(name, company_name),
         office_spaces(space_number)
       `)
-      .eq('status', 'confirmed')
+      .neq('status', 'cancelled')
       .order('booking_date', { ascending: false })
       .order('start_time', { ascending: false });
 
@@ -274,10 +276,7 @@ export function MeetingRoomBookings() {
 
     const statusText = newStatus === 'confirmed' ? 'bevestigd' : newStatus === 'cancelled' ? 'geannuleerd' : 'voltooid';
     showNotification(`Boeking is ${statusText}.`, 'success');
-
-    setBookings(bookings.map(b =>
-      b.id === bookingId ? { ...b, status: newStatus } : b
-    ));
+    await loadData();
   };
 
   const confirmDelete = (bookingId: string) => {
@@ -314,7 +313,7 @@ export function MeetingRoomBookings() {
     }
 
     showNotification('Boeking succesvol verwijderd.', 'success');
-    setBookings(bookings.filter(b => b.id !== bookingId));
+    await loadData();
   };
 
   const removeBookingFromInvoice = async (booking: Booking) => {
@@ -499,16 +498,8 @@ export function MeetingRoomBookings() {
 
     showNotification('Factuur succesvol aangemaakt!', 'success');
 
-    // Reload only the bookings data without refreshing the entire component
-    const { data: bookingsData } = await supabase
-      .from('meeting_room_bookings')
-      .select('*, tenants(name, company_name), office_spaces(space_number)')
-      .order('booking_date', { ascending: true });
-
-    if (bookingsData) {
-      setAllBookings(bookingsData as Booking[]);
-      applyFilter(bookingsData as Booking[], selectedFilter);
-    }
+    // Reload data
+    await loadData();
   };
 
   const handleSpaceChange = (spaceId: string) => {
@@ -814,7 +805,7 @@ export function MeetingRoomBookings() {
       )}
 
       {selectedView === 'calendar' ? (
-        <BookingCalendar />
+        <BookingCalendar key={refreshKey} onBookingChange={loadData} />
       ) : selectedView === 'rates' ? (
         <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
           <div className="flex items-center gap-2 mb-6">
