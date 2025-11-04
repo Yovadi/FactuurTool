@@ -13,6 +13,10 @@ type AnalyticsStats = {
   overdueAmount: number;
   forecastNextMonth: number;
   averageInvoiceAmount: number;
+  leaseRevenue: number;
+  meetingRoomRevenue: number;
+  leaseInvoices: number;
+  meetingRoomInvoices: number;
 };
 
 export function Analytics() {
@@ -26,7 +30,11 @@ export function Analytics() {
     overdueInvoices: 0,
     overdueAmount: 0,
     forecastNextMonth: 0,
-    averageInvoiceAmount: 0
+    averageInvoiceAmount: 0,
+    leaseRevenue: 0,
+    meetingRoomRevenue: 0,
+    leaseInvoices: 0,
+    meetingRoomInvoices: 0
   });
   const [loading, setLoading] = useState(true);
 
@@ -39,7 +47,7 @@ export function Analytics() {
 
     const { data: invoices } = await supabase
       .from('invoices')
-      .select('amount, status, due_date');
+      .select('amount, status, due_date, lease_id, tenant_id');
 
     const { data: leaseSpaces } = await supabase
       .from('lease_spaces')
@@ -79,6 +87,13 @@ export function Analytics() {
       ? totalRevenue / invoices.length
       : 0;
 
+    // Split between lease invoices and meeting room invoices
+    const leaseInvoices = invoices?.filter(inv => inv.lease_id !== null) || [];
+    const meetingRoomInvoices = invoices?.filter(inv => inv.lease_id === null) || [];
+
+    const leaseRevenue = leaseInvoices.reduce((sum, inv) => sum + Number(inv.amount), 0);
+    const meetingRoomRevenue = meetingRoomInvoices.reduce((sum, inv) => sum + Number(inv.amount), 0);
+
     setStats({
       totalRevenue,
       paidRevenue,
@@ -89,7 +104,11 @@ export function Analytics() {
       overdueInvoices,
       overdueAmount,
       forecastNextMonth,
-      averageInvoiceAmount
+      averageInvoiceAmount,
+      leaseRevenue,
+      meetingRoomRevenue,
+      leaseInvoices: leaseInvoices.length,
+      meetingRoomInvoices: meetingRoomInvoices.length
     });
 
     setLoading(false);
@@ -258,6 +277,133 @@ export function Analytics() {
               <div className="p-3 bg-red-900/30 border border-red-800 rounded-lg">
                 <p className="text-xs text-red-400 mb-1">Achterstallig</p>
                 <p className="text-xl font-bold text-red-400">{stats.overdueInvoices}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-dark-700 rounded-lg">
+              <FileText className="text-purple-400" size={20} />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-100">Omzet per Type</h3>
+          </div>
+          <div className="space-y-4">
+            <div className="p-4 bg-dark-800 rounded-lg border-l-4 border-blue-500">
+              <div className="flex justify-between items-center mb-2">
+                <p className="text-sm text-gray-300 font-medium">Huurcontracten</p>
+                <span className="text-xs bg-blue-900/50 text-blue-300 px-2 py-1 rounded-full">
+                  {stats.leaseInvoices} facturen
+                </span>
+              </div>
+              <p className="text-2xl font-bold text-gray-100">
+                €{stats.leaseRevenue.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+              <div className="mt-3">
+                <div className="w-full bg-dark-700 rounded-full h-2">
+                  <div
+                    className="bg-blue-500 h-2 rounded-full transition-all duration-500"
+                    style={{ width: `${stats.totalRevenue > 0 ? (stats.leaseRevenue / stats.totalRevenue * 100) : 0}%` }}
+                  />
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  {stats.totalRevenue > 0 ? ((stats.leaseRevenue / stats.totalRevenue * 100).toFixed(1)) : 0}% van totale omzet
+                </p>
+              </div>
+            </div>
+
+            <div className="p-4 bg-dark-800 rounded-lg border-l-4 border-emerald-500">
+              <div className="flex justify-between items-center mb-2">
+                <p className="text-sm text-gray-300 font-medium">Vergaderruimtes</p>
+                <span className="text-xs bg-emerald-900/50 text-emerald-300 px-2 py-1 rounded-full">
+                  {stats.meetingRoomInvoices} facturen
+                </span>
+              </div>
+              <p className="text-2xl font-bold text-gray-100">
+                €{stats.meetingRoomRevenue.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+              <div className="mt-3">
+                <div className="w-full bg-dark-700 rounded-full h-2">
+                  <div
+                    className="bg-emerald-500 h-2 rounded-full transition-all duration-500"
+                    style={{ width: `${stats.totalRevenue > 0 ? (stats.meetingRoomRevenue / stats.totalRevenue * 100) : 0}%` }}
+                  />
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  {stats.totalRevenue > 0 ? ((stats.meetingRoomRevenue / stats.totalRevenue * 100).toFixed(1)) : 0}% van totale omzet
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-dark-700 rounded-lg">
+              <TrendingUp className="text-gold-500" size={20} />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-100">Omzetverdeling</h3>
+          </div>
+          <div className="space-y-6">
+            <div className="relative pt-1">
+              <div className="flex mb-2 items-center justify-between">
+                <div>
+                  <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full bg-blue-900/50 text-blue-300">
+                    Huur
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs font-semibold inline-block text-blue-400">
+                    {stats.totalRevenue > 0 ? ((stats.leaseRevenue / stats.totalRevenue * 100).toFixed(1)) : 0}%
+                  </span>
+                </div>
+              </div>
+              <div className="overflow-hidden h-3 text-xs flex rounded-full bg-dark-800">
+                <div
+                  style={{ width: `${stats.totalRevenue > 0 ? (stats.leaseRevenue / stats.totalRevenue * 100) : 0}%` }}
+                  className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500 transition-all duration-500"
+                ></div>
+              </div>
+            </div>
+
+            <div className="relative pt-1">
+              <div className="flex mb-2 items-center justify-between">
+                <div>
+                  <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full bg-emerald-900/50 text-emerald-300">
+                    Vergader
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs font-semibold inline-block text-emerald-400">
+                    {stats.totalRevenue > 0 ? ((stats.meetingRoomRevenue / stats.totalRevenue * 100).toFixed(1)) : 0}%
+                  </span>
+                </div>
+              </div>
+              <div className="overflow-hidden h-3 text-xs flex rounded-full bg-dark-800">
+                <div
+                  style={{ width: `${stats.totalRevenue > 0 ? (stats.meetingRoomRevenue / stats.totalRevenue * 100) : 0}%` }}
+                  className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-emerald-500 transition-all duration-500"
+                ></div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-dark-700">
+              <div className="text-center">
+                <p className="text-xs text-gray-400 mb-1">Gemiddeld/Factuur</p>
+                <p className="text-sm font-semibold text-gray-100">
+                  €{stats.leaseInvoices > 0 ? (stats.leaseRevenue / stats.leaseInvoices).toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
+                </p>
+                <p className="text-xs text-blue-400">Huur</p>
+              </div>
+              <div className="text-center">
+                <p className="text-xs text-gray-400 mb-1">Gemiddeld/Factuur</p>
+                <p className="text-sm font-semibold text-gray-100">
+                  €{stats.meetingRoomInvoices > 0 ? (stats.meetingRoomRevenue / stats.meetingRoomInvoices).toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
+                </p>
+                <p className="text-xs text-emerald-400">Vergader</p>
               </div>
             </div>
           </div>
