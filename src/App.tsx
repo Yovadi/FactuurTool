@@ -101,7 +101,7 @@ function App() {
 
   // Show login if not logged in
   if (!loggedInUser) {
-    return <Login onLogin={handleLogin} />;
+    return <Login onLogin={handleLogin} showAdminOption={isElectron} />;
   }
 
   // If running on production web (Netlify) and logged in as tenant, show only booking calendar
@@ -111,10 +111,12 @@ function App() {
         <div className="max-w-[1920px] mx-auto">
           <div className="flex justify-between items-center mb-6 bg-dark-900 rounded-lg p-4 border border-dark-700">
             <div className="flex items-center gap-3">
-              <UserCircle className="text-gold-500" size={32} />
+              <div className="p-2 bg-gold-500/10 rounded-lg">
+                <CalendarClock className="text-gold-500" size={32} />
+              </div>
               <div>
-                <p className="text-sm text-gray-400">Ingelogd als</p>
-                <p className="text-lg font-semibold text-gray-100">{loggedInUser.company_name}</p>
+                <p className="text-lg font-semibold text-gray-100">HAL5 Vergaderruimte Reserveringen</p>
+                <p className="text-sm text-gray-400">Ingelogd als {loggedInUser.company_name}</p>
               </div>
             </div>
             <button
