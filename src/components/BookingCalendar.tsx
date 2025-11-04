@@ -73,9 +73,10 @@ const getTenantColor = (tenantId: string | undefined) => {
 
 type BookingCalendarProps = {
   onBookingChange?: (action: 'created' | 'cancelled' | 'updated', bookingId: string) => void;
+  loggedInTenantId?: string | null;
 };
 
-export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) {
+export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: BookingCalendarProps = {}) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [baseMonth, setBaseMonth] = useState(new Date());
   const [weekDays, setWeekDays] = useState<WeekDay[]>([]);

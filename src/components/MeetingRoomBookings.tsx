@@ -41,7 +41,11 @@ type Booking = {
   office_spaces?: { space_number: string };
 };
 
-export function MeetingRoomBookings() {
+type MeetingRoomBookingsProps = {
+  loggedInTenantId?: string | null;
+};
+
+export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBookingsProps = {}) {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -90,7 +94,7 @@ export function MeetingRoomBookings() {
       .eq('space_type', 'Meeting Room')
       .order('space_number');
 
-    const { data: bookingsData } = await supabase
+    let bookingsQuery = supabase
       .from('meeting_room_bookings')
       .select(`
         *,
@@ -100,6 +104,12 @@ export function MeetingRoomBookings() {
       .neq('status', 'cancelled')
       .order('booking_date', { ascending: false })
       .order('start_time', { ascending: false });
+
+    if (loggedInTenantId) {
+      bookingsQuery = bookingsQuery.eq('tenant_id', loggedInTenantId);
+    }
+
+    const { data: bookingsData } = await bookingsQuery;
 
     const sortedBookings = (bookingsData || []).sort((a, b) => {
       const companyA = a.tenants?.company_name || a.tenants?.name || '';
@@ -166,7 +176,9 @@ export function MeetingRoomBookings() {
       return;
     }
 
-    if (!formData.tenant_id) {
+    const tenantId = loggedInTenantId || formData.tenant_id;
+
+    if (!tenantId) {
       showNotification('Selecteer een huurder.', 'error');
       return;
     }
@@ -206,7 +218,7 @@ export function MeetingRoomBookings() {
       .from('meeting_room_bookings')
       .insert({
         space_id: formData.space_id,
-        tenant_id: formData.tenant_id,
+        tenant_id: tenantId,
         booking_date: formData.booking_date,
         start_time: formData.start_time,
         end_time: formData.end_time,
@@ -685,24 +697,26 @@ export function MeetingRoomBookings() {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-200 mb-2">
-                  Huurder
-                </label>
-                <select
-                  value={formData.tenant_id}
-                  onChange={(e) => setFormData({ ...formData, tenant_id: e.target.value })}
-                  className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                  required
-                >
-                  <option value="">Selecteer een huurder</option>
-                  {tenants.map((tenant) => (
-                    <option key={tenant.id} value={tenant.id}>
-                      {tenant.name} {tenant.company_name && `(${tenant.company_name})`}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {!loggedInTenantId && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-200 mb-2">
+                    Huurder
+                  </label>
+                  <select
+                    value={formData.tenant_id}
+                    onChange={(e) => setFormData({ ...formData, tenant_id: e.target.value })}
+                    className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                    required
+                  >
+                    <option value="">Selecteer een huurder</option>
+                    {tenants.map((tenant) => (
+                      <option key={tenant.id} value={tenant.id}>
+                        {tenant.name} {tenant.company_name && `(${tenant.company_name})`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className="flex gap-4">
                 <div>
@@ -827,7 +841,7 @@ export function MeetingRoomBookings() {
       )}
 
       {selectedView === 'calendar' ? (
-        <BookingCalendar onBookingChange={async (action, bookingId) => {
+        <BookingCalendar loggedInTenantId={loggedInTenantId} onBookingChange={async (action, bookingId) => {
           if (action === 'cancelled') {
             // Remove cancelled booking from lists
             setBookings(prev => prev.filter(b => b.id !== bookingId));
@@ -1045,7 +1059,7 @@ export function MeetingRoomBookings() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-2">
-                        {!booking.invoice_id && booking.status === 'completed' && (
+                        {!loggedInTenantId && !booking.invoice_id && booking.status === 'completed' && (
                           <button
                             onClick={() => handleGenerateInvoice(booking)}
                             className="text-gold-400 hover:text-gold-300"
@@ -1059,7 +1073,7 @@ export function MeetingRoomBookings() {
                             <FileText size={18} />
                           </span>
                         )}
-                        {booking.status === 'confirmed' && (
+                        {!loggedInTenantId && booking.status === 'confirmed' && (
                           <button
                             onClick={() => handleStatusChange(booking.id, 'completed')}
                             className="text-green-400 hover:text-green-300"
