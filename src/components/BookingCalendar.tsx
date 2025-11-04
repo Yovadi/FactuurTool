@@ -53,16 +53,16 @@ const timeSlots = Array.from({ length: 48 }, (_, i) => {
 });
 
 const tenantColors = [
-  { bg: 'bg-blue-600', border: 'border-blue-500', text: 'text-white' },
-  { bg: 'bg-green-600', border: 'border-green-500', text: 'text-white' },
-  { bg: 'bg-purple-600', border: 'border-purple-500', text: 'text-white' },
-  { bg: 'bg-red-600', border: 'border-red-500', text: 'text-white' },
+  { bg: 'bg-yellow-600', border: 'border-yellow-500', text: 'text-dark-900' },
+  { bg: 'bg-amber-600', border: 'border-amber-500', text: 'text-dark-900' },
   { bg: 'bg-orange-600', border: 'border-orange-500', text: 'text-white' },
-  { bg: 'bg-pink-600', border: 'border-pink-500', text: 'text-white' },
-  { bg: 'bg-teal-600', border: 'border-teal-500', text: 'text-white' },
-  { bg: 'bg-cyan-600', border: 'border-cyan-500', text: 'text-white' },
-  { bg: 'bg-indigo-600', border: 'border-indigo-500', text: 'text-white' },
-  { bg: 'bg-amber-600', border: 'border-amber-500', text: 'text-white' },
+  { bg: 'bg-yellow-700', border: 'border-yellow-600', text: 'text-white' },
+  { bg: 'bg-amber-700', border: 'border-amber-600', text: 'text-white' },
+  { bg: 'bg-yellow-500', border: 'border-yellow-400', text: 'text-dark-900' },
+  { bg: 'bg-amber-500', border: 'border-amber-400', text: 'text-dark-900' },
+  { bg: 'bg-orange-500', border: 'border-orange-400', text: 'text-dark-900' },
+  { bg: 'bg-yellow-800', border: 'border-yellow-700', text: 'text-white' },
+  { bg: 'bg-amber-800', border: 'border-amber-700', text: 'text-white' },
 ];
 
 const getTenantColor = (tenantId: string | undefined) => {
@@ -842,9 +842,9 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
                       disabled={!dayInfo.date}
                       className={`text-xs py-1 rounded ${
                         isSelected
-                          ? 'bg-blue-600 text-white font-semibold'
+                          ? 'bg-gold-600 text-dark-900 font-semibold'
                           : isTodayDate
-                          ? 'bg-blue-900/50 text-blue-300 font-semibold'
+                          ? 'bg-yellow-900/50 text-yellow-300 font-semibold'
                           : !dayInfo.isCurrentMonth
                           ? 'text-gray-600 hover:bg-gray-700 cursor-pointer'
                           : 'text-gray-300 hover:bg-gray-700 cursor-pointer'
@@ -874,7 +874,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
                 ? 'bg-green-900/90 border-green-700 text-green-100'
                 : notification.type === 'error'
                 ? 'bg-red-900/90 border-red-700 text-red-100'
-                : 'bg-blue-900/90 border-blue-700 text-blue-100'
+                : 'bg-yellow-900/90 border-yellow-700 text-yellow-100'
             }`}
           >
             {notification.type === 'success' && <CheckCircle size={20} className="flex-shrink-0 mt-0.5" />}
@@ -951,14 +951,14 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
                   <div
                     key={day.dateStr}
                     className={`p-2 text-center border-l border-gray-600 ${
-                      isTodayDate ? 'bg-blue-900/30' : ''
+                      isTodayDate ? 'bg-yellow-900/30' : ''
                     }`}
                   >
                     <div className="text-xs text-gray-400 uppercase">
                       {day.date.toLocaleDateString('nl-NL', { weekday: 'short' })}
                     </div>
                     <div className={`text-2xl font-light ${
-                      isTodayDate ? 'text-blue-400' : 'text-gray-200'
+                      isTodayDate ? 'text-yellow-400' : 'text-gray-200'
                     }`}>
                       {day.date.getDate()}
                     </div>
@@ -988,7 +988,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
           {weekDays.map((day) => {
             const isTodayDate = isToday(day.date);
             return (
-              <div key={day.dateStr} className={`relative border-l border-gray-600 ${isTodayDate ? 'bg-blue-900/10' : 'bg-gray-900'}`}>
+              <div key={day.dateStr} className={`relative border-l border-gray-600 ${isTodayDate ? 'bg-yellow-900/10' : 'bg-gray-900'}`}>
                 {timeSlots.map((time) => {
                   const booking = getBookingAtTime(day.dateStr, time);
                   const hasBookingHere = hasBooking(day.dateStr, time);
