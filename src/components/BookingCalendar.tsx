@@ -838,7 +838,7 @@ export function BookingCalendar() {
                       key={time}
                       className={`relative border-b border-gray-700 ${
                         !hasBookingHere && !isPast ? 'cursor-pointer hover:bg-gray-800/50' : ''
-                      } ${isSelected ? 'bg-yellow-200/40 border-2 border-yellow-400' : ''} ${isPast ? 'bg-gray-900/50' : isWorkHours ? 'bg-gray-800/20' : ''} ${isDraggingBooking && !hasBookingHere && !isPast ? 'bg-green-900/20' : ''}`}
+                      } ${isSelected ? 'bg-yellow-200/40 border-2 border-yellow-400' : ''} ${isPast ? 'bg-gray-900/50' : isWorkHours ? 'bg-slate-700/30' : ''} ${isDraggingBooking && !hasBookingHere && !isPast ? 'bg-green-900/20' : ''}`}
                       style={{ height: `${CELL_HEIGHT}px` }}
                       onMouseDown={(e) => {
                         if (!isDraggingBooking) {
