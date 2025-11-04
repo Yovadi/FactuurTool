@@ -117,26 +117,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
     // Eerste load met loading state, daarna zonder voor vloeiendere transitions
     const isInitialLoad = weekDays.length === 0;
     loadData(isInitialLoad);
-  }, [currentDate]);
-
-  useEffect(() => {
-    // Load all bookings for the 3 visible months in mini calendars
-    const loadAllBookings = async () => {
-      const firstDay = new Date(baseMonth.getFullYear(), baseMonth.getMonth(), 1);
-      const lastDay = new Date(baseMonth.getFullYear(), baseMonth.getMonth() + 3, 0);
-
-      const { data } = await supabase
-        .from('meeting_room_bookings')
-        .select('id, booking_date, start_time, end_time, tenant_id, status')
-        .gte('booking_date', formatLocalDate(firstDay))
-        .lte('booking_date', formatLocalDate(lastDay))
-        .neq('status', 'cancelled');
-
-      setAllBookings(data || []);
-    };
-
-    loadAllBookings();
-  }, [baseMonth]);
+  }, [currentDate, baseMonth]);
 
   useEffect(() => {
     // Scroll to 8:00 AM when component mounts or data loads
@@ -202,7 +183,11 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekEnd.getDate() + 6);
 
-    const [bookingsRes, spacesRes, tenantsRes] = await Promise.all([
+    // Also load all bookings for the mini calendars
+    const firstDay = new Date(baseMonth.getFullYear(), baseMonth.getMonth(), 1);
+    const lastDay = new Date(baseMonth.getFullYear(), baseMonth.getMonth() + 3, 0);
+
+    const [bookingsRes, spacesRes, tenantsRes, allBookingsRes] = await Promise.all([
       supabase
         .from('meeting_room_bookings')
         .select(`
@@ -228,8 +213,16 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
       supabase
         .from('tenants')
         .select('id, name, company_name, booking_pin_code')
-        .order('name')
+        .order('name'),
+      supabase
+        .from('meeting_room_bookings')
+        .select('id, booking_date, start_time, end_time, tenant_id, status')
+        .gte('booking_date', formatLocalDate(firstDay))
+        .lte('booking_date', formatLocalDate(lastDay))
+        .neq('status', 'cancelled')
     ]);
+
+    setAllBookings(allBookingsRes.data || []);
 
     const days: WeekDay[] = [];
     for (let i = 0; i < 7; i++) {
