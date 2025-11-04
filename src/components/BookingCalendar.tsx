@@ -846,6 +846,10 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
                       }}
                       disabled={!dayInfo.date}
                       className={`relative text-xs py-1 rounded ${
+                        hasBookings && !isSelected
+                          ? 'ring-2 ring-yellow-400 ring-inset'
+                          : ''
+                      } ${
                         isSelected
                           ? 'bg-gold-600 text-dark-900 font-semibold'
                           : isTodayDate
@@ -856,9 +860,6 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
                       }`}
                     >
                       {dayInfo.day}
-                      {hasBookings && (
-                        <span className="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 bg-yellow-400 rounded-full shadow-lg shadow-yellow-400/50"></span>
-                      )}
                     </button>
                   );
                 })}
