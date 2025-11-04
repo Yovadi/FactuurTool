@@ -709,7 +709,7 @@ export function BookingCalendar() {
   };
 
   return (
-    <div className="flex gap-4 h-[calc(100vh-200px)]">
+    <div className="flex gap-4 h-[calc(100vh-100px)] max-h-[900px] w-full">
       {/* Left Sidebar - Month Calendars */}
       <div className="w-72 bg-gray-800 rounded-lg p-4 flex-shrink-0 overflow-y-auto">
         {/* Current Month */}
@@ -820,7 +820,7 @@ export function BookingCalendar() {
                       key={time}
                       className={`relative border-b border-gray-700 ${
                         !hasBookingHere && !isPast ? 'cursor-pointer hover:bg-gray-800/50' : ''
-                      } ${isSelected ? 'bg-blue-600/30 border-2 border-blue-500' : ''} ${isPast ? 'bg-gray-900/50' : isWorkHours ? 'bg-gray-800/20' : ''} ${isDraggingBooking && !hasBookingHere && !isPast ? 'bg-green-900/20' : ''}`}
+                      } ${isSelected ? 'bg-yellow-200/40 border-2 border-yellow-400' : ''} ${isPast ? 'bg-gray-900/50' : isWorkHours ? 'bg-gray-800/20' : ''} ${isDraggingBooking && !hasBookingHere && !isPast ? 'bg-green-900/20' : ''}`}
                       style={{ height: `${CELL_HEIGHT}px` }}
                       onMouseDown={(e) => {
                         if (!isDraggingBooking) {

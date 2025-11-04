@@ -39,7 +39,7 @@ function App() {
   // In development (Bolt/localhost) or Electron, show full admin interface
   if (!isElectron) {
     return (
-      <div className="min-h-screen bg-dark-950">
+      <div className="min-h-screen bg-dark-950 flex items-center justify-center p-4">
         <BookingCalendar />
       </div>
     );
