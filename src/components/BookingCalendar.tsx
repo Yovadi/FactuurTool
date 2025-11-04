@@ -680,6 +680,49 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
 
   const nextMonthDays = generateNextMonthDays();
 
+  // Generate third month calendar data
+  const generateThirdMonthDays = () => {
+    const thirdMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2);
+    const year = thirdMonth.getFullYear();
+    const month = thirdMonth.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startDay = (firstDay.getDay() + 6) % 7;
+
+    const days = [];
+    for (let i = 0; i < startDay; i++) {
+      days.push({ day: '', date: null, isToday: false, isSelected: false });
+    }
+
+    for (let i = 1; i <= daysInMonth; i++) {
+      const date = new Date(year, month, i);
+      const dateStr = formatLocalDate(date);
+      const today = new Date();
+      const isToday =
+        date.getDate() === today.getDate() &&
+        date.getMonth() === today.getMonth() &&
+        date.getFullYear() === today.getFullYear();
+
+      const weekStart = getWeekStart(currentDate);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+
+      const isSelected = date >= weekStart && date <= weekEnd;
+
+      days.push({
+        day: i.toString(),
+        date: dateStr,
+        isToday,
+        isSelected
+      });
+    }
+
+    return days;
+  };
+
+  const thirdMonthDays = generateThirdMonthDays();
+
   const renderMonthCalendar = (days: typeof monthDays, monthDate: Date, isCurrentMonth: boolean, monthOffset: number) => {
     return (
       <>
@@ -805,8 +848,13 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
         </div>
 
         {/* Next Month */}
-        <div className="mb-4">
+        <div className="mb-6">
           {renderMonthCalendar(nextMonthDays, new Date(currentDate.getFullYear(), currentDate.getMonth() + 1), false, 1)}
+        </div>
+
+        {/* Third Month */}
+        <div className="mb-4">
+          {renderMonthCalendar(thirdMonthDays, new Date(currentDate.getFullYear(), currentDate.getMonth() + 2), false, 2)}
         </div>
 
         <button
