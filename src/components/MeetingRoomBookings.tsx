@@ -553,7 +553,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
   const isProduction = !import.meta.env.DEV && typeof window !== 'undefined' && !(window as any).electron;
 
   return (
-    <div className={isProduction ? 'min-h-screen bg-dark-950' : ''}>
+    <div className={isProduction ? 'min-h-screen bg-dark-950 flex items-center justify-center p-4' : ''}>
       <div className="fixed top-4 right-4 z-50 space-y-2 max-w-md">
         {notifications.map((notification) => (
           <div
@@ -848,7 +848,8 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       )}
 
       {(isProduction || selectedView === 'calendar') ? (
-        <BookingCalendar loggedInTenantId={loggedInTenantId} onBookingChange={async (action, bookingId) => {
+        <div className={isProduction ? 'w-full max-w-7xl' : ''}>
+          <BookingCalendar loggedInTenantId={loggedInTenantId} onBookingChange={async (action, bookingId) => {
           if (action === 'cancelled') {
             // Remove cancelled booking from lists
             setBookings(prev => prev.filter(b => b.id !== bookingId));
@@ -898,6 +899,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
             }
           }
         }} />
+        </div>
       ) : selectedView === 'rates' ? (
         <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
           <div className="flex items-center gap-2 mb-6">
