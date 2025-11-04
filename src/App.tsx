@@ -6,14 +6,17 @@ import { LeaseManagement } from './components/LeaseManagement';
 import { InvoiceManagement } from './components/InvoiceManagement';
 import { CompanySettings } from './components/CompanySettings';
 import { MeetingRoomBookings } from './components/MeetingRoomBookings';
+import { PinLogin } from './components/PinLogin';
 import { Analytics } from './components/Analytics';
-import { LayoutDashboard, Users, Building, FileText, ScrollText, Settings, CalendarClock, TrendingUp } from 'lucide-react';
+import { LayoutDashboard, Users, Building, FileText, ScrollText, Settings, CalendarClock, TrendingUp, LogOut } from 'lucide-react';
 
 type Tab = 'dashboard' | 'tenants' | 'spaces' | 'leases' | 'invoices' | 'bookings' | 'analytics' | 'settings';
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('bookings');
   const [isElectron, setIsElectron] = useState(false);
+  const [loggedInTenantId, setLoggedInTenantId] = useState<string | null>(null);
+  const [loggedInTenantName, setLoggedInTenantName] = useState<string>('');
 
   useEffect(() => {
     // Detect if running in Electron or development mode
@@ -34,9 +37,46 @@ function App() {
     { id: 'settings' as Tab, label: 'Verhuurder', icon: Settings },
   ];
 
-  // On production (Netlify), show only the booking calendar (with PIN inside)
+  const handleAuthenticated = (tenantId: string, tenantName: string) => {
+    setLoggedInTenantId(tenantId);
+    setLoggedInTenantName(tenantName);
+  };
+
+  const handleLogout = () => {
+    setLoggedInTenantId(null);
+    setLoggedInTenantName('');
+  };
+
+  // On production (Netlify), show PIN login then booking calendar
   if (!isElectron) {
-    return <MeetingRoomBookings />;
+    if (!loggedInTenantId) {
+      return <PinLogin onAuthenticated={handleAuthenticated} />;
+    }
+
+    return (
+      <div className="min-h-screen bg-dark-950">
+        <div className="bg-dark-900 border-b border-dark-700 px-4 py-3 flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-gold-500">HAL5 Overloon</h1>
+            <p className="text-sm text-gray-400">Vergaderruimte Boekingen</p>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <p className="text-sm text-gray-400">Ingelogd als</p>
+              <p className="text-base font-semibold text-gray-100">{loggedInTenantName}</p>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 px-4 py-2 bg-dark-800 hover:bg-dark-700 text-gray-300 rounded-lg transition-colors border border-dark-600"
+            >
+              <LogOut size={18} />
+              Uitloggen
+            </button>
+          </div>
+        </div>
+        <MeetingRoomBookings loggedInTenantId={loggedInTenantId} />
+      </div>
+    );
   }
 
   // On Electron/Development, show full admin interface
