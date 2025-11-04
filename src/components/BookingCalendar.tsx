@@ -97,11 +97,6 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [draggedBooking, setDraggedBooking] = useState<Booking | null>(null);
   const [isDraggingBooking, setIsDraggingBooking] = useState(false);
-  const [showPinModal, setShowPinModal] = useState(false);
-  const [pinInput, setPinInput] = useState('');
-  const [isPinVerified, setIsPinVerified] = useState(false);
-  const [isProduction, setIsProduction] = useState(false);
-  const [verifiedTenantId, setVerifiedTenantId] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationId, setNotificationId] = useState(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -116,18 +111,6 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
     }, 5000);
   };
 
-  useEffect(() => {
-    // Detect if running in production (not dev, not Electron)
-    const isDev = import.meta.env.DEV;
-    const electron = typeof window !== 'undefined' && (window as any).electron;
-    const isProd = !isDev && !electron;
-    setIsProduction(isProd);
-
-    // Show PIN modal on production if not verified
-    if (isProd && !isPinVerified) {
-      setShowPinModal(true);
-    }
-  }, [isPinVerified]);
 
   useEffect(() => {
     // Eerste load met loading state, daarna zonder voor vloeiendere transitions
@@ -436,19 +419,6 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
     setBaseMonth(today);
   };
 
-  const handlePinVerification = () => {
-    // Check if any tenant has this PIN code
-    const validTenant = tenants.find(t => t.booking_pin_code === pinInput);
-    if (validTenant) {
-      setIsPinVerified(true);
-      setVerifiedTenantId(validTenant.id);
-      setShowPinModal(false);
-      setPinInput('');
-    } else {
-      showToast('Onjuiste PIN-code. Neem contact op met de beheerder.', 'error');
-      setPinInput('');
-    }
-  };
 
   const handleBookingClick = (booking: Booking) => {
     setSelectedBooking(booking);
@@ -616,54 +586,6 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
 
   if (loading) {
     return <div className="text-center py-8 text-gray-300">Kalender laden...</div>;
-  }
-
-  // On production, show PIN modal first
-  if (isProduction && !isPinVerified) {
-    return (
-      <div className="min-h-screen bg-dark-950 flex items-center justify-center">
-        {showPinModal && (
-          <div className="bg-dark-800 rounded-lg p-8 max-w-md w-full">
-            <div className="text-center mb-6">
-              <h2 className="text-2xl font-bold text-gold-500 mb-2">Welkom bij HAL5 Overloon</h2>
-              <p className="text-gray-300">Voer je PIN-code in om een vergaderruimte te boeken</p>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-200 mb-2">
-                  PIN-code
-                </label>
-                <input
-                  type="password"
-                  value={pinInput}
-                  onChange={(e) => setPinInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handlePinVerification();
-                    }
-                  }}
-                  className="w-full px-4 py-3 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent text-center text-xl tracking-wider"
-                  placeholder="••••"
-                  autoFocus
-                />
-              </div>
-
-              <button
-                onClick={handlePinVerification}
-                className="w-full px-6 py-3 bg-gold-600 text-white rounded-lg hover:bg-gold-700 transition-colors font-semibold"
-              >
-                Verifiëren
-              </button>
-
-              <p className="text-sm text-gray-400 text-center mt-4">
-                Geen PIN-code? Neem contact op met de beheerder.
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
-    );
   }
 
   const CELL_HEIGHT = 50;
