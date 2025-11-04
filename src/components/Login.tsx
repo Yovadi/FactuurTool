@@ -11,10 +11,9 @@ type Tenant = {
 
 type LoginProps = {
   onLogin: (tenantId: string, isAdmin: boolean) => void;
-  showAdminOption?: boolean;
 };
 
-export function Login({ onLogin, showAdminOption = false }: LoginProps) {
+export function Login({ onLogin }: LoginProps) {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [selectedTenant, setSelectedTenant] = useState('');
   const [pin, setPin] = useState('');
@@ -109,43 +108,37 @@ export function Login({ onLogin, showAdminOption = false }: LoginProps) {
     <div className="min-h-screen bg-dark-950 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-100 mb-2">
-            {showAdminOption ? 'HAL5 Facturatie' : 'HAL5 Vergaderruimte Reserveringen'}
-          </h1>
-          <p className="text-gray-400">
-            {showAdminOption ? 'Log in om door te gaan' : 'Log in om een vergaderruimte te reserveren'}
-          </p>
+          <h1 className="text-3xl font-bold text-gray-100 mb-2">HAL5 Facturatie</h1>
+          <p className="text-gray-400">Log in om door te gaan</p>
         </div>
 
         <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-8">
-          {showAdminOption && (
-            <div className="flex gap-2 mb-6">
-              <button
-                onClick={() => setIsAdminLogin(false)}
-                className={`flex-1 py-2 px-4 rounded-lg transition-colors ${
-                  !isAdminLogin
-                    ? 'bg-gold-600 text-white'
-                    : 'bg-dark-800 text-gray-400 hover:bg-dark-700'
-                }`}
-              >
-                <Building2 className="inline mr-2" size={18} />
-                Huurder
-              </button>
-              <button
-                onClick={() => setIsAdminLogin(true)}
-                className={`flex-1 py-2 px-4 rounded-lg transition-colors ${
-                  isAdminLogin
-                    ? 'bg-gold-600 text-white'
-                    : 'bg-dark-800 text-gray-400 hover:bg-dark-700'
-                }`}
-              >
-                <Lock className="inline mr-2" size={18} />
-                Beheerder
-              </button>
-            </div>
-          )}
+          <div className="flex gap-2 mb-6">
+            <button
+              onClick={() => setIsAdminLogin(false)}
+              className={`flex-1 py-2 px-4 rounded-lg transition-colors ${
+                !isAdminLogin
+                  ? 'bg-gold-600 text-white'
+                  : 'bg-dark-800 text-gray-400 hover:bg-dark-700'
+              }`}
+            >
+              <Building2 className="inline mr-2" size={18} />
+              Huurder
+            </button>
+            <button
+              onClick={() => setIsAdminLogin(true)}
+              className={`flex-1 py-2 px-4 rounded-lg transition-colors ${
+                isAdminLogin
+                  ? 'bg-gold-600 text-white'
+                  : 'bg-dark-800 text-gray-400 hover:bg-dark-700'
+              }`}
+            >
+              <Lock className="inline mr-2" size={18} />
+              Beheerder
+            </button>
+          </div>
 
-          {(!showAdminOption || !isAdminLogin) ? (
+          {!isAdminLogin ? (
             <form onSubmit={handleTenantLogin} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
