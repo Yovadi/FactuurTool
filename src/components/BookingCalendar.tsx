@@ -555,9 +555,9 @@ export function BookingCalendar() {
       </div>
 
       <div className="overflow-x-auto max-h-[calc(100vh-350px)] overflow-y-auto">
-        <div className="min-w-[700px]">
-          <div className="grid grid-cols-8 sticky top-0 z-20">
-            <div className="bg-dark-900 p-1.5 text-xs font-semibold text-gray-400">
+        <div className="min-w-[700px]" style={{ display: 'grid', gridTemplateColumns: '50px repeat(7, 1fr)' }}>
+          <div className="sticky top-0 z-20" style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '50px repeat(7, 1fr)' }}>
+            <div className="bg-dark-900 p-1 text-[10px] font-semibold text-gray-400 text-center">
               Tijd
             </div>
             {weekDays.map((day) => (
@@ -579,21 +579,20 @@ export function BookingCalendar() {
             ))}
           </div>
 
-          <div className="grid grid-cols-8">
-            <div className="bg-dark-900">
-              {timeSlots.map((time) => (
-                <div
-                  key={time}
-                  className="text-xs text-gray-500 bg-dark-900 px-1 border-r border-b border-dark-700"
-                  style={{ height: `${CELL_HEIGHT}px`, lineHeight: `${CELL_HEIGHT}px` }}
-                >
-                  {time}
-                </div>
-              ))}
-            </div>
+          <div className="bg-dark-900">
+            {timeSlots.map((time) => (
+              <div
+                key={time}
+                className="text-[10px] text-gray-500 bg-dark-900 px-0.5 border-r border-b border-dark-700 text-center"
+                style={{ height: `${CELL_HEIGHT}px`, lineHeight: `${CELL_HEIGHT}px` }}
+              >
+                {time}
+              </div>
+            ))}
+          </div>
 
-            {weekDays.map((day) => (
-              <div key={day.dateStr} className="bg-dark-800 relative">
+          {weekDays.map((day) => (
+            <div key={day.dateStr} className="bg-dark-800 relative">
                 {timeSlots.map((time) => {
                   const booking = getBookingAtTime(day.dateStr, time);
                   const hasBookingHere = hasBooking(day.dateStr, time);
@@ -662,9 +661,8 @@ export function BookingCalendar() {
                     </div>
                   );
                 })}
-              </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -718,7 +716,7 @@ export function BookingCalendar() {
                     <p className="text-gray-300">
                       <strong>Duur:</strong> {totalHours.toFixed(1)} uur
                     </p>
-                    {formData.room_id && (
+                    {!isProduction && formData.room_id && (
                       <p className="text-gray-300">
                         <strong>Kosten:</strong> €{totalAmount.toFixed(2)} (€{hourlyRate}/uur)
                       </p>
@@ -740,7 +738,7 @@ export function BookingCalendar() {
                   <option value="">Selecteer een vergaderruimte</option>
                   {meetingRooms.map((room) => (
                     <option key={room.id} value={room.id}>
-                      {room.space_number} {room.hourly_rate && `(€${room.hourly_rate}/u)`}
+                      {room.space_number} {!isProduction && room.hourly_rate && `(€${room.hourly_rate}/u)`}
                     </option>
                   ))}
                 </select>
