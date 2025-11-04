@@ -170,9 +170,11 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
 
   const getWeekStart = (date: Date) => {
     const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
     const day = d.getDay();
     const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-    return new Date(d.setDate(diff));
+    d.setDate(diff);
+    return d;
   };
 
   const formatLocalDate = (date: Date) => {
@@ -608,15 +610,18 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
     const weekStart = getWeekStart(currentDate);
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekEnd.getDate() + 6);
+    weekEnd.setHours(23, 59, 59, 999);
 
     // Previous month days
     const prevMonthDays = new Date(currentDate.getFullYear(), currentDate.getMonth(), 0).getDate();
     for (let i = startDay - 1; i >= 0; i--) {
       const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, prevMonthDays - i);
+      const dateStr = formatLocalDate(date);
+      date.setHours(12, 0, 0, 0);
       days.push({
         day: prevMonthDays - i,
         isCurrentMonth: false,
-        date: formatLocalDate(date),
+        date: dateStr,
         isSelected: date >= weekStart && date <= weekEnd
       });
     }
@@ -624,10 +629,12 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
     // Current month days
     for (let i = 1; i <= lastDay.getDate(); i++) {
       const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), i);
+      const dateStr = formatLocalDate(date);
+      date.setHours(12, 0, 0, 0);
       days.push({
         day: i,
         isCurrentMonth: true,
-        date: formatLocalDate(date),
+        date: dateStr,
         isSelected: date >= weekStart && date <= weekEnd
       });
     }
@@ -636,10 +643,12 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
     const remainingDays = 42 - days.length;
     for (let i = 1; i <= remainingDays; i++) {
       const date = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, i);
+      const dateStr = formatLocalDate(date);
+      date.setHours(12, 0, 0, 0);
       days.push({
         day: i,
         isCurrentMonth: false,
-        date: formatLocalDate(date),
+        date: dateStr,
         isSelected: date >= weekStart && date <= weekEnd
       });
     }
@@ -659,15 +668,18 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
     const weekStart = getWeekStart(currentDate);
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekEnd.getDate() + 6);
+    weekEnd.setHours(23, 59, 59, 999);
 
     // Previous month days
     const prevMonthDays = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
     for (let i = startDay - 1; i >= 0; i--) {
       const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), prevMonthDays - i);
+      const dateStr = formatLocalDate(date);
+      date.setHours(12, 0, 0, 0);
       days.push({
         day: prevMonthDays - i,
         isCurrentMonth: false,
-        date: formatLocalDate(date),
+        date: dateStr,
         isSelected: date >= weekStart && date <= weekEnd
       });
     }
@@ -675,10 +687,12 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
     // Current month days
     for (let i = 1; i <= lastDay.getDate(); i++) {
       const date = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, i);
+      const dateStr = formatLocalDate(date);
+      date.setHours(12, 0, 0, 0);
       days.push({
         day: i,
         isCurrentMonth: true,
-        date: formatLocalDate(date),
+        date: dateStr,
         isSelected: date >= weekStart && date <= weekEnd
       });
     }
@@ -687,10 +701,12 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
     const remainingDays = 42 - days.length;
     for (let i = 1; i <= remainingDays; i++) {
       const date = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, i);
+      const dateStr = formatLocalDate(date);
+      date.setHours(12, 0, 0, 0);
       days.push({
         day: i,
         isCurrentMonth: false,
-        date: formatLocalDate(date),
+        date: dateStr,
         isSelected: date >= weekStart && date <= weekEnd
       });
     }
@@ -727,7 +743,9 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
       const weekStart = getWeekStart(currentDate);
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekEnd.getDate() + 6);
+      weekEnd.setHours(23, 59, 59, 999);
 
+      date.setHours(12, 0, 0, 0);
       const isSelected = date >= weekStart && date <= weekEnd;
 
       days.push({
@@ -810,12 +828,12 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
                       }}
                       disabled={!dayInfo.date}
                       className={`text-xs py-1 rounded ${
-                        !dayInfo.isCurrentMonth
-                          ? 'text-gray-600'
-                          : isSelected
+                        isSelected
                           ? 'bg-blue-600 text-white font-semibold'
                           : isTodayDate
                           ? 'bg-blue-900/50 text-blue-300 font-semibold'
+                          : !dayInfo.isCurrentMonth
+                          ? 'text-gray-600'
                           : 'text-gray-300 hover:bg-gray-700'
                       }`}
                     >
