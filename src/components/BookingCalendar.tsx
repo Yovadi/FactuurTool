@@ -378,11 +378,42 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
       return;
     }
 
+    // Fetch the newly created booking with its relations
+    const { data: newBooking } = await supabase
+      .from('meeting_room_bookings')
+      .select(`
+        id,
+        booking_date,
+        start_time,
+        end_time,
+        tenant_id,
+        status,
+        invoice_id,
+        tenants(name, company_name),
+        office_spaces(space_number)
+      `)
+      .eq('id', bookingData.id)
+      .single();
+
+    if (newBooking) {
+      // Update state with the new booking
+      setWeekDays(prev => prev.map(day => {
+        if (day.dateStr === newBooking.booking_date) {
+          return {
+            ...day,
+            bookings: [...day.bookings, newBooking].sort((a, b) =>
+              a.start_time.localeCompare(b.start_time)
+            )
+          };
+        }
+        return day;
+      }));
+    }
+
     showToast('Boeking succesvol aangemaakt', 'success');
     setShowForm(false);
     setSelectedCells([]);
     setFormData({ tenant_id: '', room_id: '' });
-    await loadData();
     if (onBookingChange) {
       onBookingChange();
     }
@@ -442,10 +473,15 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
       return;
     }
 
+    // Remove the cancelled booking from state
+    setWeekDays(prev => prev.map(day => ({
+      ...day,
+      bookings: day.bookings.filter(b => b.id !== selectedBooking.id)
+    })));
+
     showToast('Boeking succesvol geannuleerd', 'success');
     setShowDeleteConfirm(false);
     setSelectedBooking(null);
-    await loadData();
     if (onBookingChange) {
       onBookingChange();
     }
@@ -510,11 +546,41 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
     if (error) {
       console.error('Error moving booking:', error);
       showToast('Fout bij het verplaatsen van de boeking', 'error');
+      setDraggedBooking(null);
+      setIsDraggingBooking(false);
+      return;
     }
+
+    // Update booking in state
+    const updatedBooking = {
+      ...draggedBooking,
+      booking_date: dateStr,
+      start_time: newStartTime,
+      end_time: newEndTime
+    };
+
+    setWeekDays(prev => prev.map(day => {
+      // Remove from old date
+      const bookingsWithoutOld = day.bookings.filter(b => b.id !== draggedBooking.id);
+
+      // Add to new date if it matches
+      if (day.dateStr === dateStr) {
+        return {
+          ...day,
+          bookings: [...bookingsWithoutOld, updatedBooking].sort((a, b) =>
+            a.start_time.localeCompare(b.start_time)
+          )
+        };
+      }
+
+      return {
+        ...day,
+        bookings: bookingsWithoutOld
+      };
+    }));
 
     setDraggedBooking(null);
     setIsDraggingBooking(false);
-    await loadData();
   };
 
   const isToday = (date: Date) => {
