@@ -1,6 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, CheckCircle, XCircle, Info } from 'lucide-react';
+
+type NotificationType = 'success' | 'error' | 'info';
+
+type Notification = {
+  id: number;
+  message: string;
+  type: NotificationType;
+};
 
 type Booking = {
   id: string;
@@ -92,7 +100,19 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
   const [isPinVerified, setIsPinVerified] = useState(false);
   const [isProduction, setIsProduction] = useState(false);
   const [verifiedTenantId, setVerifiedTenantId] = useState<string | null>(null);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notificationId, setNotificationId] = useState(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const showToast = (message: string, type: NotificationType = 'info') => {
+    const id = notificationId;
+    setNotificationId(id + 1);
+    setNotifications(prev => [...prev, { id, message, type }]);
+
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    }, 5000);
+  };
 
   useEffect(() => {
     // Detect if running in production (not dev, not Electron)
@@ -747,8 +767,36 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
   };
 
   return (
-    <div className="flex gap-4 h-[calc(100vh-100px)] max-h-[900px] w-full">
-      {/* Left Sidebar - Month Calendars */}
+    <div className="relative">
+      {/* Notifications */}
+      <div className="fixed top-4 right-4 z-50 space-y-2 max-w-md">
+        {notifications.map((notification) => (
+          <div
+            key={notification.id}
+            className={`flex items-start gap-3 p-4 rounded-lg shadow-lg border backdrop-blur-sm animate-slide-in ${
+              notification.type === 'success'
+                ? 'bg-green-900/90 border-green-700 text-green-100'
+                : notification.type === 'error'
+                ? 'bg-red-900/90 border-red-700 text-red-100'
+                : 'bg-blue-900/90 border-blue-700 text-blue-100'
+            }`}
+          >
+            {notification.type === 'success' && <CheckCircle size={20} className="flex-shrink-0 mt-0.5" />}
+            {notification.type === 'error' && <XCircle size={20} className="flex-shrink-0 mt-0.5" />}
+            {notification.type === 'info' && <Info size={20} className="flex-shrink-0 mt-0.5" />}
+            <p className="text-sm font-medium flex-1">{notification.message}</p>
+            <button
+              onClick={() => setNotifications(prev => prev.filter(n => n.id !== notification.id))}
+              className="flex-shrink-0 hover:opacity-70 transition-opacity"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex gap-4 h-[calc(100vh-100px)] max-h-[900px] w-full">
+        {/* Left Sidebar - Month Calendars */}
       <div className="w-72 bg-gray-800 rounded-lg p-4 flex-shrink-0 overflow-y-auto">
         {/* Current Month */}
         <div className="mb-6">
@@ -1108,6 +1156,7 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
