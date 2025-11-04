@@ -52,6 +52,7 @@ export function MeetingRoomBookings() {
   const [selectedFilter, setSelectedFilter] = useState<'upcoming' | 'past' | 'all'>('upcoming');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationId, setNotificationId] = useState(0);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const getWeekNumber = (date: Date): number => {
     const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -279,10 +280,14 @@ export function MeetingRoomBookings() {
     ));
   };
 
-  const handleDelete = async (bookingId: string) => {
-    if (!confirm('Weet je zeker dat je deze boeking wilt verwijderen?')) {
-      return;
-    }
+  const confirmDelete = (bookingId: string) => {
+    setDeleteConfirmId(bookingId);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteConfirmId) return;
+    const bookingId = deleteConfirmId;
+    setDeleteConfirmId(null);
 
     // Haal de boeking op voordat we deze verwijderen
     const booking = bookings.find(b => b.id === bookingId);
@@ -1011,7 +1016,7 @@ export function MeetingRoomBookings() {
                           </button>
                         )}
                         <button
-                          onClick={() => handleDelete(booking.id)}
+                          onClick={() => confirmDelete(booking.id)}
                           className="text-gray-400 hover:text-red-400"
                           title="Verwijder boeking"
                         >
@@ -1026,6 +1031,31 @@ export function MeetingRoomBookings() {
           </table>
         </div>
       </div>
+      )}
+
+      {deleteConfirmId && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-dark-800 rounded-lg p-8 max-w-md w-full mx-4 border border-dark-600">
+            <h3 className="text-xl font-semibold text-white mb-4">Boeking verwijderen</h3>
+            <p className="text-gray-300 mb-6">
+              Weet je zeker dat je deze boeking wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.
+            </p>
+            <div className="flex gap-4">
+              <button
+                onClick={handleDelete}
+                className="flex-1 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+              >
+                Verwijderen
+              </button>
+              <button
+                onClick={() => setDeleteConfirmId(null)}
+                className="flex-1 px-6 py-2 border border-dark-600 rounded-lg text-gray-300 hover:bg-dark-700 transition-colors"
+              >
+                Annuleren
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

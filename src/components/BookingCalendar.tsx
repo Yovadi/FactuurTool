@@ -329,11 +329,11 @@ export function BookingCalendar() {
 
     if (error) {
       console.error('Error creating booking:', error);
-      alert('Fout bij het aanmaken van de boeking: ' + error.message);
+      showToast('Fout bij het aanmaken van de boeking: ' + error.message, 'error');
       return;
     }
 
-    alert('Boeking succesvol aangemaakt');
+    showToast('Boeking succesvol aangemaakt', 'success');
     setShowForm(false);
     setSelectedCells([]);
     setFormData({ tenant_id: '', room_id: '' });
@@ -365,7 +365,7 @@ export function BookingCalendar() {
       setShowPinModal(false);
       setPinInput('');
     } else {
-      alert('Onjuiste PIN-code. Neem contact op met de beheerder.');
+      showToast('Onjuiste PIN-code. Neem contact op met de beheerder.', 'error');
       setPinInput('');
     }
   };
@@ -385,7 +385,7 @@ export function BookingCalendar() {
 
     if (error) {
       console.error('Error cancelling booking:', error);
-      alert('Fout bij het annuleren van de boeking');
+      showToast('Fout bij het annuleren van de boeking', 'error');
       return;
     }
 
@@ -404,11 +404,11 @@ export function BookingCalendar() {
 
     if (error) {
       console.error('Error deleting booking:', error);
-      alert('Fout bij het verwijderen van de boeking: ' + error.message);
+      showToast('Fout bij het verwijderen van de boeking: ' + error.message, 'error');
       return;
     }
 
-    alert('Boeking succesvol verwijderd');
+    showToast('Boeking succesvol verwijderd', 'success');
     setShowDeleteConfirm(false);
     setSelectedBooking(null);
     await loadData();
@@ -428,14 +428,14 @@ export function BookingCalendar() {
     today.setHours(0, 0, 0, 0);
 
     if (cellDate < today) {
-      alert('Kan geen boeking verplaatsen naar het verleden');
+      showToast('Kan geen boeking verplaatsen naar het verleden', 'error');
       setDraggedBooking(null);
       setIsDraggingBooking(false);
       return;
     }
 
     if (hasBooking(dateStr, time)) {
-      alert('Er is al een boeking op dit tijdstip');
+      showToast('Er is al een boeking op dit tijdstip', 'error');
       setDraggedBooking(null);
       setIsDraggingBooking(false);
       return;
@@ -452,7 +452,7 @@ export function BookingCalendar() {
     const newEndIndex = newStartIndex + duration;
 
     if (newEndIndex >= timeSlots.length) {
-      alert('Boeking past niet meer in de dag');
+      showToast('Boeking past niet meer in de dag', 'error');
       setDraggedBooking(null);
       setIsDraggingBooking(false);
       return;
@@ -472,7 +472,7 @@ export function BookingCalendar() {
 
     if (error) {
       console.error('Error moving booking:', error);
-      alert('Fout bij het verplaatsen van de boeking');
+      showToast('Fout bij het verplaatsen van de boeking', 'error');
     }
 
     setDraggedBooking(null);
