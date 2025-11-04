@@ -662,7 +662,48 @@ export function BookingCalendar() {
 
   const nextMonthDays = generateNextMonthDays();
 
-  const renderMonthCalendar = (days: typeof monthDays, monthDate: Date, isCurrentMonth: boolean) => {
+  // Generate third month calendar data
+  const generateThirdMonthDays = () => {
+    const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 1);
+    const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 3, 0);
+    const startDay = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
+    const days = [];
+
+    // Previous month days
+    const prevMonthDays = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 0).getDate();
+    for (let i = startDay - 1; i >= 0; i--) {
+      days.push({
+        day: prevMonthDays - i,
+        isCurrentMonth: false,
+        date: new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, prevMonthDays - i)
+      });
+    }
+
+    // Current month days
+    for (let i = 1; i <= lastDay.getDate(); i++) {
+      days.push({
+        day: i,
+        isCurrentMonth: true,
+        date: new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, i)
+      });
+    }
+
+    // Next month days
+    const remainingDays = 42 - days.length;
+    for (let i = 1; i <= remainingDays; i++) {
+      days.push({
+        day: i,
+        isCurrentMonth: false,
+        date: new Date(currentDate.getFullYear(), currentDate.getMonth() + 3, i)
+      });
+    }
+
+    return days;
+  };
+
+  const thirdMonthDays = generateThirdMonthDays();
+
+  const renderMonthCalendar = (days: typeof monthDays, monthDate: Date, isCurrentMonth: boolean, monthOffset: number) => {
     return (
       <>
         <div className="flex items-center justify-between mb-3">
@@ -725,7 +766,13 @@ export function BookingCalendar() {
                       key={`${weekIdx}-${idx}`}
                       onClick={() => {
                         setShouldScrollToTop(false);
-                        setCurrentDate(dayInfo.date);
+                        // Only switch to the month if clicking on third month (monthOffset === 2)
+                        if (monthOffset === 2 && dayInfo.isCurrentMonth) {
+                          // Switch to that month by setting currentDate to first day of clicked month
+                          setCurrentDate(new Date(dayInfo.date.getFullYear(), dayInfo.date.getMonth(), 1));
+                        } else {
+                          setCurrentDate(dayInfo.date);
+                        }
                       }}
                       className={`text-xs py-1 rounded ${
                         !dayInfo.isCurrentMonth
@@ -755,12 +802,17 @@ export function BookingCalendar() {
       <div className="w-72 bg-gray-800 rounded-lg p-4 flex-shrink-0 overflow-y-auto">
         {/* Current Month */}
         <div className="mb-6">
-          {renderMonthCalendar(monthDays, currentDate, true)}
+          {renderMonthCalendar(monthDays, currentDate, true, 0)}
         </div>
 
         {/* Next Month */}
+        <div className="mb-6">
+          {renderMonthCalendar(nextMonthDays, new Date(currentDate.getFullYear(), currentDate.getMonth() + 1), false, 1)}
+        </div>
+
+        {/* Third Month */}
         <div className="mb-4">
-          {renderMonthCalendar(nextMonthDays, new Date(currentDate.getFullYear(), currentDate.getMonth() + 1), false)}
+          {renderMonthCalendar(thirdMonthDays, new Date(currentDate.getFullYear(), currentDate.getMonth() + 2), false, 2)}
         </div>
 
         <button
