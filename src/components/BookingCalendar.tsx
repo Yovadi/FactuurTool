@@ -1222,15 +1222,36 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-200 mb-2">
-                  Bedrijf
-                </label>
-                <div className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-700 text-gray-100">
-                  {tenants.find(t => t.id === loggedInTenantId)?.company_name ||
-                   tenants.find(t => t.id === loggedInTenantId)?.name || 'Onbekend'}
+              {loggedInTenantId ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-200 mb-2">
+                    Bedrijf
+                  </label>
+                  <div className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-700 text-gray-100">
+                    {tenants.find(t => t.id === loggedInTenantId)?.company_name ||
+                     tenants.find(t => t.id === loggedInTenantId)?.name || 'Onbekend'}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-gray-200 mb-2">
+                    Bedrijf *
+                  </label>
+                  <select
+                    value={formData.tenant_id}
+                    onChange={(e) => setFormData({ ...formData, tenant_id: e.target.value })}
+                    className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                    required
+                  >
+                    <option value="">Selecteer een bedrijf</option>
+                    {tenants.map((tenant) => (
+                      <option key={tenant.id} value={tenant.id}>
+                        {tenant.company_name || tenant.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className="flex gap-4 justify-end">
                 <button
@@ -1249,7 +1270,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
                   disabled={
                     selectedCells.length === 0 ||
                     !formData.room_id ||
-                    !loggedInTenantId
+                    (!loggedInTenantId && !formData.tenant_id)
                   }
                   className="px-6 py-2 bg-gold-600 text-white rounded-lg hover:bg-gold-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
