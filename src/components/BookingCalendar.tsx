@@ -296,8 +296,12 @@ export function BookingCalendar() {
 
   const handleSubmitBooking = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Submit booking clicked', { selectedCells, formData, isProduction, verifiedTenantId });
 
-    if (selectedCells.length === 0 || !formData.room_id) return;
+    if (selectedCells.length === 0 || !formData.room_id) {
+      console.log('Missing required fields');
+      return;
+    }
 
     // On production, use verified tenant ID, otherwise use selected tenant from form
     const tenantIdToUse = isProduction && verifiedTenantId ? verifiedTenantId : formData.tenant_id;
@@ -403,26 +407,7 @@ export function BookingCalendar() {
       return;
     }
 
-    setShowDeleteConfirm(false);
-    setSelectedBooking(null);
-    await loadData();
-  };
-
-  const handleDeleteBooking = async () => {
-    if (!selectedBooking) return;
-
-    const { error } = await supabase
-      .from('meeting_room_bookings')
-      .delete()
-      .eq('id', selectedBooking.id);
-
-    if (error) {
-      console.error('Error deleting booking:', error);
-      showToast('Fout bij het verwijderen van de boeking: ' + error.message, 'error');
-      return;
-    }
-
-    showToast('Boeking succesvol verwijderd', 'success');
+    showToast('Boeking succesvol geannuleerd', 'success');
     setShowDeleteConfirm(false);
     setSelectedBooking(null);
     await loadData();
@@ -662,47 +647,6 @@ export function BookingCalendar() {
 
   const nextMonthDays = generateNextMonthDays();
 
-  // Generate third month calendar data
-  const generateThirdMonthDays = () => {
-    const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 1);
-    const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 3, 0);
-    const startDay = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
-    const days = [];
-
-    // Previous month days
-    const prevMonthDays = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 0).getDate();
-    for (let i = startDay - 1; i >= 0; i--) {
-      days.push({
-        day: prevMonthDays - i,
-        isCurrentMonth: false,
-        date: new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, prevMonthDays - i)
-      });
-    }
-
-    // Current month days
-    for (let i = 1; i <= lastDay.getDate(); i++) {
-      days.push({
-        day: i,
-        isCurrentMonth: true,
-        date: new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, i)
-      });
-    }
-
-    // Next month days
-    const remainingDays = 42 - days.length;
-    for (let i = 1; i <= remainingDays; i++) {
-      days.push({
-        day: i,
-        isCurrentMonth: false,
-        date: new Date(currentDate.getFullYear(), currentDate.getMonth() + 3, i)
-      });
-    }
-
-    return days;
-  };
-
-  const thirdMonthDays = generateThirdMonthDays();
-
   const renderMonthCalendar = (days: typeof monthDays, monthDate: Date, isCurrentMonth: boolean, monthOffset: number) => {
     return (
       <>
@@ -766,13 +710,7 @@ export function BookingCalendar() {
                       key={`${weekIdx}-${idx}`}
                       onClick={() => {
                         setShouldScrollToTop(false);
-                        // Only switch to the month if clicking on third month (monthOffset === 2)
-                        if (monthOffset === 2 && dayInfo.isCurrentMonth) {
-                          // Switch to that month by setting currentDate to first day of clicked month
-                          setCurrentDate(new Date(dayInfo.date.getFullYear(), dayInfo.date.getMonth(), 1));
-                        } else {
-                          setCurrentDate(dayInfo.date);
-                        }
+                        setCurrentDate(dayInfo.date);
                       }}
                       className={`text-xs py-1 rounded ${
                         !dayInfo.isCurrentMonth
@@ -806,13 +744,8 @@ export function BookingCalendar() {
         </div>
 
         {/* Next Month */}
-        <div className="mb-6">
-          {renderMonthCalendar(nextMonthDays, new Date(currentDate.getFullYear(), currentDate.getMonth() + 1), false, 1)}
-        </div>
-
-        {/* Third Month */}
         <div className="mb-4">
-          {renderMonthCalendar(thirdMonthDays, new Date(currentDate.getFullYear(), currentDate.getMonth() + 2), false, 2)}
+          {renderMonthCalendar(nextMonthDays, new Date(currentDate.getFullYear(), currentDate.getMonth() + 1), false, 1)}
         </div>
 
         <button
@@ -1099,7 +1032,13 @@ export function BookingCalendar() {
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2 bg-gold-600 text-white rounded-lg hover:bg-gold-700 transition-colors"
+                  disabled={
+                    selectedCells.length === 0 ||
+                    !formData.room_id ||
+                    (!isProduction && !formData.tenant_id) ||
+                    (isProduction && !verifiedTenantId)
+                  }
+                  className="px-6 py-2 bg-gold-600 text-white rounded-lg hover:bg-gold-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Boeking Aanmaken
                 </button>
@@ -1139,17 +1078,11 @@ export function BookingCalendar() {
               {selectedBooking.status !== 'cancelled' && (
                 <button
                   onClick={handleCancelBooking}
-                  className="w-full px-6 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+                  className="w-full px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                 >
                   Boeking Annuleren
                 </button>
               )}
-              <button
-                onClick={handleDeleteBooking}
-                className="w-full px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-              >
-                Boeking Verwijderen
-              </button>
               <button
                 onClick={() => {
                   setShowDeleteConfirm(false);
