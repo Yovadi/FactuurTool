@@ -78,9 +78,9 @@ export function Dashboard() {
     const sevenDaysFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
     const sevenDaysStr = sevenDaysFromNow.toISOString().split('T')[0];
 
-    const todayBookings = bookings?.filter(b => b.booking_date === todayStr && b.status === 'confirmed').length || 0;
+    const todayBookings = bookings?.filter(b => b.booking_date === todayStr && b.status !== 'cancelled').length || 0;
     const upcomingBookings = bookings?.filter(
-      b => b.booking_date >= todayStr && b.booking_date <= sevenDaysStr && b.status === 'confirmed'
+      b => b.booking_date >= todayStr && b.booking_date <= sevenDaysStr && b.status !== 'cancelled'
     ).length || 0;
 
     const expiringLeases = leases?.filter(
