@@ -777,17 +777,20 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
                 </div>
                 {days.slice(weekIdx * 7, (weekIdx + 1) * 7).map((dayInfo, idx) => {
                   const isSelected = dayInfo.date && weekDays.some(wd =>
-                    wd.date.toDateString() === dayInfo.date.toDateString()
+                    wd.dateStr === dayInfo.date
                   );
-                  const isTodayDate = dayInfo.date && isToday(dayInfo.date);
+                  const isTodayDate = dayInfo.date && isToday(new Date(dayInfo.date));
 
                   return (
                     <button
                       key={`${weekIdx}-${idx}`}
                       onClick={() => {
-                        setShouldScrollToTop(false);
-                        setCurrentDate(dayInfo.date);
+                        if (dayInfo.date) {
+                          setShouldScrollToTop(false);
+                          setCurrentDate(new Date(dayInfo.date));
+                        }
                       }}
+                      disabled={!dayInfo.date}
                       className={`text-xs py-1 rounded ${
                         !dayInfo.isCurrentMonth
                           ? 'text-gray-600'
