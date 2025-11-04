@@ -67,6 +67,7 @@ export function BookingCalendar() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [weekDays, setWeekDays] = useState<WeekDay[]>([]);
   const [loading, setLoading] = useState(true);
+  const [shouldScrollToTop, setShouldScrollToTop] = useState(false);
   const [meetingRooms, setMeetingRooms] = useState<Space[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<Space | null>(null);
@@ -103,7 +104,9 @@ export function BookingCalendar() {
   }, [isPinVerified]);
 
   useEffect(() => {
-    loadData();
+    // Eerste load met loading state, daarna zonder voor vloeiendere transitions
+    const isInitialLoad = weekDays.length === 0;
+    loadData(isInitialLoad);
   }, [currentDate]);
 
   useEffect(() => {
@@ -155,8 +158,10 @@ export function BookingCalendar() {
     return `${y}-${m}-${d}`;
   };
 
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = async (showLoadingState = true) => {
+    if (showLoadingState) {
+      setLoading(true);
+    }
 
     const weekStart = getWeekStart(currentDate);
     const weekEnd = new Date(weekStart);
@@ -217,6 +222,12 @@ export function BookingCalendar() {
     }
 
     setTenants(tenantsRes.data || []);
+
+    if (shouldScrollToTop && scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0;
+      setShouldScrollToTop(false);
+    }
+
     setLoading(false);
   };
 
@@ -343,16 +354,19 @@ export function BookingCalendar() {
   const previousWeek = () => {
     const newDate = new Date(currentDate);
     newDate.setDate(newDate.getDate() - 7);
+    setShouldScrollToTop(true);
     setCurrentDate(newDate);
   };
 
   const nextWeek = () => {
     const newDate = new Date(currentDate);
     newDate.setDate(newDate.getDate() + 7);
+    setShouldScrollToTop(true);
     setCurrentDate(newDate);
   };
 
   const goToToday = () => {
+    setShouldScrollToTop(true);
     setCurrentDate(new Date());
   };
 
@@ -658,13 +672,19 @@ export function BookingCalendar() {
           {isCurrentMonth && (
             <div className="flex gap-1">
               <button
-                onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))}
+                onClick={() => {
+                  setShouldScrollToTop(false);
+                  setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));
+                }}
                 className="p-1 hover:bg-gray-700 rounded"
               >
                 <ChevronLeft size={16} className="text-gray-300" />
               </button>
               <button
-                onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1))}
+                onClick={() => {
+                  setShouldScrollToTop(false);
+                  setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1));
+                }}
                 className="p-1 hover:bg-gray-700 rounded"
               >
                 <ChevronRight size={16} className="text-gray-300" />
@@ -703,7 +723,10 @@ export function BookingCalendar() {
                   return (
                     <button
                       key={`${weekIdx}-${idx}`}
-                      onClick={() => setCurrentDate(dayInfo.date)}
+                      onClick={() => {
+                        setShouldScrollToTop(false);
+                        setCurrentDate(dayInfo.date);
+                      }}
                       className={`text-xs py-1 rounded ${
                         !dayInfo.isCurrentMonth
                           ? 'text-gray-600'
