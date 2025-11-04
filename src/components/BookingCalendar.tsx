@@ -768,7 +768,7 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
         <div className="grid grid-cols-8 gap-1">
           {Array.from({ length: 6 }).map((_, weekIdx) => {
             const weekStart = days[weekIdx * 7];
-            const weekNum = weekStart ? getWeekNumber(weekStart.date) : '';
+            const weekNum = weekStart && weekStart.date ? getWeekNumber(weekStart.date) : '';
 
             return (
               <>
@@ -776,10 +776,10 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
                   {weekNum}
                 </div>
                 {days.slice(weekIdx * 7, (weekIdx + 1) * 7).map((dayInfo, idx) => {
-                  const isSelected = weekDays.some(wd =>
+                  const isSelected = dayInfo.date && weekDays.some(wd =>
                     wd.date.toDateString() === dayInfo.date.toDateString()
                   );
-                  const isTodayDate = isToday(dayInfo.date);
+                  const isTodayDate = dayInfo.date && isToday(dayInfo.date);
 
                   return (
                     <button
