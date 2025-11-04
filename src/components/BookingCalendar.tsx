@@ -77,6 +77,7 @@ type BookingCalendarProps = {
 
 export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [baseMonth, setBaseMonth] = useState(new Date());
   const [weekDays, setWeekDays] = useState<WeekDay[]>([]);
   const [loading, setLoading] = useState(true);
   const [shouldScrollToTop, setShouldScrollToTop] = useState(false);
@@ -403,7 +404,9 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
 
   const goToToday = () => {
     setShouldScrollToTop(true);
-    setCurrentDate(new Date());
+    const today = new Date();
+    setCurrentDate(today);
+    setBaseMonth(today);
   };
 
   const handlePinVerification = () => {
@@ -602,8 +605,8 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
 
   // Generate month calendar data
   const generateMonthDays = () => {
-    const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-    const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+    const firstDay = new Date(baseMonth.getFullYear(), baseMonth.getMonth(), 1);
+    const lastDay = new Date(baseMonth.getFullYear(), baseMonth.getMonth() + 1, 0);
     const startDay = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
     const days = [];
 
@@ -613,9 +616,9 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
     weekEnd.setHours(23, 59, 59, 999);
 
     // Previous month days
-    const prevMonthDays = new Date(currentDate.getFullYear(), currentDate.getMonth(), 0).getDate();
+    const prevMonthDays = new Date(baseMonth.getFullYear(), baseMonth.getMonth(), 0).getDate();
     for (let i = startDay - 1; i >= 0; i--) {
-      const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, prevMonthDays - i);
+      const date = new Date(baseMonth.getFullYear(), baseMonth.getMonth() - 1, prevMonthDays - i);
       const dateStr = formatLocalDate(date);
       date.setHours(12, 0, 0, 0);
       days.push({
@@ -628,7 +631,7 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
 
     // Current month days
     for (let i = 1; i <= lastDay.getDate(); i++) {
-      const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), i);
+      const date = new Date(baseMonth.getFullYear(), baseMonth.getMonth(), i);
       const dateStr = formatLocalDate(date);
       date.setHours(12, 0, 0, 0);
       days.push({
@@ -642,7 +645,7 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
     // Next month days
     const remainingDays = 42 - days.length;
     for (let i = 1; i <= remainingDays; i++) {
-      const date = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, i);
+      const date = new Date(baseMonth.getFullYear(), baseMonth.getMonth() + 1, i);
       const dateStr = formatLocalDate(date);
       date.setHours(12, 0, 0, 0);
       days.push({
@@ -660,8 +663,8 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
 
   // Generate next month calendar data
   const generateNextMonthDays = () => {
-    const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
-    const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 0);
+    const firstDay = new Date(baseMonth.getFullYear(), baseMonth.getMonth() + 1, 1);
+    const lastDay = new Date(baseMonth.getFullYear(), baseMonth.getMonth() + 2, 0);
     const startDay = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
     const days = [];
 
@@ -671,9 +674,9 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
     weekEnd.setHours(23, 59, 59, 999);
 
     // Previous month days
-    const prevMonthDays = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+    const prevMonthDays = new Date(baseMonth.getFullYear(), baseMonth.getMonth() + 1, 0).getDate();
     for (let i = startDay - 1; i >= 0; i--) {
-      const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), prevMonthDays - i);
+      const date = new Date(baseMonth.getFullYear(), baseMonth.getMonth(), prevMonthDays - i);
       const dateStr = formatLocalDate(date);
       date.setHours(12, 0, 0, 0);
       days.push({
@@ -686,7 +689,7 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
 
     // Current month days
     for (let i = 1; i <= lastDay.getDate(); i++) {
-      const date = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, i);
+      const date = new Date(baseMonth.getFullYear(), baseMonth.getMonth() + 1, i);
       const dateStr = formatLocalDate(date);
       date.setHours(12, 0, 0, 0);
       days.push({
@@ -700,7 +703,7 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
     // Next month days
     const remainingDays = 42 - days.length;
     for (let i = 1; i <= remainingDays; i++) {
-      const date = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, i);
+      const date = new Date(baseMonth.getFullYear(), baseMonth.getMonth() + 2, i);
       const dateStr = formatLocalDate(date);
       date.setHours(12, 0, 0, 0);
       days.push({
@@ -718,8 +721,8 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
 
   // Generate third month calendar data
   const generateThirdMonthDays = () => {
-    const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 1);
-    const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 3, 0);
+    const firstDay = new Date(baseMonth.getFullYear(), baseMonth.getMonth() + 2, 1);
+    const lastDay = new Date(baseMonth.getFullYear(), baseMonth.getMonth() + 3, 0);
     const startDay = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
     const days = [];
 
@@ -729,9 +732,9 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
     weekEnd.setHours(23, 59, 59, 999);
 
     // Previous month days
-    const prevMonthDays = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 0).getDate();
+    const prevMonthDays = new Date(baseMonth.getFullYear(), baseMonth.getMonth() + 2, 0).getDate();
     for (let i = startDay - 1; i >= 0; i--) {
-      const date = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, prevMonthDays - i);
+      const date = new Date(baseMonth.getFullYear(), baseMonth.getMonth() + 1, prevMonthDays - i);
       const dateStr = formatLocalDate(date);
       date.setHours(12, 0, 0, 0);
       days.push({
@@ -744,7 +747,7 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
 
     // Current month days
     for (let i = 1; i <= lastDay.getDate(); i++) {
-      const date = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, i);
+      const date = new Date(baseMonth.getFullYear(), baseMonth.getMonth() + 2, i);
       const dateStr = formatLocalDate(date);
       date.setHours(12, 0, 0, 0);
       days.push({
@@ -758,7 +761,7 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
     // Next month days
     const remainingDays = 42 - days.length;
     for (let i = 1; i <= remainingDays; i++) {
-      const date = new Date(currentDate.getFullYear(), currentDate.getMonth() + 3, i);
+      const date = new Date(baseMonth.getFullYear(), baseMonth.getMonth() + 3, i);
       const dateStr = formatLocalDate(date);
       date.setHours(12, 0, 0, 0);
       days.push({
@@ -786,7 +789,9 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
               <button
                 onClick={() => {
                   setShouldScrollToTop(false);
-                  setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));
+                  const newBase = new Date(baseMonth.getFullYear(), baseMonth.getMonth() - 1);
+                  setBaseMonth(newBase);
+                  setCurrentDate(newBase);
                 }}
                 className="p-1 hover:bg-gray-700 rounded"
               >
@@ -795,7 +800,9 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
               <button
                 onClick={() => {
                   setShouldScrollToTop(false);
-                  setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1));
+                  const newBase = new Date(baseMonth.getFullYear(), baseMonth.getMonth() + 1);
+                  setBaseMonth(newBase);
+                  setCurrentDate(newBase);
                 }}
                 className="p-1 hover:bg-gray-700 rounded"
               >
@@ -834,7 +841,7 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
                     <button
                       key={`${weekIdx}-${idx}`}
                       onClick={() => {
-                        if (dayInfo.date && dayInfo.isCurrentMonth) {
+                        if (dayInfo.date) {
                           setShouldScrollToTop(false);
                           setCurrentDate(new Date(dayInfo.date));
                         }
@@ -846,7 +853,7 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
                           : isTodayDate
                           ? 'bg-blue-900/50 text-blue-300 font-semibold'
                           : !dayInfo.isCurrentMonth
-                          ? 'text-gray-600 cursor-default'
+                          ? 'text-gray-600 hover:bg-gray-700 cursor-pointer'
                           : 'text-gray-300 hover:bg-gray-700 cursor-pointer'
                       }`}
                     >
@@ -896,17 +903,17 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
       <div className="w-72 bg-gray-800 rounded-lg p-4 flex-shrink-0 overflow-y-auto">
         {/* Current Month */}
         <div className="mb-6">
-          {renderMonthCalendar(monthDays, currentDate, true, 0)}
+          {renderMonthCalendar(monthDays, baseMonth, true, 0)}
         </div>
 
         {/* Next Month */}
         <div className="mb-6">
-          {renderMonthCalendar(nextMonthDays, new Date(currentDate.getFullYear(), currentDate.getMonth() + 1), false, 1)}
+          {renderMonthCalendar(nextMonthDays, new Date(baseMonth.getFullYear(), baseMonth.getMonth() + 1), false, 1)}
         </div>
 
         {/* Third Month */}
         <div className="mb-4">
-          {renderMonthCalendar(thirdMonthDays, new Date(currentDate.getFullYear(), currentDate.getMonth() + 2), false, 2)}
+          {renderMonthCalendar(thirdMonthDays, new Date(baseMonth.getFullYear(), baseMonth.getMonth() + 2), false, 2)}
         </div>
 
         <button
