@@ -72,7 +72,7 @@ const getTenantColor = (tenantId: string | undefined) => {
 };
 
 type BookingCalendarProps = {
-  onBookingChange?: () => void;
+  onBookingChange?: (action: 'created' | 'cancelled' | 'updated', bookingId: string) => void;
 };
 
 export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) {
@@ -410,7 +410,7 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
     setSelectedCells([]);
     setFormData({ tenant_id: '', room_id: '' });
     if (onBookingChange) {
-      onBookingChange();
+      onBookingChange('created', newBooking.id);
     }
   };
 
@@ -478,7 +478,7 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
     setShowDeleteConfirm(false);
     setSelectedBooking(null);
     if (onBookingChange) {
-      onBookingChange();
+      onBookingChange('cancelled', selectedBooking.id);
     }
   };
 
@@ -576,6 +576,9 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
 
     setDraggedBooking(null);
     setIsDraggingBooking(false);
+    if (onBookingChange) {
+      onBookingChange('updated', draggedBooking.id);
+    }
   };
 
   const isToday = (date: Date) => {

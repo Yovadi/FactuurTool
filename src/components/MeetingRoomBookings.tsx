@@ -827,7 +827,56 @@ export function MeetingRoomBookings() {
       )}
 
       {selectedView === 'calendar' ? (
-        <BookingCalendar />
+        <BookingCalendar onBookingChange={async (action, bookingId) => {
+          if (action === 'cancelled') {
+            // Remove cancelled booking from lists
+            setBookings(prev => prev.filter(b => b.id !== bookingId));
+            setAllBookings(prev => prev.filter(b => b.id !== bookingId));
+          } else if (action === 'created') {
+            // Fetch the new booking and add to lists
+            const { data: newBooking } = await supabase
+              .from('meeting_room_bookings')
+              .select(`
+                *,
+                tenants(name, company_name),
+                office_spaces(space_number)
+              `)
+              .eq('id', bookingId)
+              .single();
+
+            if (newBooking) {
+              setAllBookings(prev => {
+                const sorted = [newBooking, ...prev].sort((a, b) => {
+                  const companyA = a.tenants?.company_name || a.tenants?.name || '';
+                  const companyB = b.tenants?.company_name || b.tenants?.name || '';
+                  const companyCompare = companyA.localeCompare(companyB);
+                  if (companyCompare !== 0) return companyCompare;
+                  const dateCompare = a.booking_date.localeCompare(b.booking_date);
+                  if (dateCompare !== 0) return dateCompare;
+                  return a.start_time.localeCompare(b.start_time);
+                });
+                return sorted;
+              });
+              applyFilter([newBooking, ...allBookings], selectedFilter);
+            }
+          } else if (action === 'updated') {
+            // Fetch updated booking and update in lists
+            const { data: updatedBooking } = await supabase
+              .from('meeting_room_bookings')
+              .select(`
+                *,
+                tenants(name, company_name),
+                office_spaces(space_number)
+              `)
+              .eq('id', bookingId)
+              .single();
+
+            if (updatedBooking) {
+              setBookings(prev => prev.map(b => b.id === bookingId ? updatedBooking : b));
+              setAllBookings(prev => prev.map(b => b.id === bookingId ? updatedBooking : b));
+            }
+          }
+        }} />
       ) : selectedView === 'rates' ? (
         <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
           <div className="flex items-center gap-2 mb-6">
