@@ -169,6 +169,10 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
     return `${y}-${m}-${d}`;
   };
 
+  const hasBookingsOnDate = (dateStr: string) => {
+    return weekDays.some(day => day.dateStr === dateStr && day.bookings.length > 0);
+  };
+
   const loadData = async (showLoadingState = true) => {
     if (showLoadingState) {
       setLoading(true);
