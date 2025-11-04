@@ -885,7 +885,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
   };
 
   return (
-    <div className="relative h-full">
+    <div className="relative flex-1 flex flex-col overflow-hidden">
       {/* Notifications */}
       <div className="fixed top-4 right-4 z-50 space-y-2 max-w-md">
         {notifications.map((notification) => (
@@ -913,9 +913,9 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
         ))}
       </div>
 
-      <div className="flex gap-4 h-full w-full">
+      <div className="flex gap-4 w-full flex-1 min-h-0">
         {/* Left Sidebar - Month Calendars */}
-      <div className="w-72 bg-gray-800 rounded-lg p-4 flex-shrink-0 overflow-y-auto max-h-full">
+      <div className="w-72 bg-gray-800 rounded-lg p-4 flex-shrink-0">
         {/* Current Month */}
         <div className="mb-6">
           {renderMonthCalendar(monthDays, baseMonth, true, 0)}
@@ -940,7 +940,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
       </div>
 
       {/* Right Side - Week View */}
-      <div className="flex-1 bg-gray-800 rounded-lg overflow-hidden flex flex-col">
+      <div className="flex-1 bg-gray-800 rounded-lg overflow-hidden flex flex-col min-h-0">
         {/* Header */}
         <div className="bg-gray-700 px-4 py-3 flex items-center justify-between border-b border-gray-600">
           <div className="flex items-center gap-3">
