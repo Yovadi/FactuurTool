@@ -86,6 +86,7 @@ export function BookingCalendar() {
   const [pinInput, setPinInput] = useState('');
   const [isPinVerified, setIsPinVerified] = useState(false);
   const [isProduction, setIsProduction] = useState(false);
+  const [verifiedTenantId, setVerifiedTenantId] = useState<string | null>(null);
 
   useEffect(() => {
     // Detect if running in production (not dev, not Electron)
@@ -269,6 +270,10 @@ export function BookingCalendar() {
 
     if (selectedCells.length === 0 || !formData.room_id) return;
 
+    // On production, use verified tenant ID, otherwise use selected tenant from form
+    const tenantIdToUse = isProduction && verifiedTenantId ? verifiedTenantId : formData.tenant_id;
+    if (!tenantIdToUse) return;
+
     const selectedRoomForBooking = meetingRooms.find(r => r.id === formData.room_id);
     if (!selectedRoomForBooking) return;
 
@@ -294,7 +299,7 @@ export function BookingCalendar() {
       .from('meeting_room_bookings')
       .insert({
         space_id: selectedRoomForBooking.id,
-        tenant_id: formData.tenant_id,
+        tenant_id: tenantIdToUse,
         booking_date: selectedCells[0].date,
         start_time: startTime,
         end_time: endTime,
@@ -338,6 +343,7 @@ export function BookingCalendar() {
     const validTenant = tenants.find(t => t.booking_pin_code === pinInput);
     if (validTenant) {
       setIsPinVerified(true);
+      setVerifiedTenantId(validTenant.id);
       setShowPinModal(false);
       setPinInput('');
     } else {
@@ -561,9 +567,9 @@ export function BookingCalendar() {
       </div>
 
       <div className="overflow-x-auto max-h-[calc(100vh-350px)] overflow-y-auto">
-        <div className="min-w-[700px]" style={{ display: 'grid', gridTemplateColumns: '50px repeat(7, 1fr)' }}>
-          <div className="sticky top-0 z-20" style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '50px repeat(7, 1fr)' }}>
-            <div className="bg-dark-900 p-1 text-[10px] font-semibold text-gray-400 text-center">
+        <div className="min-w-[700px]" style={{ display: 'grid', gridTemplateColumns: '40px repeat(7, 1fr)' }}>
+          <div className="sticky top-0 z-20" style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '40px repeat(7, 1fr)' }}>
+            <div className="bg-dark-900 p-0.5 text-[9px] font-semibold text-gray-400 text-center">
               Tijd
             </div>
             {weekDays.map((day) => (
@@ -589,7 +595,7 @@ export function BookingCalendar() {
             {timeSlots.map((time) => (
               <div
                 key={time}
-                className="text-[10px] text-gray-500 bg-dark-900 px-0.5 border-r border-b border-dark-700 text-center"
+                className="text-[9px] text-gray-500 bg-dark-900 px-0 border-r border-b border-dark-700 text-center"
                 style={{ height: `${CELL_HEIGHT}px`, lineHeight: `${CELL_HEIGHT}px` }}
               >
                 {time}
@@ -609,12 +615,15 @@ export function BookingCalendar() {
                   today.setHours(0, 0, 0, 0);
                   const isPast = cellDate < today;
 
+                  const [hour] = time.split(':').map(Number);
+                  const isWorkHours = hour >= 8 && hour < 17;
+
                   return (
                     <div
                       key={time}
                       className={`relative border-r border-b border-dark-700 ${
                         !hasBookingHere && !isPast ? 'cursor-pointer hover:bg-gold-900/20' : ''
-                      } ${isSelected ? 'bg-gold-600/50 border border-gold-500' : ''} ${isPast ? 'bg-dark-900/50' : ''} ${isDraggingBooking && !hasBookingHere && !isPast ? 'bg-green-900/20' : ''}`}
+                      } ${isSelected ? 'bg-gold-600/50 border border-gold-500' : ''} ${isPast ? 'bg-dark-900/50' : isWorkHours ? 'bg-gray-800/30' : 'bg-dark-900'} ${isDraggingBooking && !hasBookingHere && !isPast ? 'bg-green-900/20' : ''}`}
                       style={{ height: `${CELL_HEIGHT}px` }}
                       onMouseDown={(e) => {
                         if (!isDraggingBooking) {
@@ -656,7 +665,7 @@ export function BookingCalendar() {
                             }}
                           >
                             <div className={`font-semibold ${colors.text} leading-tight text-[10px]`}>
-                              {booking.start_time.substring(0, 5)}
+                              {booking.start_time.substring(0, 5)} - {booking.end_time.substring(0, 5)}
                             </div>
                             <div className={`${colors.text} truncate leading-tight text-[10px]`}>
                               {booking.tenants?.company_name || ''}
@@ -750,24 +759,36 @@ export function BookingCalendar() {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-200 mb-2">
-                  Bedrijf *
-                </label>
-                <select
-                  value={formData.tenant_id}
-                  onChange={(e) => setFormData({ ...formData, tenant_id: e.target.value })}
-                  className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                  required
-                >
-                  <option value="">Selecteer een bedrijf</option>
-                  {tenants.map((tenant) => (
-                    <option key={tenant.id} value={tenant.id}>
-                      {tenant.company_name || tenant.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {isProduction && verifiedTenantId ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-200 mb-2">
+                    Bedrijf
+                  </label>
+                  <div className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-700 text-gray-100">
+                    {tenants.find(t => t.id === verifiedTenantId)?.company_name ||
+                     tenants.find(t => t.id === verifiedTenantId)?.name || 'Onbekend'}
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-gray-200 mb-2">
+                    Bedrijf *
+                  </label>
+                  <select
+                    value={formData.tenant_id}
+                    onChange={(e) => setFormData({ ...formData, tenant_id: e.target.value })}
+                    className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                    required
+                  >
+                    <option value="">Selecteer een bedrijf</option>
+                    {tenants.map((tenant) => (
+                      <option key={tenant.id} value={tenant.id}>
+                        {tenant.company_name || tenant.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className="flex gap-4 justify-end">
                 <button
