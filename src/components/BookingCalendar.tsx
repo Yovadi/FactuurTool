@@ -358,7 +358,7 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
     const hourlyRate = selectedRoomForBooking.hourly_rate || 25;
     const totalAmount = totalHours * hourlyRate;
 
-    const { error } = await supabase
+    const { data: newBooking, error } = await supabase
       .from('meeting_room_bookings')
       .insert({
         space_id: selectedRoomForBooking.id,
@@ -370,17 +370,7 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
         total_hours: totalHours,
         total_amount: totalAmount,
         status: 'confirmed'
-      });
-
-    if (error) {
-      console.error('Error creating booking:', error);
-      showToast('Fout bij het aanmaken van de boeking: ' + error.message, 'error');
-      return;
-    }
-
-    // Fetch the newly created booking with its relations
-    const { data: newBooking } = await supabase
-      .from('meeting_room_bookings')
+      })
       .select(`
         id,
         booking_date,
@@ -392,8 +382,13 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
         tenants(name, company_name),
         office_spaces(space_number)
       `)
-      .eq('id', bookingData.id)
       .single();
+
+    if (error) {
+      console.error('Error creating booking:', error);
+      showToast('Fout bij het aanmaken van de boeking: ' + error.message, 'error');
+      return;
+    }
 
     if (newBooking) {
       // Update state with the new booking
