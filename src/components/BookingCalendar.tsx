@@ -827,8 +827,12 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
           {Array.from({ length: 6 }).map((_, weekIdx) => {
             const weekDays = days.slice(weekIdx * 7, (weekIdx + 1) * 7);
             const hasCurrentMonthDay = weekDays.some(day => day.isCurrentMonth);
+
+            // Don't render week row if it has no days from current month
+            if (!hasCurrentMonthDay) return null;
+
             const weekStart = weekDays.find(day => day.date);
-            const weekNum = hasCurrentMonthDay && weekStart && weekStart.date ? getWeekNumber(new Date(weekStart.date)) : '';
+            const weekNum = weekStart && weekStart.date ? getWeekNumber(new Date(weekStart.date)) : '';
 
             return (
               <>
