@@ -718,41 +718,54 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
 
   // Generate third month calendar data
   const generateThirdMonthDays = () => {
-    const thirdMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2);
-    const year = thirdMonth.getFullYear();
-    const month = thirdMonth.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startDay = (firstDay.getDay() + 6) % 7;
-
+    const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 1);
+    const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 3, 0);
+    const startDay = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
     const days = [];
-    for (let i = 0; i < startDay; i++) {
-      days.push({ day: '', date: null, isToday: false, isSelected: false });
+
+    const weekStart = getWeekStart(currentDate);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    weekEnd.setHours(23, 59, 59, 999);
+
+    // Previous month days
+    const prevMonthDays = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 0).getDate();
+    for (let i = startDay - 1; i >= 0; i--) {
+      const date = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, prevMonthDays - i);
+      const dateStr = formatLocalDate(date);
+      date.setHours(12, 0, 0, 0);
+      days.push({
+        day: prevMonthDays - i,
+        isCurrentMonth: false,
+        date: dateStr,
+        isSelected: date >= weekStart && date <= weekEnd
+      });
     }
 
-    for (let i = 1; i <= daysInMonth; i++) {
-      const date = new Date(year, month, i);
+    // Current month days
+    for (let i = 1; i <= lastDay.getDate(); i++) {
+      const date = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, i);
       const dateStr = formatLocalDate(date);
-      const today = new Date();
-      const isToday =
-        date.getDate() === today.getDate() &&
-        date.getMonth() === today.getMonth() &&
-        date.getFullYear() === today.getFullYear();
-
-      const weekStart = getWeekStart(currentDate);
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekEnd.getDate() + 6);
-      weekEnd.setHours(23, 59, 59, 999);
-
       date.setHours(12, 0, 0, 0);
-      const isSelected = date >= weekStart && date <= weekEnd;
-
       days.push({
-        day: i.toString(),
+        day: i,
+        isCurrentMonth: true,
         date: dateStr,
-        isToday,
-        isSelected
+        isSelected: date >= weekStart && date <= weekEnd
+      });
+    }
+
+    // Next month days
+    const remainingDays = 42 - days.length;
+    for (let i = 1; i <= remainingDays; i++) {
+      const date = new Date(currentDate.getFullYear(), currentDate.getMonth() + 3, i);
+      const dateStr = formatLocalDate(date);
+      date.setHours(12, 0, 0, 0);
+      days.push({
+        day: i,
+        isCurrentMonth: false,
+        date: dateStr,
+        isSelected: date >= weekStart && date <= weekEnd
       });
     }
 
@@ -821,7 +834,7 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
                     <button
                       key={`${weekIdx}-${idx}`}
                       onClick={() => {
-                        if (dayInfo.date) {
+                        if (dayInfo.date && dayInfo.isCurrentMonth) {
                           setShouldScrollToTop(false);
                           setCurrentDate(new Date(dayInfo.date));
                         }
@@ -833,8 +846,8 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
                           : isTodayDate
                           ? 'bg-blue-900/50 text-blue-300 font-semibold'
                           : !dayInfo.isCurrentMonth
-                          ? 'text-gray-600'
-                          : 'text-gray-300 hover:bg-gray-700'
+                          ? 'text-gray-600 cursor-default'
+                          : 'text-gray-300 hover:bg-gray-700 cursor-pointer'
                       }`}
                     >
                       {dayInfo.day}
