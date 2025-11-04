@@ -589,15 +589,55 @@ export function BookingCalendar() {
 
   const monthDays = generateMonthDays();
 
-  return (
-    <div className="flex gap-4 h-[calc(100vh-200px)]">
-      {/* Left Sidebar - Month Calendar */}
-      <div className="w-72 bg-gray-800 rounded-lg p-4 flex-shrink-0">
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-gray-200">
-              {currentDate.toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}
-            </h3>
+  // Generate next month calendar data
+  const generateNextMonthDays = () => {
+    const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
+    const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 0);
+    const startDay = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
+    const days = [];
+
+    // Previous month days
+    const prevMonthDays = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+    for (let i = startDay - 1; i >= 0; i--) {
+      days.push({
+        day: prevMonthDays - i,
+        isCurrentMonth: false,
+        date: new Date(currentDate.getFullYear(), currentDate.getMonth(), prevMonthDays - i)
+      });
+    }
+
+    // Current month days
+    for (let i = 1; i <= lastDay.getDate(); i++) {
+      days.push({
+        day: i,
+        isCurrentMonth: true,
+        date: new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, i)
+      });
+    }
+
+    // Next month days
+    const remainingDays = 42 - days.length;
+    for (let i = 1; i <= remainingDays; i++) {
+      days.push({
+        day: i,
+        isCurrentMonth: false,
+        date: new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, i)
+      });
+    }
+
+    return days;
+  };
+
+  const nextMonthDays = generateNextMonthDays();
+
+  const renderMonthCalendar = (days: typeof monthDays, monthDate: Date, isCurrentMonth: boolean) => {
+    return (
+      <>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-gray-200">
+            {monthDate.toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}
+          </h3>
+          {isCurrentMonth && (
             <div className="flex gap-1">
               <button
                 onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))}
@@ -612,57 +652,74 @@ export function BookingCalendar() {
                 <ChevronRight size={16} className="text-gray-300" />
               </button>
             </div>
-          </div>
+          )}
+        </div>
 
-          {/* Weekday headers */}
-          <div className="grid grid-cols-8 gap-1 mb-2">
-            <div className="text-[10px] text-gray-400 text-center font-semibold">#</div>
-            {['MA', 'DI', 'WO', 'DO', 'VR', 'ZA', 'ZO'].map(day => (
-              <div key={day} className="text-[10px] text-gray-400 text-center font-semibold">
-                {day}
-              </div>
-            ))}
-          </div>
+        {/* Weekday headers */}
+        <div className="grid grid-cols-8 gap-1 mb-2">
+          <div className="text-[10px] text-gray-400 text-center font-semibold">#</div>
+          {['MA', 'DI', 'WO', 'DO', 'VR', 'ZA', 'ZO'].map(day => (
+            <div key={day} className="text-[10px] text-gray-400 text-center font-semibold">
+              {day}
+            </div>
+          ))}
+        </div>
 
-          {/* Calendar grid */}
-          <div className="grid grid-cols-8 gap-1">
-            {Array.from({ length: 6 }).map((_, weekIdx) => {
-              const weekStart = monthDays[weekIdx * 7];
-              const weekNum = weekStart ? getWeekNumber(weekStart.date) : '';
+        {/* Calendar grid */}
+        <div className="grid grid-cols-8 gap-1">
+          {Array.from({ length: 6 }).map((_, weekIdx) => {
+            const weekStart = days[weekIdx * 7];
+            const weekNum = weekStart ? getWeekNumber(weekStart.date) : '';
 
-              return (
-                <>
-                  <div key={`week-${weekIdx}`} className="text-[10px] text-gray-500 text-center py-1">
-                    {weekNum}
-                  </div>
-                  {monthDays.slice(weekIdx * 7, (weekIdx + 1) * 7).map((dayInfo, idx) => {
-                    const isSelected = weekDays.some(wd =>
-                      wd.date.toDateString() === dayInfo.date.toDateString()
-                    );
-                    const isTodayDate = isToday(dayInfo.date);
+            return (
+              <>
+                <div key={`week-${weekIdx}`} className="text-[10px] text-gray-500 text-center py-1">
+                  {weekNum}
+                </div>
+                {days.slice(weekIdx * 7, (weekIdx + 1) * 7).map((dayInfo, idx) => {
+                  const isSelected = weekDays.some(wd =>
+                    wd.date.toDateString() === dayInfo.date.toDateString()
+                  );
+                  const isTodayDate = isToday(dayInfo.date);
 
-                    return (
-                      <button
-                        key={`${weekIdx}-${idx}`}
-                        onClick={() => setCurrentDate(dayInfo.date)}
-                        className={`text-xs py-1 rounded ${
-                          !dayInfo.isCurrentMonth
-                            ? 'text-gray-600'
-                            : isSelected
-                            ? 'bg-blue-600 text-white font-semibold'
-                            : isTodayDate
-                            ? 'bg-blue-900/50 text-blue-300 font-semibold'
-                            : 'text-gray-300 hover:bg-gray-700'
-                        }`}
-                      >
-                        {dayInfo.day}
-                      </button>
-                    );
-                  })}
-                </>
-              );
-            })}
-          </div>
+                  return (
+                    <button
+                      key={`${weekIdx}-${idx}`}
+                      onClick={() => setCurrentDate(dayInfo.date)}
+                      className={`text-xs py-1 rounded ${
+                        !dayInfo.isCurrentMonth
+                          ? 'text-gray-600'
+                          : isSelected
+                          ? 'bg-blue-600 text-white font-semibold'
+                          : isTodayDate
+                          ? 'bg-blue-900/50 text-blue-300 font-semibold'
+                          : 'text-gray-300 hover:bg-gray-700'
+                      }`}
+                    >
+                      {dayInfo.day}
+                    </button>
+                  );
+                })}
+              </>
+            );
+          })}
+        </div>
+      </>
+    );
+  };
+
+  return (
+    <div className="flex gap-4 h-[calc(100vh-200px)]">
+      {/* Left Sidebar - Month Calendars */}
+      <div className="w-72 bg-gray-800 rounded-lg p-4 flex-shrink-0 overflow-y-auto">
+        {/* Current Month */}
+        <div className="mb-6">
+          {renderMonthCalendar(monthDays, currentDate, true)}
+        </div>
+
+        {/* Next Month */}
+        <div className="mb-4">
+          {renderMonthCalendar(nextMonthDays, new Date(currentDate.getFullYear(), currentDate.getMonth() + 1), false)}
         </div>
 
         <button
