@@ -53,7 +53,6 @@ export function MeetingRoomBookings() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationId, setNotificationId] = useState(0);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
 
   const getWeekNumber = (date: Date): number => {
     const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -79,7 +78,6 @@ export function MeetingRoomBookings() {
 
   const loadData = async () => {
     setLoading(true);
-    setRefreshKey(prev => prev + 1);
 
     const { data: tenantsData } = await supabase
       .from('tenants')
@@ -274,9 +272,17 @@ export function MeetingRoomBookings() {
       return;
     }
 
+    // Update state to reflect status change or remove if cancelled
+    if (newStatus === 'cancelled') {
+      setBookings(prev => prev.filter(b => b.id !== bookingId));
+      setAllBookings(prev => prev.filter(b => b.id !== bookingId));
+    } else {
+      setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: newStatus } : b));
+      setAllBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: newStatus } : b));
+    }
+
     const statusText = newStatus === 'confirmed' ? 'bevestigd' : newStatus === 'cancelled' ? 'geannuleerd' : 'voltooid';
     showNotification(`Boeking is ${statusText}.`, 'success');
-    await loadData();
   };
 
   const confirmDelete = (bookingId: string) => {
@@ -312,8 +318,11 @@ export function MeetingRoomBookings() {
       return;
     }
 
+    // Update state to remove the deleted booking
+    setBookings(prev => prev.filter(b => b.id !== bookingId));
+    setAllBookings(prev => prev.filter(b => b.id !== bookingId));
+
     showNotification('Boeking succesvol verwijderd.', 'success');
-    await loadData();
   };
 
   const removeBookingFromInvoice = async (booking: Booking) => {
@@ -496,10 +505,23 @@ export function MeetingRoomBookings() {
 
     await createOrUpdateInvoiceForBooking(booking);
 
-    showNotification('Factuur succesvol aangemaakt!', 'success');
+    // Update the booking in state to reflect the invoice link
+    const { data: updatedBooking } = await supabase
+      .from('meeting_room_bookings')
+      .select(`
+        *,
+        tenants(name, company_name),
+        office_spaces(space_number)
+      `)
+      .eq('id', booking.id)
+      .single();
 
-    // Reload data
-    await loadData();
+    if (updatedBooking) {
+      setBookings(prev => prev.map(b => b.id === booking.id ? updatedBooking : b));
+      setAllBookings(prev => prev.map(b => b.id === booking.id ? updatedBooking : b));
+    }
+
+    showNotification('Factuur succesvol aangemaakt!', 'success');
   };
 
   const handleSpaceChange = (spaceId: string) => {
@@ -805,7 +827,7 @@ export function MeetingRoomBookings() {
       )}
 
       {selectedView === 'calendar' ? (
-        <BookingCalendar key={refreshKey} onBookingChange={loadData} />
+        <BookingCalendar />
       ) : selectedView === 'rates' ? (
         <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
           <div className="flex items-center gap-2 mb-6">
