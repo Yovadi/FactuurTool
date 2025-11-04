@@ -625,7 +625,7 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
         day: prevMonthDays - i,
         isCurrentMonth: false,
         date: dateStr,
-        isSelected: date >= weekStart && date <= weekEnd
+        isSelected: false
       });
     }
 
@@ -652,7 +652,7 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
         day: i,
         isCurrentMonth: false,
         date: dateStr,
-        isSelected: date >= weekStart && date <= weekEnd
+        isSelected: false
       });
     }
 
@@ -683,7 +683,7 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
         day: prevMonthDays - i,
         isCurrentMonth: false,
         date: dateStr,
-        isSelected: date >= weekStart && date <= weekEnd
+        isSelected: false
       });
     }
 
@@ -710,7 +710,7 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
         day: i,
         isCurrentMonth: false,
         date: dateStr,
-        isSelected: date >= weekStart && date <= weekEnd
+        isSelected: false
       });
     }
 
@@ -741,7 +741,7 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
         day: prevMonthDays - i,
         isCurrentMonth: false,
         date: dateStr,
-        isSelected: date >= weekStart && date <= weekEnd
+        isSelected: false
       });
     }
 
@@ -768,7 +768,7 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
         day: i,
         isCurrentMonth: false,
         date: dateStr,
-        isSelected: date >= weekStart && date <= weekEnd
+        isSelected: false
       });
     }
 
