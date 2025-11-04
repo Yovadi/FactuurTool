@@ -88,6 +88,7 @@ export function MeetingRoomBookings() {
         tenants(name, company_name),
         office_spaces(space_number)
       `)
+      .eq('status', 'confirmed')
       .order('booking_date', { ascending: false })
       .order('start_time', { ascending: false });
 
