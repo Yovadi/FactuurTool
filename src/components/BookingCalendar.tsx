@@ -829,6 +829,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
                 {weekDays.map((dayInfo, idx) => {
                   const isSelected = dayInfo.isSelected;
                   const isTodayDate = dayInfo.date && isToday(new Date(dayInfo.date));
+                  const hasBookings = dayInfo.date && hasBookingsOnDate(dayInfo.date);
 
                   return (
                     <button
@@ -840,7 +841,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
                         }
                       }}
                       disabled={!dayInfo.date}
-                      className={`text-xs py-1 rounded ${
+                      className={`relative text-xs py-1 rounded ${
                         isSelected
                           ? 'bg-gold-600 text-dark-900 font-semibold'
                           : isTodayDate
@@ -851,6 +852,9 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
                       }`}
                     >
                       {dayInfo.day}
+                      {hasBookings && (
+                        <span className="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 bg-yellow-400 rounded-full shadow-lg shadow-yellow-400/50"></span>
+                      )}
                     </button>
                   );
                 })}
