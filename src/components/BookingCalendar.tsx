@@ -913,7 +913,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
         ))}
       </div>
 
-      <div className="flex gap-4 w-full" style={{ height: '850px' }}>
+      <div className="flex gap-4 w-full" style={{ height: '720px' }}>
         {/* Left Sidebar - Month Calendars */}
       <div className="w-72 bg-gray-800 rounded-lg p-4 flex-shrink-0 flex flex-col">
         {/* Current Month */}
