@@ -201,12 +201,13 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
           end_time,
           tenant_id,
           status,
+          invoice_id,
           tenants(name, company_name),
           office_spaces(space_number)
         `)
         .gte('booking_date', formatLocalDate(weekStart))
         .lte('booking_date', formatLocalDate(weekEnd))
-        .eq('status', 'confirmed')
+        .neq('status', 'cancelled')
         .order('start_time'),
       supabase
         .from('office_spaces')
@@ -927,14 +928,15 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
                       {booking && (() => {
                         const colors = getTenantColor(booking.tenant_id);
                         const isBeingDragged = draggedBooking?.id === booking.id;
+                        const isCompleted = booking.status === 'completed';
                         return (
                           <div
-                            className={`absolute left-1 right-1 ${colors.bg} border-l-4 ${colors.border} rounded shadow-sm px-2 py-1 overflow-hidden z-10 cursor-move hover:shadow-md transition-shadow select-none ${isBeingDragged ? 'opacity-50' : ''}`}
+                            className={`absolute left-1 right-1 ${colors.bg} border-l-4 ${colors.border} rounded shadow-sm px-2 py-1 overflow-hidden z-10 cursor-move hover:shadow-md transition-shadow select-none ${isBeingDragged ? 'opacity-50' : isCompleted ? 'opacity-70' : ''}`}
                             style={{
                               height: `${getBookingHeight(booking) * CELL_HEIGHT - 2}px`,
                               top: '1px'
                             }}
-                            title={`${booking.office_spaces?.space_number} - ${booking.tenants?.company_name || ''} (${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)})\nKlik om te beheren, sleep om te verplaatsen`}
+                            title={`${booking.office_spaces?.space_number} - ${booking.tenants?.company_name || ''} (${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)})${isCompleted ? ' - Voltooid' : ''}${booking.invoice_id ? ' - Gefactureerd' : ''}\nKlik om te beheren, sleep om te verplaatsen`}
                             onMouseDown={(e) => {
                               if (e.button === 0) {
                                 handleBookingDragStart(booking, e);
