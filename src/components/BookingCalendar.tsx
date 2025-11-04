@@ -108,15 +108,20 @@ export function BookingCalendar() {
 
   useEffect(() => {
     // Scroll to 8:00 AM when component mounts or data loads
-    if (scrollContainerRef.current && bookings.length >= 0) {
+    if (scrollContainerRef.current && !loading) {
       // 8:00 AM is index 16 in timeSlots (8 * 2 = 16)
       const targetIndex = 16;
       const cellHeight = 50;
       const scrollPosition = targetIndex * cellHeight;
 
-      scrollContainerRef.current.scrollTop = scrollPosition;
+      // Use setTimeout to ensure DOM is ready
+      setTimeout(() => {
+        if (scrollContainerRef.current) {
+          scrollContainerRef.current.scrollTop = scrollPosition;
+        }
+      }, 100);
     }
-  }, [bookings]);
+  }, [loading]);
 
   useEffect(() => {
     const handleMouseUp = () => {
