@@ -546,73 +546,205 @@ export function BookingCalendar() {
     );
   }
 
-  const CELL_HEIGHT = 28;
+  const CELL_HEIGHT = 50;
+
+  // Generate month calendar data
+  const generateMonthDays = () => {
+    const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+    const startDay = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
+    const days = [];
+
+    // Previous month days
+    const prevMonthDays = new Date(currentDate.getFullYear(), currentDate.getMonth(), 0).getDate();
+    for (let i = startDay - 1; i >= 0; i--) {
+      days.push({
+        day: prevMonthDays - i,
+        isCurrentMonth: false,
+        date: new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, prevMonthDays - i)
+      });
+    }
+
+    // Current month days
+    for (let i = 1; i <= lastDay.getDate(); i++) {
+      days.push({
+        day: i,
+        isCurrentMonth: true,
+        date: new Date(currentDate.getFullYear(), currentDate.getMonth(), i)
+      });
+    }
+
+    // Next month days
+    const remainingDays = 42 - days.length;
+    for (let i = 1; i <= remainingDays; i++) {
+      days.push({
+        day: i,
+        isCurrentMonth: false,
+        date: new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, i)
+      });
+    }
+
+    return days;
+  };
+
+  const monthDays = generateMonthDays();
 
   return (
-    <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold text-gray-100">{weekRange}</h2>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={goToToday}
-            className="px-3 py-1.5 text-sm bg-dark-800 text-gray-300 rounded-lg hover:bg-dark-700 transition-colors"
-          >
-            Deze week
-          </button>
-          <button
-            onClick={previousWeek}
-            className="p-1.5 bg-dark-800 text-gray-300 rounded-lg hover:bg-dark-700 transition-colors"
-          >
-            <ChevronLeft size={18} />
-          </button>
-          <button
-            onClick={nextWeek}
-            className="p-1.5 bg-dark-800 text-gray-300 rounded-lg hover:bg-dark-700 transition-colors"
-          >
-            <ChevronRight size={18} />
-          </button>
+    <div className="flex gap-4 h-[calc(100vh-200px)]">
+      {/* Left Sidebar - Month Calendar */}
+      <div className="w-72 bg-gray-800 rounded-lg p-4 flex-shrink-0">
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-gray-200">
+              {currentDate.toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}
+            </h3>
+            <div className="flex gap-1">
+              <button
+                onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))}
+                className="p-1 hover:bg-gray-700 rounded"
+              >
+                <ChevronLeft size={16} className="text-gray-300" />
+              </button>
+              <button
+                onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1))}
+                className="p-1 hover:bg-gray-700 rounded"
+              >
+                <ChevronRight size={16} className="text-gray-300" />
+              </button>
+            </div>
+          </div>
+
+          {/* Weekday headers */}
+          <div className="grid grid-cols-8 gap-1 mb-2">
+            <div className="text-[10px] text-gray-400 text-center font-semibold">#</div>
+            {['MA', 'DI', 'WO', 'DO', 'VR', 'ZA', 'ZO'].map(day => (
+              <div key={day} className="text-[10px] text-gray-400 text-center font-semibold">
+                {day}
+              </div>
+            ))}
+          </div>
+
+          {/* Calendar grid */}
+          <div className="grid grid-cols-8 gap-1">
+            {Array.from({ length: 6 }).map((_, weekIdx) => {
+              const weekStart = monthDays[weekIdx * 7];
+              const weekNum = weekStart ? getWeekNumber(weekStart.date) : '';
+
+              return (
+                <>
+                  <div key={`week-${weekIdx}`} className="text-[10px] text-gray-500 text-center py-1">
+                    {weekNum}
+                  </div>
+                  {monthDays.slice(weekIdx * 7, (weekIdx + 1) * 7).map((dayInfo, idx) => {
+                    const isSelected = weekDays.some(wd =>
+                      wd.date.toDateString() === dayInfo.date.toDateString()
+                    );
+                    const isTodayDate = isToday(dayInfo.date);
+
+                    return (
+                      <button
+                        key={`${weekIdx}-${idx}`}
+                        onClick={() => setCurrentDate(dayInfo.date)}
+                        className={`text-xs py-1 rounded ${
+                          !dayInfo.isCurrentMonth
+                            ? 'text-gray-600'
+                            : isSelected
+                            ? 'bg-blue-600 text-white font-semibold'
+                            : isTodayDate
+                            ? 'bg-blue-900/50 text-blue-300 font-semibold'
+                            : 'text-gray-300 hover:bg-gray-700'
+                        }`}
+                      >
+                        {dayInfo.day}
+                      </button>
+                    );
+                  })}
+                </>
+              );
+            })}
+          </div>
         </div>
+
+        <button
+          onClick={goToToday}
+          className="w-full px-3 py-2 text-sm bg-gray-700 text-gray-200 rounded hover:bg-gray-600 transition-colors"
+        >
+          Vandaag
+        </button>
       </div>
 
-      <div className="overflow-x-auto max-h-[calc(100vh-350px)] overflow-y-auto">
-        <div className="min-w-[700px]" style={{ display: 'grid', gridTemplateColumns: '40px repeat(7, 1fr)' }}>
-          <div className="sticky top-0 z-20" style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '40px repeat(7, 1fr)' }}>
-            <div className="bg-dark-900 p-0.5 text-[9px] font-semibold text-gray-400 text-center">
-              Tijd
+      {/* Right Side - Week View */}
+      <div className="flex-1 bg-gray-800 rounded-lg overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="bg-gray-700 px-4 py-3 flex items-center justify-between border-b border-gray-600">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={previousWeek}
+              className="p-1 hover:bg-gray-600 rounded"
+            >
+              <ChevronLeft size={18} className="text-gray-300" />
+            </button>
+            <h2 className="text-base font-semibold text-gray-100">{weekRange}</h2>
+            <button
+              onClick={nextWeek}
+              className="p-1 hover:bg-gray-600 rounded"
+            >
+              <ChevronRight size={18} className="text-gray-300" />
+            </button>
+          </div>
+          <div className="text-sm text-gray-400">Week</div>
+        </div>
+
+        {/* Calendar Grid */}
+        <div className="flex-1 overflow-auto bg-gray-900">
+          <div className="min-w-[900px]" style={{ display: 'grid', gridTemplateColumns: '60px repeat(7, 1fr)' }}>
+            {/* Header row */}
+            <div className="sticky top-0 z-20 bg-gray-700 border-b border-gray-600" style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '60px repeat(7, 1fr)' }}>
+              <div className="p-2"></div>
+              {weekDays.map((day) => {
+                const isTodayDate = isToday(day.date);
+                return (
+                  <div
+                    key={day.dateStr}
+                    className={`p-2 text-center border-l border-gray-600 ${
+                      isTodayDate ? 'bg-blue-900/30' : ''
+                    }`}
+                  >
+                    <div className="text-xs text-gray-400 uppercase">
+                      {day.date.toLocaleDateString('nl-NL', { weekday: 'short' })}
+                    </div>
+                    <div className={`text-2xl font-light ${
+                      isTodayDate ? 'text-blue-400' : 'text-gray-200'
+                    }`}>
+                      {day.date.getDate()}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            {weekDays.map((day) => (
-              <div
-                key={day.dateStr}
-                className={`bg-dark-900 p-1.5 text-center ${
-                  isToday(day.date) ? 'bg-gold-900/20 border-t-2 border-gold-500' : ''
-                }`}
-              >
-                <div className="text-xs font-semibold text-gray-400">
-                  {day.date.toLocaleDateString('nl-NL', { weekday: 'short' })}
-                </div>
-                <div className={`text-sm font-bold ${
-                  isToday(day.date) ? 'text-gold-500' : 'text-gray-100'
-                }`}>
-                  {day.date.getDate()}
-                </div>
-              </div>
-            ))}
-          </div>
 
-          <div className="bg-dark-900">
-            {timeSlots.map((time) => (
-              <div
-                key={time}
-                className="text-[9px] text-gray-500 bg-dark-900 px-0 border-r border-b border-dark-700 text-center"
-                style={{ height: `${CELL_HEIGHT}px`, lineHeight: `${CELL_HEIGHT}px` }}
-              >
-                {time}
-              </div>
-            ))}
-          </div>
+            {/* Time column */}
+            <div className="bg-gray-800">
+              {timeSlots.map((time) => {
+                const [hour] = time.split(':').map(Number);
+                // Only show on the hour
+                const showTime = time.endsWith(':00');
+                return (
+                  <div
+                    key={time}
+                    className="text-[10px] text-gray-500 bg-gray-800 pr-2 text-right border-b border-gray-700"
+                    style={{ height: `${CELL_HEIGHT}px`, lineHeight: `${CELL_HEIGHT}px` }}
+                  >
+                    {showTime ? time : ''}
+                  </div>
+                );
+              })}
+            </div>
 
-          {weekDays.map((day) => (
-            <div key={day.dateStr} className="bg-dark-800 relative">
+          {weekDays.map((day) => {
+            const isTodayDate = isToday(day.date);
+            return (
+              <div key={day.dateStr} className={`relative border-l border-gray-600 ${isTodayDate ? 'bg-blue-900/10' : 'bg-gray-900'}`}>
                 {timeSlots.map((time) => {
                   const booking = getBookingAtTime(day.dateStr, time);
                   const hasBookingHere = hasBooking(day.dateStr, time);
@@ -629,9 +761,9 @@ export function BookingCalendar() {
                   return (
                     <div
                       key={time}
-                      className={`relative border-r border-b border-dark-700 ${
-                        !hasBookingHere && !isPast ? 'cursor-pointer hover:bg-gold-900/20' : ''
-                      } ${isSelected ? 'bg-gold-600/50 border border-gold-500' : ''} ${isPast ? 'bg-dark-900/50' : isWorkHours ? 'bg-gray-800/30' : 'bg-dark-900'} ${isDraggingBooking && !hasBookingHere && !isPast ? 'bg-green-900/20' : ''}`}
+                      className={`relative border-b border-gray-700 ${
+                        !hasBookingHere && !isPast ? 'cursor-pointer hover:bg-gray-800/50' : ''
+                      } ${isSelected ? 'bg-blue-600/30 border-2 border-blue-500' : ''} ${isPast ? 'bg-gray-900/50' : isWorkHours ? 'bg-gray-800/20' : ''} ${isDraggingBooking && !hasBookingHere && !isPast ? 'bg-green-900/20' : ''}`}
                       style={{ height: `${CELL_HEIGHT}px` }}
                       onMouseDown={(e) => {
                         if (!isDraggingBooking) {
@@ -654,10 +786,10 @@ export function BookingCalendar() {
                         const isBeingDragged = draggedBooking?.id === booking.id;
                         return (
                           <div
-                            className={`absolute left-0 right-0 mx-0.5 ${colors.bg} border ${colors.border} rounded px-1 overflow-hidden z-10 cursor-move hover:opacity-90 transition-opacity select-none ${isBeingDragged ? 'opacity-50' : ''}`}
+                            className={`absolute left-1 right-1 ${colors.bg} border-l-4 ${colors.border} rounded shadow-sm px-2 py-1 overflow-hidden z-10 cursor-move hover:shadow-md transition-shadow select-none ${isBeingDragged ? 'opacity-50' : ''}`}
                             style={{
-                              height: `${getBookingHeight(booking) * CELL_HEIGHT}px`,
-                              top: 0
+                              height: `${getBookingHeight(booking) * CELL_HEIGHT - 2}px`,
+                              top: '1px'
                             }}
                             title={`${booking.office_spaces?.space_number} - ${booking.tenants?.company_name || ''} (${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)})\nKlik om te beheren, sleep om te verplaatsen`}
                             onMouseDown={(e) => {
@@ -672,10 +804,13 @@ export function BookingCalendar() {
                               }
                             }}
                           >
-                            <div className={`font-semibold ${colors.text} leading-tight text-[10px]`}>
+                            <div className={`font-semibold ${colors.text} text-xs mb-0.5`}>
+                              {booking.office_spaces?.space_number}
+                            </div>
+                            <div className={`${colors.text} text-[11px] opacity-90`}>
                               {booking.start_time.substring(0, 5)} - {booking.end_time.substring(0, 5)}
                             </div>
-                            <div className={`${colors.text} truncate leading-tight text-[10px]`}>
+                            <div className={`${colors.text} truncate text-[11px] opacity-80 mt-0.5`}>
                               {booking.tenants?.company_name || ''}
                             </div>
                           </div>
@@ -685,7 +820,9 @@ export function BookingCalendar() {
                   );
                 })}
             </div>
-          ))}
+          );
+          })}
+          </div>
         </div>
       </div>
 
