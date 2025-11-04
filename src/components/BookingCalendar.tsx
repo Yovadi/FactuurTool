@@ -768,7 +768,7 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
         <div className="grid grid-cols-8 gap-1">
           {Array.from({ length: 6 }).map((_, weekIdx) => {
             const weekStart = days[weekIdx * 7];
-            const weekNum = weekStart && weekStart.date ? getWeekNumber(weekStart.date) : '';
+            const weekNum = weekStart && weekStart.date ? getWeekNumber(new Date(weekStart.date)) : '';
 
             return (
               <>
