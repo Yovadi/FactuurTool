@@ -100,6 +100,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationId, setNotificationId] = useState(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [allBookings, setAllBookings] = useState<Booking[]>([]);
 
   const showToast = (message: string, type: NotificationType = 'info') => {
     const id = notificationId;
@@ -117,6 +118,25 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
     const isInitialLoad = weekDays.length === 0;
     loadData(isInitialLoad);
   }, [currentDate]);
+
+  useEffect(() => {
+    // Load all bookings for the 3 visible months in mini calendars
+    const loadAllBookings = async () => {
+      const firstDay = new Date(baseMonth.getFullYear(), baseMonth.getMonth(), 1);
+      const lastDay = new Date(baseMonth.getFullYear(), baseMonth.getMonth() + 3, 0);
+
+      const { data } = await supabase
+        .from('meeting_room_bookings')
+        .select('id, booking_date, start_time, end_time, tenant_id, status')
+        .gte('booking_date', formatLocalDate(firstDay))
+        .lte('booking_date', formatLocalDate(lastDay))
+        .neq('status', 'cancelled');
+
+      setAllBookings(data || []);
+    };
+
+    loadAllBookings();
+  }, [baseMonth]);
 
   useEffect(() => {
     // Scroll to 8:00 AM when component mounts or data loads
@@ -170,7 +190,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
   };
 
   const hasBookingsOnDate = (dateStr: string) => {
-    return weekDays.some(day => day.dateStr === dateStr && day.bookings.length > 0);
+    return allBookings.some(booking => booking.booking_date === dateStr);
   };
 
   const loadData = async (showLoadingState = true) => {
