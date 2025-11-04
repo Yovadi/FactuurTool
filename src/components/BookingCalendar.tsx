@@ -152,12 +152,13 @@ export function BookingCalendar() {
           start_time,
           end_time,
           tenant_id,
+          status,
           tenants(name, company_name),
           office_spaces(space_number)
         `)
         .gte('booking_date', formatLocalDate(weekStart))
         .lte('booking_date', formatLocalDate(weekEnd))
-        .neq('status', 'cancelled')
+        .eq('status', 'confirmed')
         .order('start_time'),
       supabase
         .from('office_spaces')
@@ -183,6 +184,9 @@ export function BookingCalendar() {
         bookings: dayBookings
       });
     }
+
+    console.log('Loaded bookings:', bookingsRes.data);
+    console.log('Week days with bookings:', days.map(d => ({ date: d.dateStr, bookings: d.bookings.length })));
 
     setWeekDays(days);
     const rooms = spacesRes.data || [];
@@ -302,10 +306,11 @@ export function BookingCalendar() {
 
     if (error) {
       console.error('Error creating booking:', error);
-      alert('Fout bij het aanmaken van de boeking');
+      alert('Fout bij het aanmaken van de boeking: ' + error.message);
       return;
     }
 
+    alert('Boeking succesvol aangemaakt');
     setShowForm(false);
     setSelectedCells([]);
     setFormData({ tenant_id: '', room_id: '' });
@@ -375,10 +380,11 @@ export function BookingCalendar() {
 
     if (error) {
       console.error('Error deleting booking:', error);
-      alert('Fout bij het verwijderen van de boeking');
+      alert('Fout bij het verwijderen van de boeking: ' + error.message);
       return;
     }
 
+    alert('Boeking succesvol verwijderd');
     setShowDeleteConfirm(false);
     setSelectedBooking(null);
     await loadData();
