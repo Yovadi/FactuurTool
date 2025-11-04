@@ -605,32 +605,42 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
     const startDay = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
     const days = [];
 
+    const weekStart = getWeekStart(currentDate);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+
     // Previous month days
     const prevMonthDays = new Date(currentDate.getFullYear(), currentDate.getMonth(), 0).getDate();
     for (let i = startDay - 1; i >= 0; i--) {
+      const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, prevMonthDays - i);
       days.push({
         day: prevMonthDays - i,
         isCurrentMonth: false,
-        date: new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, prevMonthDays - i)
+        date: formatLocalDate(date),
+        isSelected: date >= weekStart && date <= weekEnd
       });
     }
 
     // Current month days
     for (let i = 1; i <= lastDay.getDate(); i++) {
+      const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), i);
       days.push({
         day: i,
         isCurrentMonth: true,
-        date: new Date(currentDate.getFullYear(), currentDate.getMonth(), i)
+        date: formatLocalDate(date),
+        isSelected: date >= weekStart && date <= weekEnd
       });
     }
 
     // Next month days
     const remainingDays = 42 - days.length;
     for (let i = 1; i <= remainingDays; i++) {
+      const date = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, i);
       days.push({
         day: i,
         isCurrentMonth: false,
-        date: new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, i)
+        date: formatLocalDate(date),
+        isSelected: date >= weekStart && date <= weekEnd
       });
     }
 
@@ -646,32 +656,42 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
     const startDay = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
     const days = [];
 
+    const weekStart = getWeekStart(currentDate);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+
     // Previous month days
     const prevMonthDays = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
     for (let i = startDay - 1; i >= 0; i--) {
+      const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), prevMonthDays - i);
       days.push({
         day: prevMonthDays - i,
         isCurrentMonth: false,
-        date: new Date(currentDate.getFullYear(), currentDate.getMonth(), prevMonthDays - i)
+        date: formatLocalDate(date),
+        isSelected: date >= weekStart && date <= weekEnd
       });
     }
 
     // Current month days
     for (let i = 1; i <= lastDay.getDate(); i++) {
+      const date = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, i);
       days.push({
         day: i,
         isCurrentMonth: true,
-        date: new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, i)
+        date: formatLocalDate(date),
+        isSelected: date >= weekStart && date <= weekEnd
       });
     }
 
     // Next month days
     const remainingDays = 42 - days.length;
     for (let i = 1; i <= remainingDays; i++) {
+      const date = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, i);
       days.push({
         day: i,
         isCurrentMonth: false,
-        date: new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, i)
+        date: formatLocalDate(date),
+        isSelected: date >= weekStart && date <= weekEnd
       });
     }
 
@@ -776,9 +796,7 @@ export function BookingCalendar({ onBookingChange }: BookingCalendarProps = {}) 
                   {weekNum}
                 </div>
                 {days.slice(weekIdx * 7, (weekIdx + 1) * 7).map((dayInfo, idx) => {
-                  const isSelected = dayInfo.date && weekDays.some(wd =>
-                    wd.dateStr === dayInfo.date
-                  );
+                  const isSelected = dayInfo.isSelected;
                   const isTodayDate = dayInfo.date && isToday(new Date(dayInfo.date));
 
                   return (
