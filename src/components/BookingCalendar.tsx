@@ -1056,12 +1056,10 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
 
                         return (
                           <div
-                            className={`absolute left-1 right-1 ${colors.bg} border-l-4 ${colors.border} rounded shadow-sm px-2 overflow-hidden z-10 cursor-move hover:shadow-md transition-shadow select-none ${isBeingDragged ? 'opacity-50' : isCompleted ? 'opacity-70' : ''}`}
+                            className={`absolute left-1 right-1 ${colors.bg} border-l-4 ${colors.border} rounded shadow-sm px-1.5 py-1 overflow-hidden z-10 cursor-move hover:shadow-md transition-shadow select-none flex items-center ${isBeingDragged ? 'opacity-50' : isCompleted ? 'opacity-70' : ''}`}
                             style={{
                               height: `${bookingHeight}px`,
-                              top: '1px',
-                              paddingTop: isSingleSlot ? '2px' : '4px',
-                              paddingBottom: isSingleSlot ? '2px' : '4px'
+                              top: '1px'
                             }}
                             title={`${booking.office_spaces?.space_number} - ${booking.tenants?.company_name || ''} (${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)})${isCompleted ? ' - Voltooid' : ''}${booking.invoice_id ? ' - Gefactureerd' : ''}\nKlik om te beheren, sleep om te verplaatsen`}
                             onMouseDown={(e) => {
@@ -1077,12 +1075,12 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
                             }}
                           >
                             {isSingleSlot ? (
-                              <div className={`${colors.text} flex items-center justify-between gap-1 leading-none`}>
-                                <span className="font-semibold text-[10px] truncate">{booking.office_spaces?.space_number}</span>
-                                <span className="text-[9px] opacity-90 whitespace-nowrap">{booking.start_time.substring(0, 5)}</span>
+                              <div className={`${colors.text} w-full flex items-center gap-1.5`}>
+                                <span className="font-bold text-xs truncate flex-1 min-w-0">{booking.office_spaces?.space_number}</span>
+                                <span className="font-semibold text-xs whitespace-nowrap">{booking.start_time.substring(0, 5)}</span>
                               </div>
                             ) : (
-                              <>
+                              <div className="w-full">
                                 <div className={`font-semibold ${colors.text} text-xs mb-0.5 leading-tight`}>
                                   {booking.office_spaces?.space_number}
                                 </div>
@@ -1092,7 +1090,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
                                 <div className={`${colors.text} truncate text-[11px] opacity-80 mt-0.5 leading-tight`}>
                                   {booking.tenants?.company_name || ''}
                                 </div>
-                              </>
+                              </div>
                             )}
                           </div>
                         );
