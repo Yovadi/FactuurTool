@@ -49,8 +49,8 @@ type SelectedCell = {
   time: string;
 };
 
-const timeSlots = Array.from({ length: 48 }, (_, i) => {
-  const hour = Math.floor(i / 2);
+const timeSlots = Array.from({ length: 32 }, (_, i) => {
+  const hour = Math.floor(i / 2) + 6;
   const minute = (i % 2) * 30;
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 });
@@ -127,8 +127,8 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
   useEffect(() => {
     // Scroll to 8:00 AM when component mounts or data loads
     if (scrollContainerRef.current && !loading) {
-      // 8:00 AM is index 16 in timeSlots (8 * 2 = 16)
-      const targetIndex = 16;
+      // 8:00 AM is index 4 in timeSlots (8 - 6 = 2 hours, 2 * 2 = 4)
+      const targetIndex = 4;
       const cellHeight = 50;
       const scrollPosition = targetIndex * cellHeight;
 
@@ -352,7 +352,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
     const startTime = sortedCells[0].time;
     const lastSlotTime = sortedCells[sortedCells.length - 1].time;
     const endIndex = timeSlots.indexOf(lastSlotTime) + 1;
-    const endTime = timeSlots[endIndex] || '23:59';
+    const endTime = timeSlots[endIndex] || '22:00';
 
     const calculateTotalHours = (start: string, end: string) => {
       const [startHour, startMin] = start.split(':').map(Number);
@@ -1159,7 +1159,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
                 const startTime = sortedCells[0].time;
                 const lastSlotTime = sortedCells[sortedCells.length - 1].time;
                 const endIndex = timeSlots.indexOf(lastSlotTime) + 1;
-                const endTime = timeSlots[endIndex] || '23:59';
+                const endTime = timeSlots[endIndex] || '22:00';
                 const bookingDate = new Date(sortedCells[0].date + 'T00:00:00');
 
                 const calculateTotalHours = (start: string, end: string) => {
