@@ -95,6 +95,66 @@ export function InvoiceManagement() {
     return result;
   };
 
+  const fetchMeetingRoomBookingsForMonth = async (tenantId: string, invoiceMonth: string) => {
+    if (!invoiceMonth) return [];
+
+    const [year, month] = invoiceMonth.split('-').map(Number);
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0);
+
+    const startDateStr = startDate.toISOString().split('T')[0];
+    const endDateStr = endDate.toISOString().split('T')[0];
+
+    const { data: bookings, error } = await supabase
+      .from('meeting_room_bookings')
+      .select(`
+        id,
+        booking_date,
+        start_time,
+        end_time,
+        total_hours,
+        total_amount,
+        hourly_rate,
+        status,
+        invoice_id,
+        office_spaces(space_number)
+      `)
+      .eq('tenant_id', tenantId)
+      .gte('booking_date', startDateStr)
+      .lte('booking_date', endDateStr)
+      .eq('status', 'confirmed')
+      .is('invoice_id', null);
+
+    if (error) {
+      console.error('Error fetching meeting room bookings:', error);
+      return [];
+    }
+
+    const groupedBookings = (bookings || []).reduce((acc, booking) => {
+      const spaceName = booking.office_spaces?.space_number || 'Onbekende ruimte';
+      if (!acc[spaceName]) {
+        acc[spaceName] = {
+          totalHours: 0,
+          totalAmount: 0,
+          hourlyRate: booking.hourly_rate || 0,
+          bookingIds: []
+        };
+      }
+      acc[spaceName].totalHours += parseFloat(booking.total_hours?.toString() || '0');
+      acc[spaceName].totalAmount += parseFloat(booking.total_amount?.toString() || '0');
+      acc[spaceName].bookingIds.push(booking.id);
+      return acc;
+    }, {} as Record<string, { totalHours: number; totalAmount: number; hourlyRate: number; bookingIds: string[] }>);
+
+    return Object.entries(groupedBookings).map(([spaceName, data]) => ({
+      description: `${spaceName} - Vergaderruimte (${data.totalHours.toFixed(1)} uur)`,
+      unit_price: data.hourlyRate.toFixed(2),
+      quantity: data.totalHours.toFixed(1),
+      space_type: 'Meeting Room',
+      bookingIds: data.bookingIds
+    }));
+  };
+
   const [formData, setFormData] = useState({
     lease_id: '',
     tenant_id: '',
@@ -110,6 +170,8 @@ export function InvoiceManagement() {
     description: string;
     unit_price: string;
     quantity?: string;
+    space_type?: string;
+    bookingIds?: string[];
   }>>([]);
 
   useEffect(() => {
@@ -393,6 +455,21 @@ export function InvoiceManagement() {
         return;
       }
 
+      const allBookingIds = lineItems
+        .filter(item => item.bookingIds && item.bookingIds.length > 0)
+        .flatMap(item => item.bookingIds || []);
+
+      if (allBookingIds.length > 0) {
+        const { error: bookingUpdateError } = await supabase
+          .from('meeting_room_bookings')
+          .update({ invoice_id: newInvoice.id })
+          .in('id', allBookingIds);
+
+        if (bookingUpdateError) {
+          console.error('Error linking bookings to invoice:', bookingUpdateError);
+        }
+      }
+
       resetForm();
 
       // Add new invoice to the list with full details
@@ -419,7 +496,7 @@ export function InvoiceManagement() {
     }
   };
 
-  const handleLeaseSelect = (leaseId: string) => {
+  const handleLeaseSelect = async (leaseId: string) => {
     const lease = leases.find(l => l.id === leaseId);
     if (lease) {
       const items = lease.lease_spaces.map(ls => {
@@ -442,6 +519,9 @@ export function InvoiceManagement() {
           space_type: spaceType
         };
       });
+
+      const bookingItems = await fetchMeetingRoomBookingsForMonth(lease.tenant_id, formData.invoice_month);
+      items.push(...bookingItems);
 
       if (lease.security_deposit > 0) {
         items.push({
@@ -1205,7 +1285,19 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                 <input
                   type="month"
                   value={formData.invoice_month}
-                  onChange={(e) => setFormData({ ...formData, invoice_month: e.target.value })}
+                  onChange={async (e) => {
+                    const newMonth = e.target.value;
+                    setFormData({ ...formData, invoice_month: newMonth });
+
+                    if (invoiceMode === 'lease' && formData.lease_id) {
+                      const lease = leases.find(l => l.id === formData.lease_id);
+                      if (lease && newMonth) {
+                        const existingNonBookingItems = lineItems.filter(item => item.space_type !== 'Meeting Room');
+                        const bookingItems = await fetchMeetingRoomBookingsForMonth(lease.tenant_id, newMonth);
+                        setLineItems([...existingNonBookingItems, ...bookingItems]);
+                      }
+                    }
+                  }}
                   className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                 />
                 <p className="text-xs text-gray-400 mt-1">De maand waarvoor deze factuur is (optioneel)</p>
@@ -1254,15 +1346,22 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                   </div>
                   <div className="space-y-2">
                     {lineItems.map((item, index) => (
-                      <div key={index} className="flex gap-2">
-                        <input
-                          type="text"
-                          required
-                          placeholder="Omschrijving"
-                          value={item.description}
-                          onChange={(e) => updateLineItem(index, 'description', e.target.value)}
-                          className="flex-1 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                        />
+                      <div key={index} className="space-y-1">
+                        {item.space_type === 'Meeting Room' && (
+                          <div className="flex items-center gap-2 text-xs text-blue-400">
+                            <span className="bg-blue-900/30 px-2 py-0.5 rounded">Vergaderruimte boekingen</span>
+                          </div>
+                        )}
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            required
+                            placeholder="Omschrijving"
+                            value={item.description}
+                            onChange={(e) => updateLineItem(index, 'description', e.target.value)}
+                            className="flex-1 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                            readOnly={item.space_type === 'Meeting Room'}
+                          />
                         {invoiceMode === 'manual' && (
                           <input
                             type="text"
@@ -1291,8 +1390,9 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                             }
                           }}
                           className="w-32 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                          readOnly={item.space_type === 'Meeting Room'}
                         />
-                        {lineItems.length > 1 && (
+                        {lineItems.length > 1 && item.space_type !== 'Meeting Room' && (
                           <button
                             type="button"
                             onClick={() => removeLineItem(index)}
@@ -1301,6 +1401,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                             ×
                           </button>
                         )}
+                        </div>
                       </div>
                     ))}
                   </div>
