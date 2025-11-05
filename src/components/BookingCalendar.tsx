@@ -1056,11 +1056,11 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
 
                         return (
                           <div
-                            className={`absolute left-1 right-1 ${colors.bg} border-l-4 ${colors.border} rounded shadow-sm px-1.5 py-1 z-10 cursor-move hover:shadow-md transition-shadow select-none flex items-center ${isBeingDragged ? 'opacity-50' : isCompleted ? 'opacity-70' : ''}`}
+                            className={`absolute left-1 right-1 ${colors.bg} border-l-4 ${colors.border} rounded shadow-sm px-1.5 py-1 z-10 cursor-move hover:shadow-md transition-shadow select-none flex flex-col justify-center ${isBeingDragged ? 'opacity-50' : isCompleted ? 'opacity-70' : ''}`}
                             style={{
                               height: `${bookingHeight}px`,
                               top: '1px',
-                              overflow: 'visible'
+                              overflow: 'hidden'
                             }}
                             title={`${booking.office_spaces?.space_number} - ${booking.tenants?.company_name || ''} (${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)})${isCompleted ? ' - Voltooid' : ''}${booking.invoice_id ? ' - Gefactureerd' : ''}\nKlik om te beheren, sleep om te verplaatsen`}
                             onMouseDown={(e) => {
@@ -1075,20 +1075,14 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
                               }
                             }}
                           >
-                            {isSingleSlot ? (
-                              <div className={`${colors.text} w-full text-center`}>
-                                <div className="font-bold text-xs leading-tight">{booking.start_time.substring(0, 5)}</div>
+                            <div className="w-full">
+                              <div className={`font-semibold ${colors.text} text-xs leading-tight truncate`}>
+                                {booking.tenants?.company_name || ''}
                               </div>
-                            ) : (
-                              <div className="w-full overflow-visible">
-                                <div className={`font-semibold ${colors.text} text-xs mb-0.5 leading-tight whitespace-nowrap`}>
-                                  {booking.tenants?.company_name || ''}
-                                </div>
-                                <div className={`${colors.text} text-[11px] opacity-90 leading-tight whitespace-nowrap`}>
-                                  {booking.start_time.substring(0, 5)} - {booking.end_time.substring(0, 5)}
-                                </div>
+                              <div className={`${colors.text} text-[11px] opacity-90 leading-tight mt-0.5`}>
+                                {booking.start_time.substring(0, 5)} - {booking.end_time.substring(0, 5)}
                               </div>
-                            )}
+                            </div>
                           </div>
                         );
                       })()}
