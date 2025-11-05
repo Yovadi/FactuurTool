@@ -1051,12 +1051,17 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
                         const colors = getTenantColor(booking.tenant_id);
                         const isBeingDragged = draggedBooking?.id === booking.id;
                         const isCompleted = booking.status === 'completed';
+                        const bookingHeight = getBookingHeight(booking) * CELL_HEIGHT - 2;
+                        const isSingleSlot = bookingHeight <= 50;
+
                         return (
                           <div
-                            className={`absolute left-1 right-1 ${colors.bg} border-l-4 ${colors.border} rounded shadow-sm px-2 py-1 overflow-hidden z-10 cursor-move hover:shadow-md transition-shadow select-none ${isBeingDragged ? 'opacity-50' : isCompleted ? 'opacity-70' : ''}`}
+                            className={`absolute left-1 right-1 ${colors.bg} border-l-4 ${colors.border} rounded shadow-sm px-2 overflow-hidden z-10 cursor-move hover:shadow-md transition-shadow select-none ${isBeingDragged ? 'opacity-50' : isCompleted ? 'opacity-70' : ''}`}
                             style={{
-                              height: `${getBookingHeight(booking) * CELL_HEIGHT - 2}px`,
-                              top: '1px'
+                              height: `${bookingHeight}px`,
+                              top: '1px',
+                              paddingTop: isSingleSlot ? '2px' : '4px',
+                              paddingBottom: isSingleSlot ? '2px' : '4px'
                             }}
                             title={`${booking.office_spaces?.space_number} - ${booking.tenants?.company_name || ''} (${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)})${isCompleted ? ' - Voltooid' : ''}${booking.invoice_id ? ' - Gefactureerd' : ''}\nKlik om te beheren, sleep om te verplaatsen`}
                             onMouseDown={(e) => {
@@ -1071,15 +1076,24 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
                               }
                             }}
                           >
-                            <div className={`font-semibold ${colors.text} text-xs mb-0.5`}>
-                              {booking.office_spaces?.space_number}
-                            </div>
-                            <div className={`${colors.text} text-[11px] opacity-90`}>
-                              {booking.start_time.substring(0, 5)} - {booking.end_time.substring(0, 5)}
-                            </div>
-                            <div className={`${colors.text} truncate text-[11px] opacity-80 mt-0.5`}>
-                              {booking.tenants?.company_name || ''}
-                            </div>
+                            {isSingleSlot ? (
+                              <div className={`${colors.text} flex items-center justify-between gap-1 leading-none`}>
+                                <span className="font-semibold text-[10px] truncate">{booking.office_spaces?.space_number}</span>
+                                <span className="text-[9px] opacity-90 whitespace-nowrap">{booking.start_time.substring(0, 5)}</span>
+                              </div>
+                            ) : (
+                              <>
+                                <div className={`font-semibold ${colors.text} text-xs mb-0.5 leading-tight`}>
+                                  {booking.office_spaces?.space_number}
+                                </div>
+                                <div className={`${colors.text} text-[11px] opacity-90 leading-tight`}>
+                                  {booking.start_time.substring(0, 5)} - {booking.end_time.substring(0, 5)}
+                                </div>
+                                <div className={`${colors.text} truncate text-[11px] opacity-80 mt-0.5 leading-tight`}>
+                                  {booking.tenants?.company_name || ''}
+                                </div>
+                              </>
+                            )}
                           </div>
                         );
                       })()}
