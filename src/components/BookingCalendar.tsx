@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { ChevronLeft, ChevronRight, X, CheckCircle, XCircle, Info } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, CheckCircle, XCircle, Info, Repeat } from 'lucide-react';
+import { RecurringBookingModal } from './RecurringBookingModal';
 
 type NotificationType = 'success' | 'error' | 'info';
 
@@ -18,6 +19,8 @@ type Booking = {
   tenant_id?: string;
   status?: 'confirmed' | 'cancelled' | 'completed';
   invoice_id?: string | null;
+  recurring_pattern_id?: string | null;
+  is_exception?: boolean;
   tenants?: { name: string; company_name: string };
   office_spaces?: { space_number: string };
 };
@@ -95,12 +98,14 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
   });
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteOption, setDeleteOption] = useState<'single' | 'all'>('single');
   const [draggedBooking, setDraggedBooking] = useState<Booking | null>(null);
   const [isDraggingBooking, setIsDraggingBooking] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationId, setNotificationId] = useState(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
+  const [showRecurringModal, setShowRecurringModal] = useState(false);
 
   const showToast = (message: string, type: NotificationType = 'info') => {
     const id = notificationId;
@@ -198,6 +203,8 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
           tenant_id,
           status,
           invoice_id,
+          recurring_pattern_id,
+          is_exception,
           tenants(name, company_name),
           office_spaces(space_number)
         `)
@@ -445,26 +452,54 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
   const handleCancelBooking = async () => {
     if (!selectedBooking) return;
 
-    const { error } = await supabase
-      .from('meeting_room_bookings')
-      .update({ status: 'cancelled' })
-      .eq('id', selectedBooking.id);
+    if (selectedBooking.recurring_pattern_id && deleteOption === 'all') {
+      const today = new Date().toISOString().split('T')[0];
 
-    if (error) {
-      console.error('Error cancelling booking:', error);
-      showToast('Fout bij het annuleren van de boeking', 'error');
-      return;
+      const { error: patternError } = await supabase
+        .from('recurring_booking_patterns')
+        .update({ is_active: false, end_date: today })
+        .eq('id', selectedBooking.recurring_pattern_id);
+
+      if (patternError) {
+        console.error('Error deactivating recurring pattern:', patternError);
+        showToast('Fout bij het annuleren van terugkerende boekingen', 'error');
+        return;
+      }
+
+      const { error: bookingsError } = await supabase
+        .from('meeting_room_bookings')
+        .update({ status: 'cancelled' })
+        .eq('recurring_pattern_id', selectedBooking.recurring_pattern_id)
+        .gte('booking_date', today);
+
+      if (bookingsError) {
+        console.error('Error cancelling future bookings:', bookingsError);
+        showToast('Fout bij het annuleren van toekomstige boekingen', 'error');
+        return;
+      }
+
+      showToast('Alle toekomstige boekingen succesvol geannuleerd', 'success');
+    } else {
+      const { error } = await supabase
+        .from('meeting_room_bookings')
+        .update({ status: 'cancelled', is_exception: selectedBooking.recurring_pattern_id ? true : false })
+        .eq('id', selectedBooking.id);
+
+      if (error) {
+        console.error('Error cancelling booking:', error);
+        showToast('Fout bij het annuleren van de boeking', 'error');
+        return;
+      }
+
+      showToast('Boeking succesvol geannuleerd', 'success');
     }
 
-    // Remove the cancelled booking from state
-    setWeekDays(prev => prev.map(day => ({
-      ...day,
-      bookings: day.bookings.filter(b => b.id !== selectedBooking.id)
-    })));
+    await loadData();
 
-    showToast('Boeking succesvol geannuleerd', 'success');
     setShowDeleteConfirm(false);
     setSelectedBooking(null);
+    setDeleteOption('single');
+
     if (onBookingChange) {
       onBookingChange('cancelled', selectedBooking.id);
     }
@@ -958,7 +993,13 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
               <ChevronRight size={18} className="text-gray-300" />
             </button>
           </div>
-          <div className="text-sm text-gray-400">Week</div>
+          <button
+            onClick={() => setShowRecurringModal(true)}
+            className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm font-medium"
+          >
+            <Repeat size={16} />
+            Terugkerende Boeking
+          </button>
         </div>
 
         {/* Calendar Grid */}
@@ -1250,12 +1291,42 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
               <p><strong>Bedrijf:</strong> {selectedBooking.tenants?.company_name || selectedBooking.tenants?.name}</p>
               <p><strong>Datum:</strong> {new Date(selectedBooking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL')}</p>
               <p><strong>Tijd:</strong> {selectedBooking.start_time.substring(0, 5)} - {selectedBooking.end_time.substring(0, 5)}</p>
+              {selectedBooking.recurring_pattern_id && (
+                <p className="text-blue-400 flex items-center gap-1"><Repeat size={14} /> <strong>Terugkerende boeking</strong></p>
+              )}
               {selectedBooking.invoice_id && (
                 <p className="text-amber-500"><strong>Let op:</strong> Deze boeking is al gefactureerd</p>
               )}
             </div>
 
             <div className="space-y-3">
+              {selectedBooking.recurring_pattern_id && selectedBooking.status !== 'cancelled' && (
+                <div className="bg-gray-700 rounded-lg p-3 space-y-2">
+                  <p className="text-sm text-gray-300 font-medium mb-2">Annuleer optie:</p>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="deleteOption"
+                      value="single"
+                      checked={deleteOption === 'single'}
+                      onChange={(e) => setDeleteOption(e.target.value as 'single' | 'all')}
+                      className="text-blue-600"
+                    />
+                    <span className="text-sm text-gray-200">Alleen deze boeking</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="deleteOption"
+                      value="all"
+                      checked={deleteOption === 'all'}
+                      onChange={(e) => setDeleteOption(e.target.value as 'single' | 'all')}
+                      className="text-blue-600"
+                    />
+                    <span className="text-sm text-gray-200">Alle toekomstige boekingen</span>
+                  </label>
+                </div>
+              )}
               {selectedBooking.status !== 'cancelled' && selectedBooking.tenant_id === loggedInTenantId && (
                 <button
                   onClick={handleCancelBooking}
@@ -1290,6 +1361,18 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
           </div>
         </div>
       )}
+
+      <RecurringBookingModal
+        isOpen={showRecurringModal}
+        onClose={() => setShowRecurringModal(false)}
+        onSuccess={() => {
+          loadData();
+          showToast('Terugkerende boeking succesvol aangemaakt', 'success');
+        }}
+        spaces={meetingRooms}
+        tenants={tenants}
+        preSelectedTenantId={loggedInTenantId}
+      />
       </div>
     </div>
   );
