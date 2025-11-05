@@ -125,7 +125,7 @@ export function InvoiceManagement() {
       .eq('tenant_id', tenantId)
       .gte('booking_date', startDateStr)
       .lte('booking_date', endDateStr)
-      .eq('status', 'confirmed')
+      .in('status', ['confirmed', 'completed'])
       .is('invoice_id', null);
 
     if (error) {
