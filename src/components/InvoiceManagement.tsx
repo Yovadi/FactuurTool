@@ -520,9 +520,6 @@ export function InvoiceManagement() {
         };
       });
 
-      const bookingItems = await fetchMeetingRoomBookingsForMonth(lease.tenant_id, formData.invoice_month);
-      items.push(...bookingItems);
-
       if (lease.security_deposit > 0) {
         items.push({
           description: 'Voorschot Gas, Water & Electra',
@@ -821,6 +818,158 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
     setEditingInvoiceId(null);
   };
 
+  const generateMeetingRoomInvoices = async () => {
+    setGeneratingBulk(true);
+
+    const { data: settings } = await supabase
+      .from('company_settings')
+      .select('test_mode, test_date')
+      .maybeSingle();
+
+    let currentDate = new Date();
+    if (settings?.test_mode === true && settings?.test_date) {
+      currentDate = new Date(settings.test_date);
+    }
+
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const previousMonth = month === 0 ? 11 : month - 1;
+    const previousYear = month === 0 ? year - 1 : year;
+    const previousMonthString = `${previousYear}-${String(previousMonth + 1).padStart(2, '0')}`;
+
+    const invoiceDate = currentDate.toISOString().split('T')[0];
+    const dueDateObj = new Date(currentDate);
+    dueDateObj.setDate(dueDateObj.getDate() + 14);
+    const dueDate = dueDateObj.toISOString().split('T')[0];
+
+    const tenantsWithBookings = new Map<string, { tenant: Tenant; bookings: any[] }>();
+
+    for (const tenant of tenants) {
+      const bookingItems = await fetchMeetingRoomBookingsForMonth(tenant.id, previousMonthString);
+
+      if (bookingItems.length > 0) {
+        tenantsWithBookings.set(tenant.id, {
+          tenant,
+          bookings: bookingItems
+        });
+      }
+    }
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const [tenantId, { tenant, bookings }] of tenantsWithBookings) {
+      try {
+        const existingInvoice = invoices.find(
+          inv => inv.tenant_id === tenantId && inv.invoice_month === previousMonthString && inv.lease_id === null
+        );
+
+        if (existingInvoice) {
+          continue;
+        }
+
+        const baseAmount = Math.round(bookings.reduce((sum, item) => {
+          const quantity = item.quantity ? parseFloat(item.quantity) : 1;
+          const unitPrice = parseFloat(item.unit_price);
+          return sum + (quantity * unitPrice);
+        }, 0) * 100) / 100;
+
+        const { subtotal, vatAmount, total } = calculateVAT(baseAmount, 21, false);
+
+        const { data: invoiceNumber } = await supabase.rpc('generate_invoice_number');
+
+        const { data: newInvoice, error: invoiceError } = await supabase
+          .from('invoices')
+          .insert([{
+            lease_id: null,
+            tenant_id: tenantId,
+            invoice_number: invoiceNumber,
+            invoice_date: invoiceDate,
+            due_date: dueDate,
+            invoice_month: previousMonthString,
+            subtotal: subtotal,
+            vat_amount: vatAmount,
+            amount: total,
+            vat_rate: 21,
+            vat_inclusive: false,
+            status: 'draft',
+            notes: 'Vergaderruimte gebruik'
+          }])
+          .select()
+          .single();
+
+        if (invoiceError) {
+          console.error('Error creating meeting room invoice:', invoiceError);
+          failCount++;
+          continue;
+        }
+
+        const lineItemsToInsert = bookings.map(item => {
+          const quantity = item.quantity ? parseFloat(item.quantity) : 1;
+          const unitPrice = parseFloat(item.unit_price);
+          return {
+            invoice_id: newInvoice.id,
+            description: item.description,
+            quantity: quantity,
+            unit_price: unitPrice,
+            amount: quantity * unitPrice
+          };
+        });
+
+        const { error: lineItemsError } = await supabase
+          .from('invoice_line_items')
+          .insert(lineItemsToInsert);
+
+        if (lineItemsError) {
+          console.error('Error creating line items:', lineItemsError);
+          await supabase.from('invoices').delete().eq('id', newInvoice.id);
+          failCount++;
+          continue;
+        }
+
+        const allBookingIds = bookings
+          .filter(item => item.bookingIds && item.bookingIds.length > 0)
+          .flatMap(item => item.bookingIds || []);
+
+        if (allBookingIds.length > 0) {
+          await supabase
+            .from('meeting_room_bookings')
+            .update({ invoice_id: newInvoice.id })
+            .in('id', allBookingIds);
+        }
+
+        successCount++;
+
+        const { data: fullInvoice } = await supabase
+          .from('invoices')
+          .select(`
+            *,
+            lease:leases(
+              *,
+              tenant:tenants(*),
+              lease_spaces:lease_spaces(
+                *,
+                space:office_spaces(*)
+              )
+            ),
+            tenant:tenants(*)
+          `)
+          .eq('id', newInvoice.id)
+          .single();
+
+        if (fullInvoice) {
+          setInvoices(prev => [fullInvoice as InvoiceWithDetails, ...prev]);
+        }
+      } catch (err) {
+        console.error('Error generating meeting room invoice:', err);
+        failCount++;
+      }
+    }
+
+    setGeneratingBulk(false);
+    alert(`Vergaderruimte facturen gegenereerd!\n\nSuccesvol: ${successCount}\nMislukt: ${failCount}`);
+  };
+
   const generateBulkInvoices = async () => {
     setGeneratingBulk(true);
 
@@ -1102,14 +1251,24 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
         <h2 className="text-2xl font-bold text-gray-100">Facturen</h2>
         <div className="flex gap-2">
           {(activeTab === 'draft' || activeTab === 'open') && leases.length > 0 && (
-            <button
-              onClick={generateBulkInvoices}
-              disabled={generatingBulk}
-              className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Calendar size={20} />
-              {generatingBulk ? 'Bezig...' : 'Alle Facturen Genereren'}
-            </button>
+            <>
+              <button
+                onClick={generateBulkInvoices}
+                disabled={generatingBulk}
+                className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Calendar size={20} />
+                {generatingBulk ? 'Bezig...' : 'Huur Facturen'}
+              </button>
+              <button
+                onClick={generateMeetingRoomInvoices}
+                disabled={generatingBulk}
+                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Calendar size={20} />
+                {generatingBulk ? 'Bezig...' : 'Vergaderruimte Facturen'}
+              </button>
+            </>
           )}
           {(activeTab === 'draft' || activeTab === 'open') && (
             <button
@@ -1285,19 +1444,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                 <input
                   type="month"
                   value={formData.invoice_month}
-                  onChange={async (e) => {
-                    const newMonth = e.target.value;
-                    setFormData({ ...formData, invoice_month: newMonth });
-
-                    if (invoiceMode === 'lease' && formData.lease_id) {
-                      const lease = leases.find(l => l.id === formData.lease_id);
-                      if (lease && newMonth) {
-                        const existingNonBookingItems = lineItems.filter(item => item.space_type !== 'Meeting Room');
-                        const bookingItems = await fetchMeetingRoomBookingsForMonth(lease.tenant_id, newMonth);
-                        setLineItems([...existingNonBookingItems, ...bookingItems]);
-                      }
-                    }
-                  }}
+                  onChange={(e) => setFormData({ ...formData, invoice_month: e.target.value })}
                   className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                 />
                 <p className="text-xs text-gray-400 mt-1">De maand waarvoor deze factuur is (optioneel)</p>
