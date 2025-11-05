@@ -53,16 +53,16 @@ const timeSlots = Array.from({ length: 48 }, (_, i) => {
 });
 
 const tenantColors = [
-  { bg: 'bg-yellow-600', border: 'border-yellow-500', text: 'text-dark-900' },
-  { bg: 'bg-amber-600', border: 'border-amber-500', text: 'text-dark-900' },
-  { bg: 'bg-orange-600', border: 'border-orange-500', text: 'text-white' },
-  { bg: 'bg-yellow-700', border: 'border-yellow-600', text: 'text-white' },
-  { bg: 'bg-amber-700', border: 'border-amber-600', text: 'text-white' },
-  { bg: 'bg-yellow-500', border: 'border-yellow-400', text: 'text-dark-900' },
-  { bg: 'bg-amber-500', border: 'border-amber-400', text: 'text-dark-900' },
-  { bg: 'bg-orange-500', border: 'border-orange-400', text: 'text-dark-900' },
-  { bg: 'bg-yellow-800', border: 'border-yellow-700', text: 'text-white' },
-  { bg: 'bg-amber-800', border: 'border-amber-700', text: 'text-white' },
+  { bg: 'bg-yellow-600', border: 'border-yellow-500', text: 'text-yellow-50' },
+  { bg: 'bg-amber-600', border: 'border-amber-500', text: 'text-amber-50' },
+  { bg: 'bg-orange-600', border: 'border-orange-500', text: 'text-orange-50' },
+  { bg: 'bg-yellow-700', border: 'border-yellow-600', text: 'text-yellow-50' },
+  { bg: 'bg-amber-700', border: 'border-amber-600', text: 'text-amber-50' },
+  { bg: 'bg-yellow-500', border: 'border-yellow-400', text: 'text-yellow-950' },
+  { bg: 'bg-amber-500', border: 'border-amber-400', text: 'text-amber-950' },
+  { bg: 'bg-orange-500', border: 'border-orange-400', text: 'text-orange-950' },
+  { bg: 'bg-yellow-800', border: 'border-yellow-700', text: 'text-yellow-50' },
+  { bg: 'bg-amber-800', border: 'border-amber-700', text: 'text-amber-50' },
 ];
 
 const getTenantColor = (tenantId: string | undefined) => {
