@@ -105,6 +105,9 @@ export function InvoiceManagement() {
     const startDateStr = startDate.toISOString().split('T')[0];
     const endDateStr = endDate.toISOString().split('T')[0];
 
+    console.log('Fetching bookings for tenant:', tenantId);
+    console.log('Date range:', startDateStr, 'to', endDateStr);
+
     const { data: bookings, error } = await supabase
       .from('meeting_room_bookings')
       .select(`
@@ -129,6 +132,8 @@ export function InvoiceManagement() {
       console.error('Error fetching meeting room bookings:', error);
       return [];
     }
+
+    console.log('Raw bookings found:', bookings?.length || 0, bookings);
 
     const groupedBookings = (bookings || []).reduce((acc, booking) => {
       const spaceName = booking.office_spaces?.space_number || 'Onbekende ruimte';
@@ -837,6 +842,10 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
     const previousYear = month === 0 ? year - 1 : year;
     const previousMonthString = `${previousYear}-${String(previousMonth + 1).padStart(2, '0')}`;
 
+    console.log('Generating meeting room invoices for month:', previousMonthString);
+    console.log('Current date:', currentDate.toISOString());
+    console.log('Total tenants:', tenants.length);
+
     const invoiceDate = currentDate.toISOString().split('T')[0];
     const dueDateObj = new Date(currentDate);
     dueDateObj.setDate(dueDateObj.getDate() + 14);
@@ -845,7 +854,9 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
     const tenantsWithBookings = new Map<string, { tenant: Tenant; bookings: any[] }>();
 
     for (const tenant of tenants) {
+      console.log('Checking tenant:', tenant.company_name, 'ID:', tenant.id);
       const bookingItems = await fetchMeetingRoomBookingsForMonth(tenant.id, previousMonthString);
+      console.log('Found bookings:', bookingItems.length, 'for tenant:', tenant.company_name);
 
       if (bookingItems.length > 0) {
         tenantsWithBookings.set(tenant.id, {
@@ -854,6 +865,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
         });
       }
     }
+
+    console.log('Total tenants with bookings:', tenantsWithBookings.size);
 
     let successCount = 0;
     let failCount = 0;
