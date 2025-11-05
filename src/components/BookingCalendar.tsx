@@ -1082,13 +1082,10 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
                             ) : (
                               <div className="w-full overflow-visible">
                                 <div className={`font-semibold ${colors.text} text-xs mb-0.5 leading-tight whitespace-nowrap`}>
-                                  {booking.office_spaces?.space_number}
+                                  {booking.tenants?.company_name || ''}
                                 </div>
                                 <div className={`${colors.text} text-[11px] opacity-90 leading-tight whitespace-nowrap`}>
                                   {booking.start_time.substring(0, 5)} - {booking.end_time.substring(0, 5)}
-                                </div>
-                                <div className={`${colors.text} text-[11px] opacity-80 mt-0.5 leading-tight whitespace-nowrap`}>
-                                  {booking.tenants?.company_name || ''}
                                 </div>
                               </div>
                             )}
