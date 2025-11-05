@@ -1251,24 +1251,24 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
         <h2 className="text-2xl font-bold text-gray-100">Facturen</h2>
         <div className="flex gap-2">
           {(activeTab === 'draft' || activeTab === 'open') && leases.length > 0 && (
-            <>
-              <button
-                onClick={generateBulkInvoices}
-                disabled={generatingBulk}
-                className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Calendar size={20} />
-                {generatingBulk ? 'Bezig...' : 'Huur Facturen'}
-              </button>
-              <button
-                onClick={generateMeetingRoomInvoices}
-                disabled={generatingBulk}
-                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Calendar size={20} />
-                {generatingBulk ? 'Bezig...' : 'Vergaderruimte Facturen'}
-              </button>
-            </>
+            <button
+              onClick={generateBulkInvoices}
+              disabled={generatingBulk}
+              className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Calendar size={20} />
+              {generatingBulk ? 'Bezig...' : 'Huur Facturen'}
+            </button>
+          )}
+          {(activeTab === 'draft' || activeTab === 'open') && tenants.length > 0 && (
+            <button
+              onClick={generateMeetingRoomInvoices}
+              disabled={generatingBulk}
+              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Calendar size={20} />
+              {generatingBulk ? 'Bezig...' : 'Vergaderruimte Facturen'}
+            </button>
           )}
           {(activeTab === 'draft' || activeTab === 'open') && (
             <button
