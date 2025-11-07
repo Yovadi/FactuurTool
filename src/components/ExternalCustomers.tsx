@@ -167,11 +167,12 @@ export function ExternalCustomers() {
       </div>
 
       {showForm && (
-        <div className="bg-dark-800 rounded-lg p-6">
-          <h3 className="text-xl font-bold text-gray-100 mb-4">
-            {editingCustomer ? 'Klant Bewerken' : 'Nieuwe Klant'}
-          </h3>
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-dark-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <h3 className="text-xl font-bold text-gray-100 mb-4">
+              {editingCustomer ? 'Klant Bewerken' : 'Nieuwe Klant'}
+            </h3>
+            <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-1">
@@ -312,6 +313,7 @@ export function ExternalCustomers() {
               </button>
             </div>
           </form>
+          </div>
         </div>
       )}
 
