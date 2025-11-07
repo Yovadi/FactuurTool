@@ -1,0 +1,362 @@
+import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
+import { Plus, Edit2, Trash2, Mail, Phone, MapPin } from 'lucide-react';
+
+type ExternalCustomer = {
+  id: string;
+  company_name: string;
+  contact_name: string;
+  email?: string;
+  phone?: string;
+  street: string;
+  postal_code: string;
+  city: string;
+  country: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export function ExternalCustomers() {
+  const [customers, setCustomers] = useState<ExternalCustomer[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<ExternalCustomer | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const [formData, setFormData] = useState({
+    company_name: '',
+    contact_name: '',
+    email: '',
+    phone: '',
+    street: '',
+    postal_code: '',
+    city: '',
+    country: 'Nederland'
+  });
+
+  useEffect(() => {
+    loadCustomers();
+  }, []);
+
+  const loadCustomers = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('external_customers')
+      .select('*')
+      .order('company_name');
+
+    if (error) {
+      console.error('Error loading customers:', error);
+    } else {
+      setCustomers(data || []);
+    }
+    setLoading(false);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (editingCustomer) {
+      const { data, error } = await supabase
+        .from('external_customers')
+        .update(formData)
+        .eq('id', editingCustomer.id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating customer:', error);
+        return;
+      }
+
+      if (data) {
+        setCustomers(customers.map(c => c.id === editingCustomer.id ? data : c));
+      }
+    } else {
+      const { data, error } = await supabase
+        .from('external_customers')
+        .insert([formData])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating customer:', error);
+        return;
+      }
+
+      if (data) {
+        setCustomers([...customers, data].sort((a, b) => a.company_name.localeCompare(b.company_name)));
+      }
+    }
+
+    setShowForm(false);
+    setEditingCustomer(null);
+    setFormData({
+      company_name: '',
+      contact_name: '',
+      email: '',
+      phone: '',
+      street: '',
+      postal_code: '',
+      city: '',
+      country: 'Nederland'
+    });
+  };
+
+  const handleEdit = (customer: ExternalCustomer) => {
+    setEditingCustomer(customer);
+    setFormData({
+      company_name: customer.company_name,
+      contact_name: customer.contact_name,
+      email: customer.email || '',
+      phone: customer.phone || '',
+      street: customer.street,
+      postal_code: customer.postal_code,
+      city: customer.city,
+      country: customer.country
+    });
+    setShowForm(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Weet je zeker dat je deze externe klant wilt verwijderen?')) {
+      return;
+    }
+
+    const { error } = await supabase
+      .from('external_customers')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error deleting customer:', error);
+      alert('Fout bij verwijderen: ' + error.message);
+    } else {
+      setCustomers(customers.filter(c => c.id !== id));
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-gray-100">Externe Klanten</h2>
+        <button
+          onClick={() => {
+            setShowForm(true);
+            setEditingCustomer(null);
+            setFormData({
+              company_name: '',
+              contact_name: '',
+              email: '',
+              phone: '',
+              street: '',
+              postal_code: '',
+              city: '',
+              country: 'Nederland'
+            });
+          }}
+          className="flex items-center gap-2 px-4 py-2 bg-gold-600 text-white rounded-lg hover:bg-gold-700 transition-colors"
+        >
+          <Plus size={20} />
+          Nieuwe Klant
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="bg-dark-800 rounded-lg p-6">
+          <h3 className="text-xl font-bold text-gray-100 mb-4">
+            {editingCustomer ? 'Klant Bewerken' : 'Nieuwe Klant'}
+          </h3>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Bedrijfsnaam *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.company_name}
+                  onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
+                  className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-100"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Contactpersoon *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.contact_name}
+                  onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })}
+                  className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-100"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  E-mail
+                </label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-100"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Telefoon
+                </label>
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-100"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">
+                Straat + Huisnummer *
+              </label>
+              <input
+                type="text"
+                required
+                value={formData.street}
+                onChange={(e) => setFormData({ ...formData, street: e.target.value })}
+                className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-100"
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Postcode *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.postal_code}
+                  onChange={(e) => setFormData({ ...formData, postal_code: e.target.value })}
+                  className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-100"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Plaats *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.city}
+                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                  className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-100"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Land *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.country}
+                  onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                  className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-100"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-4 justify-end pt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowForm(false);
+                  setEditingCustomer(null);
+                }}
+                className="px-6 py-2 border border-dark-600 rounded-lg text-gray-300 hover:bg-dark-700 transition-colors"
+              >
+                Annuleren
+              </button>
+              <button
+                type="submit"
+                className="px-6 py-2 bg-gold-600 text-white rounded-lg hover:bg-gold-700 transition-colors"
+              >
+                {editingCustomer ? 'Bijwerken' : 'Toevoegen'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="text-center py-12 text-gray-400">Laden...</div>
+      ) : customers.length === 0 ? (
+        <div className="text-center py-12 text-gray-400">
+          <p>Geen externe klanten gevonden.</p>
+          <p className="text-sm mt-2">Klik op "Nieuwe Klant" om te beginnen.</p>
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {customers.map((customer) => (
+            <div
+              key={customer.id}
+              className="bg-dark-800 rounded-lg p-6 hover:bg-dark-750 transition-colors"
+            >
+              <div className="flex justify-between items-start">
+                <div className="space-y-2 flex-1">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-100">{customer.company_name}</h3>
+                    <p className="text-gray-400 text-sm">{customer.contact_name}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    {customer.email && (
+                      <div className="flex items-center gap-2 text-gray-300">
+                        <Mail size={16} className="text-gold-500" />
+                        {customer.email}
+                      </div>
+                    )}
+                    {customer.phone && (
+                      <div className="flex items-center gap-2 text-gray-300">
+                        <Phone size={16} className="text-gold-500" />
+                        {customer.phone}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-start gap-2 text-sm text-gray-300">
+                    <MapPin size={16} className="text-gold-500 mt-0.5" />
+                    <div>
+                      {customer.street}<br />
+                      {customer.postal_code} {customer.city}<br />
+                      {customer.country}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleEdit(customer)}
+                    className="p-2 text-blue-400 hover:bg-dark-700 rounded-lg transition-colors"
+                    title="Bewerken"
+                  >
+                    <Edit2 size={18} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(customer.id)}
+                    className="p-2 text-red-400 hover:bg-dark-700 rounded-lg transition-colors"
+                    title="Verwijderen"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

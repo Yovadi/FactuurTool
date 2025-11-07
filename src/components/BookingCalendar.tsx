@@ -17,14 +17,13 @@ type Booking = {
   start_time: string;
   end_time: string;
   tenant_id?: string;
-  booking_type?: 'tenant' | 'external';
-  external_company_name?: string;
-  external_contact_name?: string;
+  external_customer_id?: string;
   status?: 'confirmed' | 'cancelled' | 'completed';
   invoice_id?: string | null;
   recurring_pattern_id?: string | null;
   is_exception?: boolean;
   tenants?: { name: string; company_name: string };
+  external_customers?: { company_name: string; contact_name: string };
   office_spaces?: { space_number: string };
 };
 
@@ -45,6 +44,12 @@ type Tenant = {
   name: string;
   company_name: string;
   booking_pin_code?: string;
+};
+
+type ExternalCustomer = {
+  id: string;
+  company_name: string;
+  contact_name: string;
 };
 
 type SelectedCell = {
@@ -90,6 +95,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
   const [shouldScrollToTop, setShouldScrollToTop] = useState(false);
   const [meetingRooms, setMeetingRooms] = useState<Space[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [externalCustomers, setExternalCustomers] = useState<ExternalCustomer[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<Space | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<SelectedCell | null>(null);
@@ -99,14 +105,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
   const [formData, setFormData] = useState({
     tenant_id: '',
     room_id: '',
-    external_company_name: '',
-    external_contact_name: '',
-    external_email: '',
-    external_phone: '',
-    external_street: '',
-    external_postal_code: '',
-    external_city: '',
-    external_country: 'Nederland'
+    external_customer_id: ''
   });
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -204,7 +203,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
     const firstDay = new Date(baseMonth.getFullYear(), baseMonth.getMonth(), 1);
     const lastDay = new Date(baseMonth.getFullYear(), baseMonth.getMonth() + 3, 0);
 
-    const [bookingsRes, spacesRes, tenantsRes, allBookingsRes] = await Promise.all([
+    const [bookingsRes, spacesRes, tenantsRes, customersRes, allBookingsRes] = await Promise.all([
       supabase
         .from('meeting_room_bookings')
         .select(`
@@ -213,14 +212,13 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
           start_time,
           end_time,
           tenant_id,
-          booking_type,
-          external_company_name,
-          external_contact_name,
+          external_customer_id,
           status,
           invoice_id,
           recurring_pattern_id,
           is_exception,
           tenants(name, company_name),
+          external_customers(company_name, contact_name),
           office_spaces(space_number)
         `)
         .gte('booking_date', formatLocalDate(weekStart))
@@ -237,14 +235,19 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
         .select('id, name, company_name, booking_pin_code')
         .order('name'),
       supabase
+        .from('external_customers')
+        .select('id, company_name, contact_name')
+        .order('company_name'),
+      supabase
         .from('meeting_room_bookings')
-        .select('id, booking_date, start_time, end_time, tenant_id, booking_type, external_company_name, external_contact_name, status')
+        .select('id, booking_date, start_time, end_time, tenant_id, external_customer_id, status')
         .gte('booking_date', formatLocalDate(firstDay))
         .lte('booking_date', formatLocalDate(lastDay))
         .neq('status', 'cancelled')
     ]);
 
     setAllBookings(allBookingsRes.data || []);
+    setExternalCustomers(customersRes.data || []);
 
     const days: WeekDay[] = [];
     for (let i = 0; i < 7; i++) {
@@ -361,24 +364,8 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
         return;
       }
     } else {
-      if (!formData.external_company_name) {
-        showToast('Vul een bedrijfsnaam in.', 'error');
-        return;
-      }
-      if (!formData.external_contact_name) {
-        showToast('Vul een contactpersoon in.', 'error');
-        return;
-      }
-      if (!formData.external_street) {
-        showToast('Vul een straat en huisnummer in.', 'error');
-        return;
-      }
-      if (!formData.external_postal_code) {
-        showToast('Vul een postcode in.', 'error');
-        return;
-      }
-      if (!formData.external_city) {
-        showToast('Vul een plaats in.', 'error');
+      if (!formData.external_customer_id) {
+        showToast('Selecteer een externe klant', 'error');
         return;
       }
     }
@@ -420,14 +407,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
       const tenantIdToUse = loggedInTenantId || formData.tenant_id;
       insertData.tenant_id = tenantIdToUse;
     } else {
-      insertData.external_company_name = formData.external_company_name;
-      insertData.external_contact_name = formData.external_contact_name;
-      insertData.external_email = formData.external_email || null;
-      insertData.external_phone = formData.external_phone || null;
-      insertData.external_street = formData.external_street;
-      insertData.external_postal_code = formData.external_postal_code;
-      insertData.external_city = formData.external_city;
-      insertData.external_country = formData.external_country || 'Nederland';
+      insertData.external_customer_id = formData.external_customer_id;
     }
 
     const { data: newBooking, error } = await supabase
@@ -439,9 +419,11 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
         start_time,
         end_time,
         tenant_id,
+        external_customer_id,
         status,
         invoice_id,
         tenants(name, company_name),
+        external_customers(company_name, contact_name),
         office_spaces(space_number)
       `)
       .single();
@@ -473,14 +455,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
     setFormData({
       tenant_id: '',
       room_id: '',
-      external_company_name: '',
-      external_contact_name: '',
-      external_email: '',
-      external_phone: '',
-      external_street: '',
-      external_postal_code: '',
-      external_city: '',
-      external_country: 'Nederland'
+      external_customer_id: ''
     });
     if (onBookingChange) {
       onBookingChange('created', newBooking.id);
@@ -1168,7 +1143,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
                               top: '1px',
                               overflow: 'hidden'
                             }}
-                            title={`${booking.office_spaces?.space_number} - ${booking.booking_type === 'external' ? `Extern: ${booking.external_company_name}` : booking.tenants?.company_name || ''} (${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)})${isCompleted ? ' - Voltooid' : ''}${booking.invoice_id ? ' - Gefactureerd' : ''}\nKlik om te beheren, sleep om te verplaatsen`}
+                            title={`${booking.office_spaces?.space_number} - ${booking.external_customer_id ? `Extern: ${booking.external_customers?.company_name}` : booking.tenants?.company_name || ''} (${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)})${isCompleted ? ' - Voltooid' : ''}${booking.invoice_id ? ' - Gefactureerd' : ''}\nKlik om te beheren, sleep om te verplaatsen`}
                             onMouseDown={(e) => {
                               if (e.button === 0) {
                                 handleBookingDragStart(booking, e);
@@ -1182,13 +1157,13 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
                             }}
                           >
                             <div className="w-full">
-                              {booking.booking_type === 'external' ? (
+                              {booking.external_customer_id ? (
                                 <>
                                   <div className={`font-medium ${colors.text} text-[10px] uppercase leading-tight opacity-75`}>
                                     EXTERN
                                   </div>
                                   <div className={`font-semibold ${colors.text} text-xs leading-tight truncate`}>
-                                    {booking.external_company_name}
+                                    {booking.external_customers?.company_name}
                                   </div>
                                 </>
                               ) : (
@@ -1343,116 +1318,24 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
                   </select>
                 </div>
               ) : (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-200 mb-2">
-                      Bedrijfsnaam *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.external_company_name}
-                      onChange={(e) => setFormData({ ...formData, external_company_name: e.target.value })}
-                      className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-200 mb-2">
-                      Contactpersoon *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.external_contact_name}
-                      onChange={(e) => setFormData({ ...formData, external_contact_name: e.target.value })}
-                      className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                      required
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-200 mb-2">
-                        E-mail
-                      </label>
-                      <input
-                        type="email"
-                        value={formData.external_email}
-                        onChange={(e) => setFormData({ ...formData, external_email: e.target.value })}
-                        className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-200 mb-2">
-                        Telefoon
-                      </label>
-                      <input
-                        type="tel"
-                        value={formData.external_phone}
-                        onChange={(e) => setFormData({ ...formData, external_phone: e.target.value })}
-                        className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="border-t border-dark-600 pt-4 mt-4">
-                    <h3 className="text-md font-medium text-gray-200 mb-4">Factuuradres</h3>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-200 mb-2">
-                        Straat en huisnummer *
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.external_street}
-                        onChange={(e) => setFormData({ ...formData, external_street: e.target.value })}
-                        className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                        placeholder="Straatnaam 123"
-                        required
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-200 mb-2">
-                          Postcode *
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.external_postal_code}
-                          onChange={(e) => setFormData({ ...formData, external_postal_code: e.target.value })}
-                          className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                          placeholder="1234 AB"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-200 mb-2">
-                          Plaats *
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.external_city}
-                          onChange={(e) => setFormData({ ...formData, external_city: e.target.value })}
-                          className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                          placeholder="Amsterdam"
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-200 mb-2">
-                        Land
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.external_country}
-                        onChange={(e) => setFormData({ ...formData, external_country: e.target.value })}
-                        className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                        placeholder="Nederland"
-                      />
-                    </div>
-                  </div>
-                </>
+                <div>
+                  <label className="block text-sm font-medium text-gray-200 mb-2">
+                    Externe klant *
+                  </label>
+                  <select
+                    value={formData.external_customer_id}
+                    onChange={(e) => setFormData({ ...formData, external_customer_id: e.target.value })}
+                    className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                    required
+                  >
+                    <option value="">Selecteer een externe klant</option>
+                    {externalCustomers.map((customer) => (
+                      <option key={customer.id} value={customer.id}>
+                        {customer.company_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               )}
 
               <div className="flex gap-4 justify-end">
@@ -1464,14 +1347,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
                     setFormData({
                       tenant_id: '',
                       room_id: '',
-                      external_company_name: '',
-                      external_contact_name: '',
-                      external_email: '',
-                      external_phone: '',
-                      external_street: '',
-                      external_postal_code: '',
-                      external_city: '',
-                      external_country: 'Nederland'
+                      external_customer_id: ''
                     });
                   }}
                   className="px-6 py-2 border border-dark-600 rounded-lg text-gray-300 hover:bg-dark-700 transition-colors"
@@ -1484,13 +1360,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
                     selectedCells.length === 0 ||
                     !formData.room_id ||
                     (bookingType === 'tenant' && !loggedInTenantId && !formData.tenant_id) ||
-                    (bookingType === 'external' && (
-                      !formData.external_company_name ||
-                      !formData.external_contact_name ||
-                      !formData.external_street ||
-                      !formData.external_postal_code ||
-                      !formData.external_city
-                    ))
+                    (bookingType === 'external' && !formData.external_customer_id)
                   }
                   className="px-6 py-2 bg-gold-600 text-white rounded-lg hover:bg-gold-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -1520,11 +1390,11 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
 
             <div className="mb-6 space-y-2 text-gray-300">
               <p><strong>Ruimte:</strong> {selectedBooking.office_spaces?.space_number}</p>
-              {selectedBooking.booking_type === 'external' ? (
+              {selectedBooking.external_customer_id ? (
                 <>
                   <p className="text-blue-400"><strong>Type:</strong> Externe boeking</p>
-                  <p><strong>Bedrijf:</strong> {selectedBooking.external_company_name}</p>
-                  <p><strong>Contactpersoon:</strong> {selectedBooking.external_contact_name}</p>
+                  <p><strong>Bedrijf:</strong> {selectedBooking.external_customers?.company_name}</p>
+                  <p><strong>Contactpersoon:</strong> {selectedBooking.external_customers?.contact_name}</p>
                 </>
               ) : (
                 <p><strong>Bedrijf:</strong> {selectedBooking.tenants?.company_name || selectedBooking.tenants?.name}</p>
