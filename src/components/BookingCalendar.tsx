@@ -1466,7 +1466,14 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
                   disabled={
                     selectedCells.length === 0 ||
                     !formData.room_id ||
-                    (!loggedInTenantId && !formData.tenant_id)
+                    (bookingType === 'tenant' && !loggedInTenantId && !formData.tenant_id) ||
+                    (bookingType === 'external' && (
+                      !formData.external_company_name ||
+                      !formData.external_contact_name ||
+                      !formData.external_street ||
+                      !formData.external_postal_code ||
+                      !formData.external_city
+                    ))
                   }
                   className="px-6 py-2 bg-gold-600 text-white rounded-lg hover:bg-gold-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
