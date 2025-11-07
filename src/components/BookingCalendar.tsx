@@ -17,6 +17,9 @@ type Booking = {
   start_time: string;
   end_time: string;
   tenant_id?: string;
+  booking_type?: 'tenant' | 'external';
+  external_company_name?: string;
+  external_contact_name?: string;
   status?: 'confirmed' | 'cancelled' | 'completed';
   invoice_id?: string | null;
   recurring_pattern_id?: string | null;
@@ -232,7 +235,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
         .order('name'),
       supabase
         .from('meeting_room_bookings')
-        .select('id, booking_date, start_time, end_time, tenant_id, status')
+        .select('id, booking_date, start_time, end_time, tenant_id, booking_type, external_company_name, external_contact_name, status')
         .gte('booking_date', formatLocalDate(firstDay))
         .lte('booking_date', formatLocalDate(lastDay))
         .neq('status', 'cancelled')
@@ -1162,7 +1165,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
                               top: '1px',
                               overflow: 'hidden'
                             }}
-                            title={`${booking.office_spaces?.space_number} - ${booking.tenants?.company_name || ''} (${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)})${isCompleted ? ' - Voltooid' : ''}${booking.invoice_id ? ' - Gefactureerd' : ''}\nKlik om te beheren, sleep om te verplaatsen`}
+                            title={`${booking.office_spaces?.space_number} - ${booking.booking_type === 'external' ? `Extern: ${booking.external_company_name}` : booking.tenants?.company_name || ''} (${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)})${isCompleted ? ' - Voltooid' : ''}${booking.invoice_id ? ' - Gefactureerd' : ''}\nKlik om te beheren, sleep om te verplaatsen`}
                             onMouseDown={(e) => {
                               if (e.button === 0) {
                                 handleBookingDragStart(booking, e);
@@ -1176,9 +1179,20 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
                             }}
                           >
                             <div className="w-full">
-                              <div className={`font-semibold ${colors.text} text-xs leading-tight truncate`}>
-                                {booking.tenants?.company_name || ''}
-                              </div>
+                              {booking.booking_type === 'external' ? (
+                                <>
+                                  <div className={`font-medium ${colors.text} text-[10px] uppercase leading-tight opacity-75`}>
+                                    EXTERN
+                                  </div>
+                                  <div className={`font-semibold ${colors.text} text-xs leading-tight truncate`}>
+                                    {booking.external_company_name}
+                                  </div>
+                                </>
+                              ) : (
+                                <div className={`font-semibold ${colors.text} text-xs leading-tight truncate`}>
+                                  {booking.tenants?.company_name || ''}
+                                </div>
+                              )}
                               <div className={`${colors.text} text-[11px] opacity-90 leading-tight mt-0.5`}>
                                 {booking.start_time.substring(0, 5)} - {booking.end_time.substring(0, 5)}
                               </div>
@@ -1503,7 +1517,15 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
 
             <div className="mb-6 space-y-2 text-gray-300">
               <p><strong>Ruimte:</strong> {selectedBooking.office_spaces?.space_number}</p>
-              <p><strong>Bedrijf:</strong> {selectedBooking.tenants?.company_name || selectedBooking.tenants?.name}</p>
+              {selectedBooking.booking_type === 'external' ? (
+                <>
+                  <p className="text-blue-400"><strong>Type:</strong> Externe boeking</p>
+                  <p><strong>Bedrijf:</strong> {selectedBooking.external_company_name}</p>
+                  <p><strong>Contactpersoon:</strong> {selectedBooking.external_contact_name}</p>
+                </>
+              ) : (
+                <p><strong>Bedrijf:</strong> {selectedBooking.tenants?.company_name || selectedBooking.tenants?.name}</p>
+              )}
               <p><strong>Datum:</strong> {new Date(selectedBooking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL')}</p>
               <p><strong>Tijd:</strong> {selectedBooking.start_time.substring(0, 5)} - {selectedBooking.end_time.substring(0, 5)}</p>
               {selectedBooking.recurring_pattern_id && (
