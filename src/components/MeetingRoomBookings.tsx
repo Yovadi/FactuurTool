@@ -1210,9 +1210,6 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                         <>
                           <div className="text-sm text-gray-200">{booking.external_customers?.contact_name}</div>
                           <div className="text-xs text-gray-400 mt-0.5">{booking.external_customers?.company_name}</div>
-                          {booking.external_customers?.email && (
-                            <div className="text-xs text-gray-500 mt-0.5">{booking.external_customers.email}</div>
-                          )}
                         </>
                       ) : (
                         <>

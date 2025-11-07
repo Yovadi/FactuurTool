@@ -1439,26 +1439,30 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                   </label>
                 </div>
               )}
-              {selectedBooking.status !== 'cancelled' && selectedBooking.tenant_id === loggedInTenantId && (
-                <button
-                  onClick={handleCancelBooking}
-                  className="w-full px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                >
-                  Boeking Annuleren
-                </button>
-              )}
-              {loggedInTenantId && selectedBooking.tenant_id !== loggedInTenantId && selectedBooking.status !== 'cancelled' && (
-                <div className="w-full px-6 py-3 bg-amber-900/30 border border-amber-700 rounded-lg text-amber-300 text-center text-sm">
-                  Je kunt alleen je eigen boekingen annuleren
-                </div>
-              )}
-              {!loggedInTenantId && selectedBooking.status !== 'cancelled' && (
-                <button
-                  onClick={handleCancelBooking}
-                  className="w-full px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                >
-                  Boeking Annuleren
-                </button>
+              {selectedBooking.status !== 'cancelled' && (
+                <>
+                  {loggedInTenantId ? (
+                    selectedBooking.tenant_id === loggedInTenantId ? (
+                      <button
+                        onClick={handleCancelBooking}
+                        className="w-full px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                      >
+                        Boeking Annuleren
+                      </button>
+                    ) : (
+                      <div className="w-full px-6 py-3 bg-amber-900/30 border border-amber-700 rounded-lg text-amber-300 text-center text-sm">
+                        Je kunt alleen je eigen boekingen annuleren
+                      </div>
+                    )
+                  ) : (
+                    <button
+                      onClick={handleCancelBooking}
+                      className="w-full px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                    >
+                      Boeking Annuleren
+                    </button>
+                  )}
+                </>
               )}
               <button
                 onClick={() => {
