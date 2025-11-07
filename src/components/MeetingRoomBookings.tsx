@@ -42,6 +42,10 @@ type Booking = {
   external_contact_name?: string | null;
   external_email?: string | null;
   external_phone?: string | null;
+  external_street?: string | null;
+  external_postal_code?: string | null;
+  external_city?: string | null;
+  external_country?: string | null;
   tenants?: { name: string; company_name: string };
   office_spaces?: { space_number: string };
 };
@@ -83,7 +87,11 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     external_company_name: '',
     external_contact_name: '',
     external_email: '',
-    external_phone: ''
+    external_phone: '',
+    external_street: '',
+    external_postal_code: '',
+    external_city: '',
+    external_country: 'Nederland'
   });
 
   useEffect(() => {
@@ -205,6 +213,18 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
         showNotification('Vul een contactpersoon in.', 'error');
         return;
       }
+      if (!formData.external_street) {
+        showNotification('Vul een straat en huisnummer in.', 'error');
+        return;
+      }
+      if (!formData.external_postal_code) {
+        showNotification('Vul een postcode in.', 'error');
+        return;
+      }
+      if (!formData.external_city) {
+        showNotification('Vul een plaats in.', 'error');
+        return;
+      }
     }
 
     const { data: existingBookings } = await supabase
@@ -259,6 +279,10 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       insertData.external_contact_name = formData.external_contact_name;
       insertData.external_email = formData.external_email || null;
       insertData.external_phone = formData.external_phone || null;
+      insertData.external_street = formData.external_street;
+      insertData.external_postal_code = formData.external_postal_code;
+      insertData.external_city = formData.external_city;
+      insertData.external_country = formData.external_country || 'Nederland';
     }
 
     const { data, error } = await supabase
@@ -295,7 +319,11 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       external_company_name: '',
       external_contact_name: '',
       external_email: '',
-      external_phone: ''
+      external_phone: '',
+      external_street: '',
+      external_postal_code: '',
+      external_city: '',
+      external_country: 'Nederland'
     });
   };
 
@@ -724,34 +752,32 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
               </button>
             </div>
 
-            {!loggedInTenantId && (
-              <div className="mb-6">
-                <div className="flex gap-2 border-b border-dark-600">
-                  <button
-                    type="button"
-                    onClick={() => setBookingType('tenant')}
-                    className={`px-4 py-2 font-medium transition-colors ${
-                      bookingType === 'tenant'
-                        ? 'text-gold-500 border-b-2 border-gold-500'
-                        : 'text-gray-400 hover:text-gray-200'
-                    }`}
-                  >
-                    Huurder
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setBookingType('external')}
-                    className={`px-4 py-2 font-medium transition-colors ${
-                      bookingType === 'external'
-                        ? 'text-gold-500 border-b-2 border-gold-500'
-                        : 'text-gray-400 hover:text-gray-200'
-                    }`}
-                  >
-                    Externe partij
-                  </button>
-                </div>
+            <div className="mb-6">
+              <div className="flex gap-2 border-b border-dark-600">
+                <button
+                  type="button"
+                  onClick={() => setBookingType('tenant')}
+                  className={`px-4 py-2 font-medium transition-colors ${
+                    bookingType === 'tenant'
+                      ? 'text-gold-500 border-b-2 border-gold-500'
+                      : 'text-gray-400 hover:text-gray-200'
+                  }`}
+                >
+                  Huurder
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBookingType('external')}
+                  className={`px-4 py-2 font-medium transition-colors ${
+                    bookingType === 'external'
+                      ? 'text-gold-500 border-b-2 border-gold-500'
+                      : 'text-gray-400 hover:text-gray-200'
+                  }`}
+                >
+                  Externe partij
+                </button>
               </div>
-            )}
+            </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
@@ -794,7 +820,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                 </div>
               )}
 
-              {!loggedInTenantId && bookingType === 'external' && (
+              {bookingType === 'external' && (
                 <>
                   <div>
                     <label className="block text-sm font-medium text-gray-200 mb-2">
@@ -841,6 +867,66 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                         value={formData.external_phone}
                         onChange={(e) => setFormData({ ...formData, external_phone: e.target.value })}
                         className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="border-t border-dark-600 pt-4 mt-4">
+                    <h3 className="text-md font-medium text-gray-200 mb-4">Factuuradres</h3>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-200 mb-2">
+                        Straat en huisnummer *
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.external_street}
+                        onChange={(e) => setFormData({ ...formData, external_street: e.target.value })}
+                        className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                        placeholder="Straatnaam 123"
+                        required
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-200 mb-2">
+                          Postcode *
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.external_postal_code}
+                          onChange={(e) => setFormData({ ...formData, external_postal_code: e.target.value })}
+                          className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                          placeholder="1234 AB"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-200 mb-2">
+                          Plaats *
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.external_city}
+                          onChange={(e) => setFormData({ ...formData, external_city: e.target.value })}
+                          className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                          placeholder="Amsterdam"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-200 mb-2">
+                        Land
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.external_country}
+                        onChange={(e) => setFormData({ ...formData, external_country: e.target.value })}
+                        className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                        placeholder="Nederland"
                       />
                     </div>
                   </div>
