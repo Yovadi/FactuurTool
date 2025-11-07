@@ -16,6 +16,10 @@ export type Tenant = {
   email: string;
   phone: string | null;
   billing_address: string | null;
+  street: string | null;
+  postal_code: string | null;
+  city: string | null;
+  country: string | null;
   booking_pin_code: string | null;
   created_at: string;
 };

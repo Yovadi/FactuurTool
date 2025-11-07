@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, type Tenant, type CompanySettings } from '../lib/supabase';
-import { Plus, Edit2, Trash2, Mail, Phone, MapPin } from 'lucide-react';
+import { Plus, Edit2, Trash2, Mail, Phone, MapPin, Key } from 'lucide-react';
 
 export function TenantManagement() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -14,7 +14,10 @@ export function TenantManagement() {
     name: '',
     email: '',
     phone: '',
-    billing_address: '',
+    street: '',
+    postal_code: '',
+    city: '',
+    country: 'Nederland',
     booking_pin_code: ''
   });
 
@@ -108,7 +111,10 @@ export function TenantManagement() {
       name: tenant.name,
       email: tenant.email,
       phone: tenant.phone || '',
-      billing_address: tenant.billing_address || '',
+      street: tenant.street || '',
+      postal_code: tenant.postal_code || '',
+      city: tenant.city || '',
+      country: tenant.country || 'Nederland',
       booking_pin_code: tenant.booking_pin_code || ''
     });
     setShowForm(true);
@@ -129,7 +135,7 @@ export function TenantManagement() {
   };
 
   const resetForm = () => {
-    setFormData({ company_name: '', name: '', email: '', phone: '', billing_address: '', booking_pin_code: '' });
+    setFormData({ company_name: '', name: '', email: '', phone: '', street: '', postal_code: '', city: '', country: 'Nederland', booking_pin_code: '' });
     setEditingTenant(null);
     setShowForm(false);
   };
@@ -153,97 +159,144 @@ export function TenantManagement() {
 
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-dark-900 rounded-lg p-6 w-full max-w-md">
+          <div className="bg-dark-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-bold text-gray-100 mb-4">
-              {editingTenant ? 'Huurder Bewerken' : 'Nieuwe Huurder Toevoegen'}
+              {editingTenant ? 'Huurder Bewerken' : 'Nieuwe Huurder'}
             </h3>
             <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Bedrijfsnaam *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.company_name}
+                    onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
+                    className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Contactpersoon
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-100"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Email *
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Telefoon
+                  </label>
+                  <input
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-100"
+                  />
+                </div>
+              </div>
+
               <div>
-                <label className="block text-sm font-medium text-gray-200 mb-1">
-                  Bedrijfsnaam
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Straat + Huisnummer *
                 </label>
                 <input
                   type="text"
                   required
-                  value={formData.company_name}
-                  onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
-                  className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                  value={formData.street}
+                  onChange={(e) => setFormData({ ...formData, street: e.target.value })}
+                  className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-100"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-200 mb-1">
-                  Contactpersoon
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                />
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Postcode *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.postal_code}
+                    onChange={(e) => setFormData({ ...formData, postal_code: e.target.value })}
+                    className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Plaats *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.city}
+                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                    className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Land *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.country}
+                    onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                    className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-100"
+                  />
+                </div>
               </div>
+
               <div>
-                <label className="block text-sm font-medium text-gray-200 mb-1">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-200 mb-1">
-                  Telefoon
-                </label>
-                <input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-200 mb-1">
-                  Factuuradres
-                </label>
-                <textarea
-                  value={formData.billing_address}
-                  onChange={(e) => setFormData({ ...formData, billing_address: e.target.value })}
-                  className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                  rows={3}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-200 mb-1">
-                  Boekings PIN-code (voor vergaderruimtes)
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Booking Pincode (optioneel)
                 </label>
                 <input
                   type="text"
                   value={formData.booking_pin_code}
                   onChange={(e) => setFormData({ ...formData, booking_pin_code: e.target.value.replace(/\D/g, '').slice(0, 4) })}
-                  className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                  placeholder="4-cijferige PIN"
+                  className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-100"
+                  placeholder="4-cijferige pincode voor zelfstandig boeken"
                   maxLength={4}
                 />
                 <p className="text-xs text-gray-400 mt-1">
-                  Deze huurder kan met deze PIN-code vergaderruimtes boeken
+                  Geef deze pincode aan de huurder zodat ze zelfstandig vergaderruimtes kunnen boeken
                 </p>
               </div>
-              <div className="flex gap-2 pt-2">
-                <button
-                  type="submit"
-                  className="flex-1 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors"
-                >
-                  {editingTenant ? 'Bijwerken' : 'Aanmaken'}
-                </button>
+              <div className="flex gap-4 justify-end pt-4">
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="flex-1 bg-dark-800 text-gray-200 px-4 py-2 rounded-lg hover:bg-dark-700 transition-colors"
+                  className="px-6 py-2 bg-dark-700 text-gray-200 rounded-lg hover:bg-dark-600 transition-colors"
                 >
                   Annuleren
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2 bg-gold-600 text-white rounded-lg hover:bg-gold-700 transition-colors"
+                >
+                  {editingTenant ? 'Bijwerken' : 'Toevoegen'}
                 </button>
               </div>
             </form>
@@ -251,64 +304,80 @@ export function TenantManagement() {
         </div>
       )}
 
-      <div className="space-y-3">
+      <div className="grid gap-3">
         {tenants.map((tenant) => (
           <div
             key={tenant.id}
-            className="bg-dark-900 rounded-lg border border-dark-700 p-4 hover:border-dark-600 transition-colors"
+            className="bg-dark-800 rounded-lg p-4 hover:bg-dark-750 transition-colors border border-dark-700"
           >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4 flex-1">
-                <Mail className="text-gray-500" size={24} />
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-1">
-                    <h3 className="text-lg font-semibold text-gray-100">
-                      {tenant.company_name}
-                    </h3>
-                    {tenant.name && (
-                      <span className="text-sm text-gray-400">
-                        {tenant.name}
-                      </span>
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4 flex-1 min-w-0">
+                <div className="flex-shrink-0">
+                  <div className="w-10 h-10 bg-gold-600 bg-opacity-20 rounded-lg flex items-center justify-center">
+                    <span className="text-gold-500 font-bold text-lg">
+                      {tenant.company_name.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex-1 min-w-0 grid grid-cols-3 gap-4">
+                  <div>
+                    <h3 className="text-base font-semibold text-gray-100 truncate">{tenant.company_name}</h3>
+                    <p className="text-gray-400 text-sm truncate">{tenant.name || '-'}</p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-sm text-gray-300 truncate">
+                      <Mail size={14} className="text-gold-500 flex-shrink-0" />
+                      <span className="truncate">{tenant.email}</span>
+                    </div>
+                    {tenant.phone && (
+                      <div className="flex items-center gap-2 text-sm text-gray-300">
+                        <Phone size={14} className="text-gold-500 flex-shrink-0" />
+                        <span>{tenant.phone}</span>
+                      </div>
                     )}
                   </div>
-                  <div className="flex items-center gap-4 text-sm text-gray-300">
-                    <span className="flex items-center gap-1">
-                      <Mail size={14} />
-                      {tenant.email}
-                    </span>
-                    {tenant.phone && (
-                      <>
-                        <span>•</span>
-                        <span className="flex items-center gap-1">
-                          <Phone size={14} />
-                          {tenant.phone}
-                        </span>
-                      </>
-                    )}
-                    {tenant.billing_address && (
-                      <>
-                        <span>•</span>
-                        <span className="flex items-center gap-1">
-                          <MapPin size={14} />
-                          {tenant.billing_address}
-                        </span>
-                      </>
+
+                  <div className="flex items-center gap-3">
+                    {tenant.street && tenant.city ? (
+                      <div className="flex items-start gap-2 text-sm text-gray-300 flex-1">
+                        <MapPin size={14} className="text-gold-500 flex-shrink-0 mt-0.5" />
+                        <div className="leading-tight">
+                          <div className="truncate">{tenant.street}</div>
+                          <div>{tenant.postal_code} {tenant.city}</div>
+                        </div>
+                      </div>
+                    ) : tenant.billing_address ? (
+                      <div className="flex items-start gap-2 text-sm text-gray-300 flex-1">
+                        <MapPin size={14} className="text-gold-500 flex-shrink-0 mt-0.5" />
+                        <div className="leading-tight truncate">{tenant.billing_address}</div>
+                      </div>
+                    ) : null}
+                    {tenant.booking_pin_code && (
+                      <div className="flex items-center gap-1.5 text-xs text-green-400 bg-green-900 bg-opacity-20 px-2 py-1 rounded flex-shrink-0">
+                        <Key size={12} />
+                        <span>{tenant.booking_pin_code}</span>
+                      </div>
                     )}
                   </div>
                 </div>
               </div>
-              <div className="flex gap-2">
+
+              <div className="flex gap-1 flex-shrink-0">
                 <button
                   onClick={() => handleEdit(tenant)}
-                  className="flex items-center gap-1 text-gold-500 hover:text-gold-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
+                  className="p-2 text-blue-400 hover:bg-dark-700 rounded-lg transition-colors"
+                  title="Bewerken"
                 >
-                  <Edit2 size={20} />
+                  <Edit2 size={16} />
                 </button>
                 <button
                   onClick={() => handleDelete(tenant.id)}
-                  className="flex items-center gap-1 text-red-600 hover:text-red-500 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
+                  className="p-2 text-red-400 hover:bg-dark-700 rounded-lg transition-colors"
+                  title="Verwijderen"
                 >
-                  <Trash2 size={20} />
+                  <Trash2 size={16} />
                 </button>
               </div>
             </div>
