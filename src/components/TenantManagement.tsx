@@ -1,11 +1,29 @@
 import { useState, useEffect } from 'react';
 import { supabase, type Tenant, type CompanySettings } from '../lib/supabase';
-import { Plus, Edit2, Trash2, Mail, Phone, MapPin, Key } from 'lucide-react';
+import { Plus, Edit2, Trash2, Mail, Phone, MapPin, Key, Users, Building2 } from 'lucide-react';
+
+type ExternalCustomer = {
+  id: string;
+  company_name: string;
+  contact_name: string;
+  email?: string;
+  phone?: string;
+  street: string;
+  postal_code: string;
+  city: string;
+  country: string;
+  booking_pin_code?: string;
+  created_at?: string;
+  updated_at?: string;
+};
 
 export function TenantManagement() {
+  const [activeTab, setActiveTab] = useState<'tenants' | 'external'>('tenants');
   const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [externalCustomers, setExternalCustomers] = useState<ExternalCustomer[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
+  const [editingCustomer, setEditingCustomer] = useState<ExternalCustomer | null>(null);
   const [loading, setLoading] = useState(true);
   const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
 
@@ -23,6 +41,7 @@ export function TenantManagement() {
 
   useEffect(() => {
     loadTenants();
+    loadExternalCustomers();
     loadCompanySettings();
   }, []);
 
@@ -41,6 +60,19 @@ export function TenantManagement() {
     setLoading(false);
   };
 
+  const loadExternalCustomers = async () => {
+    const { data, error } = await supabase
+      .from('external_customers')
+      .select('*')
+      .order('company_name');
+
+    if (error) {
+      console.error('Error loading external customers:', error);
+    } else {
+      setExternalCustomers(data || []);
+    }
+  };
+
   const loadCompanySettings = async () => {
     const { data } = await supabase
       .from('company_settings')
@@ -57,46 +89,93 @@ export function TenantManagement() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (editingTenant) {
-      const { data, error } = await supabase
-        .from('tenants')
-        .update(formData)
-        .eq('id', editingTenant.id)
-        .select()
-        .single();
+    if (activeTab === 'tenants') {
+      if (editingTenant) {
+        const { data, error } = await supabase
+          .from('tenants')
+          .update(formData)
+          .eq('id', editingTenant.id)
+          .select()
+          .single();
 
-      if (error) {
-        console.error('Error updating tenant:', error);
-        return;
-      }
+        if (error) {
+          console.error('Error updating tenant:', error);
+          return;
+        }
 
-      if (data) {
-        setTenants(tenants.map(t => t.id === editingTenant.id ? data : t));
+        if (data) {
+          setTenants(tenants.map(t => t.id === editingTenant.id ? data : t));
+        }
+      } else {
+        const { data, error } = await supabase
+          .from('tenants')
+          .insert([formData])
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Error creating tenant:', error);
+          return;
+        }
+
+        if (data) {
+          setTenants([...tenants, data].sort((a, b) => a.name.localeCompare(b.name)));
+        }
+
+        if (companySettings?.root_folder_path && window.electronAPI?.createTenantFolder) {
+          const result = await window.electronAPI.createTenantFolder(
+            companySettings.root_folder_path,
+            formData.company_name
+          );
+
+          if (!result.success) {
+            console.error('Error creating tenant folder:', result.error);
+          }
+        }
       }
     } else {
-      const { data, error } = await supabase
-        .from('tenants')
-        .insert([formData])
-        .select()
-        .single();
+      const customerData = {
+        company_name: formData.company_name,
+        contact_name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        street: formData.street,
+        postal_code: formData.postal_code,
+        city: formData.city,
+        country: formData.country,
+        booking_pin_code: formData.booking_pin_code
+      };
 
-      if (error) {
-        console.error('Error creating tenant:', error);
-        return;
-      }
+      if (editingCustomer) {
+        const { data, error } = await supabase
+          .from('external_customers')
+          .update(customerData)
+          .eq('id', editingCustomer.id)
+          .select()
+          .single();
 
-      if (data) {
-        setTenants([...tenants, data].sort((a, b) => a.name.localeCompare(b.name)));
-      }
+        if (error) {
+          console.error('Error updating customer:', error);
+          return;
+        }
 
-      if (companySettings?.root_folder_path && window.electronAPI?.createTenantFolder) {
-        const result = await window.electronAPI.createTenantFolder(
-          companySettings.root_folder_path,
-          formData.company_name
-        );
+        if (data) {
+          setExternalCustomers(externalCustomers.map(c => c.id === editingCustomer.id ? data : c));
+        }
+      } else {
+        const { data, error } = await supabase
+          .from('external_customers')
+          .insert([customerData])
+          .select()
+          .single();
 
-        if (!result.success) {
-          console.error('Error creating tenant folder:', result.error);
+        if (error) {
+          console.error('Error creating customer:', error);
+          return;
+        }
+
+        if (data) {
+          setExternalCustomers([...externalCustomers, data].sort((a, b) => a.company_name.localeCompare(b.company_name)));
         }
       }
     }
@@ -106,6 +185,7 @@ export function TenantManagement() {
 
   const handleEdit = (tenant: Tenant) => {
     setEditingTenant(tenant);
+    setEditingCustomer(null);
     setFormData({
       company_name: tenant.company_name,
       name: tenant.name,
@@ -120,23 +200,55 @@ export function TenantManagement() {
     setShowForm(true);
   };
 
+  const handleEditCustomer = (customer: ExternalCustomer) => {
+    setEditingCustomer(customer);
+    setEditingTenant(null);
+    setFormData({
+      company_name: customer.company_name,
+      name: customer.contact_name,
+      email: customer.email || '',
+      phone: customer.phone || '',
+      street: customer.street,
+      postal_code: customer.postal_code,
+      city: customer.city,
+      country: customer.country,
+      booking_pin_code: customer.booking_pin_code || ''
+    });
+    setShowForm(true);
+  };
+
   const handleDelete = async (id: string) => {
-    const { error } = await supabase
-      .from('tenants')
-      .delete()
-      .eq('id', id);
+    if (activeTab === 'tenants') {
+      const { error } = await supabase
+        .from('tenants')
+        .delete()
+        .eq('id', id);
 
-    if (error) {
-      console.error('Error deleting tenant:', error);
-      return;
+      if (error) {
+        console.error('Error deleting tenant:', error);
+        return;
+      }
+
+      setTenants(tenants.filter(t => t.id !== id));
+    } else {
+      const { error } = await supabase
+        .from('external_customers')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error deleting customer:', error);
+        return;
+      }
+
+      setExternalCustomers(externalCustomers.filter(c => c.id !== id));
     }
-
-    setTenants(tenants.filter(t => t.id !== id));
   };
 
   const resetForm = () => {
     setFormData({ company_name: '', name: '', email: '', phone: '', street: '', postal_code: '', city: '', country: 'Nederland', booking_pin_code: '' });
     setEditingTenant(null);
+    setEditingCustomer(null);
     setShowForm(false);
   };
 
@@ -153,7 +265,32 @@ export function TenantManagement() {
           className="flex items-center gap-2 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors"
         >
           <Plus size={20} />
-          Huurder Toevoegen
+          {activeTab === 'tenants' ? 'Huurder Toevoegen' : 'Externe Klant Toevoegen'}
+        </button>
+      </div>
+
+      <div className="flex gap-2 mb-6 border-b border-dark-700">
+        <button
+          onClick={() => setActiveTab('tenants')}
+          className={`flex items-center gap-2 px-4 py-2 font-medium transition-colors ${
+            activeTab === 'tenants'
+              ? 'text-gold-500 border-b-2 border-gold-500'
+              : 'text-gray-400 hover:text-gray-300'
+          }`}
+        >
+          <Building2 size={18} />
+          Huurders
+        </button>
+        <button
+          onClick={() => setActiveTab('external')}
+          className={`flex items-center gap-2 px-4 py-2 font-medium transition-colors ${
+            activeTab === 'external'
+              ? 'text-gold-500 border-b-2 border-gold-500'
+              : 'text-gray-400 hover:text-gray-300'
+          }`}
+        >
+          <Users size={18} />
+          Externe Klanten
         </button>
       </div>
 
@@ -161,7 +298,10 @@ export function TenantManagement() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-dark-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-bold text-gray-100 mb-4">
-              {editingTenant ? 'Huurder Bewerken' : 'Nieuwe Huurder'}
+              {activeTab === 'tenants'
+                ? (editingTenant ? 'Huurder Bewerken' : 'Nieuwe Huurder')
+                : (editingCustomer ? 'Externe Klant Bewerken' : 'Nieuwe Externe Klant')
+              }
             </h3>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -296,7 +436,7 @@ export function TenantManagement() {
                   type="submit"
                   className="px-6 py-2 bg-gold-600 text-white rounded-lg hover:bg-gold-700 transition-colors"
                 >
-                  {editingTenant ? 'Bijwerken' : 'Toevoegen'}
+                  {(editingTenant || editingCustomer) ? 'Bijwerken' : 'Toevoegen'}
                 </button>
               </div>
             </form>
@@ -304,8 +444,9 @@ export function TenantManagement() {
         </div>
       )}
 
-      <div className="grid gap-3">
-        {tenants.map((tenant) => (
+      {activeTab === 'tenants' ? (
+        <div className="grid gap-3">
+          {tenants.map((tenant) => (
           <div
             key={tenant.id}
             className="bg-dark-800 rounded-lg p-4 hover:bg-dark-750 transition-colors border border-dark-700"
@@ -382,12 +523,95 @@ export function TenantManagement() {
               </div>
             </div>
           </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="grid gap-3">
+          {externalCustomers.map((customer) => (
+            <div
+              key={customer.id}
+              className="bg-dark-800 rounded-lg p-4 hover:bg-dark-750 transition-colors border border-dark-700"
+            >
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-4 flex-1 min-w-0">
+                  <div className="flex-shrink-0">
+                    <div className="w-10 h-10 bg-gold-600 bg-opacity-20 rounded-lg flex items-center justify-center">
+                      <span className="text-gold-500 font-bold text-lg">
+                        {customer.company_name.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  </div>
 
-      {tenants.length === 0 && (
+                  <div className="flex-1 min-w-0 grid grid-cols-3 gap-4">
+                    <div>
+                      <h3 className="text-base font-semibold text-gray-100 truncate">{customer.company_name}</h3>
+                      <p className="text-gray-400 text-sm truncate">{customer.contact_name}</p>
+                    </div>
+
+                    <div className="space-y-1">
+                      {customer.email && (
+                        <div className="flex items-center gap-2 text-sm text-gray-300 truncate">
+                          <Mail size={14} className="text-gold-500 flex-shrink-0" />
+                          <span className="truncate">{customer.email}</span>
+                        </div>
+                      )}
+                      {customer.phone && (
+                        <div className="flex items-center gap-2 text-sm text-gray-300">
+                          <Phone size={14} className="text-gold-500 flex-shrink-0" />
+                          <span>{customer.phone}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-start gap-2 text-sm text-gray-300 flex-1">
+                        <MapPin size={14} className="text-gold-500 flex-shrink-0 mt-0.5" />
+                        <div className="leading-tight">
+                          <div className="truncate">{customer.street}</div>
+                          <div>{customer.postal_code} {customer.city}</div>
+                        </div>
+                      </div>
+                      {customer.booking_pin_code && (
+                        <div className="flex items-center gap-1.5 text-xs text-green-400 bg-green-900 bg-opacity-20 px-2 py-1 rounded flex-shrink-0">
+                          <Key size={12} />
+                          <span>{customer.booking_pin_code}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-1 flex-shrink-0">
+                  <button
+                    onClick={() => handleEditCustomer(customer)}
+                    className="p-2 text-blue-400 hover:bg-dark-700 rounded-lg transition-colors"
+                    title="Bewerken"
+                  >
+                    <Edit2 size={16} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(customer.id)}
+                    className="p-2 text-red-400 hover:bg-dark-700 rounded-lg transition-colors"
+                    title="Verwijderen"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {activeTab === 'tenants' && tenants.length === 0 && (
         <div className="text-center py-12 text-gray-400">
           Nog geen huurders. Klik op "Huurder Toevoegen" om je eerste huurder aan te maken.
+        </div>
+      )}
+
+      {activeTab === 'external' && externalCustomers.length === 0 && (
+        <div className="text-center py-12 text-gray-400">
+          Nog geen externe klanten. Klik op "Externe Klant Toevoegen" om je eerste externe klant aan te maken.
         </div>
       )}
     </div>

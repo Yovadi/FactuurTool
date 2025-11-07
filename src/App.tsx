@@ -6,12 +6,11 @@ import { LeaseManagement } from './components/LeaseManagement';
 import { InvoiceManagement } from './components/InvoiceManagement';
 import { CompanySettings } from './components/CompanySettings';
 import { MeetingRoomBookings } from './components/MeetingRoomBookings';
-import { ExternalCustomers } from './components/ExternalCustomers';
 import { PinLogin } from './components/PinLogin';
 import { Analytics } from './components/Analytics';
-import { LayoutDashboard, Users, Building, FileText, ScrollText, Settings, CalendarClock, TrendingUp, LogOut, UserCog } from 'lucide-react';
+import { LayoutDashboard, Users, Building, FileText, ScrollText, Settings, CalendarClock, TrendingUp, LogOut } from 'lucide-react';
 
-type Tab = 'dashboard' | 'tenants' | 'spaces' | 'leases' | 'invoices' | 'bookings' | 'customers' | 'analytics' | 'settings';
+type Tab = 'dashboard' | 'tenants' | 'spaces' | 'leases' | 'invoices' | 'bookings' | 'analytics' | 'settings';
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('bookings');
@@ -30,7 +29,6 @@ function App() {
   const navigation = [
     { id: 'dashboard' as Tab, label: 'Overzicht', icon: LayoutDashboard },
     { id: 'tenants' as Tab, label: 'Huurders', icon: Users },
-    { id: 'customers' as Tab, label: 'Externe Klanten', icon: UserCog },
     { id: 'spaces' as Tab, label: 'Ruimtes', icon: Building },
     { id: 'leases' as Tab, label: 'Huurcontracten', icon: ScrollText },
     { id: 'bookings' as Tab, label: 'Vergaderruimte', icon: CalendarClock },
@@ -119,7 +117,6 @@ function App() {
             <div className="bg-dark-950">
               {activeTab === 'dashboard' && <Dashboard />}
               {activeTab === 'tenants' && <TenantManagement />}
-              {activeTab === 'customers' && <ExternalCustomers />}
               {activeTab === 'spaces' && <SpaceManagement />}
               {activeTab === 'leases' && <LeaseManagement />}
               {activeTab === 'invoices' && <InvoiceManagement />}
