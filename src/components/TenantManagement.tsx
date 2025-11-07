@@ -2,6 +2,13 @@ import { useState, useEffect } from 'react';
 import { supabase, type Tenant, type CompanySettings } from '../lib/supabase';
 import { Plus, Edit2, Trash2, Mail, Phone, MapPin, Key, Users, Building2 } from 'lucide-react';
 
+type TenantWithLeases = Tenant & {
+  leases?: Array<{
+    id: string;
+    status: string;
+  }>;
+};
+
 type ExternalCustomer = {
   id: string;
   company_name: string;
@@ -18,8 +25,8 @@ type ExternalCustomer = {
 };
 
 export function TenantManagement() {
-  const [activeTab, setActiveTab] = useState<'tenants' | 'external'>('tenants');
-  const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [activeTab, setActiveTab] = useState<'active' | 'external' | 'inactive'>('active');
+  const [tenants, setTenants] = useState<TenantWithLeases[]>([]);
   const [externalCustomers, setExternalCustomers] = useState<ExternalCustomer[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
@@ -49,7 +56,13 @@ export function TenantManagement() {
     setLoading(true);
     const { data, error } = await supabase
       .from('tenants')
-      .select('*')
+      .select(`
+        *,
+        leases(
+          id,
+          status
+        )
+      `)
       .order('name');
 
     if (error) {
@@ -89,7 +102,7 @@ export function TenantManagement() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (activeTab === 'tenants') {
+    if (activeTab === 'active' || activeTab === 'inactive') {
       if (editingTenant) {
         const { data, error } = await supabase
           .from('tenants')
@@ -218,7 +231,7 @@ export function TenantManagement() {
   };
 
   const handleDelete = async (id: string) => {
-    if (activeTab === 'tenants') {
+    if (activeTab === 'active' || activeTab === 'inactive') {
       const { error } = await supabase
         .from('tenants')
         .delete()
@@ -265,21 +278,21 @@ export function TenantManagement() {
           className="flex items-center gap-2 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors"
         >
           <Plus size={20} />
-          {activeTab === 'tenants' ? 'Huurder Toevoegen' : 'Externe Klant Toevoegen'}
+          {activeTab === 'external' ? 'Externe Klant Toevoegen' : 'Huurder Toevoegen'}
         </button>
       </div>
 
       <div className="flex gap-2 mb-6 border-b border-dark-700">
         <button
-          onClick={() => setActiveTab('tenants')}
+          onClick={() => setActiveTab('active')}
           className={`flex items-center gap-2 px-4 py-2 font-medium transition-colors ${
-            activeTab === 'tenants'
+            activeTab === 'active'
               ? 'text-gold-500 border-b-2 border-gold-500'
               : 'text-gray-400 hover:text-gray-300'
           }`}
         >
           <Building2 size={18} />
-          Huurders
+          Actieve Huurders
         </button>
         <button
           onClick={() => setActiveTab('external')}
@@ -292,15 +305,26 @@ export function TenantManagement() {
           <Users size={18} />
           Externe Klanten
         </button>
+        <button
+          onClick={() => setActiveTab('inactive')}
+          className={`flex items-center gap-2 px-4 py-2 font-medium transition-colors ${
+            activeTab === 'inactive'
+              ? 'text-gold-500 border-b-2 border-gold-500'
+              : 'text-gray-400 hover:text-gray-300'
+          }`}
+        >
+          <Building2 size={18} />
+          Afgelopen Huurders
+        </button>
       </div>
 
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-dark-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-bold text-gray-100 mb-4">
-              {activeTab === 'tenants'
-                ? (editingTenant ? 'Huurder Bewerken' : 'Nieuwe Huurder')
-                : (editingCustomer ? 'Externe Klant Bewerken' : 'Nieuwe Externe Klant')
+              {activeTab === 'external'
+                ? (editingCustomer ? 'Externe Klant Bewerken' : 'Nieuwe Externe Klant')
+                : (editingTenant ? 'Huurder Bewerken' : 'Nieuwe Huurder')
               }
             </h3>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -444,9 +468,15 @@ export function TenantManagement() {
         </div>
       )}
 
-      {activeTab === 'tenants' ? (
+      {activeTab === 'active' ? (
         <div className="grid gap-3">
-          {tenants.map((tenant) => (
+          {tenants
+            .filter(tenant =>
+              !tenant.leases ||
+              tenant.leases.length === 0 ||
+              tenant.leases.some(lease => lease.status === 'active')
+            )
+            .map((tenant) => (
           <div
             key={tenant.id}
             className="bg-dark-800 rounded-lg p-4 hover:bg-dark-750 transition-colors border border-dark-700"
@@ -513,6 +543,80 @@ export function TenantManagement() {
                 >
                   <Edit2 size={16} />
                 </button>
+                <button
+                  onClick={() => handleDelete(tenant.id)}
+                  className="p-2 text-red-400 hover:bg-dark-700 rounded-lg transition-colors"
+                  title="Verwijderen"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </div>
+          </div>
+          ))}
+        </div>
+      ) : activeTab === 'inactive' ? (
+        <div className="grid gap-3">
+          {tenants
+            .filter(tenant =>
+              tenant.leases &&
+              tenant.leases.length > 0 &&
+              tenant.leases.every(lease => lease.status !== 'active')
+            )
+            .map((tenant) => (
+          <div
+            key={tenant.id}
+            className="bg-dark-800 rounded-lg p-4 hover:bg-dark-750 transition-colors border border-dark-700"
+          >
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4 flex-1 min-w-0">
+                <div className="flex-shrink-0">
+                  <div className="w-10 h-10 bg-gray-600 bg-opacity-20 rounded-lg flex items-center justify-center">
+                    <span className="text-gray-400 font-bold text-lg">
+                      {tenant.company_name.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex-1 min-w-0 grid grid-cols-3 gap-4">
+                  <div>
+                    <h3 className="text-base font-semibold text-gray-300 truncate">{tenant.company_name}</h3>
+                    <p className="text-gray-500 text-sm truncate">{tenant.name || '-'}</p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-sm text-gray-400 truncate">
+                      <Mail size={14} className="text-gray-500 flex-shrink-0" />
+                      <span className="truncate">{tenant.email}</span>
+                    </div>
+                    {tenant.phone && (
+                      <div className="flex items-center gap-2 text-sm text-gray-400">
+                        <Phone size={14} className="text-gray-500 flex-shrink-0" />
+                        <span>{tenant.phone}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    {tenant.street && tenant.city ? (
+                      <div className="flex items-start gap-2 text-sm text-gray-400 flex-1">
+                        <MapPin size={14} className="text-gray-500 flex-shrink-0 mt-0.5" />
+                        <div className="leading-tight">
+                          <div className="truncate">{tenant.street}</div>
+                          <div>{tenant.postal_code} {tenant.city}</div>
+                        </div>
+                      </div>
+                    ) : tenant.billing_address ? (
+                      <div className="flex items-start gap-2 text-sm text-gray-400 flex-1">
+                        <MapPin size={14} className="text-gray-500 flex-shrink-0 mt-0.5" />
+                        <div className="leading-tight truncate">{tenant.billing_address}</div>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-1 flex-shrink-0">
                 <button
                   onClick={() => handleDelete(tenant.id)}
                   className="p-2 text-red-400 hover:bg-dark-700 rounded-lg transition-colors"
@@ -603,9 +707,23 @@ export function TenantManagement() {
         </div>
       )}
 
-      {activeTab === 'tenants' && tenants.length === 0 && (
+      {activeTab === 'active' && tenants.filter(t =>
+        !t.leases ||
+        t.leases.length === 0 ||
+        t.leases.some(l => l.status === 'active')
+      ).length === 0 && (
         <div className="text-center py-12 text-gray-400">
-          Nog geen huurders. Klik op "Huurder Toevoegen" om je eerste huurder aan te maken.
+          Geen actieve huurders gevonden.
+        </div>
+      )}
+
+      {activeTab === 'inactive' && tenants.filter(t =>
+        t.leases &&
+        t.leases.length > 0 &&
+        t.leases.every(l => l.status !== 'active')
+      ).length === 0 && (
+        <div className="text-center py-12 text-gray-400">
+          Geen afgelopen huurders gevonden.
         </div>
       )}
 
