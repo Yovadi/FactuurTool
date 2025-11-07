@@ -667,7 +667,8 @@ export function InvoiceManagement() {
 
       const invoiceData = {
         invoice_number: invoice.invoice_number,
-        tenant_name: tenant?.name || '',
+        tenant_name: ('name' in (tenant || {}) ? tenant?.name : undefined) || undefined,
+        tenant_contact_name: ('contact_name' in (tenant || {}) ? (tenant as any)?.contact_name : undefined) || undefined,
         tenant_company_name: tenant?.company_name || '',
         tenant_email: tenant?.email || '',
         tenant_phone: tenant?.phone || undefined,
@@ -1898,7 +1899,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
                                 generateInvoicePDF({
                                   invoice_number: invoice.invoice_number,
-                                  tenant_name: tenant?.name || '',
+                                  tenant_name: ('name' in (tenant || {}) ? tenant?.name : undefined) || undefined,
+        tenant_contact_name: ('contact_name' in (tenant || {}) ? (tenant as any)?.contact_name : undefined) || undefined,
                                   tenant_company_name: tenant?.company_name || '',
                                   tenant_email: tenant?.email || '',
                                   tenant_phone: tenant?.phone || undefined,
@@ -2097,7 +2099,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
                             generateInvoicePDF({
                               invoice_number: invoice.invoice_number,
-                              tenant_name: tenant?.name || '',
+                              tenant_name: ('name' in (tenant || {}) ? tenant?.name : undefined) || undefined,
+        tenant_contact_name: ('contact_name' in (tenant || {}) ? (tenant as any)?.contact_name : undefined) || undefined,
                               tenant_company_name: tenant?.company_name || '',
                               tenant_email: tenant?.email || '',
                               tenant_phone: tenant?.phone || undefined,
@@ -2317,7 +2320,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
                                     generateInvoicePDF({
                                       invoice_number: invoice.invoice_number,
-                                      tenant_name: tenant?.name || '',
+                                      tenant_name: ('name' in (tenant || {}) ? tenant?.name : undefined) || undefined,
+        tenant_contact_name: ('contact_name' in (tenant || {}) ? (tenant as any)?.contact_name : undefined) || undefined,
                                       tenant_company_name: tenant?.company_name || '',
                                       tenant_email: tenant?.email || '',
                                       tenant_phone: tenant?.phone || undefined,

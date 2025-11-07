@@ -2,7 +2,8 @@ import jsPDF from 'jspdf';
 
 interface InvoiceData {
   invoice_number: string;
-  tenant_name: string;
+  tenant_name?: string;
+  tenant_contact_name?: string;
   tenant_company_name?: string;
   tenant_email: string;
   tenant_phone?: string;
@@ -144,7 +145,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
   pdf.setFontSize(9);
   pdf.setFont('helvetica', 'normal');
   pdf.setTextColor(60, 60, 60);
-  pdf.text(`t.a.v. ${invoice.tenant_name || ''}`, margin + 3, yPosition);
+  pdf.text(`t.a.v. ${invoice.tenant_name || invoice.tenant_contact_name || ''}`, margin + 3, yPosition);
   yPosition += 4;
 
   if (invoice.tenant_company_name) {

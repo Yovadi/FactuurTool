@@ -27,7 +27,7 @@ export type Tenant = {
 export type ExternalCustomer = {
   id: string;
   company_name: string;
-  name: string;
+  contact_name: string;
   email: string;
   phone: string | null;
   street: string | null;
@@ -36,6 +36,7 @@ export type ExternalCustomer = {
   country: string | null;
   booking_pin_code: string | null;
   created_at: string;
+  updated_at?: string;
 };
 
 export type OfficeSpace = {

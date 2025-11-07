@@ -23,7 +23,8 @@ interface InvoicePreviewProps {
     notes?: string;
   };
   tenant: {
-    name: string;
+    name?: string;
+    contact_name?: string;
     company_name?: string;
     email: string;
     phone?: string;
@@ -92,7 +93,7 @@ export function InvoicePreview({
           <div className="grid grid-cols-2 gap-6 pb-6 border-b border-gray-200">
             <div>
               <h3 className="text-sm font-semibold text-gray-700 mb-2">Klant</h3>
-              <p className="text-gray-900 font-medium">{tenant.name}</p>
+              <p className="text-gray-900 font-medium">{tenant.name || tenant.contact_name}</p>
               {tenant.company_name && (
                 <p className="text-gray-600 text-sm">{tenant.company_name}</p>
               )}
