@@ -27,7 +27,7 @@ type Space = {
 type Booking = {
   id: string;
   space_id: string;
-  tenant_id: string;
+  tenant_id: string | null;
   booking_date: string;
   start_time: string;
   end_time: string;
@@ -37,6 +37,11 @@ type Booking = {
   status: 'confirmed' | 'cancelled' | 'completed';
   notes: string;
   invoice_id: string | null;
+  booking_type: 'tenant' | 'external';
+  external_company_name?: string | null;
+  external_contact_name?: string | null;
+  external_email?: string | null;
+  external_phone?: string | null;
   tenants?: { name: string; company_name: string };
   office_spaces?: { space_number: string };
 };
@@ -54,6 +59,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
   const [showForm, setShowForm] = useState(false);
   const [selectedView, setSelectedView] = useState<'list' | 'calendar' | 'rates'>('calendar');
   const [selectedFilter, setSelectedFilter] = useState<'upcoming' | 'past' | 'all'>('upcoming');
+  const [bookingType, setBookingType] = useState<'tenant' | 'external'>('tenant');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationId, setNotificationId] = useState(0);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -73,7 +79,11 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     start_time: '09:00',
     end_time: '10:00',
     hourly_rate: 25,
-    notes: ''
+    notes: '',
+    external_company_name: '',
+    external_contact_name: '',
+    external_email: '',
+    external_phone: ''
   });
 
   useEffect(() => {
@@ -112,8 +122,12 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     const { data: bookingsData } = await bookingsQuery;
 
     const sortedBookings = (bookingsData || []).sort((a, b) => {
-      const companyA = a.tenants?.company_name || a.tenants?.name || '';
-      const companyB = b.tenants?.company_name || b.tenants?.name || '';
+      const companyA = a.booking_type === 'external'
+        ? a.external_company_name || a.external_contact_name || ''
+        : a.tenants?.company_name || a.tenants?.name || '';
+      const companyB = b.booking_type === 'external'
+        ? b.external_company_name || b.external_contact_name || ''
+        : b.tenants?.company_name || b.tenants?.name || '';
 
       const companyCompare = companyA.localeCompare(companyB);
       if (companyCompare !== 0) return companyCompare;
@@ -176,11 +190,21 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       return;
     }
 
-    const tenantId = loggedInTenantId || formData.tenant_id;
-
-    if (!tenantId) {
-      showNotification('Selecteer een huurder.', 'error');
-      return;
+    if (bookingType === 'tenant') {
+      const tenantId = loggedInTenantId || formData.tenant_id;
+      if (!tenantId) {
+        showNotification('Selecteer een huurder.', 'error');
+        return;
+      }
+    } else {
+      if (!formData.external_company_name) {
+        showNotification('Vul een bedrijfsnaam in.', 'error');
+        return;
+      }
+      if (!formData.external_contact_name) {
+        showNotification('Vul een contactpersoon in.', 'error');
+        return;
+      }
     }
 
     const { data: existingBookings } = await supabase
@@ -214,20 +238,32 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     const totalHours = calculateTotalHours(formData.start_time, formData.end_time);
     const totalAmount = totalHours * formData.hourly_rate;
 
+    const insertData: any = {
+      space_id: formData.space_id,
+      booking_date: formData.booking_date,
+      start_time: formData.start_time,
+      end_time: formData.end_time,
+      hourly_rate: formData.hourly_rate,
+      total_hours: totalHours,
+      total_amount: totalAmount,
+      status: 'confirmed',
+      notes: formData.notes,
+      booking_type: bookingType
+    };
+
+    if (bookingType === 'tenant') {
+      const tenantId = loggedInTenantId || formData.tenant_id;
+      insertData.tenant_id = tenantId;
+    } else {
+      insertData.external_company_name = formData.external_company_name;
+      insertData.external_contact_name = formData.external_contact_name;
+      insertData.external_email = formData.external_email || null;
+      insertData.external_phone = formData.external_phone || null;
+    }
+
     const { data, error } = await supabase
       .from('meeting_room_bookings')
-      .insert({
-        space_id: formData.space_id,
-        tenant_id: tenantId,
-        booking_date: formData.booking_date,
-        start_time: formData.start_time,
-        end_time: formData.end_time,
-        hourly_rate: formData.hourly_rate,
-        total_hours: totalHours,
-        total_amount: totalAmount,
-        status: 'confirmed',
-        notes: formData.notes
-      })
+      .insert(insertData)
       .select(`
         *,
         tenants(name, company_name),
@@ -255,7 +291,11 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       start_time: '09:00',
       end_time: '10:00',
       hourly_rate: 25,
-      notes: ''
+      notes: '',
+      external_company_name: '',
+      external_contact_name: '',
+      external_email: '',
+      external_phone: ''
     });
   };
 
@@ -684,6 +724,35 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
               </button>
             </div>
 
+            {!loggedInTenantId && (
+              <div className="mb-6">
+                <div className="flex gap-2 border-b border-dark-600">
+                  <button
+                    type="button"
+                    onClick={() => setBookingType('tenant')}
+                    className={`px-4 py-2 font-medium transition-colors ${
+                      bookingType === 'tenant'
+                        ? 'text-gold-500 border-b-2 border-gold-500'
+                        : 'text-gray-400 hover:text-gray-200'
+                    }`}
+                  >
+                    Huurder
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBookingType('external')}
+                    className={`px-4 py-2 font-medium transition-colors ${
+                      bookingType === 'external'
+                        ? 'text-gold-500 border-b-2 border-gold-500'
+                        : 'text-gray-400 hover:text-gray-200'
+                    }`}
+                  >
+                    Externe partij
+                  </button>
+                </div>
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-200 mb-2">
@@ -704,7 +773,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                 </select>
               </div>
 
-              {!loggedInTenantId && (
+              {!loggedInTenantId && bookingType === 'tenant' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-200 mb-2">
                     Huurder
@@ -723,6 +792,59 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                     ))}
                   </select>
                 </div>
+              )}
+
+              {!loggedInTenantId && bookingType === 'external' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-200 mb-2">
+                      Bedrijfsnaam *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.external_company_name}
+                      onChange={(e) => setFormData({ ...formData, external_company_name: e.target.value })}
+                      className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-200 mb-2">
+                      Contactpersoon *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.external_contact_name}
+                      onChange={(e) => setFormData({ ...formData, external_contact_name: e.target.value })}
+                      className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-200 mb-2">
+                        E-mail
+                      </label>
+                      <input
+                        type="email"
+                        value={formData.external_email}
+                        onChange={(e) => setFormData({ ...formData, external_email: e.target.value })}
+                        className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-200 mb-2">
+                        Telefoon
+                      </label>
+                      <input
+                        type="tel"
+                        value={formData.external_phone}
+                        onChange={(e) => setFormData({ ...formData, external_phone: e.target.value })}
+                        className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+                </>
               )}
 
               <div className="flex gap-4">
@@ -1031,9 +1153,21 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="text-sm text-gray-200">{booking.tenants?.name}</div>
-                      {booking.tenants?.company_name && (
-                        <div className="text-xs text-gray-400 mt-0.5">{booking.tenants.company_name}</div>
+                      {booking.booking_type === 'external' ? (
+                        <>
+                          <div className="text-sm text-gray-200">{booking.external_contact_name}</div>
+                          <div className="text-xs text-gray-400 mt-0.5">{booking.external_company_name}</div>
+                          {booking.external_email && (
+                            <div className="text-xs text-gray-500 mt-0.5">{booking.external_email}</div>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <div className="text-sm text-gray-200">{booking.tenants?.name}</div>
+                          {booking.tenants?.company_name && (
+                            <div className="text-xs text-gray-400 mt-0.5">{booking.tenants.company_name}</div>
+                          )}
+                        </>
                       )}
                     </td>
                     <td className="px-4 py-3">
