@@ -7,6 +7,10 @@ interface InvoiceData {
   tenant_email: string;
   tenant_phone?: string;
   tenant_billing_address?: string;
+  tenant_street?: string;
+  tenant_postal_code?: string;
+  tenant_city?: string;
+  tenant_country?: string;
   invoice_month?: string;
   notes?: string;
   spaces: Array<{
@@ -120,10 +124,16 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
   let boxHeight = 28;
   let addressLines = 1;
   if (invoice.tenant_company_name) addressLines++;
-  if (invoice.tenant_billing_address) {
+
+  // Calculate address lines based on new or old format
+  if (invoice.tenant_street) {
+    addressLines += 2; // street + postal_code/city
+    if (invoice.tenant_country && invoice.tenant_country !== 'Nederland') addressLines++;
+  } else if (invoice.tenant_billing_address) {
     const lines = pdf.splitTextToSize(invoice.tenant_billing_address, 70);
     addressLines += lines.length;
   }
+
   if (invoice.tenant_email) addressLines++;
   boxHeight = 6 + (addressLines * 4) + 2;
 
@@ -142,7 +152,17 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
     yPosition += 4;
   }
 
-  if (invoice.tenant_billing_address) {
+  // Display address - prefer new format over old
+  if (invoice.tenant_street) {
+    pdf.text(invoice.tenant_street, margin + 3, yPosition);
+    yPosition += 4;
+    pdf.text(`${invoice.tenant_postal_code || ''} ${invoice.tenant_city || ''}`.trim(), margin + 3, yPosition);
+    yPosition += 4;
+    if (invoice.tenant_country && invoice.tenant_country !== 'Nederland') {
+      pdf.text(invoice.tenant_country, margin + 3, yPosition);
+      yPosition += 4;
+    }
+  } else if (invoice.tenant_billing_address) {
     const lines = pdf.splitTextToSize(invoice.tenant_billing_address, 70);
     for (const line of lines) {
       pdf.text(line, margin + 3, yPosition);
@@ -180,7 +200,10 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
   const addressBoxBottom = 45 + (6 + ((() => {
     let lines = 1;
     if (invoice.tenant_company_name) lines++;
-    if (invoice.tenant_billing_address) {
+    if (invoice.tenant_street) {
+      lines += 2;
+      if (invoice.tenant_country && invoice.tenant_country !== 'Nederland') lines++;
+    } else if (invoice.tenant_billing_address) {
       const tempLines = pdf.splitTextToSize(invoice.tenant_billing_address, 70);
       lines += tempLines.length;
     }

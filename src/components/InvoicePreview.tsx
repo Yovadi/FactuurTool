@@ -28,6 +28,10 @@ interface InvoicePreviewProps {
     email: string;
     phone?: string;
     billing_address?: string;
+    street?: string;
+    postal_code?: string;
+    city?: string;
+    country?: string;
   };
   spaces: InvoiceSpace[];
   company?: {
@@ -91,6 +95,19 @@ export function InvoicePreview({
               <p className="text-gray-900 font-medium">{tenant.name}</p>
               {tenant.company_name && (
                 <p className="text-gray-600 text-sm">{tenant.company_name}</p>
+              )}
+              {(tenant.street || tenant.billing_address) && (
+                <div className="mt-2 text-sm text-gray-600">
+                  {tenant.street ? (
+                    <>
+                      <p>{tenant.street}</p>
+                      <p>{tenant.postal_code} {tenant.city}</p>
+                      {tenant.country && tenant.country !== 'Nederland' && <p>{tenant.country}</p>}
+                    </>
+                  ) : (
+                    <p className="whitespace-pre-line">{tenant.billing_address}</p>
+                  )}
+                </div>
               )}
             </div>
             <div className="text-right">
