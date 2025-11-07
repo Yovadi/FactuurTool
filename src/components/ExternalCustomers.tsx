@@ -325,61 +325,75 @@ export function ExternalCustomers() {
           <p className="text-sm mt-2">Klik op "Nieuwe Klant" om te beginnen.</p>
         </div>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-3">
           {customers.map((customer) => (
             <div
               key={customer.id}
-              className="bg-dark-800 rounded-lg p-6 hover:bg-dark-750 transition-colors"
+              className="bg-dark-800 rounded-lg p-4 hover:bg-dark-750 transition-colors border border-dark-700"
             >
-              <div className="flex justify-between items-start">
-                <div className="space-y-2 flex-1">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-100">{customer.company_name}</h3>
-                    <p className="text-gray-400 text-sm">{customer.contact_name}</p>
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-4 flex-1 min-w-0">
+                  <div className="flex-shrink-0">
+                    <div className="w-10 h-10 bg-gold-600 bg-opacity-20 rounded-lg flex items-center justify-center">
+                      <span className="text-gold-500 font-bold text-lg">
+                        {customer.company_name.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    {customer.email && (
-                      <div className="flex items-center gap-2 text-gray-300">
-                        <Mail size={16} className="text-gold-500" />
-                        {customer.email}
-                      </div>
-                    )}
-                    {customer.phone && (
-                      <div className="flex items-center gap-2 text-gray-300">
-                        <Phone size={16} className="text-gold-500" />
-                        {customer.phone}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-start gap-2 text-sm text-gray-300">
-                    <MapPin size={16} className="text-gold-500 mt-0.5" />
+
+                  <div className="flex-1 min-w-0 grid grid-cols-3 gap-4">
                     <div>
-                      {customer.street}<br />
-                      {customer.postal_code} {customer.city}<br />
-                      {customer.country}
+                      <h3 className="text-base font-semibold text-gray-100 truncate">{customer.company_name}</h3>
+                      <p className="text-gray-400 text-sm truncate">{customer.contact_name}</p>
+                    </div>
+
+                    <div className="space-y-1">
+                      {customer.email && (
+                        <div className="flex items-center gap-2 text-sm text-gray-300 truncate">
+                          <Mail size={14} className="text-gold-500 flex-shrink-0" />
+                          <span className="truncate">{customer.email}</span>
+                        </div>
+                      )}
+                      {customer.phone && (
+                        <div className="flex items-center gap-2 text-sm text-gray-300">
+                          <Phone size={14} className="text-gold-500 flex-shrink-0" />
+                          <span>{customer.phone}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-start gap-2 text-sm text-gray-300 flex-1">
+                        <MapPin size={14} className="text-gold-500 flex-shrink-0 mt-0.5" />
+                        <div className="leading-tight">
+                          <div className="truncate">{customer.street}</div>
+                          <div>{customer.postal_code} {customer.city}</div>
+                        </div>
+                      </div>
+                      {customer.booking_pin_code && (
+                        <div className="flex items-center gap-1.5 text-xs text-green-400 bg-green-900 bg-opacity-20 px-2 py-1 rounded flex-shrink-0">
+                          <Key size={12} />
+                          <span>{customer.booking_pin_code}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
-                  {customer.booking_pin_code && (
-                    <div className="flex items-center gap-2 text-sm text-green-400 bg-green-900 bg-opacity-20 px-3 py-1.5 rounded">
-                      <Key size={16} />
-                      <span>Pincode: {customer.booking_pin_code}</span>
-                    </div>
-                  )}
                 </div>
-                <div className="flex gap-2">
+
+                <div className="flex gap-1 flex-shrink-0">
                   <button
                     onClick={() => handleEdit(customer)}
                     className="p-2 text-blue-400 hover:bg-dark-700 rounded-lg transition-colors"
                     title="Bewerken"
                   >
-                    <Edit2 size={18} />
+                    <Edit2 size={16} />
                   </button>
                   <button
                     onClick={() => handleDelete(customer.id)}
                     className="p-2 text-red-400 hover:bg-dark-700 rounded-lg transition-colors"
                     title="Verwijderen"
                   >
-                    <Trash2 size={18} />
+                    <Trash2 size={16} />
                   </button>
                 </div>
               </div>
