@@ -24,6 +24,20 @@ export type Tenant = {
   created_at: string;
 };
 
+export type ExternalCustomer = {
+  id: string;
+  company_name: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  street: string | null;
+  postal_code: string | null;
+  city: string | null;
+  country: string | null;
+  booking_pin_code: string | null;
+  created_at: string;
+};
+
 export type OfficeSpace = {
   id: string;
   space_number: string;
@@ -60,6 +74,7 @@ export type Invoice = {
   id: string;
   lease_id: string | null;
   tenant_id: string | null;
+  external_customer_id: string | null;
   invoice_number: string;
   invoice_date: string;
   due_date: string;

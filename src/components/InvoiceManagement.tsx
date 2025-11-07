@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase, type Invoice, type Lease, type Tenant, type LeaseSpace, type OfficeSpace, type InvoiceLineItem } from '../lib/supabase';
+import { supabase, type Invoice, type Lease, type Tenant, type ExternalCustomer, type LeaseSpace, type OfficeSpace, type InvoiceLineItem } from '../lib/supabase';
 import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, Edit } from 'lucide-react';
 import { generateInvoicePDF } from '../utils/pdfGenerator';
 import { InvoicePreview } from './InvoicePreview';
@@ -13,6 +13,7 @@ type LeaseWithDetails = Lease & {
 type InvoiceWithDetails = Invoice & {
   lease?: LeaseWithDetails | null;
   tenant?: Tenant | null;
+  external_customer?: ExternalCustomer | null;
 };
 
 // Helper function to convert invoice line items to spaces with proper type detection
@@ -258,7 +259,8 @@ export function InvoiceManagement() {
             space:office_spaces(*)
           )
         ),
-        tenant:tenants(*)
+        tenant:tenants(*),
+        external_customer:external_customers(*)
       `)
       .order('created_at', { ascending: false });
 
@@ -400,7 +402,8 @@ export function InvoiceManagement() {
               space:office_spaces(*)
             )
           ),
-          tenant:tenants(*)
+          tenant:tenants(*),
+          external_customer:external_customers(*)
         `)
         .eq('id', editingInvoiceId)
         .single();
@@ -490,7 +493,8 @@ export function InvoiceManagement() {
               space:office_spaces(*)
             )
           ),
-          tenant:tenants(*)
+          tenant:tenants(*),
+          external_customer:external_customers(*)
         `)
         .eq('id', newInvoice.id)
         .single();
@@ -1192,11 +1196,14 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
     return calculateVAT(baseAmount, vatRate, vatInclusive);
   };
 
-  const getInvoiceTenant = (invoice: InvoiceWithDetails) => {
+  const getInvoiceTenant = (invoice: InvoiceWithDetails): Tenant | ExternalCustomer | null => {
     if (invoice.lease) {
       return invoice.lease.tenant;
     }
-    return invoice.tenant;
+    if (invoice.external_customer) {
+      return invoice.external_customer;
+    }
+    return invoice.tenant || null;
   };
 
 
