@@ -86,9 +86,10 @@ const getTenantColor = (tenantId: string | undefined) => {
 type BookingCalendarProps = {
   onBookingChange?: (action: 'created' | 'cancelled' | 'updated', bookingId: string) => void;
   loggedInTenantId?: string | null;
+  bookingType?: 'tenant' | 'external';
 };
 
-export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: BookingCalendarProps = {}) {
+export function BookingCalendar({ onBookingChange, loggedInTenantId = null, bookingType = 'tenant' }: BookingCalendarProps = {}) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [baseMonth, setBaseMonth] = useState(new Date());
   const [weekDays, setWeekDays] = useState<WeekDay[]>([]);
@@ -102,7 +103,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
   const [dragStart, setDragStart] = useState<SelectedCell | null>(null);
   const [selectedCells, setSelectedCells] = useState<SelectedCell[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const [bookingType, setBookingType] = useState<'tenant' | 'external'>('tenant');
+  const [formBookingType, setFormBookingType] = useState<'tenant' | 'external'>(bookingType);
   const [formData, setFormData] = useState({
     tenant_id: '',
     room_id: '',
@@ -134,7 +135,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
     // Eerste load met loading state, daarna zonder voor vloeiendere transitions
     const isInitialLoad = weekDays.length === 0;
     loadData(isInitialLoad);
-  }, [currentDate, baseMonth]);
+  }, [currentDate, baseMonth, bookingType]);
 
   useEffect(() => {
     // Scroll to 8:00 AM when component mounts or data loads
@@ -225,6 +226,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
         .gte('booking_date', formatLocalDate(weekStart))
         .lte('booking_date', formatLocalDate(weekEnd))
         .neq('status', 'cancelled')
+        .eq('booking_type', bookingType)
         .order('start_time'),
       supabase
         .from('office_spaces')
@@ -245,6 +247,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
         .gte('booking_date', formatLocalDate(firstDay))
         .lte('booking_date', formatLocalDate(lastDay))
         .neq('status', 'cancelled')
+        .eq('booking_type', bookingType)
     ]);
 
     setAllBookings(allBookingsRes.data || []);
@@ -358,7 +361,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
     }
 
     // Validate based on booking type
-    if (bookingType === 'tenant') {
+    if (formBookingType === 'tenant') {
       const tenantIdToUse = loggedInTenantId || formData.tenant_id;
       if (!tenantIdToUse) {
         showToast('Selecteer een bedrijf', 'error');
@@ -404,7 +407,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
       status: 'confirmed'
     };
 
-    if (bookingType === 'tenant') {
+    if (formBookingType === 'tenant') {
       const tenantIdToUse = loggedInTenantId || formData.tenant_id;
       insertData.tenant_id = tenantIdToUse;
     } else {
@@ -1247,9 +1250,9 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
                 <div className="flex gap-2 border-b border-dark-600">
                   <button
                     type="button"
-                    onClick={() => setBookingType('tenant')}
+                    onClick={() => setFormBookingType('tenant')}
                     className={`px-4 py-2 font-medium transition-colors ${
-                      bookingType === 'tenant'
+                      formBookingType === 'tenant'
                         ? 'text-gold-500 border-b-2 border-gold-500'
                         : 'text-gray-400 hover:text-gray-200'
                     }`}
@@ -1258,9 +1261,9 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
                   </button>
                   <button
                     type="button"
-                    onClick={() => setBookingType('external')}
+                    onClick={() => setFormBookingType('external')}
                     className={`px-4 py-2 font-medium transition-colors ${
-                      bookingType === 'external'
+                      formBookingType === 'external'
                         ? 'text-gold-500 border-b-2 border-gold-500'
                         : 'text-gray-400 hover:text-gray-200'
                     }`}
@@ -1289,7 +1292,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
                 </select>
               </div>
 
-              {bookingType === 'tenant' && loggedInTenantId ? (
+              {formBookingType === 'tenant' && loggedInTenantId ? (
                 <div>
                   <label className="block text-sm font-medium text-gray-200 mb-2">
                     Bedrijf
@@ -1299,7 +1302,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
                      tenants.find(t => t.id === loggedInTenantId)?.name || 'Onbekend'}
                   </div>
                 </div>
-              ) : bookingType === 'tenant' ? (
+              ) : formBookingType === 'tenant' ? (
                 <div>
                   <label className="block text-sm font-medium text-gray-200 mb-2">
                     Bedrijf *
@@ -1360,8 +1363,8 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
                   disabled={
                     selectedCells.length === 0 ||
                     !formData.room_id ||
-                    (bookingType === 'tenant' && !loggedInTenantId && !formData.tenant_id) ||
-                    (bookingType === 'external' && !formData.external_customer_id)
+                    (formBookingType === 'tenant' && !loggedInTenantId && !formData.tenant_id) ||
+                    (formBookingType === 'external' && !formData.external_customer_id)
                   }
                   className="px-6 py-2 bg-gold-600 text-white rounded-lg hover:bg-gold-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >

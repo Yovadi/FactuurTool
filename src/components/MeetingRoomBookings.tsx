@@ -70,6 +70,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
   const [showForm, setShowForm] = useState(false);
   const [selectedView, setSelectedView] = useState<'list' | 'calendar' | 'rates'>('calendar');
   const [selectedFilter, setSelectedFilter] = useState<'upcoming' | 'past' | 'all'>('upcoming');
+  const [selectedTab, setSelectedTab] = useState<'tenant' | 'external'>('tenant');
   const [bookingType, setBookingType] = useState<'tenant' | 'external'>('tenant');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationId, setNotificationId] = useState(0);
@@ -160,16 +161,17 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     setLoading(false);
   };
 
-  const applyFilter = (bookingsList: Booking[], filter: 'upcoming' | 'past' | 'all') => {
+  const applyFilter = (bookingsList: Booking[], filter: 'upcoming' | 'past' | 'all', tab?: 'tenant' | 'external') => {
     const today = new Date();
     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
-    let filtered = bookingsList;
+    const activeTab = tab || selectedTab;
+    let filtered = bookingsList.filter(b => b.booking_type === activeTab);
 
     if (filter === 'upcoming') {
-      filtered = bookingsList.filter(b => b.booking_date >= todayStr && b.status !== 'cancelled');
+      filtered = filtered.filter(b => b.booking_date >= todayStr && b.status !== 'cancelled');
     } else if (filter === 'past') {
-      filtered = bookingsList.filter(b => b.booking_date < todayStr);
+      filtered = filtered.filter(b => b.booking_date < todayStr);
     }
 
     setBookings(filtered);
@@ -183,6 +185,12 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     setTimeout(() => {
       setNotifications(prev => prev.filter(n => n.id !== id));
     }, 5000);
+  };
+
+  const handleTabChange = (tab: 'tenant' | 'external') => {
+    setSelectedTab(tab);
+    setBookingType(tab);
+    applyFilter(allBookings, selectedFilter, tab);
   };
 
   const calculateTotalHours = (startTime: string, endTime: string) => {
@@ -665,6 +673,29 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
             <p className="text-gray-300">Beheer boekingen voor vergaderruimtes op uurbasis</p>
           </div>
 
+          <div className="mb-6 flex gap-2 border-b border-dark-700">
+            <button
+              onClick={() => handleTabChange('tenant')}
+              className={`px-4 py-2 font-medium transition-colors ${
+                selectedTab === 'tenant'
+                  ? 'text-gold-500 border-b-2 border-gold-500'
+                  : 'text-gray-400 hover:text-gray-300'
+              }`}
+            >
+              Interne Boekingen
+            </button>
+            <button
+              onClick={() => handleTabChange('external')}
+              className={`px-4 py-2 font-medium transition-colors ${
+                selectedTab === 'external'
+                  ? 'text-gold-500 border-b-2 border-gold-500'
+                  : 'text-gray-400 hover:text-gray-300'
+              }`}
+            >
+              Externe Boekingen
+            </button>
+          </div>
+
           <div className="mb-6 flex justify-between items-center">
             <div className="flex gap-4">
               <button
@@ -975,7 +1006,10 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
 
       {(isProduction || selectedView === 'calendar') ? (
         <div className={isProduction ? 'w-full max-w-7xl' : ''}>
-          <BookingCalendar loggedInTenantId={loggedInTenantId} onBookingChange={async (action, bookingId) => {
+          <BookingCalendar
+            loggedInTenantId={loggedInTenantId}
+            bookingType={selectedTab}
+            onBookingChange={async (action, bookingId) => {
           if (action === 'cancelled') {
             // Remove cancelled booking from lists
             setBookings(prev => prev.filter(b => b.id !== bookingId));
