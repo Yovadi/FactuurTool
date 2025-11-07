@@ -69,7 +69,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [selectedView, setSelectedView] = useState<'list' | 'calendar' | 'rates'>('calendar');
-  const [selectedFilter, setSelectedFilter] = useState<'upcoming' | 'past' | 'all'>('upcoming');
+  const [selectedFilter, setSelectedFilter] = useState<'all' | 'internal' | 'external' | 'upcoming' | 'invoiced'>('all');
   const [selectedTab, setSelectedTab] = useState<'tenant' | 'external'>('tenant');
   const [bookingType, setBookingType] = useState<'tenant' | 'external'>('tenant');
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -161,17 +161,27 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     setLoading(false);
   };
 
-  const applyFilter = (bookingsList: Booking[], filter: 'upcoming' | 'past' | 'all', tab?: 'tenant' | 'external') => {
+  const applyFilter = (bookingsList: Booking[], filter: 'all' | 'internal' | 'external' | 'upcoming' | 'invoiced', tab?: 'tenant' | 'external') => {
     const today = new Date();
     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
-    const activeTab = tab || selectedTab;
-    let filtered = bookingsList.filter(b => b.booking_type === activeTab);
+    let filtered = bookingsList;
 
-    if (filter === 'upcoming') {
-      filtered = filtered.filter(b => b.booking_date >= todayStr && b.status !== 'cancelled');
-    } else if (filter === 'past') {
-      filtered = filtered.filter(b => b.booking_date < todayStr);
+    if (filter === 'all') {
+      // Show all bookings
+      filtered = bookingsList;
+    } else if (filter === 'internal') {
+      // Only tenant bookings
+      filtered = bookingsList.filter(b => b.booking_type === 'tenant');
+    } else if (filter === 'external') {
+      // Only external bookings
+      filtered = bookingsList.filter(b => b.booking_type === 'external');
+    } else if (filter === 'upcoming') {
+      // Future bookings without invoice
+      filtered = bookingsList.filter(b => b.booking_date >= todayStr && !b.invoice_id);
+    } else if (filter === 'invoiced') {
+      // Bookings with invoice
+      filtered = bookingsList.filter(b => b.invoice_id !== null);
     }
 
     setBookings(filtered);
@@ -711,7 +721,46 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
             </div>
 
             {selectedView === 'list' && (
-              <div className="flex gap-4">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setSelectedFilter('all');
+                    applyFilter(allBookings, 'all');
+                  }}
+                  className={`px-4 py-2 rounded-lg transition-colors ${
+                    selectedFilter === 'all'
+                      ? 'bg-gold-600 text-white'
+                      : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
+                  }`}
+                >
+                  Alle
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedFilter('internal');
+                    applyFilter(allBookings, 'internal');
+                  }}
+                  className={`px-4 py-2 rounded-lg transition-colors ${
+                    selectedFilter === 'internal'
+                      ? 'bg-gold-600 text-white'
+                      : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
+                  }`}
+                >
+                  Intern
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedFilter('external');
+                    applyFilter(allBookings, 'external');
+                  }}
+                  className={`px-4 py-2 rounded-lg transition-colors ${
+                    selectedFilter === 'external'
+                      ? 'bg-gold-600 text-white'
+                      : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
+                  }`}
+                >
+                  Extern
+                </button>
                 <button
                   onClick={() => {
                     setSelectedFilter('upcoming');
@@ -727,29 +776,16 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                 </button>
                 <button
                   onClick={() => {
-                    setSelectedFilter('past');
-                    applyFilter(allBookings, 'past');
+                    setSelectedFilter('invoiced');
+                    applyFilter(allBookings, 'invoiced');
                   }}
                   className={`px-4 py-2 rounded-lg transition-colors ${
-                    selectedFilter === 'past'
+                    selectedFilter === 'invoiced'
                       ? 'bg-gold-600 text-white'
                       : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
                   }`}
                 >
-                  Afgelopen
-                </button>
-                <button
-                  onClick={() => {
-                    setSelectedFilter('all');
-                    applyFilter(allBookings, 'all');
-                  }}
-                  className={`px-4 py-2 rounded-lg transition-colors ${
-                    selectedFilter === 'all'
-                      ? 'bg-gold-600 text-white'
-                      : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
-                  }`}
-                >
-                  Alle
+                  Gefactureerd
                 </button>
               </div>
             )}
@@ -1116,28 +1152,6 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
         </div>
       ) : (
         <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
-          <div className="flex gap-2 px-6 pt-4 border-b border-dark-700">
-            <button
-              onClick={() => handleTabChange('tenant')}
-              className={`px-4 py-2 font-medium transition-colors ${
-                selectedTab === 'tenant'
-                  ? 'text-gold-500 border-b-2 border-gold-500'
-                  : 'text-gray-400 hover:text-gray-300'
-              }`}
-            >
-              Interne Boekingen
-            </button>
-            <button
-              onClick={() => handleTabChange('external')}
-              className={`px-4 py-2 font-medium transition-colors ${
-                selectedTab === 'external'
-                  ? 'text-gold-500 border-b-2 border-gold-500'
-                  : 'text-gray-400 hover:text-gray-300'
-              }`}
-            >
-              Externe Boekingen
-            </button>
-          </div>
           <div className="overflow-x-auto">
             <table className="w-full">
             <thead className="bg-dark-800 border-b border-dark-700">
@@ -1149,7 +1163,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                   Ruimte
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">
-                  Huurder
+                  Klant
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">
                   Duur
@@ -1161,6 +1175,9 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                   Status
                 </th>
                 <th className="px-4 py-3 text-center text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                  Factuur
+                </th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-300 uppercase tracking-wider">
                   Acties
                 </th>
               </tr>
@@ -1168,7 +1185,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
             <tbody className="divide-y divide-dark-700">
               {bookings.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-400">
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-400">
                     Geen boekingen gevonden
                   </td>
                 </tr>
@@ -1235,6 +1252,21 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                           ? 'Voltooid'
                           : 'Geannuleerd'}
                       </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-center">
+                        {booking.invoice_id ? (
+                          <span className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full bg-green-900/50 text-green-300 border border-green-700/50">
+                            <Check size={14} className="mr-1" />
+                            Ja
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full bg-gray-800/50 text-gray-400 border border-gray-700/50">
+                            <X size={14} className="mr-1" />
+                            Nee
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-2">
