@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, Edit2, Trash2, Mail, Phone, MapPin } from 'lucide-react';
+import { Plus, Edit2, Trash2, Mail, Phone, MapPin, Key } from 'lucide-react';
 
 type ExternalCustomer = {
   id: string;
@@ -12,6 +12,7 @@ type ExternalCustomer = {
   postal_code: string;
   city: string;
   country: string;
+  booking_pin_code?: string;
   created_at?: string;
   updated_at?: string;
 };
@@ -30,7 +31,8 @@ export function ExternalCustomers() {
     street: '',
     postal_code: '',
     city: '',
-    country: 'Nederland'
+    country: 'Nederland',
+    booking_pin_code: ''
   });
 
   useEffect(() => {
@@ -98,7 +100,8 @@ export function ExternalCustomers() {
       street: '',
       postal_code: '',
       city: '',
-      country: 'Nederland'
+      country: 'Nederland',
+      booking_pin_code: ''
     });
   };
 
@@ -112,7 +115,8 @@ export function ExternalCustomers() {
       street: customer.street,
       postal_code: customer.postal_code,
       city: customer.city,
-      country: customer.country
+      country: customer.country,
+      booking_pin_code: customer.booking_pin_code || ''
     });
     setShowForm(true);
   };
@@ -151,7 +155,8 @@ export function ExternalCustomers() {
               street: '',
               postal_code: '',
               city: '',
-              country: 'Nederland'
+              country: 'Nederland',
+              booking_pin_code: ''
             });
           }}
           className="flex items-center gap-2 px-4 py-2 bg-gold-600 text-white rounded-lg hover:bg-gold-700 transition-colors"
@@ -271,6 +276,23 @@ export function ExternalCustomers() {
               </div>
             </div>
 
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">
+                Booking Pincode (optioneel)
+              </label>
+              <input
+                type="text"
+                value={formData.booking_pin_code}
+                onChange={(e) => setFormData({ ...formData, booking_pin_code: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+                className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-100"
+                placeholder="4-cijferige pincode voor zelfstandig boeken"
+                maxLength={4}
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Geef deze pincode aan de klant zodat ze zelfstandig vergaderruimtes kunnen boeken
+              </p>
+            </div>
+
             <div className="flex gap-4 justify-end pt-4">
               <button
                 type="button"
@@ -335,6 +357,12 @@ export function ExternalCustomers() {
                       {customer.country}
                     </div>
                   </div>
+                  {customer.booking_pin_code && (
+                    <div className="flex items-center gap-2 text-sm text-green-400 bg-green-900 bg-opacity-20 px-3 py-1.5 rounded">
+                      <Key size={16} />
+                      <span>Pincode: {customer.booking_pin_code}</span>
+                    </div>
+                  )}
                 </div>
                 <div className="flex gap-2">
                   <button

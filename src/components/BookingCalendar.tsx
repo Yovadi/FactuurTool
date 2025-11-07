@@ -50,6 +50,7 @@ type ExternalCustomer = {
   id: string;
   company_name: string;
   contact_name: string;
+  booking_pin_code?: string;
 };
 
 type SelectedCell = {
@@ -236,7 +237,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null }: Bo
         .order('name'),
       supabase
         .from('external_customers')
-        .select('id, company_name, contact_name')
+        .select('id, company_name, contact_name, booking_pin_code')
         .order('company_name'),
       supabase
         .from('meeting_room_bookings')

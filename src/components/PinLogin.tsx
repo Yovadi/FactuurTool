@@ -36,14 +36,23 @@ export function PinLogin({ onAuthenticated }: PinLoginProps) {
     setError('');
 
     try {
-      const { data: tenants } = await supabase
-        .from('tenants')
-        .select('id, name, company_name, booking_pin_code')
-        .eq('booking_pin_code', pinCode);
+      const [tenantsRes, customersRes] = await Promise.all([
+        supabase
+          .from('tenants')
+          .select('id, name, company_name, booking_pin_code')
+          .eq('booking_pin_code', pinCode),
+        supabase
+          .from('external_customers')
+          .select('id, company_name, contact_name, booking_pin_code')
+          .eq('booking_pin_code', pinCode)
+      ]);
 
-      if (tenants && tenants.length > 0) {
-        const tenant = tenants[0] as Tenant;
+      if (tenantsRes.data && tenantsRes.data.length > 0) {
+        const tenant = tenantsRes.data[0] as Tenant;
         onAuthenticated(tenant.id, tenant.company_name || tenant.name);
+      } else if (customersRes.data && customersRes.data.length > 0) {
+        const customer = customersRes.data[0];
+        onAuthenticated(customer.id, customer.company_name);
       } else {
         setError('Onjuiste PIN-code. Probeer opnieuw.');
         setPinCode('');
