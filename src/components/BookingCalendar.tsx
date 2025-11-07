@@ -135,7 +135,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
     // Eerste load met loading state, daarna zonder voor vloeiendere transitions
     const isInitialLoad = weekDays.length === 0;
     loadData(isInitialLoad);
-  }, [currentDate, baseMonth, bookingType]);
+  }, [currentDate, baseMonth]);
 
   useEffect(() => {
     // Scroll to 8:00 AM when component mounts or data loads
@@ -226,7 +226,6 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
         .gte('booking_date', formatLocalDate(weekStart))
         .lte('booking_date', formatLocalDate(weekEnd))
         .neq('status', 'cancelled')
-        .eq('booking_type', bookingType)
         .order('start_time'),
       supabase
         .from('office_spaces')
@@ -247,7 +246,6 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
         .gte('booking_date', formatLocalDate(firstDay))
         .lte('booking_date', formatLocalDate(lastDay))
         .neq('status', 'cancelled')
-        .eq('booking_type', bookingType)
     ]);
 
     setAllBookings(allBookingsRes.data || []);

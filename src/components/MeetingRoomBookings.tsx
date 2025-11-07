@@ -673,29 +673,6 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
             <p className="text-gray-300">Beheer boekingen voor vergaderruimtes op uurbasis</p>
           </div>
 
-          <div className="mb-6 flex gap-2 border-b border-dark-700">
-            <button
-              onClick={() => handleTabChange('tenant')}
-              className={`px-4 py-2 font-medium transition-colors ${
-                selectedTab === 'tenant'
-                  ? 'text-gold-500 border-b-2 border-gold-500'
-                  : 'text-gray-400 hover:text-gray-300'
-              }`}
-            >
-              Interne Boekingen
-            </button>
-            <button
-              onClick={() => handleTabChange('external')}
-              className={`px-4 py-2 font-medium transition-colors ${
-                selectedTab === 'external'
-                  ? 'text-gold-500 border-b-2 border-gold-500'
-                  : 'text-gray-400 hover:text-gray-300'
-              }`}
-            >
-              Externe Boekingen
-            </button>
-          </div>
-
           <div className="mb-6 flex justify-between items-center">
             <div className="flex gap-4">
               <button
@@ -1008,7 +985,6 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
         <div className={isProduction ? 'w-full max-w-7xl' : ''}>
           <BookingCalendar
             loggedInTenantId={loggedInTenantId}
-            bookingType={selectedTab}
             onBookingChange={async (action, bookingId) => {
           if (action === 'cancelled') {
             // Remove cancelled booking from lists
@@ -1140,6 +1116,28 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
         </div>
       ) : (
         <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
+          <div className="flex gap-2 px-6 pt-4 border-b border-dark-700">
+            <button
+              onClick={() => handleTabChange('tenant')}
+              className={`px-4 py-2 font-medium transition-colors ${
+                selectedTab === 'tenant'
+                  ? 'text-gold-500 border-b-2 border-gold-500'
+                  : 'text-gray-400 hover:text-gray-300'
+              }`}
+            >
+              Interne Boekingen
+            </button>
+            <button
+              onClick={() => handleTabChange('external')}
+              className={`px-4 py-2 font-medium transition-colors ${
+                selectedTab === 'external'
+                  ? 'text-gold-500 border-b-2 border-gold-500'
+                  : 'text-gray-400 hover:text-gray-300'
+              }`}
+            >
+              Externe Boekingen
+            </button>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full">
             <thead className="bg-dark-800 border-b border-dark-700">
