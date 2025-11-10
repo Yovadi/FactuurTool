@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, type Invoice, type Lease, type Tenant, type ExternalCustomer, type LeaseSpace, type OfficeSpace, type InvoiceLineItem } from '../lib/supabase';
-import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, Edit } from 'lucide-react';
+import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, Edit, Search } from 'lucide-react';
 import { generateInvoicePDF } from '../utils/pdfGenerator';
 import { InvoicePreview } from './InvoicePreview';
 import { checkAndRunScheduledJobs } from '../utils/scheduledJobs';
@@ -69,6 +69,8 @@ export function InvoiceManagement() {
     invoice: InvoiceWithDetails;
     spaces: any[];
   } | null>(null);
+  const [logSearchName, setLogSearchName] = useState('');
+  const [logSearchMonth, setLogSearchMonth] = useState('');
 
   const getNextMonthString = async () => {
     const { data: settings } = await supabase
@@ -1285,7 +1287,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-100">Facturen</h2>
         <div className="flex gap-2">
-          {(activeTab === 'draft' || activeTab === 'open') && leases.length > 0 && (
+          {activeTab === 'draft' && leases.length > 0 && (
             <button
               onClick={generateBulkInvoices}
               disabled={generatingBulk}
@@ -1295,7 +1297,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               {generatingBulk ? 'Bezig...' : 'Huur Facturen'}
             </button>
           )}
-          {(activeTab === 'draft' || activeTab === 'open') && tenants.length > 0 && (
+          {activeTab === 'draft' && tenants.length > 0 && (
             <button
               onClick={generateMeetingRoomInvoices}
               disabled={generatingBulk}
@@ -1305,7 +1307,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               {generatingBulk ? 'Bezig...' : 'Vergaderruimte Facturen'}
             </button>
           )}
-          {(activeTab === 'draft' || activeTab === 'open') && (
+          {activeTab === 'draft' && (
             <button
               onClick={() => setShowForm(true)}
               className="flex items-center gap-2 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors"
@@ -2201,13 +2203,63 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
       {activeTab === 'log' && (
         <div className="space-y-6">
+          <div className="bg-dark-900 rounded-lg p-4 mb-6 border border-dark-700">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-200 mb-2">Zoek op klantnaam</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                  <input
+                    type="text"
+                    value={logSearchName}
+                    onChange={(e) => setLogSearchName(e.target.value)}
+                    placeholder="Zoek op bedrijfsnaam..."
+                    className="w-full pl-10 pr-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-200 mb-2">Zoek op periode/maand</label>
+                <input
+                  type="month"
+                  value={logSearchMonth}
+                  onChange={(e) => setLogSearchMonth(e.target.value)}
+                  className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                />
+              </div>
+            </div>
+            {(logSearchName || logSearchMonth) && (
+              <button
+                onClick={() => {
+                  setLogSearchName('');
+                  setLogSearchMonth('');
+                }}
+                className="mt-3 text-sm text-gold-500 hover:text-gold-400"
+              >
+                Filters wissen
+              </button>
+            )}
+          </div>
           {(() => {
-            const paidInvoices = invoices.filter(inv => inv.status === 'paid');
+            let paidInvoices = invoices.filter(inv => inv.status === 'paid');
+
+            if (logSearchName) {
+              paidInvoices = paidInvoices.filter(inv => {
+                const tenant = getInvoiceTenant(inv);
+                return tenant?.company_name.toLowerCase().includes(logSearchName.toLowerCase());
+              });
+            }
+
+            if (logSearchMonth) {
+              paidInvoices = paidInvoices.filter(inv => {
+                return inv.invoice_month && inv.invoice_month.startsWith(logSearchMonth);
+              });
+            }
 
             if (paidInvoices.length === 0) {
               return (
                 <div className="text-center py-12 text-gray-400">
-                  Nog geen betaalde facturen in het logboek.
+                  {logSearchName || logSearchMonth ? 'Geen facturen gevonden met de opgegeven filters.' : 'Nog geen betaalde facturen in het logboek.'}
                 </div>
               );
             }
