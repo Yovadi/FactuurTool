@@ -794,50 +794,46 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       )}
 
       {!isProduction && showForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-gray-700 px-6 py-4 border-b border-gray-600 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-gray-100">Nieuwe Boeking</h2>
-              <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-200">
-                <X size={24} />
-              </button>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
+          <div className="bg-dark-900 rounded-lg p-6 w-full max-w-2xl my-8 mx-4">
+            <h3 className="text-xl font-bold text-gray-100 mb-4">Nieuwe Boeking</h3>
+
+            <div className="flex gap-2 mb-4">
+              <div className="flex gap-2 border-b border-dark-600 w-full">
+                <button
+                  type="button"
+                  onClick={() => setBookingType('tenant')}
+                  className={`px-4 py-2 font-medium transition-colors ${
+                    bookingType === 'tenant'
+                      ? 'text-gold-500 border-b-2 border-gold-500'
+                      : 'text-gray-400 hover:text-gray-200'
+                  }`}
+                >
+                  Huurder
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBookingType('external')}
+                  className={`px-4 py-2 font-medium transition-colors ${
+                    bookingType === 'external'
+                      ? 'text-gold-500 border-b-2 border-gold-500'
+                      : 'text-gray-400 hover:text-gray-200'
+                  }`}
+                >
+                  Externe partij
+                </button>
+              </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
-              <div className="mb-6">
-                <div className="flex gap-2 border-b border-gray-600">
-                  <button
-                    type="button"
-                    onClick={() => setBookingType('tenant')}
-                    className={`px-4 py-2 font-medium transition-colors ${
-                      bookingType === 'tenant'
-                        ? 'text-yellow-500 border-b-2 border-yellow-500'
-                        : 'text-gray-400 hover:text-gray-200'
-                    }`}
-                  >
-                    Huurder
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setBookingType('external')}
-                    className={`px-4 py-2 font-medium transition-colors ${
-                      bookingType === 'external'
-                        ? 'text-yellow-500 border-b-2 border-yellow-500'
-                        : 'text-gray-400 hover:text-gray-200'
-                    }`}
-                  >
-                    Externe partij
-                  </button>
-                </div>
-              </div>
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-gray-200 mb-1">
                   Vergaderruimte
                 </label>
                 <select
                   value={formData.space_id}
                   onChange={(e) => handleSpaceChange(e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-700 text-gray-200 rounded border border-gray-600"
+                  className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                   required
                 >
                   <option value="">Selecteer een ruimte</option>
@@ -851,13 +847,13 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
 
               {!loggedInTenantId && bookingType === 'tenant' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                  <label className="block text-sm font-medium text-gray-200 mb-1">
                     Huurder
                   </label>
                   <select
                     value={formData.tenant_id}
                     onChange={(e) => setFormData({ ...formData, tenant_id: e.target.value })}
-                    className="w-full px-3 py-2 bg-gray-700 text-gray-200 rounded border border-gray-600"
+                    className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                     required
                   >
                     <option value="">Selecteer een huurder</option>
@@ -872,13 +868,13 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
 
               {bookingType === 'external' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                  <label className="block text-sm font-medium text-gray-200 mb-1">
                     Externe klant *
                   </label>
                   <select
                     value={formData.external_customer_id}
                     onChange={(e) => setFormData({ ...formData, external_customer_id: e.target.value })}
-                    className="w-full px-3 py-2 bg-gray-700 text-gray-200 rounded border border-gray-600"
+                    className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                     required
                   >
                     <option value="">Selecteer een externe klant</option>
@@ -893,7 +889,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
 
               <div className="flex gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                  <label className="block text-sm font-medium text-gray-200 mb-1">
                     Datum
                   </label>
                   <InlineDatePicker
@@ -906,13 +902,13 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                 <div className="flex flex-col gap-4 flex-1">
                   <div className="flex gap-4">
                     <div className="flex-1">
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                      <label className="block text-sm font-medium text-gray-200 mb-1">
                         Starttijd
                       </label>
                       <select
                         value={formData.start_time}
                         onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
-                        className="w-full px-3 py-2 bg-gray-700 text-gray-200 rounded border border-gray-600"
+                        className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                         size={5}
                         required
                       >
@@ -930,13 +926,13 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                     </div>
 
                     <div className="flex-1">
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                      <label className="block text-sm font-medium text-gray-200 mb-1">
                         Eindtijd
                       </label>
                       <select
                         value={formData.end_time}
                         onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
-                        className="w-full px-3 py-2 bg-gray-700 text-gray-200 rounded border border-gray-600"
+                        className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                         size={5}
                         required
                       >
@@ -956,7 +952,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
 
                   <div className="flex gap-4">
                     <div className="flex-1">
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                      <label className="block text-sm font-medium text-gray-200 mb-1">
                         Uurtarief (€)
                       </label>
                       <input
@@ -964,46 +960,46 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                         step="0.01"
                         value={formData.hourly_rate}
                         onChange={(e) => setFormData({ ...formData, hourly_rate: parseFloat(e.target.value) })}
-                        className="w-full px-3 py-2 bg-gray-700 text-gray-200 rounded border border-gray-600"
+                        className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                         required
                       />
                     </div>
 
                     <div className="flex-1">
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                      <label className="block text-sm font-medium text-gray-200 mb-1">
                         Totaalbedrag
                       </label>
-                      <div className="px-3 py-2 bg-gray-900 text-gray-200 rounded">
+                      <div className="px-3 py-2 bg-dark-800 text-gray-100 rounded">
                         €{(calculateTotalHours(formData.start_time, formData.end_time) * formData.hourly_rate).toFixed(2)}
                       </div>
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label className="block text-sm font-medium text-gray-200 mb-1">
                       Notities
                     </label>
                     <textarea
                       value={formData.notes}
                       onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                       rows={2}
-                      className="w-full px-3 py-2 bg-gray-700 text-gray-200 rounded border border-gray-600"
+                      className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3">
+              <div className="flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setShowForm(false)}
-                  className="px-4 py-2 bg-gray-700 text-gray-200 rounded-lg hover:bg-gray-600"
+                  className="px-4 py-2 bg-dark-700 text-gray-200 rounded-lg hover:bg-dark-600 transition-colors"
                 >
                   Annuleren
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700"
+                  className="px-4 py-2 bg-gold-500 text-white rounded-lg hover:bg-gold-600 transition-colors"
                 >
                   Boeking Aanmaken
                 </button>
@@ -1314,29 +1310,25 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       )}
 
       {deleteConfirmId && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 rounded-lg w-full max-w-md overflow-hidden">
-            <div className="bg-gray-700 px-6 py-4 border-b border-gray-600">
-              <h3 className="text-xl font-bold text-gray-100">Boeking verwijderen</h3>
-            </div>
-            <div className="p-6 space-y-6">
-              <p className="text-gray-300">
-                Weet je zeker dat je deze boeking wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.
-              </p>
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => setDeleteConfirmId(null)}
-                  className="px-4 py-2 bg-gray-700 text-gray-200 rounded-lg hover:bg-gray-600"
-                >
-                  Annuleren
-                </button>
-                <button
-                  onClick={handleDelete}
-                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
-                >
-                  Verwijderen
-                </button>
-              </div>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
+          <div className="bg-dark-900 rounded-lg p-6 w-full max-w-md my-8 mx-4">
+            <h3 className="text-xl font-bold text-gray-100 mb-4">Boeking verwijderen</h3>
+            <p className="text-gray-300 mb-4">
+              Weet je zeker dat je deze boeking wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setDeleteConfirmId(null)}
+                className="px-4 py-2 bg-dark-700 text-gray-200 rounded-lg hover:bg-dark-600 transition-colors"
+              >
+                Annuleren
+              </button>
+              <button
+                onClick={handleDelete}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+              >
+                Verwijderen
+              </button>
             </div>
           </div>
         </div>
