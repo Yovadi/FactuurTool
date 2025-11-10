@@ -449,132 +449,97 @@ interface CreditNoteData {
 }
 
 export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath?: string): Promise<void> {
-  const pdf = new jsPDF();
+  const pdf = new jsPDF('p', 'mm', 'a4');
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
   const margin = 20;
+  let yPosition = 20;
 
-  let logoBase64: string | null = null;
   try {
-    logoBase64 = await loadImageAsBase64('/Logo.png');
+    const logoBase64 = await loadImageAsBase64('/image copy copy copy copy copy copy.png');
+    const logoWidth = 60;
+    const logoHeight = 30;
+    const logoX = pageWidth - margin - logoWidth;
+    const logoY = yPosition;
+    pdf.addImage(logoBase64, 'PNG', logoX, logoY, logoWidth, logoHeight);
   } catch (error) {
-    console.log('Logo not loaded, continuing without it');
+    console.error('Failed to load logo:', error);
   }
 
-  if (logoBase64) {
-    try {
-      pdf.addImage(logoBase64, 'PNG', margin, 15, 35, 15);
-    } catch (error) {
-      console.log('Failed to add logo to PDF');
-    }
-  }
-
-  pdf.setFontSize(28);
+  pdf.setFontSize(18);
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(220, 38, 38);
-  pdf.text('CREDIT NOTA', pageWidth - margin, 25, { align: 'right' });
+  const creditNoteNumberDisplay = creditNote.credit_note_number.replace(/^CN-/, '');
+  pdf.text(`Credit Nota ${creditNoteNumberDisplay}`, margin, yPosition + 10);
 
-  pdf.setFontSize(10);
-  pdf.setFont('helvetica', 'normal');
-  pdf.setTextColor(100, 100, 100);
-  pdf.text('Credit Nota Nummer:', pageWidth - margin, 35, { align: 'right' });
-  pdf.setFont('helvetica', 'bold');
-  pdf.setTextColor(0, 0, 0);
-  pdf.text(creditNote.credit_note_number, pageWidth - margin, 40, { align: 'right' });
+  yPosition = 38;
 
-  pdf.setFont('helvetica', 'normal');
-  pdf.setTextColor(100, 100, 100);
-  pdf.text('Datum:', pageWidth - margin, 47, { align: 'right' });
-  pdf.setFont('helvetica', 'bold');
-  pdf.setTextColor(0, 0, 0);
-  const formattedDate = new Date(creditNote.credit_date).toLocaleDateString('nl-NL');
-  pdf.text(formattedDate, pageWidth - margin, 52, { align: 'right' });
+  const addressLines = creditNote.customer_address.split('\n').filter(line => line.trim());
+  let boxHeight = 6 + ((addressLines.length + 1) * 4) + 2;
 
-  pdf.setFontSize(9);
-  pdf.setFont('helvetica', 'normal');
-  pdf.setTextColor(100, 100, 100);
+  pdf.setFillColor(240, 240, 240);
+  pdf.rect(margin, yPosition, 80, boxHeight, 'F');
 
-  if (creditNote.company) {
-    let yPos = 40;
-    pdf.text(creditNote.company.name || '', margin, yPos);
-    yPos += 4;
-    if (creditNote.company.address) {
-      pdf.text(creditNote.company.address, margin, yPos);
-      yPos += 4;
-    }
-    if (creditNote.company.postal_code && creditNote.company.city) {
-      pdf.text(`${creditNote.company.postal_code} ${creditNote.company.city}`, margin, yPos);
-      yPos += 4;
-    }
-    yPos += 2;
-    if (creditNote.company.kvk) {
-      pdf.text(`KvK: ${creditNote.company.kvk}`, margin, yPos);
-      yPos += 4;
-    }
-    if (creditNote.company.btw) {
-      pdf.text(`BTW: ${creditNote.company.btw}`, margin, yPos);
-    }
-  }
-
-  let yPosition = 75;
-
-  pdf.setFontSize(10);
-  pdf.setFont('helvetica', 'bold');
-  pdf.setTextColor(0, 0, 0);
-  pdf.text('KLANT', margin, yPosition);
   yPosition += 6;
-
-  pdf.setFillColor(248, 248, 248);
-  pdf.rect(margin, yPosition - 4, 80, 20, 'F');
-
-  pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(9);
-  pdf.text(creditNote.customer_name, margin + 3, yPosition);
-  yPosition += 5;
-
   pdf.setFont('helvetica', 'normal');
-  const addressLines = creditNote.customer_address.split('\n');
+  pdf.setTextColor(60, 60, 60);
+  pdf.text(`t.a.v. ${creditNote.customer_name}`, margin + 3, yPosition);
+  yPosition += 4;
+
   addressLines.forEach(line => {
     pdf.text(line, margin + 3, yPosition);
     yPosition += 4;
   });
 
-  yPosition += 8;
+  yPosition = 57;
+  const creditNoteInfoCol = pageWidth - margin - 55;
 
-  pdf.setFillColor(254, 242, 242);
-  pdf.rect(margin, yPosition - 4, pageWidth - 2 * margin, 14, 'F');
+  pdf.setFontSize(8);
   pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(9);
-  pdf.setTextColor(153, 27, 27);
-  pdf.text('Reden voor creditering:', margin + 3, yPosition);
+  pdf.setTextColor(80, 80, 80);
+  pdf.text('Credit nota nr:', creditNoteInfoCol, yPosition);
+  pdf.setFont('helvetica', 'normal');
+  pdf.text(creditNoteNumberDisplay, creditNoteInfoCol + 30, yPosition);
+
   yPosition += 5;
-  pdf.setFont('helvetica', 'normal');
-  pdf.setTextColor(0, 0, 0);
-  pdf.text(creditNote.reason, margin + 3, yPosition);
-
-  yPosition += 15;
-
-  const col1X = margin;
-  const col2X = margin + 90;
-  const col3X = margin + 120;
-  const col4X = pageWidth - margin;
-
-  pdf.setFillColor(60, 60, 60);
-  pdf.rect(margin, yPosition - 4, pageWidth - 2 * margin, 8, 'F');
-
   pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(9);
-  pdf.setTextColor(255, 255, 255);
-  pdf.text('Omschrijving', col1X + 2, yPosition);
-  pdf.text('Aantal', col2X - 2, yPosition, { align: 'right' });
-  pdf.text('Prijs', col3X - 2, yPosition, { align: 'right' });
-  pdf.text('Bedrag', col4X - 2, yPosition, { align: 'right' });
-
-  yPosition += 10;
-
+  pdf.text('Credit datum:', creditNoteInfoCol, yPosition);
   pdf.setFont('helvetica', 'normal');
+  pdf.text(new Date(creditNote.credit_date).toLocaleDateString('nl-NL'), creditNoteInfoCol + 30, yPosition);
+
+  const addressBoxBottom = 45 + boxHeight;
+  yPosition = Math.max(addressBoxBottom + 8, 75);
+
   pdf.setFontSize(9);
-  pdf.setTextColor(0, 0, 0);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setTextColor(80, 80, 80);
+  pdf.text('Reden:', margin, yPosition);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(220, 38, 38);
+  const reasonLines = pdf.splitTextToSize(creditNote.reason, pageWidth - margin - 80);
+  pdf.text(reasonLines, margin + 20, yPosition);
+  yPosition += (reasonLines.length * 4) + 4;
+
+  const tableTop = yPosition;
+  const col1X = margin;
+  const col2X = pageWidth - margin - 40;
+  const col3X = pageWidth - margin - 15;
+
+  pdf.setFillColor(220, 38, 38);
+  pdf.rect(margin, tableTop, pageWidth - 2 * margin, 8, 'F');
+
+  pdf.setFontSize(9);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setTextColor(255, 255, 255);
+  pdf.text('Omschrijving', col1X + 2, tableTop + 5.5);
+  pdf.text('Bedrag', col2X - 2, tableTop + 5.5, { align: 'right' });
+  pdf.text('BTW', col3X - 2, tableTop + 5.5, { align: 'right' });
+
+  yPosition = tableTop + 12;
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(60, 60, 60);
+  pdf.setFontSize(9);
 
   creditNote.line_items.forEach((item, index) => {
     if (yPosition > pageHeight - 70) {
@@ -584,58 +549,38 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
 
     if (index % 2 === 0) {
       pdf.setFillColor(250, 250, 250);
-      pdf.rect(margin, yPosition - 4, pageWidth - 2 * margin, 7, 'F');
+      pdf.rect(margin, yPosition - 3.5, pageWidth - 2 * margin, 7, 'F');
     }
 
-    pdf.text(item.description, col1X + 2, yPosition);
-    pdf.text(item.quantity.toString(), col2X - 2, yPosition, { align: 'right' });
-    pdf.text(`€ ${item.unit_price.toFixed(2)}`, col3X - 2, yPosition, { align: 'right' });
-    pdf.text(`€ ${item.amount.toFixed(2)}`, col4X - 2, yPosition, { align: 'right' });
+    let description = item.description;
+    if (item.quantity > 1) {
+      description = `${item.description} (${item.quantity}x € ${item.unit_price.toFixed(2)})`;
+    }
+
+    pdf.text(description, col1X + 2, yPosition);
+    const amount = item.amount;
+    pdf.text(`€ ${amount.toFixed(2)}`, col2X - 2, yPosition, { align: 'right' });
+    pdf.text(`${creditNote.vat_rate.toFixed(0)}%`, col3X - 2, yPosition, { align: 'right' });
 
     yPosition += 7;
   });
 
-  yPosition += 5;
-
-  const summaryX = pageWidth - margin - 60;
-
-  pdf.setFont('helvetica', 'normal');
-  pdf.setFontSize(9);
-  pdf.text('Subtotaal:', summaryX, yPosition);
-  pdf.text(`€ ${creditNote.subtotal.toFixed(2)}`, col4X - 2, yPosition, { align: 'right' });
-  yPosition += 6;
-
-  pdf.text(`BTW (${creditNote.vat_rate}%):`, summaryX, yPosition);
-  pdf.text(`€ ${creditNote.vat_amount.toFixed(2)}`, col4X - 2, yPosition, { align: 'right' });
-  yPosition += 8;
-
-  pdf.setDrawColor(60, 60, 60);
-  pdf.setLineWidth(0.5);
-  pdf.line(summaryX, yPosition - 2, col4X, yPosition - 2);
-
-  pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(11);
-  pdf.setTextColor(220, 38, 38);
-  pdf.text('Totaal te crediteren:', summaryX, yPosition + 3);
-  pdf.text(`€ ${creditNote.total_amount.toFixed(2)}`, col4X - 2, yPosition + 3, { align: 'right' });
-
-  yPosition += 15;
-
   if (creditNote.notes) {
-    if (yPosition > pageHeight - 50) {
+    if (yPosition > pageHeight - 70) {
       pdf.addPage();
       yPosition = 20;
     }
 
+    yPosition += 3;
     pdf.setDrawColor(200, 200, 200);
     pdf.setLineWidth(0.3);
     pdf.line(margin, yPosition, pageWidth - margin, yPosition);
-    yPosition += 8;
+    yPosition += 6;
 
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(9);
-    pdf.setTextColor(0, 0, 0);
-    pdf.text('NOTITIES', margin, yPosition);
+    pdf.setTextColor(80, 80, 80);
+    pdf.text('Opmerking:', margin, yPosition);
     yPosition += 5;
 
     pdf.setFont('helvetica', 'normal');
@@ -645,26 +590,63 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
     yPosition += noteLines.length * 5;
   }
 
-  if (yPosition > pageHeight - 40) {
+  if (yPosition > pageHeight - 60) {
     pdf.addPage();
     yPosition = 20;
-  } else {
-    yPosition = pageHeight - 35;
   }
 
-  pdf.setDrawColor(200, 200, 200);
-  pdf.setLineWidth(0.3);
+  yPosition += 5;
+  const summaryStartY = yPosition;
+  const summaryX = pageWidth - margin - 55;
+
+  pdf.setFontSize(9);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(60, 60, 60);
+
+  pdf.text('Subtotaal:', summaryX, yPosition);
+  pdf.text(`€ ${creditNote.subtotal.toFixed(2)}`, pageWidth - margin, yPosition, { align: 'right' });
+  yPosition += 5;
+
+  pdf.text(`BTW ${creditNote.vat_rate.toFixed(0)}%:`, summaryX, yPosition);
+  pdf.text(`€ ${creditNote.vat_amount.toFixed(2)}`, pageWidth - margin, yPosition, { align: 'right' });
+  yPosition += 7;
+
+  pdf.setDrawColor(60, 60, 60);
+  pdf.setLineWidth(0.5);
+  pdf.line(summaryX, yPosition - 2, pageWidth - margin, yPosition - 2);
+
+  pdf.setFontSize(11);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setTextColor(220, 38, 38);
+  pdf.text('Te crediteren:', summaryX, yPosition + 2);
+  pdf.text(`€ ${creditNote.total_amount.toFixed(2)}`, pageWidth - margin, yPosition + 2, { align: 'right' });
+
+  yPosition += 10;
+
+  pdf.setDrawColor(234, 179, 8);
+  pdf.setLineWidth(0.5);
   pdf.line(margin, yPosition, pageWidth - margin, yPosition);
   yPosition += 5;
 
-  pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(8);
-  pdf.setTextColor(100, 100, 100);
-  pdf.text('Dit bedrag wordt verrekend met openstaande of toekomstige facturen.', margin, yPosition);
-  yPosition += 4;
-  if (creditNote.company?.email || creditNote.company?.phone) {
-    const contactInfo = `Voor vragen: ${creditNote.company?.email || ''} ${creditNote.company?.phone ? '| ' + creditNote.company.phone : ''}`;
-    pdf.text(contactInfo, margin, yPosition);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(80, 80, 80);
+
+  if (creditNote.company) {
+    const bankLine = `Betalen: ${creditNote.company.iban || ''} | ${creditNote.company.name || ''}`;
+    pdf.text(bankLine, margin, yPosition);
+    yPosition += 4;
+
+    const contactLine = `${creditNote.company.phone || ''} | ${creditNote.company.email || ''}`;
+    pdf.text(contactLine, margin, yPosition);
+    yPosition += 4;
+
+    const businessLine = `${creditNote.company.address || ''}, ${creditNote.company.postal_code || ''} ${creditNote.company.city || ''}`;
+    pdf.text(businessLine, margin, yPosition);
+    yPosition += 4;
+
+    const taxLine = `KvK-nummer: ${creditNote.company.kvk || ''} | BTW-nummer: ${creditNote.company.btw || ''}`;
+    pdf.text(taxLine, margin, yPosition);
   }
 
   pdf.setDrawColor(230, 230, 230);
