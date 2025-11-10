@@ -280,75 +280,75 @@ export function CreditNotes() {
   }
 
   return (
-    <div className="h-full bg-gray-900 p-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-100">Credit Nota's</h1>
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-100">Credit Nota's</h2>
+        <div className="flex gap-2">
           <button
             onClick={() => setShowForm(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
+            className="flex items-center gap-2 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors"
           >
             <Plus size={20} />
             Nieuwe Credit Nota
           </button>
         </div>
+      </div>
 
-        <div className="bg-gray-800 rounded-lg overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-gray-700">
+      <div className="bg-dark-900 rounded-lg overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-dark-800 border-b border-dark-700">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Nummer</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Datum</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Klant</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Reden</th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Bedrag</th>
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">Acties</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-dark-700">
+            {creditNotes.length === 0 ? (
               <tr>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-200">Nummer</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-200">Datum</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-200">Klant</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-200">Reden</th>
-                <th className="px-4 py-3 text-right text-sm font-semibold text-gray-200">Bedrag</th>
-                <th className="px-4 py-3 text-center text-sm font-semibold text-gray-200">Status</th>
-                <th className="px-4 py-3 text-center text-sm font-semibold text-gray-200">Acties</th>
+                <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
+                  Geen credit nota's gevonden
+                </td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-700">
-              {creditNotes.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-400">
-                    Geen credit nota's gevonden
+            ) : (
+              creditNotes.map((note) => (
+                <tr key={note.id} className="hover:bg-dark-800/50 transition-colors">
+                  <td className="px-6 py-4 text-sm text-gray-100 font-medium">{note.credit_note_number}</td>
+                  <td className="px-6 py-4 text-sm text-gray-300">{formatDate(note.credit_date)}</td>
+                  <td className="px-6 py-4 text-sm text-gray-300">
+                    {note.tenant_id
+                      ? note.tenants?.company_name
+                      : note.external_customers?.company_name}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-300">{note.reason}</td>
+                  <td className="px-6 py-4 text-sm text-gray-100 text-right font-semibold">
+                    {formatCurrency(note.total_amount)}
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    <span className={`px-2.5 py-1 rounded text-xs font-medium uppercase ${getStatusColor(note.status)}`}>
+                      {getStatusText(note.status)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex justify-center gap-2">
+                      <button
+                        onClick={() => handleDelete(note.id)}
+                        className="p-1.5 hover:bg-dark-700 rounded transition-colors"
+                        title="Verwijderen"
+                      >
+                        <Trash2 size={16} className="text-red-400" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
-              ) : (
-                creditNotes.map((note) => (
-                  <tr key={note.id} className="hover:bg-gray-700/50">
-                    <td className="px-4 py-3 text-sm text-gray-300">{note.credit_note_number}</td>
-                    <td className="px-4 py-3 text-sm text-gray-300">{formatDate(note.credit_date)}</td>
-                    <td className="px-4 py-3 text-sm text-gray-300">
-                      {note.tenant_id
-                        ? note.tenants?.company_name
-                        : note.external_customers?.company_name}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-300">{note.reason}</td>
-                    <td className="px-4 py-3 text-sm text-gray-300 text-right font-semibold">
-                      {formatCurrency(note.total_amount)}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(note.status)}`}>
-                        {getStatusText(note.status)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex justify-center gap-2">
-                        <button
-                          onClick={() => handleDelete(note.id)}
-                          className="p-1 hover:bg-gray-600 rounded"
-                          title="Verwijderen"
-                        >
-                          <Trash2 size={16} className="text-red-400" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
 
       {showForm && (
