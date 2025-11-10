@@ -77,6 +77,7 @@ export function CreditNotes() {
   const [loading, setLoading] = useState(true);
   const [customerType, setCustomerType] = useState<'tenant' | 'external'>('tenant');
   const [previewCreditNote, setPreviewCreditNote] = useState<CreditNote | null>(null);
+  const [editingCreditNote, setEditingCreditNote] = useState<CreditNote | null>(null);
 
   const [formData, setFormData] = useState({
     original_invoice_id: '',
