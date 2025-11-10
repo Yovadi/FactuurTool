@@ -1,26 +1,49 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, Eye, Trash2, X, FileText, AlertCircle, CheckCircle } from 'lucide-react';
+import { Plus, Eye, Trash2, Download, Edit } from 'lucide-react';
+import { CreditNotePreview } from './CreditNotePreview';
+import { generateCreditNotePDF } from '../utils/pdfGenerator';
 
 type CreditNote = {
   id: string;
   credit_note_number: string;
   credit_date: string;
   reason: string;
+  subtotal: number;
+  vat_amount: number;
+  vat_rate: number;
   total_amount: number;
   status: string;
+  notes?: string;
   tenant_id?: string;
   external_customer_id?: string;
-  tenants?: { name: string; company_name: string };
-  external_customers?: { company_name: string; contact_name: string };
+  tenants?: { name: string; company_name: string; email: string; billing_address?: string; street?: string; postal_code?: string; city?: string };
+  external_customers?: { company_name: string; contact_name: string; email?: string; street: string; postal_code: string; city: string; country: string };
+  credit_note_line_items?: LineItem[];
 };
 
 type LineItem = {
   id?: string;
+  credit_note_id?: string;
   description: string;
   quantity: number;
   unit_price: number;
   amount: number;
+};
+
+type CompanySettings = {
+  name: string;
+  company_name: string;
+  address: string;
+  postal_code: string;
+  city: string;
+  country: string;
+  phone: string;
+  email: string;
+  kvk_number: string;
+  btw_number: string;
+  bank_account: string;
+  root_folder_path?: string;
 };
 
 type Invoice = {
@@ -49,9 +72,11 @@ export function CreditNotes() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [externalCustomers, setExternalCustomers] = useState<ExternalCustomer[]>([]);
+  const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [customerType, setCustomerType] = useState<'tenant' | 'external'>('tenant');
+  const [previewCreditNote, setPreviewCreditNote] = useState<CreditNote | null>(null);
 
   const [formData, setFormData] = useState({
     original_invoice_id: '',
@@ -74,13 +99,14 @@ export function CreditNotes() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [creditNotesRes, invoicesRes, tenantsRes, externalCustomersRes] = await Promise.all([
+      const [creditNotesRes, invoicesRes, tenantsRes, externalCustomersRes, settingsRes] = await Promise.all([
         supabase
           .from('credit_notes')
           .select(`
             *,
-            tenants (name, company_name),
-            external_customers (company_name, contact_name)
+            tenants (name, company_name, email, billing_address, street, postal_code, city),
+            external_customers (company_name, contact_name, email, street, postal_code, city, country),
+            credit_note_line_items (*)
           `)
           .order('credit_date', { ascending: false }),
         supabase
@@ -96,6 +122,7 @@ export function CreditNotes() {
           .in('status', ['sent', 'paid', 'overdue']),
         supabase.from('tenants').select('id, name, company_name').order('company_name'),
         supabase.from('external_customers').select('id, company_name, contact_name').order('company_name'),
+        supabase.from('company_settings').select('*').order('updated_at', { ascending: false }).limit(1).maybeSingle(),
       ]);
 
       if (creditNotesRes.error) throw creditNotesRes.error;
@@ -107,6 +134,7 @@ export function CreditNotes() {
       setInvoices(invoicesRes.data || []);
       setTenants(tenantsRes.data || []);
       setExternalCustomers(externalCustomersRes.data || []);
+      setCompanySettings(settingsRes.data || null);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -227,6 +255,77 @@ export function CreditNotes() {
     setCustomerType('tenant');
   };
 
+  const handlePreview = (creditNote: CreditNote) => {
+    setPreviewCreditNote(creditNote);
+  };
+
+  const handleDownloadPDF = async (creditNote: CreditNote) => {
+    if (!creditNote.credit_note_line_items || creditNote.credit_note_line_items.length === 0) {
+      alert('Kan geen PDF genereren: geen regelitems gevonden');
+      return;
+    }
+
+    const customerName = creditNote.tenant_id
+      ? creditNote.tenants?.company_name || 'Onbekend'
+      : creditNote.external_customers?.company_name || 'Onbekend';
+
+    const customerAddress = creditNote.tenant_id
+      ? (creditNote.tenants?.billing_address || `${creditNote.tenants?.street || ''}\n${creditNote.tenants?.postal_code || ''} ${creditNote.tenants?.city || ''}`)
+      : `${creditNote.external_customers?.street}\n${creditNote.external_customers?.postal_code} ${creditNote.external_customers?.city}`;
+
+    const pdfData = {
+      credit_note_number: creditNote.credit_note_number,
+      credit_date: creditNote.credit_date,
+      reason: creditNote.reason,
+      customer_name: customerName,
+      customer_address: customerAddress,
+      line_items: creditNote.credit_note_line_items.map(item => ({
+        description: item.description,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        amount: item.amount,
+      })),
+      subtotal: creditNote.subtotal,
+      vat_amount: creditNote.vat_amount,
+      vat_rate: creditNote.vat_rate,
+      total_amount: creditNote.total_amount,
+      notes: creditNote.notes,
+      company: companySettings ? {
+        name: companySettings.name,
+        address: companySettings.address,
+        postal_code: companySettings.postal_code,
+        city: companySettings.city,
+        kvk: companySettings.kvk_number,
+        btw: companySettings.btw_number,
+        iban: companySettings.bank_account,
+        email: companySettings.email,
+        phone: companySettings.phone,
+      } : undefined,
+    };
+
+    try {
+      await generateCreditNotePDF(pdfData, companySettings?.root_folder_path);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Fout bij genereren PDF');
+    }
+  };
+
+  const handleChangeStatus = async (id: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('credit_notes')
+        .update({ status: newStatus })
+        .eq('id', id);
+
+      if (error) throw error;
+      loadData();
+    } catch (error) {
+      console.error('Error updating status:', error);
+      alert('Fout bij wijzigen status');
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm('Weet je zeker dat je deze credit nota wilt verwijderen?')) return;
 
@@ -335,6 +434,48 @@ export function CreditNotes() {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex justify-center gap-2">
+                      <button
+                        onClick={() => handlePreview(note)}
+                        className="p-1.5 hover:bg-dark-700 rounded transition-colors"
+                        title="Preview"
+                      >
+                        <Eye size={16} className="text-blue-400" />
+                      </button>
+                      <button
+                        onClick={() => handleDownloadPDF(note)}
+                        className="p-1.5 hover:bg-dark-700 rounded transition-colors"
+                        title="Download PDF"
+                      >
+                        <Download size={16} className="text-green-400" />
+                      </button>
+                      <div className="relative group">
+                        <button
+                          className="p-1.5 hover:bg-dark-700 rounded transition-colors"
+                          title="Status wijzigen"
+                        >
+                          <Edit size={16} className="text-yellow-400" />
+                        </button>
+                        <div className="absolute right-0 top-full mt-1 bg-dark-800 border border-dark-600 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 min-w-[140px]">
+                          <button
+                            onClick={() => handleChangeStatus(note.id, 'draft')}
+                            className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-dark-700 first:rounded-t-lg"
+                          >
+                            Concept
+                          </button>
+                          <button
+                            onClick={() => handleChangeStatus(note.id, 'issued')}
+                            className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-dark-700"
+                          >
+                            Uitgegeven
+                          </button>
+                          <button
+                            onClick={() => handleChangeStatus(note.id, 'applied')}
+                            className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-dark-700 last:rounded-b-lg"
+                          >
+                            Toegepast
+                          </button>
+                        </div>
+                      </div>
                       <button
                         onClick={() => handleDelete(note.id)}
                         className="p-1.5 hover:bg-dark-700 rounded transition-colors"
@@ -562,6 +703,14 @@ export function CreditNotes() {
             </form>
           </div>
         </div>
+      )}
+
+      {previewCreditNote && (
+        <CreditNotePreview
+          creditNote={previewCreditNote}
+          companySettings={companySettings}
+          onClose={() => setPreviewCreditNote(null)}
+        />
       )}
     </div>
   );
