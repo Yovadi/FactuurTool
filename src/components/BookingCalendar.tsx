@@ -944,7 +944,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                   setBaseMonth(newBase);
                   setCurrentDate(newBase);
                 }}
-                className="p-1 hover:bg-gray-700 rounded"
+                className="p-1 hover:bg-dark-700 rounded"
               >
                 <ChevronLeft size={16} className="text-gray-300" />
               </button>
@@ -955,7 +955,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                   setBaseMonth(newBase);
                   setCurrentDate(newBase);
                 }}
-                className="p-1 hover:bg-gray-700 rounded"
+                className="p-1 hover:bg-dark-700 rounded"
               >
                 <ChevronRight size={16} className="text-gray-300" />
               </button>
@@ -1015,8 +1015,8 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                           : isTodayDate
                           ? 'bg-yellow-900/50 text-yellow-300 font-semibold'
                           : !dayInfo.isCurrentMonth
-                          ? 'text-gray-600 hover:bg-gray-700 cursor-pointer'
-                          : 'text-gray-300 hover:bg-gray-700 cursor-pointer'
+                          ? 'text-gray-600 hover:bg-dark-700 cursor-pointer'
+                          : 'text-gray-300 hover:bg-dark-700 cursor-pointer'
                       }`}
                     >
                       {dayInfo.day}
@@ -1080,7 +1080,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
 
         <button
           onClick={goToToday}
-          className="w-full px-3 py-2 text-sm bg-gray-700 text-gray-200 rounded hover:bg-gray-600 transition-colors"
+          className="w-full px-3 py-2 text-sm bg-dark-800 text-gray-200 rounded hover:bg-dark-700 transition-colors"
         >
           Vandaag
         </button>
@@ -1089,18 +1089,18 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
       {/* Right Side - Week View */}
       <div className="flex-1 bg-dark-900 rounded-lg overflow-hidden flex flex-col h-full">
         {/* Header */}
-        <div className="bg-gray-700 px-4 py-3 flex items-center justify-between border-b border-gray-600">
+        <div className="bg-dark-800 px-4 py-3 flex items-center justify-between border-b border-dark-700">
           <div className="flex items-center gap-3">
             <button
               onClick={previousWeek}
-              className="p-1 hover:bg-gray-600 rounded"
+              className="p-1 hover:bg-dark-700 rounded"
             >
               <ChevronLeft size={18} className="text-gray-300" />
             </button>
             <h2 className="text-base font-semibold text-gray-100">{weekRange}</h2>
             <button
               onClick={nextWeek}
-              className="p-1 hover:bg-gray-600 rounded"
+              className="p-1 hover:bg-dark-700 rounded"
             >
               <ChevronRight size={18} className="text-gray-300" />
             </button>
@@ -1127,14 +1127,14 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
         <div ref={scrollContainerRef} className="flex-1 overflow-auto bg-dark-950">
           <div className="min-w-[900px]" style={{ display: 'grid', gridTemplateColumns: '60px repeat(7, 1fr)' }}>
             {/* Header row */}
-            <div className="sticky top-0 z-20 bg-gray-700 border-b border-gray-600" style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '60px repeat(7, 1fr)' }}>
+            <div className="sticky top-0 z-20 bg-dark-800 border-b border-dark-700" style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '60px repeat(7, 1fr)' }}>
               <div className="p-2"></div>
               {weekDays.map((day) => {
                 const isTodayDate = isToday(day.date);
                 return (
                   <div
                     key={day.dateStr}
-                    className={`p-2 text-center border-l border-gray-600 ${
+                    className={`p-2 text-center border-l border-dark-600 ${
                       isTodayDate ? 'bg-yellow-900/30' : ''
                     }`}
                   >
@@ -1283,7 +1283,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
           <div className="flex gap-2">
             <button
               onClick={() => setSelectedCells([])}
-              className="px-4 py-3 bg-gray-700 text-white rounded-full shadow-lg hover:bg-gray-600 transition-all"
+              className="px-4 py-3 bg-dark-800 text-white rounded-full shadow-lg hover:bg-dark-700 transition-all"
             >
               Annuleren
             </button>
@@ -1520,7 +1520,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
 
             <div className="space-y-3">
               {selectedBooking.recurring_pattern_id && selectedBooking.status !== 'cancelled' && (
-                <div className="bg-gray-700 rounded-lg p-3 space-y-2">
+                <div className="bg-dark-800 rounded-lg p-3 space-y-2">
                   <p className="text-sm text-gray-300 font-medium mb-2">Annuleer optie:</p>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
