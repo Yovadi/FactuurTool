@@ -2,14 +2,13 @@ import { useState, useEffect } from 'react';
 import { Dashboard } from './components/Dashboard';
 import { TenantManagement } from './components/TenantManagement';
 import { SpaceManagement } from './components/SpaceManagement';
-import { LeaseManagement } from './components/LeaseManagement';
 import { CompanySettings } from './components/CompanySettings';
 import { MeetingRoomBookings } from './components/MeetingRoomBookings';
 import { PinLogin } from './components/PinLogin';
 import { Financial } from './components/Financial';
 import { LayoutDashboard, Users, Building, ScrollText, Settings, CalendarClock, LogOut, Euro } from 'lucide-react';
 
-type Tab = 'dashboard' | 'tenants' | 'spaces' | 'leases' | 'bookings' | 'financial' | 'settings';
+type Tab = 'dashboard' | 'tenants' | 'spaces' | 'bookings' | 'financial' | 'settings';
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('bookings');
@@ -27,9 +26,8 @@ function App() {
 
   const navigation = [
     { id: 'dashboard' as Tab, label: 'Overzicht', icon: LayoutDashboard },
-    { id: 'tenants' as Tab, label: 'Huurders', icon: Users },
     { id: 'spaces' as Tab, label: 'Ruimtes', icon: Building },
-    { id: 'leases' as Tab, label: 'Huurcontracten', icon: ScrollText },
+    { id: 'tenants' as Tab, label: 'Huur', icon: Users },
     { id: 'bookings' as Tab, label: 'Vergaderruimte', icon: CalendarClock },
     { id: 'financial' as Tab, label: 'Financieel', icon: Euro },
   ];
@@ -138,9 +136,8 @@ function App() {
           <main className="flex-1 min-w-0">
             <div className="bg-dark-950">
               {activeTab === 'dashboard' && <Dashboard />}
-              {activeTab === 'tenants' && <TenantManagement />}
               {activeTab === 'spaces' && <SpaceManagement />}
-              {activeTab === 'leases' && <LeaseManagement />}
+              {activeTab === 'tenants' && <TenantManagement />}
               {activeTab === 'bookings' && <MeetingRoomBookings />}
               {activeTab === 'financial' && <Financial />}
               {activeTab === 'settings' && <CompanySettings />}
