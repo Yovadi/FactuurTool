@@ -3,23 +3,19 @@ import { Dashboard } from './components/Dashboard';
 import { TenantManagement } from './components/TenantManagement';
 import { SpaceManagement } from './components/SpaceManagement';
 import { LeaseManagement } from './components/LeaseManagement';
-import { InvoiceManagement } from './components/InvoiceManagement';
 import { CompanySettings } from './components/CompanySettings';
 import { MeetingRoomBookings } from './components/MeetingRoomBookings';
 import { PinLogin } from './components/PinLogin';
-import { Analytics } from './components/Analytics';
-import { DebtorsOverview } from './components/DebtorsOverview';
-import { CreditNotes } from './components/CreditNotes';
-import { LayoutDashboard, Users, Building, FileText, ScrollText, Settings, CalendarClock, TrendingUp, LogOut, Receipt, AlertTriangle, Euro, ChevronDown, ChevronRight } from 'lucide-react';
+import { Financial } from './components/Financial';
+import { LayoutDashboard, Users, Building, ScrollText, Settings, CalendarClock, LogOut, Euro } from 'lucide-react';
 
-type Tab = 'dashboard' | 'tenants' | 'spaces' | 'leases' | 'invoices' | 'bookings' | 'analytics' | 'debtors' | 'creditnotes' | 'settings' | 'financial';
+type Tab = 'dashboard' | 'tenants' | 'spaces' | 'leases' | 'bookings' | 'financial' | 'settings';
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('bookings');
   const [isElectron, setIsElectron] = useState(false);
   const [loggedInTenantId, setLoggedInTenantId] = useState<string | null>(null);
   const [loggedInTenantName, setLoggedInTenantName] = useState<string>('');
-  const [financialExpanded, setFinancialExpanded] = useState(false);
 
   useEffect(() => {
     // Detect if running in Electron or development mode
@@ -35,17 +31,11 @@ function App() {
     { id: 'spaces' as Tab, label: 'Ruimtes', icon: Building },
     { id: 'leases' as Tab, label: 'Huurcontracten', icon: ScrollText },
     { id: 'bookings' as Tab, label: 'Vergaderruimte', icon: CalendarClock },
+    { id: 'financial' as Tab, label: 'Financieel', icon: Euro },
   ];
 
   const bottomNavigation = [
     { id: 'settings' as Tab, label: 'Verhuurder', icon: Settings },
-  ];
-
-  const financialTabs = [
-    { id: 'invoices' as Tab, label: 'Facturen', icon: FileText },
-    { id: 'debtors' as Tab, label: 'Debiteuren', icon: AlertTriangle },
-    { id: 'creditnotes' as Tab, label: 'Credit Nota\'s', icon: Receipt },
-    { id: 'analytics' as Tab, label: 'Analyses', icon: TrendingUp },
   ];
 
   const handleAuthenticated = (tenantId: string, tenantName: string) => {
@@ -121,40 +111,6 @@ function App() {
                   );
                 })}
 
-                <button
-                  onClick={() => setFinancialExpanded(!financialExpanded)}
-                  className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors text-gray-300 hover:bg-dark-800"
-                >
-                  <div className="flex items-center gap-3">
-                    <Euro size={20} />
-                    Financieel
-                  </div>
-                  {financialExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                </button>
-
-                {financialExpanded && (
-                  <div className="ml-4 space-y-1">
-                    {financialTabs.map((item) => {
-                      const Icon = item.icon;
-                      const isActive = activeTab === item.id;
-                      return (
-                        <button
-                          key={item.id}
-                          onClick={() => setActiveTab(item.id)}
-                          className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                            isActive
-                              ? 'bg-gold-500 text-dark-950'
-                              : 'text-gray-300 hover:bg-dark-800'
-                          }`}
-                        >
-                          <Icon size={18} />
-                          {item.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-
                 <div className="my-2 border-t border-dark-700"></div>
 
                 {bottomNavigation.map((item) => {
@@ -185,11 +141,8 @@ function App() {
               {activeTab === 'tenants' && <TenantManagement />}
               {activeTab === 'spaces' && <SpaceManagement />}
               {activeTab === 'leases' && <LeaseManagement />}
-              {activeTab === 'invoices' && <InvoiceManagement />}
               {activeTab === 'bookings' && <MeetingRoomBookings />}
-              {activeTab === 'debtors' && <DebtorsOverview />}
-              {activeTab === 'creditnotes' && <CreditNotes />}
-              {activeTab === 'analytics' && <Analytics />}
+              {activeTab === 'financial' && <Financial />}
               {activeTab === 'settings' && <CompanySettings />}
             </div>
           </main>
