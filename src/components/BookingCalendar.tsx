@@ -346,10 +346,53 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
     if (cellIndex !== -1) {
       setSelectedCells(selectedCells.filter((_, i) => i !== cellIndex));
     } else {
-      if (selectedCells.length === 0 || selectedCells[0].date === dateStr) {
-        setSelectedCells([...selectedCells, { date: dateStr, time }]);
-      } else {
+      if (selectedCells.length === 0) {
         setSelectedCells([{ date: dateStr, time }]);
+      } else if (selectedCells[0].date !== dateStr) {
+        setSelectedCells([{ date: dateStr, time }]);
+      } else {
+        const currentTimeIndex = timeSlots.indexOf(time);
+        const sortedCells = [...selectedCells].sort((a, b) =>
+          timeSlots.indexOf(a.time) - timeSlots.indexOf(b.time)
+        );
+        const minIndex = timeSlots.indexOf(sortedCells[0].time);
+        const maxIndex = timeSlots.indexOf(sortedCells[sortedCells.length - 1].time);
+
+        if (currentTimeIndex === minIndex - 1 || currentTimeIndex === maxIndex + 1) {
+          const newCells = [...selectedCells, { date: dateStr, time }];
+          const sortedNewCells = newCells.sort((a, b) =>
+            timeSlots.indexOf(a.time) - timeSlots.indexOf(b.time)
+          );
+
+          const newMinIndex = timeSlots.indexOf(sortedNewCells[0].time);
+          const newMaxIndex = timeSlots.indexOf(sortedNewCells[sortedNewCells.length - 1].time);
+          const expectedLength = newMaxIndex - newMinIndex + 1;
+
+          let hasGaps = false;
+          for (let i = newMinIndex; i <= newMaxIndex; i++) {
+            const t = timeSlots[i];
+            const hasCell = newCells.some(c => c.time === t);
+            const hasBookingHere = hasBooking(dateStr, t);
+            if (!hasCell && !hasBookingHere) {
+              hasGaps = true;
+              break;
+            }
+            if (hasBookingHere) {
+              hasGaps = true;
+              break;
+            }
+          }
+
+          if (!hasGaps && sortedNewCells.length === expectedLength) {
+            setSelectedCells(newCells);
+          } else {
+            showToast('Selecteer alleen aaneengesloten tijdslots', 'error');
+          }
+        } else if (currentTimeIndex >= minIndex && currentTimeIndex <= maxIndex) {
+          setSelectedCells([...selectedCells, { date: dateStr, time }]);
+        } else {
+          showToast('Selecteer alleen aaneengesloten tijdslots', 'error');
+        }
       }
     }
   };
