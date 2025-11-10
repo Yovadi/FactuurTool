@@ -102,6 +102,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<SelectedCell | null>(null);
   const [selectedCells, setSelectedCells] = useState<SelectedCell[]>([]);
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [formBookingType, setFormBookingType] = useState<'tenant' | 'external'>(bookingType);
   const [formData, setFormData] = useState({
@@ -130,6 +131,10 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
     }, 5000);
   };
 
+
+  useEffect(() => {
+    setIsTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0);
+  }, []);
 
   useEffect(() => {
     // Eerste load met loading state, daarna zonder voor vloeiendere transitions
@@ -325,6 +330,28 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
     setIsDragging(true);
     setDragStart({ date: dateStr, time });
     setSelectedCells([{ date: dateStr, time }]);
+  };
+
+  const handleCellTap = (dateStr: string, time: string) => {
+    if (hasBooking(dateStr, time)) return;
+
+    const cellDate = new Date(dateStr + 'T00:00:00');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (cellDate < today) return;
+
+    const cellIndex = selectedCells.findIndex(c => c.date === dateStr && c.time === time);
+
+    if (cellIndex !== -1) {
+      setSelectedCells(selectedCells.filter((_, i) => i !== cellIndex));
+    } else {
+      if (selectedCells.length === 0 || selectedCells[0].date === dateStr) {
+        setSelectedCells([...selectedCells, { date: dateStr, time }]);
+      } else {
+        setSelectedCells([{ date: dateStr, time }]);
+      }
+    }
   };
 
   const handleCellMouseEnter = (dateStr: string, time: string) => {
@@ -1044,6 +1071,15 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
           </button>
         </div>
 
+        {/* Touch Device Instruction */}
+        {isTouchDevice && (
+          <div className="bg-blue-900/30 border-b border-blue-800 px-4 py-2">
+            <p className="text-xs text-blue-200 text-center">
+              Tik op tijdslots om te selecteren. Tik nogmaals om de selectie ongedaan te maken.
+            </p>
+          </div>
+        )}
+
         {/* Calendar Grid */}
         <div ref={scrollContainerRef} className="flex-1 overflow-auto bg-gray-900">
           <div className="min-w-[900px]" style={{ display: 'grid', gridTemplateColumns: '60px repeat(7, 1fr)' }}>
@@ -1112,21 +1148,26 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                       key={time}
                       className={`relative border-b border-gray-700 ${
                         !hasBookingHere && !isPast ? 'cursor-pointer hover:bg-gray-800/50' : ''
-                      } ${isSelected ? 'bg-yellow-200/40 border-2 border-yellow-400' : ''} ${isPast ? 'bg-gray-900/50' : isWorkHours ? 'bg-slate-700/30' : ''} ${isDraggingBooking && !hasBookingHere && !isPast ? 'bg-green-900/20' : ''}`}
+                      } ${isSelected ? (isTouchDevice ? 'bg-yellow-500/60 border-2 border-yellow-300' : 'bg-yellow-200/40 border-2 border-yellow-400') : ''} ${isPast ? 'bg-gray-900/50' : isWorkHours ? 'bg-slate-700/30' : ''} ${isDraggingBooking && !hasBookingHere && !isPast ? 'bg-green-900/20' : ''} ${isTouchDevice && !hasBookingHere && !isPast ? 'active:bg-yellow-500/30 transition-colors' : ''}`}
                       style={{ height: `${CELL_HEIGHT}px` }}
                       onMouseDown={(e) => {
-                        if (!isDraggingBooking) {
+                        if (!isDraggingBooking && !isTouchDevice) {
                           handleCellMouseDown(day.dateStr, time);
                         }
                       }}
                       onMouseEnter={() => {
-                        if (!isDraggingBooking) {
+                        if (!isDraggingBooking && !isTouchDevice) {
                           handleCellMouseEnter(day.dateStr, time);
                         }
                       }}
                       onMouseUp={() => {
                         if (isDraggingBooking && !hasBookingHere && !isPast) {
                           handleBookingDrop(day.dateStr, time);
+                        }
+                      }}
+                      onClick={() => {
+                        if (isTouchDevice && !isDraggingBooking && !hasBookingHere && !isPast) {
+                          handleCellTap(day.dateStr, time);
                         }
                       }}
                     >
@@ -1189,6 +1230,29 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
           </div>
         </div>
       </div>
+
+      {/* Floating Action Button for Touch Devices */}
+      {isTouchDevice && selectedCells.length > 0 && !showForm && (
+        <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-2">
+          <div className="bg-yellow-600 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-medium">
+            {selectedCells.length} tijdslot{selectedCells.length !== 1 ? 's' : ''} geselecteerd
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setSelectedCells([])}
+              className="px-4 py-3 bg-gray-700 text-white rounded-full shadow-lg hover:bg-gray-600 transition-all"
+            >
+              Annuleren
+            </button>
+            <button
+              onClick={() => setShowForm(true)}
+              className="px-6 py-3 bg-yellow-600 text-white rounded-full shadow-lg hover:bg-yellow-700 transition-all font-medium"
+            >
+              Doorgaan →
+            </button>
+          </div>
+        </div>
+      )}
 
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
