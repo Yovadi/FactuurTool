@@ -8,9 +8,11 @@ import { CompanySettings } from './components/CompanySettings';
 import { MeetingRoomBookings } from './components/MeetingRoomBookings';
 import { PinLogin } from './components/PinLogin';
 import { Analytics } from './components/Analytics';
-import { LayoutDashboard, Users, Building, FileText, ScrollText, Settings, CalendarClock, TrendingUp, LogOut } from 'lucide-react';
+import { DebtorsOverview } from './components/DebtorsOverview';
+import { CreditNotes } from './components/CreditNotes';
+import { LayoutDashboard, Users, Building, FileText, ScrollText, Settings, CalendarClock, TrendingUp, LogOut, Receipt, AlertTriangle } from 'lucide-react';
 
-type Tab = 'dashboard' | 'tenants' | 'spaces' | 'leases' | 'invoices' | 'bookings' | 'analytics' | 'settings';
+type Tab = 'dashboard' | 'tenants' | 'spaces' | 'leases' | 'invoices' | 'bookings' | 'analytics' | 'debtors' | 'creditnotes' | 'settings';
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('bookings');
@@ -33,6 +35,8 @@ function App() {
     { id: 'leases' as Tab, label: 'Huurcontracten', icon: ScrollText },
     { id: 'bookings' as Tab, label: 'Vergaderruimte', icon: CalendarClock },
     { id: 'invoices' as Tab, label: 'Facturen', icon: FileText },
+    { id: 'debtors' as Tab, label: 'Debiteuren', icon: AlertTriangle },
+    { id: 'creditnotes' as Tab, label: 'Credit Nota\'s', icon: Receipt },
     { id: 'analytics' as Tab, label: 'Analyses', icon: TrendingUp },
     { id: 'settings' as Tab, label: 'Verhuurder', icon: Settings },
   ];
@@ -121,6 +125,8 @@ function App() {
               {activeTab === 'leases' && <LeaseManagement />}
               {activeTab === 'invoices' && <InvoiceManagement />}
               {activeTab === 'bookings' && <MeetingRoomBookings />}
+              {activeTab === 'debtors' && <DebtorsOverview />}
+              {activeTab === 'creditnotes' && <CreditNotes />}
               {activeTab === 'analytics' && <Analytics />}
               {activeTab === 'settings' && <CompanySettings />}
             </div>
