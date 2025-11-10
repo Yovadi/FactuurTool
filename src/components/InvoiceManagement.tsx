@@ -1831,7 +1831,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                   return (
                     <div
                       key={invoice.id}
-                      className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-5 hover:shadow-md transition-shadow"
+                      onClick={() => showInvoicePreview(invoice)}
+                      className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-5 hover:shadow-md hover:border-gold-500 transition-all cursor-pointer"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4 flex-1">
@@ -1880,116 +1881,9 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <div className="text-xl font-bold text-gray-100">
-                              €{invoice.amount.toFixed(2)}
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => startEditInvoice(invoice)}
-                              className="flex items-center gap-1 text-blue-500 hover:text-blue-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
-                              title="Bewerken"
-                            >
-                              <Edit size={24} />
-                            </button>
-                            <button
-                              onClick={() => showInvoicePreview(invoice)}
-                              className="flex items-center gap-1 text-gold-500 hover:text-gold-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
-                            >
-                              <Eye size={24} />
-                            </button>
-                            <button
-                              onClick={async () => {
-                                const { data: items } = await supabase
-                                  .from('invoice_line_items')
-                                  .select('*')
-                                  .eq('invoice_id', invoice.id);
-
-                                const spaces = items ? convertLineItemsToSpaces(items) : [];
-
-                                generateInvoicePDF({
-                                  invoice_number: invoice.invoice_number,
-                                  tenant_name: ('name' in (tenant || {}) ? tenant?.name : undefined) || undefined,
-        tenant_contact_name: ('contact_name' in (tenant || {}) ? (tenant as any)?.contact_name : undefined) || undefined,
-                                  tenant_company_name: tenant?.company_name || '',
-                                  tenant_email: tenant?.email || '',
-                                  tenant_phone: tenant?.phone || undefined,
-                                  tenant_billing_address: tenant?.billing_address || undefined,
-        tenant_street: tenant?.street || undefined,
-        tenant_postal_code: tenant?.postal_code || undefined,
-        tenant_city: tenant?.city || undefined,
-        tenant_country: tenant?.country || undefined,
-                                  invoice_month: invoice.invoice_month || undefined,
-                                  notes: invoice.notes || undefined,
-                                  spaces,
-                                  security_deposit: 0,
-                                  subtotal: invoice.subtotal,
-                                  amount: invoice.amount,
-                                  vat_amount: invoice.vat_amount,
-                                  vat_rate: invoice.vat_rate,
-                                  vat_inclusive: invoice.vat_inclusive,
-                                  due_date: invoice.due_date,
-                                  invoice_date: invoice.invoice_date,
-                                  company: companySettings ? {
-                                    name: companySettings.company_name,
-                                    address: companySettings.address,
-                                    postal_code: companySettings.postal_code,
-                                    city: companySettings.city,
-                                    kvk: companySettings.kvk_number,
-                                    btw: companySettings.vat_number,
-                                    iban: companySettings.bank_account,
-                                    email: companySettings.email,
-                                    phone: companySettings.phone,
-                                    website: companySettings.website
-                                  } : undefined
-                                }, false);
-                              }}
-                              className="flex items-center gap-1 text-emerald-400 hover:text-emerald-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-emerald-900"
-                            >
-                              <Download size={24} />
-                            </button>
-                            {invoice.status === 'draft' && (
-                              <>
-                                <button
-                                  onClick={() => sendInvoiceEmail(invoice.id)}
-                                  className="flex items-center gap-1 text-gold-500 hover:text-gold-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
-                                >
-                                  <Send size={24} />
-                                </button>
-                                <button
-                                  onClick={() => setShowDeleteConfirm(invoice.id)}
-                                  className="flex items-center gap-1 text-red-400 hover:text-red-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-red-900"
-                                >
-                                  <Trash2 size={24} />
-                                </button>
-                              </>
-                            )}
-                            {invoice.status === 'sent' && (
-                              <>
-                                <button
-                                  onClick={() => markAsPaid(invoice.id)}
-                                  className="flex items-center gap-1 text-green-400 hover:text-green-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-green-900"
-                                >
-                                  <CheckCircle size={24} />
-                                </button>
-                                <button
-                                  onClick={() => setShowDeleteConfirm(invoice.id)}
-                                  className="flex items-center gap-1 text-red-400 hover:text-red-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-red-900"
-                                >
-                                  <Trash2 size={24} />
-                                </button>
-                              </>
-                            )}
-                            {invoice.status === 'paid' && (
-                              <button
-                                onClick={() => setShowDeleteConfirm(invoice.id)}
-                                className="flex items-center gap-1 text-red-400 hover:text-red-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-red-900"
-                              >
-                                <Trash2 size={24} />
-                              </button>
-                            )}
+                        <div className="text-right">
+                          <div className="text-xl font-bold text-gray-100">
+                            €{invoice.amount.toFixed(2)}
                           </div>
                         </div>
                       </div>
@@ -2506,6 +2400,17 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
           onClose={() => setPreviewInvoice(null)}
           onDownload={handlePreviewDownload}
           onSend={previewInvoice.invoice.status === 'draft' ? handlePreviewSend : undefined}
+          onEdit={() => {
+            setPreviewInvoice(null);
+            startEditInvoice(previewInvoice.invoice);
+          }}
+          onDelete={() => {
+            setShowDeleteConfirm(previewInvoice.invoice.id);
+          }}
+          onMarkAsPaid={previewInvoice.invoice.status === 'sent' ? () => {
+            markAsPaid(previewInvoice.invoice.id);
+            setPreviewInvoice(null);
+          } : undefined}
         />
       )}
     </div>

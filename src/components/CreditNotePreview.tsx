@@ -1,4 +1,4 @@
-import { X } from 'lucide-react';
+import { X, Download, Edit, Trash2 } from 'lucide-react';
 
 type CreditNoteLineItem = {
   description: string;
@@ -17,6 +17,7 @@ type CreditNotePreviewProps = {
     vat_rate: number;
     total_amount: number;
     notes?: string;
+    status?: string;
     tenant?: { name: string; company_name: string; email: string; billing_address?: string; street?: string; postal_code?: string; city?: string };
     external_customer?: { company_name: string; contact_name: string; email?: string; street: string; postal_code: string; city: string; country: string };
     credit_note_line_items?: CreditNoteLineItem[];
@@ -35,9 +36,12 @@ type CreditNotePreviewProps = {
     bank_account: string;
   } | null;
   onClose: () => void;
+  onDownload?: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 };
 
-export function CreditNotePreview({ creditNote, companySettings, onClose }: CreditNotePreviewProps) {
+export function CreditNotePreview({ creditNote, companySettings, onClose, onDownload, onEdit, onDelete }: CreditNotePreviewProps) {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('nl-NL', {
       style: 'currency',
@@ -59,12 +63,43 @@ export function CreditNotePreview({ creditNote, companySettings, onClose }: Cred
       <div className="bg-dark-900 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-dark-800 border-b border-dark-700 px-6 py-4 flex justify-between items-center">
           <h3 className="text-xl font-bold text-gray-100">Credit Nota Preview</h3>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-dark-700 rounded-lg transition-colors"
-          >
-            <X size={20} className="text-gray-300" />
-          </button>
+          <div className="flex items-center gap-2">
+            {onEdit && (
+              <button
+                onClick={onEdit}
+                className="flex items-center gap-1 text-blue-400 hover:text-blue-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-700"
+                title="Bewerken"
+              >
+                <Edit size={20} />
+                <span className="text-sm font-medium">Bewerken</span>
+              </button>
+            )}
+            {onDownload && (
+              <button
+                onClick={onDownload}
+                className="flex items-center gap-1 text-emerald-400 hover:text-emerald-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-700"
+                title="Download PDF"
+              >
+                <Download size={20} />
+                <span className="text-sm font-medium">Download</span>
+              </button>
+            )}
+            {onDelete && (
+              <button
+                onClick={onDelete}
+                className="flex items-center gap-1 text-red-400 hover:text-red-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-700"
+                title="Verwijderen"
+              >
+                <Trash2 size={20} />
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-dark-700 rounded-lg transition-colors"
+            >
+              <X size={20} className="text-gray-300" />
+            </button>
+          </div>
         </div>
 
         <div className="p-8" id="credit-note-preview">

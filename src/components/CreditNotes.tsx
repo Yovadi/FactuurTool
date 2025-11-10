@@ -468,7 +468,8 @@ export function CreditNotes() {
             return (
               <div
                 key={note.id}
-                className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-5 hover:shadow-md transition-shadow"
+                onClick={() => handlePreview(note)}
+                className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-5 hover:shadow-md hover:border-red-400 transition-all cursor-pointer"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4 flex-1">
@@ -492,69 +493,9 @@ export function CreditNotes() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <div className="text-xl font-bold text-red-400">
-                        -{formatCurrency(note.total_amount)}
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleEdit(note)}
-                        className="flex items-center gap-1 text-blue-500 hover:text-blue-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
-                        title="Bewerken"
-                      >
-                        <Edit2 size={24} />
-                      </button>
-                      <button
-                        onClick={() => handlePreview(note)}
-                        className="flex items-center gap-1 text-gold-500 hover:text-gold-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
-                        title="Preview"
-                      >
-                        <Eye size={24} />
-                      </button>
-                      <button
-                        onClick={() => handleDownloadPDF(note)}
-                        className="flex items-center gap-1 text-green-500 hover:text-green-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
-                        title="Download PDF"
-                      >
-                        <Download size={24} />
-                      </button>
-                      <div className="relative group">
-                        <button
-                          className="flex items-center gap-1 text-yellow-500 hover:text-yellow-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
-                          title="Status wijzigen"
-                        >
-                          <Edit size={24} />
-                        </button>
-                        <div className="absolute right-0 top-full mt-1 bg-dark-800 border border-dark-600 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 min-w-[140px]">
-                          <button
-                            onClick={() => handleChangeStatus(note.id, 'draft')}
-                            className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-dark-700 first:rounded-t-lg"
-                          >
-                            Concept
-                          </button>
-                          <button
-                            onClick={() => handleChangeStatus(note.id, 'issued')}
-                            className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-dark-700"
-                          >
-                            Uitgegeven
-                          </button>
-                          <button
-                            onClick={() => handleChangeStatus(note.id, 'applied')}
-                            className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-dark-700 last:rounded-b-lg"
-                          >
-                            Toegepast
-                          </button>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => handleDelete(note)}
-                        className="flex items-center gap-1 text-red-500 hover:text-red-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
-                        title="Verwijderen"
-                      >
-                        <Trash2 size={24} />
-                      </button>
+                  <div className="text-right">
+                    <div className="text-xl font-bold text-red-400">
+                      -{formatCurrency(note.total_amount)}
                     </div>
                   </div>
                 </div>
@@ -787,6 +728,14 @@ export function CreditNotes() {
           creditNote={previewCreditNote}
           companySettings={companySettings}
           onClose={() => setPreviewCreditNote(null)}
+          onDownload={() => handleDownloadPDF(previewCreditNote)}
+          onEdit={() => {
+            setPreviewCreditNote(null);
+            handleEdit(previewCreditNote);
+          }}
+          onDelete={() => {
+            handleDelete(previewCreditNote);
+          }}
         />
       )}
     </div>

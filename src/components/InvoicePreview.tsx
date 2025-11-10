@@ -1,4 +1,4 @@
-import { X, Download, Send } from 'lucide-react';
+import { X, Download, Send, Edit, Trash2 } from 'lucide-react';
 
 interface InvoiceSpace {
   space_name: string;
@@ -50,6 +50,9 @@ interface InvoicePreviewProps {
   onClose: () => void;
   onDownload?: () => void;
   onSend?: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  onMarkAsPaid?: () => void;
 }
 
 export function InvoicePreview({
@@ -60,6 +63,9 @@ export function InvoicePreview({
   onClose,
   onDownload,
   onSend,
+  onEdit,
+  onDelete,
+  onMarkAsPaid,
 }: InvoicePreviewProps) {
   const invoiceNumberDisplay = invoice.invoice_number.replace(/^INV-/, '');
 
@@ -81,12 +87,62 @@ export function InvoicePreview({
       <div className="bg-white rounded-lg shadow-2xl my-8 relative max-w-2xl w-full mx-auto">
         <div className="sticky top-0 bg-white rounded-t-lg border-b border-gray-200 px-6 py-4 flex items-center justify-between">
           <h2 className="text-2xl font-bold text-gray-900">Factuur {invoiceNumberDisplay}</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <X size={24} />
-          </button>
+          <div className="flex items-center gap-2">
+            {onEdit && (
+              <button
+                onClick={onEdit}
+                className="flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors px-3 py-1.5 rounded-lg hover:bg-blue-50"
+                title="Bewerken"
+              >
+                <Edit size={20} />
+                <span className="text-sm font-medium">Bewerken</span>
+              </button>
+            )}
+            {onDownload && (
+              <button
+                onClick={onDownload}
+                className="flex items-center gap-1 text-emerald-600 hover:text-emerald-700 transition-colors px-3 py-1.5 rounded-lg hover:bg-emerald-50"
+                title="Download PDF"
+              >
+                <Download size={20} />
+                <span className="text-sm font-medium">Download</span>
+              </button>
+            )}
+            {onSend && (
+              <button
+                onClick={onSend}
+                className="flex items-center gap-1 text-indigo-600 hover:text-indigo-700 transition-colors px-3 py-1.5 rounded-lg hover:bg-indigo-50"
+                title="Versturen"
+              >
+                <Send size={20} />
+                <span className="text-sm font-medium">Versturen</span>
+              </button>
+            )}
+            {onMarkAsPaid && invoice.status !== 'paid' && (
+              <button
+                onClick={onMarkAsPaid}
+                className="flex items-center gap-1 text-green-600 hover:text-green-700 transition-colors px-3 py-1.5 rounded-lg hover:bg-green-50"
+                title="Markeer als betaald"
+              >
+                <span className="text-sm font-medium">Betaald</span>
+              </button>
+            )}
+            {onDelete && (
+              <button
+                onClick={onDelete}
+                className="flex items-center gap-1 text-red-600 hover:text-red-700 transition-colors px-3 py-1.5 rounded-lg hover:bg-red-50"
+                title="Verwijderen"
+              >
+                <Trash2 size={20} />
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors p-1.5"
+            >
+              <X size={24} />
+            </button>
+          </div>
         </div>
 
         <div className="p-6 space-y-6">
