@@ -71,7 +71,7 @@ export function CreditNotePreview({ creditNote, companySettings, onClose }: Cred
           <div className="bg-white">
             <div className="flex justify-between items-start mb-8">
               <div>
-                <h1 className="text-2xl font-bold text-red-600 mb-2">Credit Nota {creditNote.credit_note_number.replace(/^CN-/, '')}</h1>
+                <h1 className="text-2xl font-bold text-red-600 mb-2">CREDITFACTUUR</h1>
               </div>
               <div className="text-right">
                 <img src="/image copy copy copy copy copy copy.png" alt="Logo" className="h-12 ml-auto mb-2" />
@@ -86,21 +86,20 @@ export function CreditNotePreview({ creditNote, companySettings, onClose }: Cred
 
               <div className="text-right text-sm">
                 <div className="mb-2">
-                  <span className="font-semibold text-gray-600">Credit nota nr: </span>
+                  <span className="font-semibold text-gray-600">Creditfactuurnr: </span>
                   <span className="text-gray-900">{creditNote.credit_note_number.replace(/^CN-/, '')}</span>
                 </div>
                 <div>
-                  <span className="font-semibold text-gray-600">Credit datum: </span>
+                  <span className="font-semibold text-gray-600">Creditdatum: </span>
                   <span className="text-gray-900">{formatDate(creditNote.credit_date)}</span>
                 </div>
               </div>
             </div>
 
-            <div className="mb-6">
-              <p className="text-sm">
-                <span className="font-semibold text-gray-700">Reden: </span>
-                <span className="text-red-600">{creditNote.reason}</span>
-              </p>
+            <div className="mb-6 bg-red-50 p-3 rounded-lg">
+              <p className="text-sm font-semibold text-red-800 mb-1">CREDITFACTUUR</p>
+              <p className="text-xs text-gray-700">Deze creditfactuur corrigeert een eerder verzonden factuur.</p>
+              <p className="text-xs text-gray-700 mt-1">Reden: {creditNote.reason}</p>
             </div>
 
             <table className="w-full mb-8">
@@ -120,7 +119,7 @@ export function CreditNotePreview({ creditNote, companySettings, onClose }: Cred
                         : item.description
                       }
                     </td>
-                    <td className="py-2 px-2 text-right text-gray-900">{formatCurrency(item.amount)}</td>
+                    <td className="py-2 px-2 text-right text-gray-900">{formatCurrency(-item.amount)}</td>
                     <td className="py-2 px-2 text-right text-gray-900">{creditNote.vat_rate}%</td>
                   </tr>
                 ))}
@@ -129,7 +128,7 @@ export function CreditNotePreview({ creditNote, companySettings, onClose }: Cred
 
             {creditNote.notes && (
               <div className="border-t border-gray-200 pt-4 mb-6">
-                <p className="text-sm font-semibold text-gray-700 mb-2">Opmerking:</p>
+                <p className="text-sm font-semibold text-gray-700 mb-2">Toelichting:</p>
                 <p className="text-sm text-gray-700">{creditNote.notes}</p>
               </div>
             )}
@@ -137,23 +136,29 @@ export function CreditNotePreview({ creditNote, companySettings, onClose }: Cred
             <div className="flex justify-end mb-8">
               <div className="w-64 text-sm">
                 <div className="flex justify-between py-1 text-gray-700">
-                  <span>Subtotaal:</span>
-                  <span className="font-semibold">{formatCurrency(creditNote.subtotal)}</span>
+                  <span>Subtotaal excl. BTW:</span>
+                  <span className="font-semibold">{formatCurrency(-creditNote.subtotal)}</span>
                 </div>
                 <div className="flex justify-between py-1 text-gray-700">
                   <span>BTW {creditNote.vat_rate}%:</span>
-                  <span className="font-semibold">{formatCurrency(creditNote.vat_amount)}</span>
+                  <span className="font-semibold">{formatCurrency(-creditNote.vat_amount)}</span>
                 </div>
                 <div className="flex justify-between py-2 border-t-2 border-gray-400 text-base font-bold text-gray-900 mt-1">
-                  <span>Te crediteren:</span>
-                  <span className="text-red-600">{formatCurrency(creditNote.total_amount)}</span>
+                  <span>Totaal incl. BTW:</span>
+                  <span className="text-red-600">{formatCurrency(-creditNote.total_amount)}</span>
                 </div>
               </div>
             </div>
 
+            <div className="bg-yellow-50 p-3 rounded-lg mb-6">
+              <p className="text-xs font-semibold text-gray-700">Let op:</p>
+              <p className="text-xs text-gray-600 mt-1">Dit bedrag wordt in mindering gebracht op uw openstaande saldo.</p>
+              <p className="text-xs text-gray-600">Het gecrediteerde bedrag wordt verrekend met toekomstige facturen of terugbetaald indien gewenst.</p>
+            </div>
+
             <div className="border-t-2 border-yellow-500 pt-4 mb-8 text-xs text-gray-600">
-              <p>Betalen: {companySettings?.bank_account} | {companySettings?.company_name}</p>
-              <p className="mt-1">{companySettings?.phone} | {companySettings?.email}</p>
+              <p>Bankrekening: {companySettings?.bank_account} t.n.v. {companySettings?.company_name}</p>
+              <p className="mt-1">Contact: {companySettings?.phone} | {companySettings?.email}</p>
               <p className="mt-1">{companySettings?.address}, {companySettings?.postal_code} {companySettings?.city}</p>
               <p className="mt-1">KvK-nummer: {companySettings?.kvk_number} | BTW-nummer: {companySettings?.btw_number}</p>
             </div>

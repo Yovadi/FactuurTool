@@ -470,7 +470,7 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(220, 38, 38);
   const creditNoteNumberDisplay = creditNote.credit_note_number.replace(/^CN-/, '');
-  pdf.text(`Credit Nota ${creditNoteNumberDisplay}`, margin, yPosition + 10);
+  pdf.text(`CREDITFACTUUR`, margin, yPosition + 10);
 
   yPosition = 38;
 
@@ -498,28 +498,35 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
   pdf.setFontSize(8);
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(80, 80, 80);
-  pdf.text('Credit nota nr:', creditNoteInfoCol, yPosition);
+  pdf.text('Creditfactuurnr:', creditNoteInfoCol, yPosition);
   pdf.setFont('helvetica', 'normal');
   pdf.text(creditNoteNumberDisplay, creditNoteInfoCol + 30, yPosition);
 
   yPosition += 5;
   pdf.setFont('helvetica', 'bold');
-  pdf.text('Credit datum:', creditNoteInfoCol, yPosition);
+  pdf.text('Creditdatum:', creditNoteInfoCol, yPosition);
   pdf.setFont('helvetica', 'normal');
   pdf.text(new Date(creditNote.credit_date).toLocaleDateString('nl-NL'), creditNoteInfoCol + 30, yPosition);
 
   const addressBoxBottom = 45 + boxHeight;
   yPosition = Math.max(addressBoxBottom + 8, 75);
 
+  pdf.setFillColor(254, 242, 242);
+  pdf.rect(margin, yPosition - 3, pageWidth - 2 * margin, 16, 'F');
+
   pdf.setFontSize(9);
   pdf.setFont('helvetica', 'bold');
-  pdf.setTextColor(80, 80, 80);
-  pdf.text('Reden:', margin, yPosition);
+  pdf.setTextColor(153, 27, 27);
+  pdf.text('CREDITFACTUUR', margin + 3, yPosition + 2);
+
+  yPosition += 6;
   pdf.setFont('helvetica', 'normal');
-  pdf.setTextColor(220, 38, 38);
-  const reasonLines = pdf.splitTextToSize(creditNote.reason, pageWidth - margin - 80);
-  pdf.text(reasonLines, margin + 20, yPosition);
-  yPosition += (reasonLines.length * 4) + 4;
+  pdf.setTextColor(60, 60, 60);
+  pdf.setFontSize(8);
+  pdf.text('Deze creditfactuur corrigeert een eerder verzonden factuur.', margin + 3, yPosition);
+  yPosition += 4;
+  pdf.text(`Reden: ${creditNote.reason}`, margin + 3, yPosition);
+  yPosition += 8;
 
   const tableTop = yPosition;
   const col1X = margin;
@@ -554,11 +561,11 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
 
     let description = item.description;
     if (item.quantity > 1) {
-      description = `${item.description} (${item.quantity}x € ${item.unit_price.toFixed(2)})`;
+      description = `${item.description} (${item.quantity}x € -${item.unit_price.toFixed(2)})`;
     }
 
     pdf.text(description, col1X + 2, yPosition);
-    const amount = item.amount;
+    const amount = -item.amount;
     pdf.text(`€ ${amount.toFixed(2)}`, col2X - 2, yPosition, { align: 'right' });
     pdf.text(`${creditNote.vat_rate.toFixed(0)}%`, col3X - 2, yPosition, { align: 'right' });
 
@@ -580,7 +587,7 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(9);
     pdf.setTextColor(80, 80, 80);
-    pdf.text('Opmerking:', margin, yPosition);
+    pdf.text('Toelichting:', margin, yPosition);
     yPosition += 5;
 
     pdf.setFont('helvetica', 'normal');
@@ -603,12 +610,12 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
   pdf.setFont('helvetica', 'normal');
   pdf.setTextColor(60, 60, 60);
 
-  pdf.text('Subtotaal:', summaryX, yPosition);
-  pdf.text(`€ ${creditNote.subtotal.toFixed(2)}`, pageWidth - margin, yPosition, { align: 'right' });
+  pdf.text('Subtotaal excl. BTW:', summaryX, yPosition);
+  pdf.text(`€ -${creditNote.subtotal.toFixed(2)}`, pageWidth - margin, yPosition, { align: 'right' });
   yPosition += 5;
 
   pdf.text(`BTW ${creditNote.vat_rate.toFixed(0)}%:`, summaryX, yPosition);
-  pdf.text(`€ ${creditNote.vat_amount.toFixed(2)}`, pageWidth - margin, yPosition, { align: 'right' });
+  pdf.text(`€ -${creditNote.vat_amount.toFixed(2)}`, pageWidth - margin, yPosition, { align: 'right' });
   yPosition += 7;
 
   pdf.setDrawColor(60, 60, 60);
@@ -618,10 +625,24 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
   pdf.setFontSize(11);
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(220, 38, 38);
-  pdf.text('Te crediteren:', summaryX, yPosition + 2);
-  pdf.text(`€ ${creditNote.total_amount.toFixed(2)}`, pageWidth - margin, yPosition + 2, { align: 'right' });
+  pdf.text('Totaal incl. BTW:', summaryX, yPosition + 2);
+  pdf.text(`€ -${creditNote.total_amount.toFixed(2)}`, pageWidth - margin, yPosition + 2, { align: 'right' });
 
   yPosition += 10;
+
+  pdf.setFillColor(255, 251, 235);
+  pdf.rect(margin, yPosition, pageWidth - 2 * margin, 16, 'F');
+  yPosition += 5;
+
+  pdf.setFontSize(8);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setTextColor(80, 80, 80);
+  pdf.text('Let op:', margin + 3, yPosition);
+  pdf.setFont('helvetica', 'normal');
+  pdf.text('Dit bedrag wordt in mindering gebracht op uw openstaande saldo.', margin + 16, yPosition);
+  yPosition += 4;
+  pdf.text('Het gecrediteerde bedrag wordt verrekend met toekomstige facturen of terugbetaald indien gewenst.', margin + 3, yPosition);
+  yPosition += 8;
 
   pdf.setDrawColor(234, 179, 8);
   pdf.setLineWidth(0.5);
@@ -633,11 +654,11 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
   pdf.setTextColor(80, 80, 80);
 
   if (creditNote.company) {
-    const bankLine = `Betalen: ${creditNote.company.iban || ''} | ${creditNote.company.name || ''}`;
+    const bankLine = `Bankrekening: ${creditNote.company.iban || ''} t.n.v. ${creditNote.company.name || ''}`;
     pdf.text(bankLine, margin, yPosition);
     yPosition += 4;
 
-    const contactLine = `${creditNote.company.phone || ''} | ${creditNote.company.email || ''}`;
+    const contactLine = `Contact: ${creditNote.company.phone || ''} | ${creditNote.company.email || ''}`;
     pdf.text(contactLine, margin, yPosition);
     yPosition += 4;
 
