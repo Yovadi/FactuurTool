@@ -551,7 +551,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     } else {
       const invoiceDate = new Date().toISOString().split('T')[0];
       const dueDate = new Date();
-      dueDate.setDate(dueDate.getDate() + 30);
+      dueDate.setDate(dueDate.getDate() + 14);
       const dueDateStr = dueDate.toISOString().split('T')[0];
 
       const subtotal = booking.total_amount;
