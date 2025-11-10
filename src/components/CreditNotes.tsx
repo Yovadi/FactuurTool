@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, Eye, Trash2, Download, Edit, Edit2 } from 'lucide-react';
+import { Plus, Eye, Trash2, Download, Edit, Edit2, FileText } from 'lucide-react';
 import { CreditNotePreview } from './CreditNotePreview';
 import { generateCreditNotePDF } from '../utils/pdfGenerator';
 
@@ -454,74 +454,78 @@ export function CreditNotes() {
         </div>
       </div>
 
-      <div className="bg-dark-900 rounded-lg overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-dark-800 border-b border-dark-700">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Nummer</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Datum</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Klant</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Reden</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Bedrag</th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">Acties</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-dark-700">
-            {creditNotes.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
-                  Geen credit nota's gevonden
-                </td>
-              </tr>
-            ) : (
-              creditNotes.map((note) => (
-                <tr key={note.id} className="hover:bg-dark-800/50 transition-colors">
-                  <td className="px-6 py-4 text-sm text-gray-100 font-medium">{note.credit_note_number}</td>
-                  <td className="px-6 py-4 text-sm text-gray-300">{formatDate(note.credit_date)}</td>
-                  <td className="px-6 py-4 text-sm text-gray-300">
-                    {note.tenant_id
-                      ? note.tenants?.company_name
-                      : note.external_customers?.company_name}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-300">{note.reason}</td>
-                  <td className="px-6 py-4 text-sm text-gray-100 text-right font-semibold">
-                    {formatCurrency(note.total_amount)}
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <span className={`px-2.5 py-1 rounded text-xs font-medium uppercase ${getStatusColor(note.status)}`}>
-                      {getStatusText(note.status)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex justify-center gap-2">
+      <div className="space-y-4">
+        {creditNotes.length === 0 ? (
+          <div className="bg-dark-900 rounded-lg p-8 text-center">
+            <p className="text-gray-400">Geen credit nota's gevonden</p>
+          </div>
+        ) : (
+          creditNotes.map((note) => {
+            const customerName = note.tenant_id
+              ? note.tenants?.company_name
+              : note.external_customers?.company_name;
+
+            return (
+              <div
+                key={note.id}
+                className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-5 hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4 flex-1">
+                    <FileText className="text-red-400" size={24} />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-1">
+                        <h3 className="text-lg font-semibold text-gray-100">
+                          {customerName}
+                        </h3>
+                        <span className="text-sm font-medium text-red-400">
+                          {note.credit_note_number.replace(/^CN-/, '')}
+                        </span>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(note.status)}`}>
+                          {getStatusText(note.status)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4 text-sm text-gray-300">
+                        <span>{formatDate(note.credit_date)}</span>
+                        <span>•</span>
+                        <span className="line-clamp-1">{note.reason}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <div className="text-xl font-bold text-red-400">
+                        -{formatCurrency(note.total_amount)}
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleEdit(note)}
+                        className="flex items-center gap-1 text-blue-500 hover:text-blue-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
+                        title="Bewerken"
+                      >
+                        <Edit2 size={24} />
+                      </button>
                       <button
                         onClick={() => handlePreview(note)}
-                        className="p-1.5 hover:bg-dark-700 rounded transition-colors"
+                        className="flex items-center gap-1 text-gold-500 hover:text-gold-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
                         title="Preview"
                       >
-                        <Eye size={16} className="text-blue-400" />
+                        <Eye size={24} />
                       </button>
                       <button
                         onClick={() => handleDownloadPDF(note)}
-                        className="p-1.5 hover:bg-dark-700 rounded transition-colors"
+                        className="flex items-center gap-1 text-green-500 hover:text-green-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
                         title="Download PDF"
                       >
-                        <Download size={16} className="text-green-400" />
-                      </button>
-                      <button
-                        onClick={() => handleEdit(note)}
-                        className="p-1.5 hover:bg-dark-700 rounded transition-colors"
-                        title="Bewerken"
-                      >
-                        <Edit2 size={16} className="text-blue-400" />
+                        <Download size={24} />
                       </button>
                       <div className="relative group">
                         <button
-                          className="p-1.5 hover:bg-dark-700 rounded transition-colors"
+                          className="flex items-center gap-1 text-yellow-500 hover:text-yellow-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
                           title="Status wijzigen"
                         >
-                          <Edit size={16} className="text-yellow-400" />
+                          <Edit size={24} />
                         </button>
                         <div className="absolute right-0 top-full mt-1 bg-dark-800 border border-dark-600 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 min-w-[140px]">
                           <button
@@ -545,19 +549,19 @@ export function CreditNotes() {
                         </div>
                       </div>
                       <button
-                        onClick={() => handleDelete(note.id)}
-                        className="p-1.5 hover:bg-dark-700 rounded transition-colors"
+                        onClick={() => handleDelete(note)}
+                        className="flex items-center gap-1 text-red-500 hover:text-red-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
                         title="Verwijderen"
                       >
-                        <Trash2 size={16} className="text-red-400" />
+                        <Trash2 size={24} />
                       </button>
                     </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
 
       {showForm && (
