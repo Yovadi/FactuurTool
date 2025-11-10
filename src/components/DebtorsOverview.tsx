@@ -58,19 +58,27 @@ export function DebtorsOverview() {
       let total = 0;
 
       invoices?.forEach((invoice: any) => {
-        const customer = invoice.tenant_id
+        if (!invoice.tenant_id && !invoice.external_customer_id) {
+          return;
+        }
+
+        const customer = invoice.tenant_id && invoice.tenants
           ? {
               id: invoice.tenants.id,
               name: invoice.tenants.name,
               company_name: invoice.tenants.company_name,
               email: invoice.tenants.email
             }
-          : {
+          : invoice.external_customer_id && invoice.external_customers
+          ? {
               id: invoice.external_customers.id,
               name: invoice.external_customers.contact_name,
               company_name: invoice.external_customers.company_name,
               email: invoice.external_customers.email
-            };
+            }
+          : null;
+
+        if (!customer) return;
 
         if (!debtorMap.has(customer.id)) {
           debtorMap.set(customer.id, {
