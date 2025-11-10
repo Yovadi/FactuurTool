@@ -1885,6 +1885,16 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                           <div className="text-xl font-bold text-gray-100">
                             €{invoice.amount.toFixed(2)}
                           </div>
+                          {invoice.applied_credit > 0 && (
+                            <div className="text-sm text-green-400 mt-1">
+                              -€{invoice.applied_credit.toFixed(2)} credit
+                            </div>
+                          )}
+                          {invoice.applied_credit > 0 && (
+                            <div className="text-sm text-gray-400 mt-1">
+                              = €{(invoice.amount - invoice.applied_credit).toFixed(2)} openstaand
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
