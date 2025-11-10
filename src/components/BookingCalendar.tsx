@@ -1062,7 +1062,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
 
       <div className="flex gap-4 w-full" style={{ height: '720px' }}>
         {/* Left Sidebar - Month Calendars */}
-      <div className="w-72 bg-gray-800 rounded-lg p-4 flex-shrink-0 flex flex-col">
+      <div className="w-72 bg-dark-900 rounded-lg p-4 flex-shrink-0 flex flex-col">
         {/* Current Month */}
         <div className="mb-6">
           {renderMonthCalendar(monthDays, baseMonth, true, 0)}
@@ -1087,7 +1087,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
       </div>
 
       {/* Right Side - Week View */}
-      <div className="flex-1 bg-gray-800 rounded-lg overflow-hidden flex flex-col h-full">
+      <div className="flex-1 bg-dark-900 rounded-lg overflow-hidden flex flex-col h-full">
         {/* Header */}
         <div className="bg-gray-700 px-4 py-3 flex items-center justify-between border-b border-gray-600">
           <div className="flex items-center gap-3">
@@ -1107,7 +1107,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
           </div>
           <button
             onClick={() => setShowRecurringModal(true)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm font-medium"
+            className="flex items-center gap-2 px-3 py-1.5 bg-gold-500 text-white rounded hover:bg-gold-600 transition-colors text-sm font-medium"
           >
             <Repeat size={16} />
             Terugkerende Boeking
@@ -1116,15 +1116,15 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
 
         {/* Touch Device Instruction */}
         {isTouchDevice && (
-          <div className="bg-blue-900/30 border-b border-blue-800 px-4 py-2">
-            <p className="text-xs text-blue-200 text-center">
+          <div className="bg-dark-800/50 border-b border-dark-700 px-4 py-2">
+            <p className="text-xs text-gray-300 text-center">
               Tik op tijdslots om te selecteren. Tik nogmaals om de selectie ongedaan te maken.
             </p>
           </div>
         )}
 
         {/* Calendar Grid */}
-        <div ref={scrollContainerRef} className="flex-1 overflow-auto bg-gray-900">
+        <div ref={scrollContainerRef} className="flex-1 overflow-auto bg-dark-950">
           <div className="min-w-[900px]" style={{ display: 'grid', gridTemplateColumns: '60px repeat(7, 1fr)' }}>
             {/* Header row */}
             <div className="sticky top-0 z-20 bg-gray-700 border-b border-gray-600" style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '60px repeat(7, 1fr)' }}>
@@ -1152,7 +1152,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
             </div>
 
             {/* Time column */}
-            <div className="bg-gray-800">
+            <div className="bg-dark-900">
               {timeSlots.map((time) => {
                 const [hour] = time.split(':').map(Number);
                 // Only show on the hour
@@ -1160,7 +1160,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                 return (
                   <div
                     key={time}
-                    className="text-[10px] text-gray-500 bg-gray-800 pr-2 text-right border-b border-gray-700"
+                    className="text-[10px] text-gray-500 bg-dark-900 pr-2 text-right border-b border-dark-700"
                     style={{ height: `${CELL_HEIGHT}px`, lineHeight: `${CELL_HEIGHT}px` }}
                   >
                     {showTime ? time : ''}
@@ -1172,7 +1172,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
           {weekDays.map((day) => {
             const isTodayDate = isToday(day.date);
             return (
-              <div key={day.dateStr} className={`relative border-l border-gray-600 ${isTodayDate ? 'bg-yellow-900/10' : 'bg-gray-900'}`}>
+              <div key={day.dateStr} className={`relative border-l border-dark-600 ${isTodayDate ? 'bg-yellow-900/10' : 'bg-dark-950'}`}>
                 {timeSlots.map((time) => {
                   const booking = getBookingAtTime(day.dateStr, time);
                   const hasBookingHere = hasBooking(day.dateStr, time);
@@ -1190,8 +1190,8 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                     <div
                       key={time}
                       className={`relative border-b border-gray-700 ${
-                        !hasBookingHere && !isPast ? 'cursor-pointer hover:bg-gray-800/50' : ''
-                      } ${isSelected ? (isTouchDevice ? 'bg-yellow-500/60 border-2 border-yellow-300' : 'bg-yellow-200/40 border-2 border-yellow-400') : ''} ${isPast ? 'bg-gray-900/50' : isWorkHours ? 'bg-slate-700/30' : ''} ${isDraggingBooking && !hasBookingHere && !isPast ? 'bg-green-900/20' : ''} ${isTouchDevice && !hasBookingHere && !isPast ? 'active:bg-yellow-500/30 transition-colors' : ''}`}
+                        !hasBookingHere && !isPast ? 'cursor-pointer hover:bg-dark-800/50' : ''
+                      } ${isSelected ? (isTouchDevice ? 'bg-yellow-500/60 border-2 border-yellow-300' : 'bg-yellow-200/40 border-2 border-yellow-400') : ''} ${isPast ? 'bg-dark-950/50' : isWorkHours ? 'bg-dark-800/30' : ''} ${isDraggingBooking && !hasBookingHere && !isPast ? 'bg-green-900/20' : ''} ${isTouchDevice && !hasBookingHere && !isPast ? 'active:bg-yellow-500/30 transition-colors' : ''}`}
                       style={{ height: `${CELL_HEIGHT}px` }}
                       onMouseDown={(e) => {
                         if (!isDraggingBooking && !isTouchDevice) {

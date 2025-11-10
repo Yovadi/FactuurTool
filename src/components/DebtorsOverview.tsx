@@ -161,16 +161,16 @@ export function DebtorsOverview() {
   }
 
   return (
-    <div className="h-full bg-gray-900 p-6">
+    <div className="h-full bg-dark-950 p-6">
       <div className="max-w-7xl mx-auto">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-100 mb-2">Debiteuren Overzicht</h1>
           <div className="flex items-center gap-4">
-            <div className="bg-gray-800 px-4 py-2 rounded-lg">
+            <div className="bg-dark-900 px-4 py-2 rounded-lg">
               <div className="text-sm text-gray-400">Totaal Openstaand</div>
               <div className="text-2xl font-bold text-yellow-500">{formatCurrency(totalOutstanding)}</div>
             </div>
-            <div className="bg-gray-800 px-4 py-2 rounded-lg">
+            <div className="bg-dark-900 px-4 py-2 rounded-lg">
               <div className="text-sm text-gray-400">Aantal Debiteuren</div>
               <div className="text-2xl font-bold text-gray-100">{debtors.length}</div>
             </div>
@@ -178,8 +178,8 @@ export function DebtorsOverview() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-gray-800 rounded-lg overflow-hidden">
-            <div className="p-4 bg-gray-700 border-b border-gray-600">
+          <div className="bg-dark-900 rounded-lg overflow-hidden">
+            <div className="p-4 bg-dark-800 border-b border-dark-700">
               <h2 className="text-lg font-semibold text-gray-100">Debiteuren</h2>
             </div>
             <div className="overflow-auto max-h-[600px]">
@@ -189,13 +189,13 @@ export function DebtorsOverview() {
                   <p>Geen openstaande facturen</p>
                 </div>
               ) : (
-                <div className="divide-y divide-gray-700">
+                <div className="divide-y divide-dark-700">
                   {debtors.map((debtor) => (
                     <button
                       key={debtor.id}
                       onClick={() => loadDebtorInvoices(debtor.id, debtor)}
-                      className={`w-full p-4 text-left hover:bg-gray-700/50 transition-colors ${
-                        selectedDebtor?.id === debtor.id ? 'bg-gray-700' : ''
+                      className={`w-full p-4 text-left hover:bg-dark-800/50 transition-colors ${
+                        selectedDebtor?.id === debtor.id ? 'bg-dark-800' : ''
                       }`}
                     >
                       <div className="flex justify-between items-start mb-2">
@@ -224,8 +224,8 @@ export function DebtorsOverview() {
             </div>
           </div>
 
-          <div className="bg-gray-800 rounded-lg overflow-hidden">
-            <div className="p-4 bg-gray-700 border-b border-gray-600">
+          <div className="bg-dark-900 rounded-lg overflow-hidden">
+            <div className="p-4 bg-dark-800 border-b border-dark-700">
               <h2 className="text-lg font-semibold text-gray-100">
                 {selectedDebtor ? `Facturen - ${selectedDebtor.company_name}` : 'Selecteer een debiteur'}
               </h2>
@@ -240,7 +240,7 @@ export function DebtorsOverview() {
                   Geen openstaande facturen voor deze debiteur
                 </div>
               ) : (
-                <div className="divide-y divide-gray-700">
+                <div className="divide-y divide-dark-700">
                   {debtorInvoices.map((invoice) => {
                     const daysOverdue = getDaysOverdue(invoice.due_date);
                     const isOverdue = daysOverdue > 0;
