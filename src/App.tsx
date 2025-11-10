@@ -35,6 +35,9 @@ function App() {
     { id: 'spaces' as Tab, label: 'Ruimtes', icon: Building },
     { id: 'leases' as Tab, label: 'Huurcontracten', icon: ScrollText },
     { id: 'bookings' as Tab, label: 'Vergaderruimte', icon: CalendarClock },
+  ];
+
+  const bottomNavigation = [
     { id: 'settings' as Tab, label: 'Verhuurder', icon: Settings },
   ];
 
@@ -151,6 +154,27 @@ function App() {
                     })}
                   </div>
                 )}
+
+                <div className="my-2 border-t border-dark-700"></div>
+
+                {bottomNavigation.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = activeTab === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => setActiveTab(item.id)}
+                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+                        isActive
+                          ? 'bg-gold-500 text-dark-950'
+                          : 'text-gray-300 hover:bg-dark-800'
+                      }`}
+                    >
+                      <Icon size={20} />
+                      {item.label}
+                    </button>
+                  );
+                })}
               </nav>
             </div>
           </aside>
