@@ -50,7 +50,7 @@ export function DebtorsOverview() {
           tenants (id, name, company_name, email),
           external_customers (id, company_name, contact_name, email)
         `)
-        .in('status', ['sent', 'overdue']);
+        .neq('status', 'paid');
 
       if (error) throw error;
 
@@ -115,7 +115,7 @@ export function DebtorsOverview() {
         .from('invoices')
         .select('id, invoice_number, invoice_date, due_date, amount, status')
         .or(`tenant_id.eq.${debtorId},external_customer_id.eq.${debtorId}`)
-        .in('status', ['sent', 'overdue'])
+        .neq('status', 'paid')
         .order('invoice_date', { ascending: false });
 
       if (error) throw error;
