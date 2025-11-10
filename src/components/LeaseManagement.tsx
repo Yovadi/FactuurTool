@@ -14,6 +14,7 @@ export function LeaseManagement() {
   const [showForm, setShowForm] = useState(false);
   const [editingLease, setEditingLease] = useState<LeaseWithDetails | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'active' | 'expired'>('active');
 
   const [formData, setFormData] = useState({
     tenant_id: '',
@@ -298,6 +299,10 @@ export function LeaseManagement() {
     return <div className="text-center py-8">Huurcontracten laden...</div>;
   }
 
+  const activeLeases = leases.filter(l => l.status === 'active');
+  const expiredLeases = leases.filter(l => l.status === 'expired' || l.status === 'terminated');
+  const displayedLeases = activeTab === 'active' ? activeLeases : expiredLeases;
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -309,6 +314,29 @@ export function LeaseManagement() {
         >
           <Plus size={20} />
           Huurcontract Aanmaken
+        </button>
+      </div>
+
+      <div className="flex gap-2 mb-4">
+        <button
+          onClick={() => setActiveTab('active')}
+          className={`px-4 py-2 rounded-lg transition-colors ${
+            activeTab === 'active'
+              ? 'bg-gold-500 text-white'
+              : 'bg-dark-800 text-gray-400 hover:bg-dark-700'
+          }`}
+        >
+          Actief ({activeLeases.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('expired')}
+          className={`px-4 py-2 rounded-lg transition-colors ${
+            activeTab === 'expired'
+              ? 'bg-gold-500 text-white'
+              : 'bg-dark-800 text-gray-400 hover:bg-dark-700'
+          }`}
+        >
+          Verlopen/Beëindigd ({expiredLeases.length})
         </button>
       </div>
 
@@ -562,7 +590,7 @@ export function LeaseManagement() {
       )}
 
       <div className="space-y-3">
-        {leases.map((lease) => {
+        {displayedLeases.map((lease) => {
           const totalRent = calculateLeaseTotal(lease);
           return (
             <div

@@ -1065,7 +1065,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
           .from('invoices')
           .insert([{
             lease_id: lease.id,
-            tenant_id: null,
+            tenant_id: lease.tenant_id,
             invoice_number: invoiceNumber,
             invoice_date: invoiceDate,
             due_date: dueDate,

@@ -10,15 +10,16 @@ import { PinLogin } from './components/PinLogin';
 import { Analytics } from './components/Analytics';
 import { DebtorsOverview } from './components/DebtorsOverview';
 import { CreditNotes } from './components/CreditNotes';
-import { LayoutDashboard, Users, Building, FileText, ScrollText, Settings, CalendarClock, TrendingUp, LogOut, Receipt, AlertTriangle } from 'lucide-react';
+import { LayoutDashboard, Users, Building, FileText, ScrollText, Settings, CalendarClock, TrendingUp, LogOut, Receipt, AlertTriangle, Euro, ChevronDown, ChevronRight } from 'lucide-react';
 
-type Tab = 'dashboard' | 'tenants' | 'spaces' | 'leases' | 'invoices' | 'bookings' | 'analytics' | 'debtors' | 'creditnotes' | 'settings';
+type Tab = 'dashboard' | 'tenants' | 'spaces' | 'leases' | 'invoices' | 'bookings' | 'analytics' | 'debtors' | 'creditnotes' | 'settings' | 'financial';
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('bookings');
   const [isElectron, setIsElectron] = useState(false);
   const [loggedInTenantId, setLoggedInTenantId] = useState<string | null>(null);
   const [loggedInTenantName, setLoggedInTenantName] = useState<string>('');
+  const [financialExpanded, setFinancialExpanded] = useState(false);
 
   useEffect(() => {
     // Detect if running in Electron or development mode
@@ -34,11 +35,14 @@ function App() {
     { id: 'spaces' as Tab, label: 'Ruimtes', icon: Building },
     { id: 'leases' as Tab, label: 'Huurcontracten', icon: ScrollText },
     { id: 'bookings' as Tab, label: 'Vergaderruimte', icon: CalendarClock },
+    { id: 'settings' as Tab, label: 'Verhuurder', icon: Settings },
+  ];
+
+  const financialTabs = [
     { id: 'invoices' as Tab, label: 'Facturen', icon: FileText },
     { id: 'debtors' as Tab, label: 'Debiteuren', icon: AlertTriangle },
     { id: 'creditnotes' as Tab, label: 'Credit Nota\'s', icon: Receipt },
     { id: 'analytics' as Tab, label: 'Analyses', icon: TrendingUp },
-    { id: 'settings' as Tab, label: 'Verhuurder', icon: Settings },
   ];
 
   const handleAuthenticated = (tenantId: string, tenantName: string) => {
@@ -113,6 +117,40 @@ function App() {
                     </button>
                   );
                 })}
+
+                <button
+                  onClick={() => setFinancialExpanded(!financialExpanded)}
+                  className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors text-gray-300 hover:bg-dark-800"
+                >
+                  <div className="flex items-center gap-3">
+                    <Euro size={20} />
+                    Financieel
+                  </div>
+                  {financialExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                </button>
+
+                {financialExpanded && (
+                  <div className="ml-4 space-y-1">
+                    {financialTabs.map((item) => {
+                      const Icon = item.icon;
+                      const isActive = activeTab === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => setActiveTab(item.id)}
+                          className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                            isActive
+                              ? 'bg-gold-500 text-dark-950'
+                              : 'text-gray-300 hover:bg-dark-800'
+                          }`}
+                        >
+                          <Icon size={18} />
+                          {item.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </nav>
             </div>
           </aside>
