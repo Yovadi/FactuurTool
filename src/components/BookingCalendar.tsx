@@ -1352,14 +1352,14 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
               })()}
 
               <div className="mb-6">
-                <div className="flex gap-2">
+                <div className="flex gap-2 border-b border-dark-600">
                   <button
                     type="button"
                     onClick={() => setFormBookingType('tenant')}
-                    className={`px-4 py-2 rounded-lg transition-colors ${
+                    className={`px-4 py-2 font-medium transition-colors ${
                       formBookingType === 'tenant'
-                        ? 'bg-gold-500 text-white'
-                        : 'bg-dark-800 text-gray-400 hover:bg-dark-700'
+                        ? 'text-gold-500 border-b-2 border-gold-500'
+                        : 'text-gray-400 hover:text-gray-200'
                     }`}
                   >
                     Huurder
@@ -1367,10 +1367,10 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                   <button
                     type="button"
                     onClick={() => setFormBookingType('external')}
-                    className={`px-4 py-2 rounded-lg transition-colors ${
+                    className={`px-4 py-2 font-medium transition-colors ${
                       formBookingType === 'external'
-                        ? 'bg-gold-500 text-white'
-                        : 'bg-dark-800 text-gray-400 hover:bg-dark-700'
+                        ? 'text-gold-500 border-b-2 border-gold-500'
+                        : 'text-gray-400 hover:text-gray-200'
                     }`}
                   >
                     Externe partij

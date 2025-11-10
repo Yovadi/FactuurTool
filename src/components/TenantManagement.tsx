@@ -273,13 +273,13 @@ export function TenantManagement() {
 
   return (
     <div>
-      <div className="flex gap-2 mb-4">
+      <div className="flex gap-4 mb-6 border-b border-dark-700">
         <button
           onClick={() => setMainTab('tenants')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+          className={`flex items-center gap-2 px-4 py-3 font-semibold transition-colors ${
             mainTab === 'tenants'
-              ? 'bg-gold-500 text-white'
-              : 'bg-dark-800 text-gray-400 hover:bg-dark-700'
+              ? 'text-gold-500 border-b-2 border-gold-500'
+              : 'text-gray-400 hover:text-gray-300'
           }`}
         >
           <Users size={20} />
@@ -287,10 +287,10 @@ export function TenantManagement() {
         </button>
         <button
           onClick={() => setMainTab('leases')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+          className={`flex items-center gap-2 px-4 py-3 font-semibold transition-colors ${
             mainTab === 'leases'
-              ? 'bg-gold-500 text-white'
-              : 'bg-dark-800 text-gray-400 hover:bg-dark-700'
+              ? 'text-gold-500 border-b-2 border-gold-500'
+              : 'text-gray-400 hover:text-gray-300'
           }`}
         >
           <ScrollText size={20} />
@@ -313,13 +313,13 @@ export function TenantManagement() {
         </button>
       </div>
 
-      <div className="flex gap-2 mb-4">
+      <div className="flex gap-2 mb-6 border-b border-dark-700">
         <button
           onClick={() => setActiveTab('active')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+          className={`flex items-center gap-2 px-4 py-2 font-medium transition-colors ${
             activeTab === 'active'
-              ? 'bg-gold-500 text-white'
-              : 'bg-dark-800 text-gray-400 hover:bg-dark-700'
+              ? 'text-gold-500 border-b-2 border-gold-500'
+              : 'text-gray-400 hover:text-gray-300'
           }`}
         >
           <Building2 size={18} />
@@ -327,10 +327,10 @@ export function TenantManagement() {
         </button>
         <button
           onClick={() => setActiveTab('external')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+          className={`flex items-center gap-2 px-4 py-2 font-medium transition-colors ${
             activeTab === 'external'
-              ? 'bg-gold-500 text-white'
-              : 'bg-dark-800 text-gray-400 hover:bg-dark-700'
+              ? 'text-gold-500 border-b-2 border-gold-500'
+              : 'text-gray-400 hover:text-gray-300'
           }`}
         >
           <Users size={18} />
@@ -338,10 +338,10 @@ export function TenantManagement() {
         </button>
         <button
           onClick={() => setActiveTab('inactive')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+          className={`flex items-center gap-2 px-4 py-2 font-medium transition-colors ${
             activeTab === 'inactive'
-              ? 'bg-gold-500 text-white'
-              : 'bg-dark-800 text-gray-400 hover:bg-dark-700'
+              ? 'text-gold-500 border-b-2 border-gold-500'
+              : 'text-gray-400 hover:text-gray-300'
           }`}
         >
           <Building2 size={18} />
