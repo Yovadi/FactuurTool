@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase, type Tenant, type CompanySettings } from '../lib/supabase';
-import { Plus, Edit2, Trash2, Mail, Phone, MapPin, Key, Users, Building2 } from 'lucide-react';
+import { Plus, Edit2, Trash2, Mail, Phone, MapPin, Key, Users, Building2, ScrollText } from 'lucide-react';
+import { LeaseManagement } from './LeaseManagement';
 
 type TenantWithLeases = Tenant & {
   leases?: Array<{
@@ -25,6 +26,7 @@ type ExternalCustomer = {
 };
 
 export function TenantManagement() {
+  const [mainTab, setMainTab] = useState<'tenants' | 'leases'>('tenants');
   const [activeTab, setActiveTab] = useState<'active' | 'external' | 'inactive'>('active');
   const [tenants, setTenants] = useState<TenantWithLeases[]>([]);
   const [externalCustomers, setExternalCustomers] = useState<ExternalCustomer[]>([]);
@@ -271,8 +273,37 @@ export function TenantManagement() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-100">Huurders</h2>
+      <div className="flex gap-4 mb-6 border-b border-dark-700">
+        <button
+          onClick={() => setMainTab('tenants')}
+          className={`flex items-center gap-2 px-4 py-3 font-semibold transition-colors ${
+            mainTab === 'tenants'
+              ? 'text-gold-500 border-b-2 border-gold-500'
+              : 'text-gray-400 hover:text-gray-300'
+          }`}
+        >
+          <Users size={20} />
+          Huurders
+        </button>
+        <button
+          onClick={() => setMainTab('leases')}
+          className={`flex items-center gap-2 px-4 py-3 font-semibold transition-colors ${
+            mainTab === 'leases'
+              ? 'text-gold-500 border-b-2 border-gold-500'
+              : 'text-gray-400 hover:text-gray-300'
+          }`}
+        >
+          <ScrollText size={20} />
+          Huurcontracten
+        </button>
+      </div>
+
+      {mainTab === 'leases' ? (
+        <LeaseManagement />
+      ) : (
+        <div>
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-100">Huurders</h2>
         <button
           onClick={() => setShowForm(true)}
           className="flex items-center gap-2 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors"
@@ -730,6 +761,8 @@ export function TenantManagement() {
       {activeTab === 'external' && externalCustomers.length === 0 && (
         <div className="text-center py-12 text-gray-400">
           Nog geen externe klanten. Klik op "Externe Klant Toevoegen" om je eerste externe klant aan te maken.
+        </div>
+      )}
         </div>
       )}
     </div>
