@@ -56,19 +56,19 @@ export function CreditNotePreview({ creditNote, companySettings, onClose }: Cred
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-          <h3 className="text-xl font-bold text-gray-900">Credit Nota Preview</h3>
+      <div className="bg-dark-900 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-dark-800 border-b border-dark-700 px-6 py-4 flex justify-between items-center">
+          <h3 className="text-xl font-bold text-gray-100">Credit Nota Preview</h3>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-dark-700 rounded-lg transition-colors"
           >
-            <X size={20} className="text-gray-600" />
+            <X size={20} className="text-gray-300" />
           </button>
         </div>
 
         <div className="p-8" id="credit-note-preview">
-          <div className="bg-white">
+          <div className="bg-white p-8 rounded-lg shadow-xl">
             <div className="flex justify-between items-start mb-8">
               <div>
                 <h1 className="text-2xl font-bold text-red-600 mb-2">CREDITFACTUUR</h1>
