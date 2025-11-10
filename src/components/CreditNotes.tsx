@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, Eye, Trash2, Download, Edit } from 'lucide-react';
+import { Plus, Eye, Trash2, Download, Edit, Edit2 } from 'lucide-react';
 import { CreditNotePreview } from './CreditNotePreview';
 import { generateCreditNotePDF } from '../utils/pdfGenerator';
 
@@ -192,52 +192,95 @@ export function CreditNotes() {
     }
 
     try {
-      const { data: creditNoteNumber } = await supabase.rpc('generate_credit_note_number');
-
       const { subtotal, vatAmount, total } = calculateTotals();
 
-      const { data: creditNote, error: creditNoteError } = await supabase
-        .from('credit_notes')
-        .insert({
-          credit_note_number: creditNoteNumber,
-          original_invoice_id: formData.original_invoice_id || null,
-          tenant_id: customerType === 'tenant' ? formData.tenant_id : null,
-          external_customer_id: customerType === 'external' ? formData.external_customer_id : null,
-          credit_date: formData.credit_date,
-          reason: formData.reason,
-          subtotal,
-          vat_amount: vatAmount,
-          vat_rate: formData.vat_rate,
-          total_amount: total,
-          status: 'issued',
-          notes: formData.notes,
-        })
-        .select()
-        .single();
+      if (editingCreditNote) {
+        const { error: creditNoteError } = await supabase
+          .from('credit_notes')
+          .update({
+            tenant_id: customerType === 'tenant' ? formData.tenant_id : null,
+            external_customer_id: customerType === 'external' ? formData.external_customer_id : null,
+            credit_date: formData.credit_date,
+            reason: formData.reason,
+            subtotal,
+            vat_amount: vatAmount,
+            vat_rate: formData.vat_rate,
+            total_amount: total,
+            notes: formData.notes,
+          })
+          .eq('id', editingCreditNote.id);
 
-      if (creditNoteError) throw creditNoteError;
+        if (creditNoteError) throw creditNoteError;
 
-      const lineItemsToInsert = lineItems.map((item) => ({
-        credit_note_id: creditNote.id,
-        description: item.description,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        amount: item.amount,
-      }));
+        const { error: deleteError } = await supabase
+          .from('credit_note_line_items')
+          .delete()
+          .eq('credit_note_id', editingCreditNote.id);
 
-      const { error: lineItemsError } = await supabase
-        .from('credit_note_line_items')
-        .insert(lineItemsToInsert);
+        if (deleteError) throw deleteError;
 
-      if (lineItemsError) throw lineItemsError;
+        const lineItemsToInsert = lineItems.map((item) => ({
+          credit_note_id: editingCreditNote.id,
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          amount: item.amount,
+        }));
 
-      alert('Credit nota succesvol aangemaakt!');
+        const { error: lineItemsError } = await supabase
+          .from('credit_note_line_items')
+          .insert(lineItemsToInsert);
+
+        if (lineItemsError) throw lineItemsError;
+
+        alert('Credit nota succesvol bijgewerkt!');
+      } else {
+        const { data: creditNoteNumber } = await supabase.rpc('generate_credit_note_number');
+
+        const { data: creditNote, error: creditNoteError } = await supabase
+          .from('credit_notes')
+          .insert({
+            credit_note_number: creditNoteNumber,
+            original_invoice_id: formData.original_invoice_id || null,
+            tenant_id: customerType === 'tenant' ? formData.tenant_id : null,
+            external_customer_id: customerType === 'external' ? formData.external_customer_id : null,
+            credit_date: formData.credit_date,
+            reason: formData.reason,
+            subtotal,
+            vat_amount: vatAmount,
+            vat_rate: formData.vat_rate,
+            total_amount: total,
+            status: 'issued',
+            notes: formData.notes,
+          })
+          .select()
+          .single();
+
+        if (creditNoteError) throw creditNoteError;
+
+        const lineItemsToInsert = lineItems.map((item) => ({
+          credit_note_id: creditNote.id,
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          amount: item.amount,
+        }));
+
+        const { error: lineItemsError } = await supabase
+          .from('credit_note_line_items')
+          .insert(lineItemsToInsert);
+
+        if (lineItemsError) throw lineItemsError;
+
+        alert('Credit nota succesvol aangemaakt!');
+      }
+
       setShowForm(false);
       resetForm();
       loadData();
     } catch (error) {
-      console.error('Error creating credit note:', error);
-      alert('Fout bij aanmaken credit nota');
+      console.error('Error saving credit note:', error);
+      alert('Fout bij opslaan credit nota');
     }
   };
 
@@ -253,6 +296,23 @@ export function CreditNotes() {
     });
     setLineItems([{ description: '', quantity: 1, unit_price: 0, amount: 0 }]);
     setCustomerType('tenant');
+    setEditingCreditNote(null);
+  };
+
+  const handleEdit = (creditNote: CreditNote) => {
+    setEditingCreditNote(creditNote);
+    setFormData({
+      original_invoice_id: '',
+      tenant_id: creditNote.tenant_id || '',
+      external_customer_id: creditNote.external_customer_id || '',
+      credit_date: creditNote.credit_date,
+      reason: creditNote.reason,
+      vat_rate: creditNote.vat_rate,
+      notes: creditNote.notes || '',
+    });
+    setLineItems(creditNote.credit_note_line_items || [{ description: '', quantity: 1, unit_price: 0, amount: 0 }]);
+    setCustomerType(creditNote.tenant_id ? 'tenant' : 'external');
+    setShowForm(true);
   };
 
   const handlePreview = (creditNote: CreditNote) => {
@@ -448,6 +508,13 @@ export function CreditNotes() {
                       >
                         <Download size={16} className="text-green-400" />
                       </button>
+                      <button
+                        onClick={() => handleEdit(note)}
+                        className="p-1.5 hover:bg-dark-700 rounded transition-colors"
+                        title="Bewerken"
+                      >
+                        <Edit2 size={16} className="text-blue-400" />
+                      </button>
                       <div className="relative group">
                         <button
                           className="p-1.5 hover:bg-dark-700 rounded transition-colors"
@@ -495,7 +562,9 @@ export function CreditNotes() {
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
           <div className="bg-dark-900 rounded-lg p-6 w-full max-w-4xl my-8 mx-4">
-            <h3 className="text-xl font-bold text-gray-100 mb-4">Nieuwe Credit Nota</h3>
+            <h3 className="text-xl font-bold text-gray-100 mb-4">
+              {editingCreditNote ? 'Credit Nota Bewerken' : 'Nieuwe Credit Nota'}
+            </h3>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -688,7 +757,10 @@ export function CreditNotes() {
               <div className="flex justify-end gap-2">
                 <button
                   type="button"
-                  onClick={() => setShowForm(false)}
+                  onClick={() => {
+                    setShowForm(false);
+                    resetForm();
+                  }}
                   className="px-4 py-2 bg-dark-700 text-gray-200 rounded-lg hover:bg-dark-600 transition-colors"
                 >
                   Annuleren
@@ -697,7 +769,7 @@ export function CreditNotes() {
                   type="submit"
                   className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
                 >
-                  Credit Nota Aanmaken
+                  {editingCreditNote ? 'Credit Nota Bijwerken' : 'Credit Nota Aanmaken'}
                 </button>
               </div>
             </form>
