@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { TrendingUp, Euro, FileText, DollarSign, Calendar } from 'lucide-react';
+import { TrendingUp, Euro, FileText, DollarSign, Calendar, Download } from 'lucide-react';
 
 type AnalyticsStats = {
   totalRevenue: number;
@@ -17,6 +17,32 @@ type AnalyticsStats = {
   meetingRoomRevenue: number;
   leaseInvoices: number;
   meetingRoomInvoices: number;
+};
+
+type YearlyData = {
+  year: number;
+  revenue: number;
+  paid: number;
+  pending: number;
+  invoices: number;
+};
+
+type QuarterlyData = {
+  year: number;
+  quarter: number;
+  revenue: number;
+  paid: number;
+  pending: number;
+  invoices: number;
+};
+
+type VATData = {
+  period: string;
+  vatCollected: number;
+  vatPaid: number;
+  netVAT: number;
+  revenue: number;
+  vatRate: number;
 };
 
 export function Analytics() {
@@ -36,15 +62,28 @@ export function Analytics() {
     leaseInvoices: 0,
     meetingRoomInvoices: 0
   });
+  const [yearlyData, setYearlyData] = useState<YearlyData[]>([]);
+  const [quarterlyData, setQuarterlyData] = useState<QuarterlyData[]>([]);
+  const [vatData, setVATData] = useState<VATData[]>([]);
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadAnalyticsStats();
-  }, []);
+    loadAllData();
+  }, [selectedYear]);
+
+  const loadAllData = async () => {
+    setLoading(true);
+    await Promise.all([
+      loadAnalyticsStats(),
+      loadYearlyData(),
+      loadQuarterlyData(),
+      loadVATData()
+    ]);
+    setLoading(false);
+  };
 
   const loadAnalyticsStats = async () => {
-    setLoading(true);
-
     const { data: invoices } = await supabase
       .from('invoices')
       .select('amount, status, due_date, lease_id, tenant_id');
@@ -87,7 +126,6 @@ export function Analytics() {
       ? totalRevenue / invoices.length
       : 0;
 
-    // Split between lease invoices and meeting room invoices
     const leaseInvoices = invoices?.filter(inv => inv.lease_id !== null) || [];
     const meetingRoomInvoices = invoices?.filter(inv => inv.lease_id === null) || [];
 
@@ -110,8 +148,175 @@ export function Analytics() {
       leaseInvoices: leaseInvoices.length,
       meetingRoomInvoices: meetingRoomInvoices.length
     });
+  };
 
-    setLoading(false);
+  const loadYearlyData = async () => {
+    const { data: invoices } = await supabase
+      .from('invoices')
+      .select('invoice_date, amount, status');
+
+    if (!invoices) return;
+
+    const yearMap = new Map<number, YearlyData>();
+
+    invoices.forEach(inv => {
+      const year = new Date(inv.invoice_date).getFullYear();
+      if (!yearMap.has(year)) {
+        yearMap.set(year, {
+          year,
+          revenue: 0,
+          paid: 0,
+          pending: 0,
+          invoices: 0
+        });
+      }
+
+      const yearData = yearMap.get(year)!;
+      yearData.revenue += Number(inv.amount);
+      yearData.invoices += 1;
+      if (inv.status === 'paid') {
+        yearData.paid += Number(inv.amount);
+      } else {
+        yearData.pending += Number(inv.amount);
+      }
+    });
+
+    const sortedYears = Array.from(yearMap.values()).sort((a, b) => b.year - a.year);
+    setYearlyData(sortedYears);
+  };
+
+  const loadQuarterlyData = async () => {
+    const { data: invoices } = await supabase
+      .from('invoices')
+      .select('invoice_date, amount, status');
+
+    if (!invoices) return;
+
+    const quarterMap = new Map<string, QuarterlyData>();
+
+    invoices.forEach(inv => {
+      const date = new Date(inv.invoice_date);
+      const year = date.getFullYear();
+      const month = date.getMonth();
+      const quarter = Math.floor(month / 3) + 1;
+      const key = `${year}-Q${quarter}`;
+
+      if (!quarterMap.has(key)) {
+        quarterMap.set(key, {
+          year,
+          quarter,
+          revenue: 0,
+          paid: 0,
+          pending: 0,
+          invoices: 0
+        });
+      }
+
+      const quarterData = quarterMap.get(key)!;
+      quarterData.revenue += Number(inv.amount);
+      quarterData.invoices += 1;
+      if (inv.status === 'paid') {
+        quarterData.paid += Number(inv.amount);
+      } else {
+        quarterData.pending += Number(inv.amount);
+      }
+    });
+
+    const sortedQuarters = Array.from(quarterMap.values())
+      .filter(q => q.year === selectedYear)
+      .sort((a, b) => a.quarter - b.quarter);
+    setQuarterlyData(sortedQuarters);
+  };
+
+  const loadVATData = async () => {
+    const { data: invoices } = await supabase
+      .from('invoices')
+      .select('invoice_date, vat_amount, vat_rate, subtotal, status');
+
+    if (!invoices) return;
+
+    const monthMap = new Map<string, VATData>();
+
+    invoices.forEach(inv => {
+      const date = new Date(inv.invoice_date);
+      const year = date.getFullYear();
+      const month = date.getMonth() + 1;
+      const key = `${year}-${String(month).padStart(2, '0')}`;
+
+      if (!monthMap.has(key)) {
+        monthMap.set(key, {
+          period: key,
+          vatCollected: 0,
+          vatPaid: 0,
+          netVAT: 0,
+          revenue: 0,
+          vatRate: 0
+        });
+      }
+
+      const monthData = monthMap.get(key)!;
+      if (inv.status === 'paid') {
+        monthData.vatCollected += Number(inv.vat_amount || 0);
+        monthData.revenue += Number(inv.subtotal || 0);
+      }
+    });
+
+    monthMap.forEach((value) => {
+      value.netVAT = value.vatCollected - value.vatPaid;
+    });
+
+    const sortedVAT = Array.from(monthMap.values())
+      .filter(v => v.period.startsWith(selectedYear.toString()))
+      .sort((a, b) => a.period.localeCompare(b.period));
+    setVATData(sortedVAT);
+  };
+
+  const exportToExcel = (type: 'yearly' | 'quarterly' | 'vat') => {
+    let csvContent = '';
+    let filename = '';
+
+    switch (type) {
+      case 'yearly':
+        csvContent = 'Jaar,Omzet,Betaald,Openstaand,Aantal Facturen\n';
+        yearlyData.forEach(row => {
+          csvContent += `${row.year},€${row.revenue.toFixed(2)},€${row.paid.toFixed(2)},€${row.pending.toFixed(2)},${row.invoices}\n`;
+        });
+        filename = 'jaaroverzicht.csv';
+        break;
+
+      case 'quarterly':
+        csvContent = 'Jaar,Kwartaal,Omzet,Betaald,Openstaand,Aantal Facturen\n';
+        quarterlyData.forEach(row => {
+          csvContent += `${row.year},Q${row.quarter},€${row.revenue.toFixed(2)},€${row.paid.toFixed(2)},€${row.pending.toFixed(2)},${row.invoices}\n`;
+        });
+        filename = `kwartaaloverzicht-${selectedYear}.csv`;
+        break;
+
+      case 'vat':
+        csvContent = 'Periode,BTW Geïnd,BTW Betaald,Netto BTW,Omzet\n';
+        vatData.forEach(row => {
+          csvContent += `${row.period},€${row.vatCollected.toFixed(2)},€${row.vatPaid.toFixed(2)},€${row.netVAT.toFixed(2)},€${row.revenue.toFixed(2)}\n`;
+        });
+        filename = `btw-overzicht-${selectedYear}.csv`;
+        break;
+    }
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('nl-NL', {
+      style: 'currency',
+      currency: 'EUR',
+    }).format(amount);
   };
 
   const collectionRate = stats.totalRevenue > 0
@@ -122,11 +327,27 @@ export function Analytics() {
     return <div className="text-center py-8 text-gray-300">Analytics laden...</div>;
   }
 
+  const availableYears = yearlyData.map(y => y.year);
+
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-100 mb-2">Financiële Analyses</h1>
-        <p className="text-gray-300">Overzicht van omzet en financiële prestaties</p>
+      <div className="mb-8 flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-100 mb-2">Financiële Analyses</h1>
+          <p className="text-gray-300">Overzicht van omzet en financiële prestaties</p>
+        </div>
+        <div>
+          <label className="block text-sm text-gray-400 mb-1">Selecteer Jaar</label>
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(Number(e.target.value))}
+            className="px-4 py-2 bg-gray-800 text-gray-200 rounded-lg border border-gray-700"
+          >
+            {availableYears.map(year => (
+              <option key={year} value={year}>{year}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -140,7 +361,7 @@ export function Analytics() {
             <p className="text-sm text-gray-300 mb-1">Totale Omzet</p>
             <div className="h-12 flex items-center">
               <p className="text-3xl font-bold text-gray-100">
-                €{stats.totalRevenue.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {formatCurrency(stats.totalRevenue)}
               </p>
             </div>
             <p className="text-xs text-gray-400 mt-1 h-5">
@@ -159,7 +380,7 @@ export function Analytics() {
             <p className="text-sm text-gray-300 mb-1">Geïnde Omzet</p>
             <div className="h-12 flex items-center">
               <p className="text-3xl font-bold text-gray-100">
-                €{stats.paidRevenue.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {formatCurrency(stats.paidRevenue)}
               </p>
             </div>
             <p className="text-xs text-gray-400 mt-1 h-5">
@@ -178,7 +399,7 @@ export function Analytics() {
             <p className="text-sm text-gray-300 mb-1">Uitstaand Bedrag</p>
             <div className="h-12 flex items-center">
               <p className="text-3xl font-bold text-gray-100">
-                €{stats.pendingAmount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {formatCurrency(stats.pendingAmount)}
               </p>
             </div>
             <p className="text-xs text-gray-400 mt-1 h-5">
@@ -197,7 +418,7 @@ export function Analytics() {
             <p className="text-sm text-gray-300 mb-1">Prognose Volgende Maand</p>
             <div className="h-12 flex items-center">
               <p className="text-3xl font-bold text-gray-100">
-                €{stats.forecastNextMonth.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {formatCurrency(stats.forecastNextMonth)}
               </p>
             </div>
             <p className="text-xs text-gray-400 mt-1 h-5">
@@ -209,205 +430,169 @@ export function Analytics() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-dark-700 rounded-lg">
-              <TrendingUp className="text-gold-500" size={20} />
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-dark-700 rounded-lg">
+                <Calendar className="text-gold-500" size={20} />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-100">Jaaroverzicht</h3>
             </div>
-            <h3 className="text-lg font-semibold text-gray-100">Inningspercentage</h3>
+            <button
+              onClick={() => exportToExcel('yearly')}
+              className="flex items-center gap-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg transition-colors text-sm"
+            >
+              <Download size={16} />
+              Export
+            </button>
           </div>
-          <div className="space-y-4">
-            <div>
-              <div className="flex justify-between mb-2">
-                <span className="text-sm text-gray-300">Betalingsinning</span>
-                <span className="text-sm font-semibold text-gray-100">{collectionRate}%</span>
-              </div>
-              <div className="w-full bg-dark-800 rounded-full h-3">
-                <div
-                  className="bg-gradient-to-r from-gold-500 to-gold-600 h-3 rounded-full transition-all duration-500"
-                  style={{ width: `${collectionRate}%` }}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4 pt-2">
-              <div className="p-3 bg-dark-800 rounded-lg">
-                <p className="text-xs text-green-400 mb-1">Geïnd</p>
-                <p className="text-lg font-bold text-green-400">
-                  €{stats.paidRevenue.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-              </div>
-              <div className="p-3 bg-dark-800 rounded-lg">
-                <p className="text-xs text-amber-400 mb-1">Uitstaand</p>
-                <p className="text-lg font-bold text-amber-400">
-                  €{stats.pendingAmount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-              </div>
-            </div>
+          <div className="space-y-3">
+            {yearlyData.length === 0 ? (
+              <p className="text-gray-400 text-center py-4">Geen data beschikbaar</p>
+            ) : (
+              yearlyData.map((year) => (
+                <div key={year.year} className="p-4 bg-dark-800 rounded-lg">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="font-bold text-gray-100 text-lg">{year.year}</span>
+                    <span className="text-xl font-bold text-emerald-400">
+                      {formatCurrency(year.revenue)}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-sm">
+                    <div>
+                      <p className="text-gray-400 text-xs">Betaald</p>
+                      <p className="text-green-400 font-semibold">{formatCurrency(year.paid)}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400 text-xs">Openstaand</p>
+                      <p className="text-amber-400 font-semibold">{formatCurrency(year.pending)}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400 text-xs">Facturen</p>
+                      <p className="text-gray-200 font-semibold">{year.invoices}</p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
         <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-dark-700 rounded-lg">
-              <FileText className="text-blue-400" size={20} />
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-dark-700 rounded-lg">
+                <TrendingUp className="text-blue-400" size={20} />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-100">Kwartaaloverzicht {selectedYear}</h3>
             </div>
-            <h3 className="text-lg font-semibold text-gray-100">Factuur Overzicht</h3>
+            <button
+              onClick={() => exportToExcel('quarterly')}
+              className="flex items-center gap-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg transition-colors text-sm"
+            >
+              <Download size={16} />
+              Export
+            </button>
           </div>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-4 bg-dark-800 rounded-lg">
-                <p className="text-xs text-gray-400 mb-1">Totaal Facturen</p>
-                <p className="text-2xl font-bold text-gray-100">{stats.totalInvoices}</p>
-              </div>
-              <div className="p-4 bg-dark-800 rounded-lg">
-                <p className="text-xs text-gray-400 mb-1">Gemiddeld Bedrag</p>
-                <p className="text-2xl font-bold text-gray-100">
-                  €{stats.averageInvoiceAmount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="p-3 bg-green-900/30 border border-green-800 rounded-lg">
-                <p className="text-xs text-green-400 mb-1">Betaald</p>
-                <p className="text-xl font-bold text-green-400">{stats.paidInvoices}</p>
-              </div>
-              <div className="p-3 bg-amber-900/30 border border-amber-800 rounded-lg">
-                <p className="text-xs text-amber-400 mb-1">Openstaand</p>
-                <p className="text-xl font-bold text-amber-400">{stats.pendingInvoices}</p>
-              </div>
-              <div className="p-3 bg-red-900/30 border border-red-800 rounded-lg">
-                <p className="text-xs text-red-400 mb-1">Achterstallig</p>
-                <p className="text-xl font-bold text-red-400">{stats.overdueInvoices}</p>
-              </div>
-            </div>
+          <div className="space-y-3">
+            {quarterlyData.length === 0 ? (
+              <p className="text-gray-400 text-center py-4">Geen data beschikbaar voor {selectedYear}</p>
+            ) : (
+              quarterlyData.map((quarter) => (
+                <div key={`${quarter.year}-Q${quarter.quarter}`} className="p-4 bg-dark-800 rounded-lg">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="font-bold text-gray-100">Q{quarter.quarter} {quarter.year}</span>
+                    <span className="text-lg font-bold text-blue-400">
+                      {formatCurrency(quarter.revenue)}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-sm">
+                    <div>
+                      <p className="text-gray-400 text-xs">Betaald</p>
+                      <p className="text-green-400 font-semibold">{formatCurrency(quarter.paid)}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400 text-xs">Openstaand</p>
+                      <p className="text-amber-400 font-semibold">{formatCurrency(quarter.pending)}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400 text-xs">Facturen</p>
+                      <p className="text-gray-200 font-semibold">{quarter.invoices}</p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
-          <div className="flex items-center gap-3 mb-4">
+      <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6 mb-8">
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center gap-3">
             <div className="p-2 bg-dark-700 rounded-lg">
               <FileText className="text-purple-400" size={20} />
             </div>
-            <h3 className="text-lg font-semibold text-gray-100">Omzet per Type</h3>
+            <h3 className="text-lg font-semibold text-gray-100">BTW Overzicht {selectedYear}</h3>
           </div>
-          <div className="space-y-4">
-            <div className="p-4 bg-dark-800 rounded-lg border-l-4 border-blue-500">
-              <div className="flex justify-between items-center mb-2">
-                <p className="text-sm text-gray-300 font-medium">Huurcontracten</p>
-                <span className="text-xs bg-blue-900/50 text-blue-300 px-2 py-1 rounded-full">
-                  {stats.leaseInvoices} facturen
-                </span>
-              </div>
-              <p className="text-2xl font-bold text-gray-100">
-                €{stats.leaseRevenue.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-              <div className="mt-3">
-                <div className="w-full bg-dark-700 rounded-full h-2">
-                  <div
-                    className="bg-blue-500 h-2 rounded-full transition-all duration-500"
-                    style={{ width: `${stats.totalRevenue > 0 ? (stats.leaseRevenue / stats.totalRevenue * 100) : 0}%` }}
-                  />
-                </div>
-                <p className="text-xs text-gray-400 mt-1">
-                  {stats.totalRevenue > 0 ? ((stats.leaseRevenue / stats.totalRevenue * 100).toFixed(1)) : 0}% van totale omzet
-                </p>
-              </div>
-            </div>
-
-            <div className="p-4 bg-dark-800 rounded-lg border-l-4 border-emerald-500">
-              <div className="flex justify-between items-center mb-2">
-                <p className="text-sm text-gray-300 font-medium">Vergaderruimtes</p>
-                <span className="text-xs bg-emerald-900/50 text-emerald-300 px-2 py-1 rounded-full">
-                  {stats.meetingRoomInvoices} facturen
-                </span>
-              </div>
-              <p className="text-2xl font-bold text-gray-100">
-                €{stats.meetingRoomRevenue.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-              <div className="mt-3">
-                <div className="w-full bg-dark-700 rounded-full h-2">
-                  <div
-                    className="bg-emerald-500 h-2 rounded-full transition-all duration-500"
-                    style={{ width: `${stats.totalRevenue > 0 ? (stats.meetingRoomRevenue / stats.totalRevenue * 100) : 0}%` }}
-                  />
-                </div>
-                <p className="text-xs text-gray-400 mt-1">
-                  {stats.totalRevenue > 0 ? ((stats.meetingRoomRevenue / stats.totalRevenue * 100).toFixed(1)) : 0}% van totale omzet
-                </p>
-              </div>
-            </div>
-          </div>
+          <button
+            onClick={() => exportToExcel('vat')}
+            className="flex items-center gap-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg transition-colors text-sm"
+          >
+            <Download size={16} />
+            Export
+          </button>
         </div>
-
-        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-dark-700 rounded-lg">
-              <TrendingUp className="text-gold-500" size={20} />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-100">Omzetverdeling</h3>
+        {vatData.length === 0 ? (
+          <p className="text-gray-400 text-center py-4">Geen BTW data beschikbaar voor {selectedYear}</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-dark-800">
+                <tr>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">Periode</th>
+                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-300">Omzet (excl. BTW)</th>
+                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-300">BTW Geïnd</th>
+                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-300">BTW Betaald</th>
+                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-300">Netto BTW</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-700">
+                {vatData.map((row) => (
+                  <tr key={row.period} className="hover:bg-dark-800/50">
+                    <td className="px-4 py-3 text-sm text-gray-300">{row.period}</td>
+                    <td className="px-4 py-3 text-sm text-gray-200 text-right font-semibold">
+                      {formatCurrency(row.revenue)}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-green-400 text-right font-semibold">
+                      {formatCurrency(row.vatCollected)}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-red-400 text-right font-semibold">
+                      {formatCurrency(row.vatPaid)}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-blue-400 text-right font-bold">
+                      {formatCurrency(row.netVAT)}
+                    </td>
+                  </tr>
+                ))}
+                <tr className="bg-dark-800 font-bold">
+                  <td className="px-4 py-3 text-sm text-gray-100">Totaal</td>
+                  <td className="px-4 py-3 text-sm text-gray-100 text-right">
+                    {formatCurrency(vatData.reduce((sum, row) => sum + row.revenue, 0))}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-green-400 text-right">
+                    {formatCurrency(vatData.reduce((sum, row) => sum + row.vatCollected, 0))}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-red-400 text-right">
+                    {formatCurrency(vatData.reduce((sum, row) => sum + row.vatPaid, 0))}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-blue-400 text-right">
+                    {formatCurrency(vatData.reduce((sum, row) => sum + row.netVAT, 0))}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
-          <div className="space-y-6">
-            <div className="relative pt-1">
-              <div className="flex mb-2 items-center justify-between">
-                <div>
-                  <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full bg-blue-900/50 text-blue-300">
-                    Huur
-                  </span>
-                </div>
-                <div className="text-right">
-                  <span className="text-xs font-semibold inline-block text-blue-400">
-                    {stats.totalRevenue > 0 ? ((stats.leaseRevenue / stats.totalRevenue * 100).toFixed(1)) : 0}%
-                  </span>
-                </div>
-              </div>
-              <div className="overflow-hidden h-3 text-xs flex rounded-full bg-dark-800">
-                <div
-                  style={{ width: `${stats.totalRevenue > 0 ? (stats.leaseRevenue / stats.totalRevenue * 100) : 0}%` }}
-                  className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500 transition-all duration-500"
-                ></div>
-              </div>
-            </div>
-
-            <div className="relative pt-1">
-              <div className="flex mb-2 items-center justify-between">
-                <div>
-                  <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full bg-emerald-900/50 text-emerald-300">
-                    Vergader
-                  </span>
-                </div>
-                <div className="text-right">
-                  <span className="text-xs font-semibold inline-block text-emerald-400">
-                    {stats.totalRevenue > 0 ? ((stats.meetingRoomRevenue / stats.totalRevenue * 100).toFixed(1)) : 0}%
-                  </span>
-                </div>
-              </div>
-              <div className="overflow-hidden h-3 text-xs flex rounded-full bg-dark-800">
-                <div
-                  style={{ width: `${stats.totalRevenue > 0 ? (stats.meetingRoomRevenue / stats.totalRevenue * 100) : 0}%` }}
-                  className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-emerald-500 transition-all duration-500"
-                ></div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-dark-700">
-              <div className="text-center">
-                <p className="text-xs text-gray-400 mb-1">Gemiddeld/Factuur</p>
-                <p className="text-sm font-semibold text-gray-100">
-                  €{stats.leaseInvoices > 0 ? (stats.leaseRevenue / stats.leaseInvoices).toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
-                </p>
-                <p className="text-xs text-blue-400">Huur</p>
-              </div>
-              <div className="text-center">
-                <p className="text-xs text-gray-400 mb-1">Gemiddeld/Factuur</p>
-                <p className="text-sm font-semibold text-gray-100">
-                  €{stats.meetingRoomInvoices > 0 ? (stats.meetingRoomRevenue / stats.meetingRoomInvoices).toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
-                </p>
-                <p className="text-xs text-emerald-400">Vergader</p>
-              </div>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
 
       {stats.overdueInvoices > 0 && (
@@ -419,7 +604,7 @@ export function Analytics() {
           <p className="text-gray-300 mb-4">
             Er zijn momenteel {stats.overdueInvoices} achterstallige factu{stats.overdueInvoices !== 1 ? 'ren' : 'ur'} met een totaalbedrag van{' '}
             <span className="font-bold text-red-400">
-              €{stats.overdueAmount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {formatCurrency(stats.overdueAmount)}
             </span>
           </p>
           <p className="text-sm text-gray-400">
