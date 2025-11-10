@@ -315,6 +315,16 @@ export function InvoiceManagement() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (invoiceMode === 'lease' && !formData.lease_id) {
+      alert('Selecteer een huurcontract');
+      return;
+    }
+
+    if (invoiceMode === 'manual' && !formData.tenant_id) {
+      alert('Selecteer een huurder');
+      return;
+    }
+
     const baseAmount = Math.round(lineItems.reduce((sum, item) => {
       const quantity = item.quantity ? parseFloat(item.quantity) : 1;
       const unitPrice = parseFloat(item.unit_price);
