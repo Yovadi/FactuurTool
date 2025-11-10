@@ -352,26 +352,23 @@ export function CreditNotes() {
       </div>
 
       {showForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-dark-800 rounded-lg p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-100">Nieuwe Credit Nota</h2>
-              <button
-                onClick={() => setShowForm(false)}
-                className="text-gray-400 hover:text-gray-200"
-              >
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-gray-700 px-6 py-4 border-b border-gray-600 flex justify-between items-center">
+              <h2 className="text-xl font-bold text-gray-100">Nieuwe Credit Nota</h2>
+              <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-200">
                 <X size={24} />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="p-6 space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-200 mb-2">Klant Type</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Klant Type</label>
                   <select
                     value={customerType}
                     onChange={(e) => setCustomerType(e.target.value as 'tenant' | 'external')}
-                    className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                    className="w-full px-3 py-2 bg-gray-700 text-gray-200 rounded border border-gray-600"
                   >
                     <option value="tenant">Huurder</option>
                     <option value="external">Externe Klant</option>
@@ -380,11 +377,11 @@ export function CreditNotes() {
 
                 {customerType === 'tenant' ? (
                   <div>
-                    <label className="block text-sm font-medium text-gray-200 mb-2">Huurder *</label>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Huurder *</label>
                     <select
                       value={formData.tenant_id}
                       onChange={(e) => setFormData({ ...formData, tenant_id: e.target.value })}
-                      className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                      className="w-full px-3 py-2 bg-gray-700 text-gray-200 rounded border border-gray-600"
                       required
                     >
                       <option value="">Selecteer huurder</option>
@@ -397,11 +394,11 @@ export function CreditNotes() {
                   </div>
                 ) : (
                   <div>
-                    <label className="block text-sm font-medium text-gray-200 mb-2">Externe Klant *</label>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Externe Klant *</label>
                     <select
                       value={formData.external_customer_id}
                       onChange={(e) => setFormData({ ...formData, external_customer_id: e.target.value })}
-                      className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                      className="w-full px-3 py-2 bg-gray-700 text-gray-200 rounded border border-gray-600"
                       required
                     >
                       <option value="">Selecteer externe klant</option>
@@ -417,11 +414,11 @@ export function CreditNotes() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-200 mb-2">Originele Factuur (optioneel)</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Originele Factuur (optioneel)</label>
                   <select
                     value={formData.original_invoice_id}
                     onChange={(e) => setFormData({ ...formData, original_invoice_id: e.target.value })}
-                    className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                    className="w-full px-3 py-2 bg-gray-700 text-gray-200 rounded border border-gray-600"
                   >
                     <option value="">Geen</option>
                     {invoices.map((invoice) => (
@@ -433,24 +430,24 @@ export function CreditNotes() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-200 mb-2">Credit Datum *</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Credit Datum *</label>
                   <input
                     type="date"
                     value={formData.credit_date}
                     onChange={(e) => setFormData({ ...formData, credit_date: e.target.value })}
-                    className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                    className="w-full px-3 py-2 bg-gray-700 text-gray-200 rounded border border-gray-600"
                     required
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-200 mb-2">Reden *</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Reden *</label>
                 <input
                   type="text"
                   value={formData.reason}
                   onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
-                  className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                  className="w-full px-3 py-2 bg-gray-700 text-gray-200 rounded border border-gray-600"
                   placeholder="Bijv: Correctie factuur, Retour goederen, etc."
                   required
                 />
@@ -458,11 +455,11 @@ export function CreditNotes() {
 
               <div>
                 <div className="flex justify-between items-center mb-2">
-                  <label className="block text-sm font-medium text-gray-200">Regelitems</label>
+                  <label className="block text-sm font-medium text-gray-300">Regelitems</label>
                   <button
                     type="button"
                     onClick={addLineItem}
-                    className="text-sm text-gold-500 hover:text-gold-400"
+                    className="text-sm text-yellow-500 hover:text-yellow-400"
                   >
                     + Toevoegen
                   </button>
@@ -475,7 +472,7 @@ export function CreditNotes() {
                         value={item.description}
                         onChange={(e) => handleLineItemChange(index, 'description', e.target.value)}
                         placeholder="Omschrijving"
-                        className="col-span-5 px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent text-sm"
+                        className="col-span-5 px-3 py-2 bg-gray-700 text-gray-200 rounded border border-gray-600 text-sm"
                         required
                       />
                       <input
@@ -483,7 +480,7 @@ export function CreditNotes() {
                         value={item.quantity}
                         onChange={(e) => handleLineItemChange(index, 'quantity', parseFloat(e.target.value) || 0)}
                         placeholder="Aantal"
-                        className="col-span-2 px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent text-sm"
+                        className="col-span-2 px-3 py-2 bg-gray-700 text-gray-200 rounded border border-gray-600 text-sm"
                         step="0.01"
                         required
                       />
@@ -492,18 +489,18 @@ export function CreditNotes() {
                         value={item.unit_price}
                         onChange={(e) => handleLineItemChange(index, 'unit_price', parseFloat(e.target.value) || 0)}
                         placeholder="Prijs"
-                        className="col-span-2 px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent text-sm"
+                        className="col-span-2 px-3 py-2 bg-gray-700 text-gray-200 rounded border border-gray-600 text-sm"
                         step="0.01"
                         required
                       />
-                      <div className="col-span-2 px-4 py-2 border border-dark-600 rounded-lg bg-dark-800 text-gray-100 text-sm text-right">
+                      <div className="col-span-2 px-3 py-2 bg-gray-900 text-gray-200 rounded text-sm text-right">
                         {formatCurrency(item.amount)}
                       </div>
                       {lineItems.length > 1 && (
                         <button
                           type="button"
                           onClick={() => removeLineItem(index)}
-                          className="col-span-1 p-2 hover:bg-dark-700 rounded"
+                          className="col-span-1 p-2 hover:bg-gray-700 rounded"
                         >
                           <Trash2 size={16} className="text-red-400" />
                         </button>
@@ -515,29 +512,29 @@ export function CreditNotes() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-200 mb-2">BTW % *</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">BTW % *</label>
                   <input
                     type="number"
                     value={formData.vat_rate}
                     onChange={(e) => setFormData({ ...formData, vat_rate: parseFloat(e.target.value) || 0 })}
-                    className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                    className="w-full px-3 py-2 bg-gray-700 text-gray-200 rounded border border-gray-600"
                     step="0.01"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-200 mb-2">Notities</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Notities</label>
                   <input
                     type="text"
                     value={formData.notes}
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                    className="w-full px-3 py-2 bg-gray-700 text-gray-200 rounded border border-gray-600"
                   />
                 </div>
               </div>
 
-              <div className="bg-dark-700 p-4 rounded-lg space-y-2">
+              <div className="bg-gray-700 p-4 rounded-lg space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-300">Subtotaal:</span>
                   <span className="text-gray-100 font-semibold">{formatCurrency(subtotal)}</span>
@@ -546,23 +543,23 @@ export function CreditNotes() {
                   <span className="text-gray-300">BTW ({formData.vat_rate}%):</span>
                   <span className="text-gray-100 font-semibold">{formatCurrency(vatAmount)}</span>
                 </div>
-                <div className="flex justify-between text-lg border-t border-dark-600 pt-2">
+                <div className="flex justify-between text-lg border-t border-gray-600 pt-2">
                   <span className="text-gray-100 font-bold">Totaal:</span>
-                  <span className="text-gold-500 font-bold">{formatCurrency(total)}</span>
+                  <span className="text-yellow-500 font-bold">{formatCurrency(total)}</span>
                 </div>
               </div>
 
-              <div className="flex gap-4 justify-end">
+              <div className="flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setShowForm(false)}
-                  className="px-6 py-2 border border-dark-600 rounded-lg text-gray-300 hover:bg-dark-700 transition-colors"
+                  className="px-4 py-2 bg-gray-700 text-gray-200 rounded-lg hover:bg-gray-600"
                 >
                   Annuleren
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2 bg-gold-600 text-white rounded-lg hover:bg-gold-700 transition-colors"
+                  className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700"
                 >
                   Credit Nota Aanmaken
                 </button>
