@@ -684,13 +684,13 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
           </div>
 
           <div className="mb-6 flex justify-between items-center">
-            <div className="flex gap-4">
+            <div className="flex gap-2 border-b border-dark-700">
               <button
                 onClick={() => setSelectedView('calendar')}
-                className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
+                className={`px-4 py-2 font-medium transition-colors flex items-center gap-2 ${
                   selectedView === 'calendar'
-                    ? 'bg-gold-600 text-white'
-                    : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
+                    ? 'text-gold-500 border-b-2 border-gold-500'
+                    : 'text-gray-300 hover:text-gray-100'
                 }`}
               >
                 <CalendarDays size={18} />
@@ -698,10 +698,10 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
               </button>
               <button
                 onClick={() => setSelectedView('list')}
-                className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
+                className={`px-4 py-2 font-medium transition-colors flex items-center gap-2 ${
                   selectedView === 'list'
-                    ? 'bg-gold-600 text-white'
-                    : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
+                    ? 'text-gold-500 border-b-2 border-gold-500'
+                    : 'text-gray-300 hover:text-gray-100'
                 }`}
               >
                 <AlertCircle size={18} />
@@ -709,10 +709,10 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
               </button>
               <button
                 onClick={() => setSelectedView('rates')}
-                className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
+                className={`px-4 py-2 font-medium transition-colors flex items-center gap-2 ${
                   selectedView === 'rates'
-                    ? 'bg-gold-600 text-white'
-                    : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
+                    ? 'text-gold-500 border-b-2 border-gold-500'
+                    : 'text-gray-300 hover:text-gray-100'
                 }`}
               >
                 <DollarSign size={18} />
