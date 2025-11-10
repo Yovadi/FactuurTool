@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Plus, Eye, Trash2, Download, Edit, Edit2, FileText } from 'lucide-react';
 import { CreditNotePreview } from './CreditNotePreview';
+import { CreditNoteApplications } from './CreditNoteApplications';
 import { generateCreditNotePDF } from '../utils/pdfGenerator';
 
 type CreditNote = {
@@ -78,6 +79,7 @@ export function CreditNotes() {
   const [customerType, setCustomerType] = useState<'tenant' | 'external'>('tenant');
   const [previewCreditNote, setPreviewCreditNote] = useState<CreditNote | null>(null);
   const [editingCreditNote, setEditingCreditNote] = useState<CreditNote | null>(null);
+  const [applyingCreditNote, setApplyingCreditNote] = useState<CreditNote | null>(null);
 
   const [formData, setFormData] = useState({
     original_invoice_id: '',
@@ -735,6 +737,23 @@ export function CreditNotes() {
           }}
           onDelete={() => {
             handleDelete(previewCreditNote);
+          }}
+          onApply={() => {
+            setPreviewCreditNote(null);
+            setApplyingCreditNote(previewCreditNote);
+          }}
+          onSend={previewCreditNote.status === 'draft' ? () => {
+            alert('Email functionaliteit voor credit nota\'s komt binnenkort!');
+          } : undefined}
+        />
+      )}
+
+      {applyingCreditNote && (
+        <CreditNoteApplications
+          creditNote={applyingCreditNote}
+          onClose={() => setApplyingCreditNote(null)}
+          onApplied={() => {
+            loadData();
           }}
         />
       )}

@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { InvoiceManagement } from './InvoiceManagement';
 import { DebtorsOverview } from './DebtorsOverview';
 import { CreditNotes } from './CreditNotes';
+import { CreditOverview } from './CreditOverview';
 import { Analytics } from './Analytics';
-import { FileText, AlertTriangle, Receipt, TrendingUp } from 'lucide-react';
+import { FileText, AlertTriangle, Receipt, TrendingUp, DollarSign } from 'lucide-react';
 
-type FinancialTab = 'invoices' | 'debtors' | 'creditnotes' | 'analytics';
+type FinancialTab = 'invoices' | 'debtors' | 'creditnotes' | 'creditoverview' | 'analytics';
 
 export function Financial() {
   const [activeTab, setActiveTab] = useState<FinancialTab>('invoices');
@@ -14,6 +15,7 @@ export function Financial() {
     { id: 'invoices' as FinancialTab, label: 'Facturen', icon: FileText },
     { id: 'debtors' as FinancialTab, label: 'Debiteuren', icon: AlertTriangle },
     { id: 'creditnotes' as FinancialTab, label: 'Credit Nota\'s', icon: Receipt },
+    { id: 'creditoverview' as FinancialTab, label: 'Credit Overzicht', icon: DollarSign },
     { id: 'analytics' as FinancialTab, label: 'Analyses', icon: TrendingUp },
   ];
 
@@ -46,6 +48,7 @@ export function Financial() {
         {activeTab === 'invoices' && <InvoiceManagement />}
         {activeTab === 'debtors' && <DebtorsOverview />}
         {activeTab === 'creditnotes' && <CreditNotes />}
+        {activeTab === 'creditoverview' && <CreditOverview />}
         {activeTab === 'analytics' && <Analytics />}
       </div>
     </div>

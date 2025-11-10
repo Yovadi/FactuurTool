@@ -1,4 +1,4 @@
-import { X, Download, Edit, Trash2 } from 'lucide-react';
+import { X, Download, Edit, Trash2, Link, Send } from 'lucide-react';
 
 type CreditNoteLineItem = {
   description: string;
@@ -39,9 +39,11 @@ type CreditNotePreviewProps = {
   onDownload?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  onApply?: () => void;
+  onSend?: () => void;
 };
 
-export function CreditNotePreview({ creditNote, companySettings, onClose, onDownload, onEdit, onDelete }: CreditNotePreviewProps) {
+export function CreditNotePreview({ creditNote, companySettings, onClose, onDownload, onEdit, onDelete, onApply, onSend }: CreditNotePreviewProps) {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('nl-NL', {
       style: 'currency',
@@ -64,6 +66,26 @@ export function CreditNotePreview({ creditNote, companySettings, onClose, onDown
         <div className="sticky top-0 bg-dark-800 border-b border-dark-700 px-6 py-4 flex justify-between items-center">
           <h3 className="text-xl font-bold text-gray-100">Credit Nota Preview</h3>
           <div className="flex items-center gap-2">
+            {onApply && (
+              <button
+                onClick={onApply}
+                className="flex items-center gap-1 text-yellow-400 hover:text-yellow-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-700"
+                title="Toepassen"
+              >
+                <Link size={20} />
+                <span className="text-sm font-medium">Toepassen</span>
+              </button>
+            )}
+            {onSend && (
+              <button
+                onClick={onSend}
+                className="flex items-center gap-1 text-indigo-400 hover:text-indigo-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-700"
+                title="Versturen"
+              >
+                <Send size={20} />
+                <span className="text-sm font-medium">Versturen</span>
+              </button>
+            )}
             {onEdit && (
               <button
                 onClick={onEdit}
