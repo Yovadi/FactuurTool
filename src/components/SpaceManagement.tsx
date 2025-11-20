@@ -320,84 +320,86 @@ export function SpaceManagement() {
           };
 
           return (
-            <div key={type}>
-              <h2 className="text-xl font-bold text-gray-100 mb-4 pb-2 border-b-2 border-amber-500">
+            <div key={type} className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
+              <h2 className="text-lg font-bold text-gray-100 px-4 py-3 bg-dark-800 border-b border-amber-500">
                 {typeLabels[type]}
               </h2>
-              <div className="space-y-3">
-                {typedSpaces.map((space) => (
-                  <div
-                    key={space.id}
-                    className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-5 hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4 flex-1">
-                        <Home className="text-gold-500" size={24} />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-1">
-                            <h3 className="text-lg font-semibold text-gray-100">
-                              {space.space_number}
-                            </h3>
-                            <span
-                              className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                space.is_available
-                                  ? 'bg-green-600 text-green-100'
-                                  : 'bg-red-600 text-red-100'
-                              }`}
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase">
+                      <th className="text-left px-4 py-2 font-semibold">Benaming</th>
+                      <th className="text-left px-4 py-2 font-semibold">
+                        {type === 'Meeting Room' ? 'Tarief' : type === 'diversen' ? 'Bedrag' : 'Oppervlakte'}
+                      </th>
+                      <th className="text-left px-4 py-2 font-semibold">Huurder</th>
+                      <th className="text-center px-4 py-2 font-semibold">Status</th>
+                      <th className="text-right px-4 py-2 font-semibold">Acties</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {typedSpaces.map((space) => (
+                      <tr
+                        key={space.id}
+                        className="border-b border-dark-800 hover:bg-dark-800 transition-colors"
+                      >
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <Home className="text-gold-500" size={18} />
+                            <span className="text-gray-100 font-medium">{space.space_number}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-gray-300 text-sm">
+                          {space.space_type === 'Meeting Room' && space.hourly_rate
+                            ? `€ ${space.hourly_rate.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/uur`
+                            : space.space_type === 'diversen'
+                            ? `€ ${space.square_footage.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                            : `${space.square_footage.toLocaleString('nl-NL', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} m²`
+                          }
+                        </td>
+                        <td className="px-4 py-3 text-gray-300 text-sm">
+                          {!space.is_available && space.tenant ? (
+                            <div className="flex items-center gap-1">
+                              <User size={14} />
+                              <span>{space.tenant.company_name}</span>
+                            </div>
+                          ) : (
+                            <span className="text-gray-500 italic">Geen huurder</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span
+                            className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
+                              space.is_available
+                                ? 'bg-green-900 text-green-300 border border-green-700'
+                                : 'bg-red-900 text-red-300 border border-red-700'
+                            }`}
+                          >
+                            {space.is_available ? 'Beschikbaar' : 'Verhuurd'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex gap-1 justify-end">
+                            <button
+                              onClick={() => handleEdit(space)}
+                              className="text-gold-500 hover:text-gold-400 transition-colors p-1.5 rounded hover:bg-dark-700"
+                              title="Bewerken"
                             >
-                              {space.is_available ? 'Beschikbaar' : 'Verhuurd'}
-                            </span>
+                              <Edit2 size={18} />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(space.id)}
+                              className="text-red-500 hover:text-red-400 transition-colors p-1.5 rounded hover:bg-dark-700"
+                              title="Verwijderen"
+                            >
+                              <Trash2 size={18} />
+                            </button>
                           </div>
-                          <div className="flex items-center gap-4 text-sm text-gray-300">
-                            {space.space_type !== 'Meeting Room' && space.space_type !== 'diversen' && (
-                              <>
-                                <span className="flex items-center gap-1">
-                                  <Square size={14} />
-                                  {space.square_footage.toLocaleString('nl-NL', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} m²
-                                </span>
-                                <span>•</span>
-                              </>
-                            )}
-                            {space.space_type === 'diversen' && (
-                              <>
-                                <span>€ {space.square_footage.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                <span>•</span>
-                              </>
-                            )}
-                            {space.space_type === 'Meeting Room' && space.hourly_rate && (
-                              <>
-                                <span>€ {space.hourly_rate.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/uur</span>
-                                <span>•</span>
-                              </>
-                            )}
-                            {!space.is_available && space.tenant ? (
-                              <span className="flex items-center gap-1">
-                                <User size={14} />
-                                {space.tenant.company_name}
-                              </span>
-                            ) : (
-                              <span className="text-gray-400">Geen huurder</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleEdit(space)}
-                          className="flex items-center gap-1 text-gold-500 hover:text-gold-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
-                        >
-                          <Edit2 size={24} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(space.id)}
-                          className="flex items-center gap-1 text-red-500 hover:text-red-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
-                        >
-                          <Trash2 size={24} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           );
