@@ -207,11 +207,6 @@ export function CreditNotePreview({ creditNote, companySettings, onClose, onDown
               <span className="text-red-600">{formatCurrency(-creditNote.total_amount)}</span>
             </div>
           </div>
-
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-            <p className="text-xs font-semibold text-gray-700">Let op:</p>
-            <p className="text-xs text-gray-600 mt-1">Dit bedrag wordt in mindering gebracht op uw openstaande saldo. Het gecrediteerde bedrag kan worden verrekend met toekomstige facturen of terugbetaald indien gewenst.</p>
-          </div>
         </div>
       </div>
     </div>
