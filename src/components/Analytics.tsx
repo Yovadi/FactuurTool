@@ -277,31 +277,31 @@ export function Analytics() {
 
     switch (type) {
       case 'yearly':
-        csvContent = 'Jaar,Omzet,Betaald,Openstaand,Aantal Facturen\n';
+        csvContent = 'Jaar;Omzet;Betaald;Openstaand;Aantal Facturen\n';
         yearlyData.forEach(row => {
-          csvContent += `${row.year},€${row.revenue.toFixed(2)},€${row.paid.toFixed(2)},€${row.pending.toFixed(2)},${row.invoices}\n`;
+          csvContent += `${row.year};${row.revenue.toFixed(2).replace('.', ',')};${row.paid.toFixed(2).replace('.', ',')};${row.pending.toFixed(2).replace('.', ',')};${row.invoices}\n`;
         });
         filename = 'jaaroverzicht.csv';
         break;
 
       case 'quarterly':
-        csvContent = 'Jaar,Kwartaal,Omzet,Betaald,Openstaand,Aantal Facturen\n';
+        csvContent = 'Jaar;Kwartaal;Omzet;Betaald;Openstaand;Aantal Facturen\n';
         quarterlyData.forEach(row => {
-          csvContent += `${row.year},Q${row.quarter},€${row.revenue.toFixed(2)},€${row.paid.toFixed(2)},€${row.pending.toFixed(2)},${row.invoices}\n`;
+          csvContent += `${row.year};Q${row.quarter};${row.revenue.toFixed(2).replace('.', ',')};${row.paid.toFixed(2).replace('.', ',')};${row.pending.toFixed(2).replace('.', ',')};${row.invoices}\n`;
         });
         filename = `kwartaaloverzicht-${selectedYear}.csv`;
         break;
 
       case 'vat':
-        csvContent = 'Periode,BTW Geïnd,BTW Betaald,Netto BTW,Omzet\n';
+        csvContent = 'Periode;BTW Geïnd;BTW Betaald;Netto BTW;Omzet\n';
         vatData.forEach(row => {
-          csvContent += `${row.period},€${row.vatCollected.toFixed(2)},€${row.vatPaid.toFixed(2)},€${row.netVAT.toFixed(2)},€${row.revenue.toFixed(2)}\n`;
+          csvContent += `${row.period};${row.vatCollected.toFixed(2).replace('.', ',')};${row.vatPaid.toFixed(2).replace('.', ',')};${row.netVAT.toFixed(2).replace('.', ',')};${row.revenue.toFixed(2).replace('.', ',')}\n`;
         });
         filename = `btw-overzicht-${selectedYear}.csv`;
         break;
     }
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
