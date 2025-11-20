@@ -14,9 +14,11 @@ function createWindow() {
     minWidth: 1200,
     minHeight: 700,
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
-      preload: path.join(__dirname, 'preload.js')
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js'),
+      enableRemoteModule: false,
+      sandbox: false
     },
     icon: path.join(__dirname, '../public/Logo.png'),
     title: 'HAL5 Overloon - Facturatie Manager',

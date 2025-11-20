@@ -1,6 +1,6 @@
-const { ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer } = require('electron');
 
-window.electron = {
+contextBridge.exposeInMainWorld('electron', {
   sendEmailWithPDF: (pdfBuffer, to, subject, body, fileName, logoPath) => {
     return ipcRenderer.invoke('send-email-with-pdf', pdfBuffer, to, subject, body, fileName, logoPath);
   },
@@ -13,6 +13,19 @@ window.electron = {
   savePDF: (pdfBuffer, folderPath, fileName) => {
     return ipcRenderer.invoke('save-pdf', pdfBuffer, folderPath, fileName);
   }
-};
+});
 
-window.electronAPI = window.electron;
+contextBridge.exposeInMainWorld('electronAPI', {
+  sendEmailWithPDF: (pdfBuffer, to, subject, body, fileName, logoPath) => {
+    return ipcRenderer.invoke('send-email-with-pdf', pdfBuffer, to, subject, body, fileName, logoPath);
+  },
+  selectFolder: () => {
+    return ipcRenderer.invoke('select-folder');
+  },
+  createTenantFolder: (rootPath, tenantName) => {
+    return ipcRenderer.invoke('create-tenant-folder', rootPath, tenantName);
+  },
+  savePDF: (pdfBuffer, folderPath, fileName) => {
+    return ipcRenderer.invoke('save-pdf', pdfBuffer, folderPath, fileName);
+  }
+});
