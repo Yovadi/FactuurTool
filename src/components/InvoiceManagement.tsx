@@ -1817,89 +1817,87 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
           return (
             <div>
-              <div className="flex justify-between items-center mb-4 pb-2 border-b-2 border-dark-600">
-                <h2 className="text-xl font-bold text-gray-100">
-                  Concept Facturen
-                </h2>
-              </div>
-              <div className="space-y-3">
-                {groupedInvoices.map((invoice) => {
-                  const tenant = getInvoiceTenant(invoice);
-                  const displayName = tenant?.company_name || 'Onbekende huurder';
-                  const hasLease = invoice.lease && invoice.lease.lease_spaces;
+              <h2 className="text-xl font-bold text-gray-100 mb-4 pb-2 border-b-2 border-dark-600">
+                Concept Facturen
+              </h2>
+              <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
+                        <th className="text-left px-4 py-2 font-semibold">Klant</th>
+                        <th className="text-left px-4 py-2 font-semibold">Factuur Nr.</th>
+                        <th className="text-left px-4 py-2 font-semibold">Type</th>
+                        <th className="text-left px-4 py-2 font-semibold">Maand</th>
+                        <th className="text-left px-4 py-2 font-semibold">Vervaldatum</th>
+                        <th className="text-right px-4 py-2 font-semibold">Bedrag</th>
+                        <th className="text-center px-4 py-2 font-semibold">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {groupedInvoices.map((invoice) => {
+                        const tenant = getInvoiceTenant(invoice);
+                        const displayName = tenant?.company_name || 'Onbekende huurder';
+                        const hasLease = invoice.lease && invoice.lease.lease_spaces;
 
-                  return (
-                    <div
-                      key={invoice.id}
-                      onClick={() => showInvoicePreview(invoice)}
-                      className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-5 hover:shadow-md hover:border-gold-500 transition-all cursor-pointer"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4 flex-1">
-                          <FileText className="text-gray-500" size={24} />
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-1">
-                              <h3 className="text-lg font-semibold text-gray-100">
-                                {displayName}
-                              </h3>
-                              <span className="text-sm font-medium text-purple-600">
-                                {invoice.invoice_number.replace(/^INV-/, '')}
-                              </span>
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(invoice.status)}`}>
+                        return (
+                          <tr
+                            key={invoice.id}
+                            onClick={() => showInvoicePreview(invoice)}
+                            className="border-b border-dark-800 hover:bg-dark-800 hover:border-gold-500 transition-colors cursor-pointer"
+                          >
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <FileText className="text-gray-500" size={18} />
+                                <span className="text-gray-100 font-medium">{displayName}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-purple-600 font-medium text-sm">
+                              {invoice.invoice_number.replace(/^INV-/, '')}
+                            </td>
+                            <td className="px-4 py-3 text-gray-300 text-sm">
+                              {hasLease ? (
+                                <span>{invoice.lease!.lease_spaces.length} {invoice.lease!.lease_spaces.length === 1 ? 'ruimte' : 'ruimtes'}</span>
+                              ) : (
+                                <span className="text-gray-400 italic">Handmatig</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-gray-300 text-sm">
+                              {invoice.invoice_month ? (
+                                (() => {
+                                  const [year, month] = invoice.invoice_month.split('-');
+                                  const monthNames = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+                                  return `${monthNames[parseInt(month) - 1]} ${year}`;
+                                })()
+                              ) : '-'}
+                            </td>
+                            <td className="px-4 py-3 text-gray-300 text-sm">
+                              <div className="flex items-center gap-1">
+                                <Calendar size={14} className="text-gold-500" />
+                                {new Date(invoice.due_date).toLocaleDateString('nl-NL')}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <div className="text-gray-100 font-bold">
+                                €{invoice.amount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </div>
+                              {invoice.applied_credit > 0 && (
+                                <div className="text-xs text-green-400">
+                                  -€{invoice.applied_credit.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} credit
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(invoice.status)}`}>
                                 {getStatusLabel(invoice.status)}
                               </span>
-                            </div>
-                            <div className="flex items-center gap-4 text-sm text-gray-300">
-                              {hasLease && (
-                                <>
-                                  <span>{invoice.lease!.lease_spaces.length} {invoice.lease!.lease_spaces.length === 1 ? 'ruimte' : 'ruimtes'}</span>
-                                  <span>•</span>
-                                </>
-                              )}
-                              {!hasLease && (
-                                <>
-                                  <span className="text-gray-400 italic">Handmatig</span>
-                                  <span>•</span>
-                                </>
-                              )}
-                              <span className="flex items-center gap-1">
-                                <Calendar size={14} />
-                                Vervalt {new Date(invoice.due_date).toLocaleDateString('nl-NL')}
-                              </span>
-                              {invoice.invoice_month && (
-                                <>
-                                  <span>•</span>
-                                  <span>
-                                    {(() => {
-                                      const [year, month] = invoice.invoice_month.split('-');
-                                      const monthNames = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
-                                      return monthNames[parseInt(month) - 1];
-                                    })()}
-                                  </span>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-xl font-bold text-gray-100">
-                            €{invoice.amount.toFixed(2)}
-                          </div>
-                          {invoice.applied_credit > 0 && (
-                            <div className="text-sm text-green-400 mt-1">
-                              -€{invoice.applied_credit.toFixed(2)} credit
-                            </div>
-                          )}
-                          {invoice.applied_credit > 0 && (
-                            <div className="text-sm text-gray-400 mt-1">
-                              = €{(invoice.amount - invoice.applied_credit).toFixed(2)} openstaand
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           );
@@ -1938,166 +1936,158 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               <h2 className="text-xl font-bold text-gray-100 mb-4 pb-2 border-b-2 border-orange-500">
                 Openstaande Facturen
               </h2>
-              <div className="space-y-3">
-                {groupedInvoices.map((invoice) => {
-                  const tenant = getInvoiceTenant(invoice);
-                  const displayName = tenant?.company_name || 'Onbekende huurder';
-                  const hasLease = invoice.lease && invoice.lease.lease_spaces;
+              <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
+                        <th className="text-left px-4 py-2 font-semibold">Klant</th>
+                        <th className="text-left px-4 py-2 font-semibold">Factuur Nr.</th>
+                        <th className="text-left px-4 py-2 font-semibold">Type</th>
+                        <th className="text-left px-4 py-2 font-semibold">Maand</th>
+                        <th className="text-left px-4 py-2 font-semibold">Factuur Datum</th>
+                        <th className="text-left px-4 py-2 font-semibold">Vervaldatum</th>
+                        <th className="text-right px-4 py-2 font-semibold">Bedrag</th>
+                        <th className="text-center px-4 py-2 font-semibold">Status</th>
+                        <th className="text-right px-4 py-2 font-semibold">Acties</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {groupedInvoices.map((invoice) => {
+                        const tenant = getInvoiceTenant(invoice);
+                        const displayName = tenant?.company_name || 'Onbekende huurder';
+                        const hasLease = invoice.lease && invoice.lease.lease_spaces;
 
-                  return (
-                    <div
-                      key={invoice.id}
-                      className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-5 hover:shadow-md transition-shadow"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4 flex-1">
-                          <FileText className="text-gray-500" size={24} />
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-1">
-                              <h3 className="text-lg font-semibold text-gray-100">
-                                {displayName}
-                              </h3>
-                              <span className="text-sm font-medium text-purple-600">
-                                {invoice.invoice_number.replace(/^INV-/, '')}
-                              </span>
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(invoice.status)}`}>
+                        return (
+                          <tr
+                            key={invoice.id}
+                            className="border-b border-dark-800 hover:bg-dark-800 transition-colors"
+                          >
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <FileText className="text-gray-500" size={18} />
+                                <span className="text-gray-100 font-medium">{displayName}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-purple-600 font-medium text-sm">
+                              {invoice.invoice_number.replace(/^INV-/, '')}
+                            </td>
+                            <td className="px-4 py-3 text-gray-300 text-sm">
+                              {hasLease ? (
+                                <span>{invoice.lease!.lease_spaces.length} {invoice.lease!.lease_spaces.length === 1 ? 'ruimte' : 'ruimtes'}</span>
+                              ) : (
+                                <span className="text-gray-400 italic">Handmatig</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-gray-300 text-sm">
+                              {invoice.invoice_month ?
+                                new Date(invoice.invoice_month + '-01').toLocaleDateString('nl-NL', { month: 'short', year: 'numeric' })
+                              : '-'}
+                            </td>
+                            <td className="px-4 py-3 text-gray-300 text-sm">
+                              {new Date(invoice.invoice_date).toLocaleDateString('nl-NL')}
+                            </td>
+                            <td className="px-4 py-3 text-gray-300 text-sm">
+                              <div className="flex items-center gap-1">
+                                <Calendar size={14} className="text-gold-500" />
+                                {new Date(invoice.due_date).toLocaleDateString('nl-NL')}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <div className="text-gray-100 font-bold">
+                                €{invoice.amount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(invoice.status)}`}>
                                 {getStatusLabel(invoice.status)}
                               </span>
-                            </div>
-                            <div className="flex items-center gap-4 text-sm text-gray-300">
-                              {hasLease && (
-                                <>
-                                  <span>{invoice.lease!.lease_spaces.length} {invoice.lease!.lease_spaces.length === 1 ? 'ruimte' : 'ruimtes'}</span>
-                                  <span>•</span>
-                                </>
-                              )}
-                              {!hasLease && (
-                                <>
-                                  <span className="text-gray-400 italic">Handmatig</span>
-                                  <span>•</span>
-                                </>
-                              )}
-                              <span>Factuur: {new Date(invoice.invoice_date).toLocaleDateString('nl-NL')}</span>
-                              <span>•</span>
-                              <span>Vervaldatum: {new Date(invoice.due_date).toLocaleDateString('nl-NL')}</span>
-                              {invoice.invoice_month && (
-                                <>
-                                  <span>•</span>
-                                  <span>Maand: {new Date(invoice.invoice_month + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}</span>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-xl font-bold text-gray-100">
-                              € {invoice.amount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-end gap-2 mt-4 pt-4 border-t border-dark-700">
-                        <button
-                          onClick={() => showInvoicePreview(invoice)}
-                          className="flex items-center gap-1 text-gold-500 hover:text-gold-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
-                        >
-                          <Eye size={24} />
-                        </button>
-                        <button
-                          onClick={async () => {
-                            const { data: items } = await supabase
-                              .from('invoice_line_items')
-                              .select('*')
-                              .eq('invoice_id', invoice.id);
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex gap-1 justify-end">
+                                <button
+                                  onClick={() => showInvoicePreview(invoice)}
+                                  className="text-gold-500 hover:text-gold-400 transition-colors p-1.5 rounded hover:bg-dark-700"
+                                  title="Bekijken"
+                                >
+                                  <Eye size={18} />
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    const { data: items } = await supabase
+                                      .from('invoice_line_items')
+                                      .select('*')
+                                      .eq('invoice_id', invoice.id);
 
-                            const spaces = items ? convertLineItemsToSpaces(items) : [];
+                                    const spaces = items ? convertLineItemsToSpaces(items) : [];
+                                    const tenant = getInvoiceTenant(invoice);
 
-                            const tenant = getInvoiceTenant(invoice);
-
-                            generateInvoicePDF({
-                              invoice_number: invoice.invoice_number,
-                              tenant_name: ('name' in (tenant || {}) ? tenant?.name : undefined) || undefined,
-        tenant_contact_name: ('contact_name' in (tenant || {}) ? (tenant as any)?.contact_name : undefined) || undefined,
-                              tenant_company_name: tenant?.company_name || '',
-                              tenant_email: tenant?.email || '',
-                              tenant_phone: tenant?.phone || undefined,
-                              tenant_billing_address: tenant?.billing_address || undefined,
-        tenant_street: tenant?.street || undefined,
-        tenant_postal_code: tenant?.postal_code || undefined,
-        tenant_city: tenant?.city || undefined,
-        tenant_country: tenant?.country || undefined,
-                              invoice_month: invoice.invoice_month || undefined,
-                              notes: invoice.notes || undefined,
-                              spaces,
-                              security_deposit: 0,
-                              subtotal: invoice.subtotal,
-                              amount: invoice.amount,
-                              vat_amount: invoice.vat_amount,
-                              vat_rate: invoice.vat_rate,
-                              vat_inclusive: invoice.vat_inclusive,
-                              due_date: invoice.due_date,
-                              invoice_date: invoice.invoice_date,
-                              company: companySettings ? {
-                                name: companySettings.company_name,
-                                address: companySettings.address,
-                                postal_code: companySettings.postal_code,
-                                city: companySettings.city,
-                                kvk: companySettings.kvk_number,
-                                btw: companySettings.vat_number,
-                                iban: companySettings.bank_account,
-                                email: companySettings.email,
-                                phone: companySettings.phone,
-                                website: companySettings.website
-                              } : undefined
-                            }, false);
-                          }}
-                          className="flex items-center gap-1 text-gold-500 hover:text-gold-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
-                        >
-                          <Download size={24} />
-                        </button>
-                        {invoice.status === 'draft' && (
-                          <>
-                            <button
-                              onClick={() => sendInvoiceEmail(invoice.id)}
-                              className="flex items-center gap-1 text-purple-600 hover:text-purple-800 transition-colors px-3 py-1.5 rounded-lg hover:bg-purple-50"
-                            >
-                              <Send size={24} />
-                            </button>
-                            <button
-                              onClick={() => setShowDeleteConfirm(invoice.id)}
-                              className="flex items-center gap-1 text-red-400 hover:text-red-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-red-900"
-                            >
-                              <Trash2 size={24} />
-                            </button>
-                          </>
-                        )}
-                        {invoice.status === 'sent' && (
-                          <>
-                            <button
-                              onClick={() => markAsPaid(invoice.id)}
-                              className="flex items-center gap-1 text-green-400 hover:text-green-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-green-900"
-                            >
-                              <CheckCircle size={24} />
-                            </button>
-                            <button
-                              onClick={() => setShowDeleteConfirm(invoice.id)}
-                              className="flex items-center gap-1 text-red-400 hover:text-red-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-red-900"
-                            >
-                              <Trash2 size={24} />
-                            </button>
-                          </>
-                        )}
-                        {invoice.status === 'paid' && (
-                          <button
-                            onClick={() => setShowDeleteConfirm(invoice.id)}
-                            className="flex items-center gap-1 text-red-400 hover:text-red-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-red-900"
-                          >
-                            <Trash2 size={24} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+                                    generateInvoicePDF({
+                                      invoice_number: invoice.invoice_number,
+                                      tenant_name: ('name' in (tenant || {}) ? tenant?.name : undefined) || undefined,
+                                      tenant_contact_name: ('contact_name' in (tenant || {}) ? (tenant as any)?.contact_name : undefined) || undefined,
+                                      tenant_company_name: tenant?.company_name || '',
+                                      tenant_email: tenant?.email || '',
+                                      tenant_phone: tenant?.phone || undefined,
+                                      tenant_billing_address: tenant?.billing_address || undefined,
+                                      tenant_street: tenant?.street || undefined,
+                                      tenant_postal_code: tenant?.postal_code || undefined,
+                                      tenant_city: tenant?.city || undefined,
+                                      tenant_country: tenant?.country || undefined,
+                                      invoice_month: invoice.invoice_month || undefined,
+                                      notes: invoice.notes || undefined,
+                                      spaces,
+                                      security_deposit: 0,
+                                      subtotal: invoice.subtotal,
+                                      amount: invoice.amount,
+                                      vat_amount: invoice.vat_amount,
+                                      vat_rate: invoice.vat_rate,
+                                      vat_inclusive: invoice.vat_inclusive,
+                                      due_date: invoice.due_date,
+                                      invoice_date: invoice.invoice_date,
+                                      company: companySettings ? {
+                                        name: companySettings.company_name,
+                                        address: companySettings.address,
+                                        postal_code: companySettings.postal_code,
+                                        city: companySettings.city,
+                                        kvk: companySettings.kvk_number,
+                                        btw: companySettings.vat_number,
+                                        iban: companySettings.bank_account,
+                                        email: companySettings.email,
+                                        phone: companySettings.phone,
+                                        website: companySettings.website
+                                      } : undefined
+                                    }, false);
+                                  }}
+                                  className="text-gold-500 hover:text-gold-400 transition-colors p-1.5 rounded hover:bg-dark-700"
+                                  title="Downloaden"
+                                >
+                                  <Download size={18} />
+                                </button>
+                                {invoice.status === 'sent' && (
+                                  <button
+                                    onClick={() => markAsPaid(invoice.id)}
+                                    className="text-green-400 hover:text-green-300 transition-colors p-1.5 rounded hover:bg-dark-700"
+                                    title="Markeer als betaald"
+                                  >
+                                    <CheckCircle size={18} />
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => setShowDeleteConfirm(invoice.id)}
+                                  className="text-red-500 hover:text-red-400 transition-colors p-1.5 rounded hover:bg-dark-700"
+                                  title="Verwijderen"
+                                >
+                                  <Trash2 size={18} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           );
@@ -2196,147 +2186,151 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               const displayName = tenant?.company_name || 'Onbekende huurder';
 
               return (
-                <div key={tenantKey}>
+                <div key={tenantKey} className="mb-6">
                   <h3 className="text-lg font-bold text-gray-100 mb-3 pb-2 border-b-2 border-emerald-500">
                     {displayName}
                   </h3>
-                  <div className="space-y-3">
-                    {tenantInvoices.map((invoice) => {
-                      const tenant = getInvoiceTenant(invoice);
-                      const hasLease = invoice.lease && invoice.lease.lease_spaces;
+                  <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
+                            <th className="text-left px-4 py-2 font-semibold">Factuur Nr.</th>
+                            <th className="text-left px-4 py-2 font-semibold">Type</th>
+                            <th className="text-left px-4 py-2 font-semibold">Maand</th>
+                            <th className="text-left px-4 py-2 font-semibold">Factuur Datum</th>
+                            <th className="text-left px-4 py-2 font-semibold">Betaald Op</th>
+                            <th className="text-right px-4 py-2 font-semibold">Bedrag</th>
+                            <th className="text-center px-4 py-2 font-semibold">Status</th>
+                            <th className="text-right px-4 py-2 font-semibold">Acties</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {tenantInvoices.map((invoice) => {
+                            const tenant = getInvoiceTenant(invoice);
+                            const hasLease = invoice.lease && invoice.lease.lease_spaces;
 
-                      return (
-                        <div
-                          key={invoice.id}
-                          className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-5 hover:shadow-md transition-shadow"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4 flex-1">
-                              <FileText className="text-gray-500" size={24} />
-                              <div className="flex-1">
-                                <div className="flex items-center gap-3 mb-1">
-                                  <span className="text-sm font-medium text-purple-600">
-                                    {invoice.invoice_number.replace(/^INV-/, '')}
-                                  </span>
-                                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(invoice.status)}`}>
+                            return (
+                              <tr
+                                key={invoice.id}
+                                className="border-b border-dark-800 hover:bg-dark-800 transition-colors"
+                              >
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center gap-2">
+                                    <FileText className="text-gray-500" size={18} />
+                                    <span className="text-purple-600 font-medium text-sm">{invoice.invoice_number.replace(/^INV-/, '')}</span>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 text-gray-300 text-sm">
+                                  {hasLease ? (
+                                    <span>{invoice.lease!.lease_spaces.length} {invoice.lease!.lease_spaces.length === 1 ? 'ruimte' : 'ruimtes'}</span>
+                                  ) : (
+                                    <span className="text-gray-400 italic">Handmatig</span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3 text-gray-300 text-sm">
+                                  {invoice.invoice_month ? (
+                                    (() => {
+                                      const [year, month] = invoice.invoice_month.split('-');
+                                      const monthNames = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+                                      return `${monthNames[parseInt(month) - 1]} ${year}`;
+                                    })()
+                                  ) : '-'}
+                                </td>
+                                <td className="px-4 py-3 text-gray-300 text-sm">
+                                  <div className="flex items-center gap-1">
+                                    <Calendar size={14} className="text-gold-500" />
+                                    {new Date(invoice.invoice_date).toLocaleDateString('nl-NL')}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 text-green-400 text-sm">
+                                  {invoice.paid_at ? new Date(invoice.paid_at).toLocaleDateString('nl-NL') : '-'}
+                                </td>
+                                <td className="px-4 py-3 text-right">
+                                  <div className="text-gray-100 font-bold">
+                                    €{invoice.amount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(invoice.status)}`}>
                                     {getStatusLabel(invoice.status)}
                                   </span>
-                                </div>
-                                <div className="flex items-center gap-4 text-sm text-gray-300">
-                                  {hasLease && (
-                                    <>
-                                      <span>{invoice.lease!.lease_spaces.length} {invoice.lease!.lease_spaces.length === 1 ? 'ruimte' : 'ruimtes'}</span>
-                                      <span>•</span>
-                                    </>
-                                  )}
-                                  {!hasLease && (
-                                    <>
-                                      <span className="text-gray-400 italic">Handmatig</span>
-                                      <span>•</span>
-                                    </>
-                                  )}
-                                  <span className="flex items-center gap-1">
-                                    <Calendar size={14} />
-                                    {new Date(invoice.invoice_date).toLocaleDateString('nl-NL')}
-                                  </span>
-                                  {invoice.invoice_month && (
-                                    <>
-                                      <span>•</span>
-                                      <span>
-                                        {(() => {
-                                          const [year, month] = invoice.invoice_month.split('-');
-                                          const monthNames = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
-                                          return monthNames[parseInt(month) - 1];
-                                        })()}
-                                      </span>
-                                    </>
-                                  )}
-                                  {invoice.paid_at && (
-                                    <>
-                                      <span>•</span>
-                                      <span className="text-green-600">
-                                        Betaald op {new Date(invoice.paid_at).toLocaleDateString('nl-NL')}
-                                      </span>
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-4">
-                              <div className="text-right">
-                                <div className="text-xl font-bold text-gray-100">
-                                  €{invoice.amount.toFixed(2)}
-                                </div>
-                              </div>
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={() => showInvoicePreview(invoice)}
-                                  className="flex items-center gap-1 text-gold-500 hover:text-gold-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
-                                >
-                                  <Eye size={24} />
-                                </button>
-                                <button
-                                  onClick={async () => {
-                                    const { data: items } = await supabase
-                                      .from('invoice_line_items')
-                                      .select('*')
-                                      .eq('invoice_id', invoice.id);
+                                </td>
+                                <td className="px-4 py-3">
+                                  <div className="flex gap-1 justify-end">
+                                    <button
+                                      onClick={() => showInvoicePreview(invoice)}
+                                      className="text-gold-500 hover:text-gold-400 transition-colors p-1.5 rounded hover:bg-dark-700"
+                                      title="Bekijken"
+                                    >
+                                      <Eye size={18} />
+                                    </button>
+                                    <button
+                                      onClick={async () => {
+                                        const { data: items } = await supabase
+                                          .from('invoice_line_items')
+                                          .select('*')
+                                          .eq('invoice_id', invoice.id);
 
-                                    const spaces = items ? convertLineItemsToSpaces(items) : [];
+                                        const spaces = items ? convertLineItemsToSpaces(items) : [];
 
-                                    generateInvoicePDF({
-                                      invoice_number: invoice.invoice_number,
-                                      tenant_name: ('name' in (tenant || {}) ? tenant?.name : undefined) || undefined,
-        tenant_contact_name: ('contact_name' in (tenant || {}) ? (tenant as any)?.contact_name : undefined) || undefined,
-                                      tenant_company_name: tenant?.company_name || '',
-                                      tenant_email: tenant?.email || '',
-                                      tenant_phone: tenant?.phone || undefined,
-                                      tenant_billing_address: tenant?.billing_address || undefined,
-        tenant_street: tenant?.street || undefined,
-        tenant_postal_code: tenant?.postal_code || undefined,
-        tenant_city: tenant?.city || undefined,
-        tenant_country: tenant?.country || undefined,
-                                      invoice_month: invoice.invoice_month || undefined,
-                                      notes: invoice.notes || undefined,
-                                      spaces,
-                                      security_deposit: 0,
-                                      subtotal: invoice.subtotal,
-                                      amount: invoice.amount,
-                                      vat_amount: invoice.vat_amount,
-                                      vat_rate: invoice.vat_rate,
-                                      vat_inclusive: invoice.vat_inclusive,
-                                      due_date: invoice.due_date,
-                                      invoice_date: invoice.invoice_date,
-                                      company: companySettings ? {
-                                        name: companySettings.company_name,
-                                        address: companySettings.address,
-                                        postal_code: companySettings.postal_code,
-                                        city: companySettings.city,
-                                        kvk: companySettings.kvk_number,
-                                        btw: companySettings.vat_number,
-                                        iban: companySettings.bank_account,
-                                        email: companySettings.email,
-                                        phone: companySettings.phone,
-                                        website: companySettings.website
-                                      } : undefined
-                                    }, false);
-                                  }}
-                                  className="flex items-center gap-1 text-emerald-400 hover:text-emerald-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-emerald-900"
-                                >
-                                  <Download size={24} />
-                                </button>
-                                <button
-                                  onClick={() => setShowDeleteConfirm(invoice.id)}
-                                  className="flex items-center gap-1 text-red-400 hover:text-red-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-red-900"
-                                >
-                                  <Trash2 size={24} />
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
+                                        generateInvoicePDF({
+                                          invoice_number: invoice.invoice_number,
+                                          tenant_name: ('name' in (tenant || {}) ? tenant?.name : undefined) || undefined,
+                                          tenant_contact_name: ('contact_name' in (tenant || {}) ? (tenant as any)?.contact_name : undefined) || undefined,
+                                          tenant_company_name: tenant?.company_name || '',
+                                          tenant_email: tenant?.email || '',
+                                          tenant_phone: tenant?.phone || undefined,
+                                          tenant_billing_address: tenant?.billing_address || undefined,
+                                          tenant_street: tenant?.street || undefined,
+                                          tenant_postal_code: tenant?.postal_code || undefined,
+                                          tenant_city: tenant?.city || undefined,
+                                          tenant_country: tenant?.country || undefined,
+                                          invoice_month: invoice.invoice_month || undefined,
+                                          notes: invoice.notes || undefined,
+                                          spaces,
+                                          security_deposit: 0,
+                                          subtotal: invoice.subtotal,
+                                          amount: invoice.amount,
+                                          vat_amount: invoice.vat_amount,
+                                          vat_rate: invoice.vat_rate,
+                                          vat_inclusive: invoice.vat_inclusive,
+                                          due_date: invoice.due_date,
+                                          invoice_date: invoice.invoice_date,
+                                          company: companySettings ? {
+                                            name: companySettings.company_name,
+                                            address: companySettings.address,
+                                            postal_code: companySettings.postal_code,
+                                            city: companySettings.city,
+                                            kvk: companySettings.kvk_number,
+                                            btw: companySettings.vat_number,
+                                            iban: companySettings.bank_account,
+                                            email: companySettings.email,
+                                            phone: companySettings.phone,
+                                            website: companySettings.website
+                                          } : undefined
+                                        }, false);
+                                      }}
+                                      className="text-emerald-400 hover:text-emerald-300 transition-colors p-1.5 rounded hover:bg-dark-700"
+                                      title="Downloaden"
+                                    >
+                                      <Download size={18} />
+                                    </button>
+                                    <button
+                                      onClick={() => setShowDeleteConfirm(invoice.id)}
+                                      className="text-red-500 hover:text-red-400 transition-colors p-1.5 rounded hover:bg-dark-700"
+                                      title="Verwijderen"
+                                    >
+                                      <Trash2 size={18} />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
               );
