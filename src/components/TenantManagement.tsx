@@ -500,241 +500,277 @@ export function TenantManagement() {
       )}
 
       {activeTab === 'active' ? (
-        <div className="grid gap-3">
-          {tenants
-            .filter(tenant =>
-              !tenant.leases ||
-              tenant.leases.length === 0 ||
-              tenant.leases.some(lease => lease.status === 'active')
-            )
-            .map((tenant) => (
-          <div
-            key={tenant.id}
-            className="bg-dark-800 rounded-lg p-4 hover:bg-dark-750 transition-colors border border-dark-700"
-          >
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4 flex-1 min-w-0">
-                <div className="flex-shrink-0">
-                  <div className="w-10 h-10 bg-gold-600 bg-opacity-20 rounded-lg flex items-center justify-center">
-                    <span className="text-gold-500 font-bold text-lg">
-                      {tenant.company_name.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex-1 min-w-0 grid grid-cols-3 gap-4">
-                  <div>
-                    <h3 className="text-base font-semibold text-gray-100 truncate">{tenant.company_name}</h3>
-                    <p className="text-gray-400 text-sm truncate">{tenant.name || '-'}</p>
-                  </div>
-
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-sm text-gray-300 truncate">
-                      <Mail size={14} className="text-gold-500 flex-shrink-0" />
-                      <span className="truncate">{tenant.email}</span>
-                    </div>
-                    {tenant.phone && (
-                      <div className="flex items-center gap-2 text-sm text-gray-300">
-                        <Phone size={14} className="text-gold-500 flex-shrink-0" />
-                        <span>{tenant.phone}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    {tenant.street && tenant.city ? (
-                      <div className="flex items-start gap-2 text-sm text-gray-300 flex-1">
-                        <MapPin size={14} className="text-gold-500 flex-shrink-0 mt-0.5" />
-                        <div className="leading-tight">
-                          <div className="truncate">{tenant.street}</div>
-                          <div>{tenant.postal_code} {tenant.city}</div>
+        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
+                  <th className="text-left px-4 py-2 font-semibold">Bedrijf</th>
+                  <th className="text-left px-4 py-2 font-semibold">Contactpersoon</th>
+                  <th className="text-left px-4 py-2 font-semibold">Email</th>
+                  <th className="text-left px-4 py-2 font-semibold">Telefoon</th>
+                  <th className="text-left px-4 py-2 font-semibold">Adres</th>
+                  <th className="text-center px-4 py-2 font-semibold">PIN</th>
+                  <th className="text-right px-4 py-2 font-semibold">Acties</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tenants
+                  .filter(tenant =>
+                    !tenant.leases ||
+                    tenant.leases.length === 0 ||
+                    tenant.leases.some(lease => lease.status === 'active')
+                  )
+                  .map((tenant) => (
+                    <tr
+                      key={tenant.id}
+                      className="border-b border-dark-800 hover:bg-dark-800 transition-colors"
+                    >
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 bg-gold-600 bg-opacity-20 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <span className="text-gold-500 font-bold text-sm">
+                              {tenant.company_name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <span className="text-gray-100 font-medium">{tenant.company_name}</span>
                         </div>
-                      </div>
-                    ) : tenant.billing_address ? (
-                      <div className="flex items-start gap-2 text-sm text-gray-300 flex-1">
-                        <MapPin size={14} className="text-gold-500 flex-shrink-0 mt-0.5" />
-                        <div className="leading-tight truncate">{tenant.billing_address}</div>
-                      </div>
-                    ) : null}
-                    {tenant.booking_pin_code && (
-                      <div className="flex items-center gap-1.5 text-xs text-green-400 bg-green-900 bg-opacity-20 px-2 py-1 rounded flex-shrink-0">
-                        <Key size={12} />
-                        <span>{tenant.booking_pin_code}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-1 flex-shrink-0">
-                <button
-                  onClick={() => handleEdit(tenant)}
-                  className="p-2 text-blue-400 hover:bg-dark-700 rounded-lg transition-colors"
-                  title="Bewerken"
-                >
-                  <Edit2 size={16} />
-                </button>
-                <button
-                  onClick={() => handleDelete(tenant.id)}
-                  className="p-2 text-red-400 hover:bg-dark-700 rounded-lg transition-colors"
-                  title="Verwijderen"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </div>
+                      </td>
+                      <td className="px-4 py-3 text-gray-300 text-sm">{tenant.name || '-'}</td>
+                      <td className="px-4 py-3 text-gray-300 text-sm">
+                        <div className="flex items-center gap-1">
+                          <Mail size={14} className="text-gold-500 flex-shrink-0" />
+                          <span className="truncate max-w-[200px]">{tenant.email}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-gray-300 text-sm">
+                        {tenant.phone ? (
+                          <div className="flex items-center gap-1">
+                            <Phone size={14} className="text-gold-500 flex-shrink-0" />
+                            <span>{tenant.phone}</span>
+                          </div>
+                        ) : '-'}
+                      </td>
+                      <td className="px-4 py-3 text-gray-300 text-sm">
+                        {tenant.street && tenant.city ? (
+                          <div className="flex items-start gap-1">
+                            <MapPin size={14} className="text-gold-500 flex-shrink-0 mt-0.5" />
+                            <div className="leading-tight text-xs">
+                              <div>{tenant.street}</div>
+                              <div className="text-gray-400">{tenant.postal_code} {tenant.city}</div>
+                            </div>
+                          </div>
+                        ) : tenant.billing_address ? (
+                          <div className="flex items-center gap-1">
+                            <MapPin size={14} className="text-gold-500 flex-shrink-0" />
+                            <span className="text-xs">{tenant.billing_address}</span>
+                          </div>
+                        ) : '-'}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {tenant.booking_pin_code ? (
+                          <div className="inline-flex items-center gap-1 text-xs text-green-400 bg-green-900 bg-opacity-20 px-2 py-1 rounded border border-green-700">
+                            <Key size={12} />
+                            <span>{tenant.booking_pin_code}</span>
+                          </div>
+                        ) : '-'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-1 justify-end">
+                          <button
+                            onClick={() => handleEdit(tenant)}
+                            className="text-blue-400 hover:text-blue-300 transition-colors p-1.5 rounded hover:bg-dark-700"
+                            title="Bewerken"
+                          >
+                            <Edit2 size={18} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(tenant.id)}
+                            className="text-red-500 hover:text-red-400 transition-colors p-1.5 rounded hover:bg-dark-700"
+                            title="Verwijderen"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
           </div>
-          ))}
         </div>
       ) : activeTab === 'inactive' ? (
-        <div className="grid gap-3">
-          {tenants
-            .filter(tenant =>
-              tenant.leases &&
-              tenant.leases.length > 0 &&
-              tenant.leases.every(lease => lease.status !== 'active')
-            )
-            .map((tenant) => (
-          <div
-            key={tenant.id}
-            className="bg-dark-800 rounded-lg p-4 hover:bg-dark-750 transition-colors border border-dark-700"
-          >
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4 flex-1 min-w-0">
-                <div className="flex-shrink-0">
-                  <div className="w-10 h-10 bg-gray-600 bg-opacity-20 rounded-lg flex items-center justify-center">
-                    <span className="text-gray-400 font-bold text-lg">
-                      {tenant.company_name.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex-1 min-w-0 grid grid-cols-3 gap-4">
-                  <div>
-                    <h3 className="text-base font-semibold text-gray-300 truncate">{tenant.company_name}</h3>
-                    <p className="text-gray-500 text-sm truncate">{tenant.name || '-'}</p>
-                  </div>
-
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-sm text-gray-400 truncate">
-                      <Mail size={14} className="text-gray-500 flex-shrink-0" />
-                      <span className="truncate">{tenant.email}</span>
-                    </div>
-                    {tenant.phone && (
-                      <div className="flex items-center gap-2 text-sm text-gray-400">
-                        <Phone size={14} className="text-gray-500 flex-shrink-0" />
-                        <span>{tenant.phone}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    {tenant.street && tenant.city ? (
-                      <div className="flex items-start gap-2 text-sm text-gray-400 flex-1">
-                        <MapPin size={14} className="text-gray-500 flex-shrink-0 mt-0.5" />
-                        <div className="leading-tight">
-                          <div className="truncate">{tenant.street}</div>
-                          <div>{tenant.postal_code} {tenant.city}</div>
+        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
+                  <th className="text-left px-4 py-2 font-semibold">Bedrijf</th>
+                  <th className="text-left px-4 py-2 font-semibold">Contactpersoon</th>
+                  <th className="text-left px-4 py-2 font-semibold">Email</th>
+                  <th className="text-left px-4 py-2 font-semibold">Telefoon</th>
+                  <th className="text-left px-4 py-2 font-semibold">Adres</th>
+                  <th className="text-right px-4 py-2 font-semibold">Acties</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tenants
+                  .filter(tenant =>
+                    tenant.leases &&
+                    tenant.leases.length > 0 &&
+                    tenant.leases.every(lease => lease.status !== 'active')
+                  )
+                  .map((tenant) => (
+                    <tr
+                      key={tenant.id}
+                      className="border-b border-dark-800 hover:bg-dark-800 transition-colors"
+                    >
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 bg-gray-600 bg-opacity-20 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <span className="text-gray-400 font-bold text-sm">
+                              {tenant.company_name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <span className="text-gray-300 font-medium">{tenant.company_name}</span>
                         </div>
-                      </div>
-                    ) : tenant.billing_address ? (
-                      <div className="flex items-start gap-2 text-sm text-gray-400 flex-1">
-                        <MapPin size={14} className="text-gray-500 flex-shrink-0 mt-0.5" />
-                        <div className="leading-tight truncate">{tenant.billing_address}</div>
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-1 flex-shrink-0">
-                <button
-                  onClick={() => handleDelete(tenant.id)}
-                  className="p-2 text-red-400 hover:bg-dark-700 rounded-lg transition-colors"
-                  title="Verwijderen"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </div>
+                      </td>
+                      <td className="px-4 py-3 text-gray-400 text-sm">{tenant.name || '-'}</td>
+                      <td className="px-4 py-3 text-gray-400 text-sm">
+                        <div className="flex items-center gap-1">
+                          <Mail size={14} className="text-gray-500 flex-shrink-0" />
+                          <span className="truncate max-w-[200px]">{tenant.email}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-gray-400 text-sm">
+                        {tenant.phone ? (
+                          <div className="flex items-center gap-1">
+                            <Phone size={14} className="text-gray-500 flex-shrink-0" />
+                            <span>{tenant.phone}</span>
+                          </div>
+                        ) : '-'}
+                      </td>
+                      <td className="px-4 py-3 text-gray-400 text-sm">
+                        {tenant.street && tenant.city ? (
+                          <div className="flex items-start gap-1">
+                            <MapPin size={14} className="text-gray-500 flex-shrink-0 mt-0.5" />
+                            <div className="leading-tight text-xs">
+                              <div>{tenant.street}</div>
+                              <div className="text-gray-500">{tenant.postal_code} {tenant.city}</div>
+                            </div>
+                          </div>
+                        ) : tenant.billing_address ? (
+                          <div className="flex items-center gap-1">
+                            <MapPin size={14} className="text-gray-500 flex-shrink-0" />
+                            <span className="text-xs">{tenant.billing_address}</span>
+                          </div>
+                        ) : '-'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-1 justify-end">
+                          <button
+                            onClick={() => handleDelete(tenant.id)}
+                            className="text-red-500 hover:text-red-400 transition-colors p-1.5 rounded hover:bg-dark-700"
+                            title="Verwijderen"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
           </div>
-          ))}
         </div>
       ) : (
-        <div className="grid gap-3">
-          {externalCustomers.map((customer) => (
-            <div
-              key={customer.id}
-              className="bg-dark-800 rounded-lg p-4 hover:bg-dark-750 transition-colors border border-dark-700"
-            >
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-4 flex-1 min-w-0">
-                  <div className="flex-shrink-0">
-                    <div className="w-10 h-10 bg-gold-600 bg-opacity-20 rounded-lg flex items-center justify-center">
-                      <span className="text-gold-500 font-bold text-lg">
-                        {customer.company_name.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex-1 min-w-0 grid grid-cols-3 gap-4">
-                    <div>
-                      <h3 className="text-base font-semibold text-gray-100 truncate">{customer.company_name}</h3>
-                      <p className="text-gray-400 text-sm truncate">{customer.contact_name}</p>
-                    </div>
-
-                    <div className="space-y-1">
-                      {customer.email && (
-                        <div className="flex items-center gap-2 text-sm text-gray-300 truncate">
-                          <Mail size={14} className="text-gold-500 flex-shrink-0" />
-                          <span className="truncate">{customer.email}</span>
+        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
+                  <th className="text-left px-4 py-2 font-semibold">Bedrijf</th>
+                  <th className="text-left px-4 py-2 font-semibold">Contactpersoon</th>
+                  <th className="text-left px-4 py-2 font-semibold">Email</th>
+                  <th className="text-left px-4 py-2 font-semibold">Telefoon</th>
+                  <th className="text-left px-4 py-2 font-semibold">Adres</th>
+                  <th className="text-center px-4 py-2 font-semibold">PIN</th>
+                  <th className="text-right px-4 py-2 font-semibold">Acties</th>
+                </tr>
+              </thead>
+              <tbody>
+                {externalCustomers.map((customer) => (
+                  <tr
+                    key={customer.id}
+                    className="border-b border-dark-800 hover:bg-dark-800 transition-colors"
+                  >
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-gold-600 bg-opacity-20 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <span className="text-gold-500 font-bold text-sm">
+                            {customer.company_name.charAt(0).toUpperCase()}
+                          </span>
                         </div>
-                      )}
-                      {customer.phone && (
-                        <div className="flex items-center gap-2 text-sm text-gray-300">
+                        <span className="text-gray-100 font-medium">{customer.company_name}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-gray-300 text-sm">{customer.contact_name}</td>
+                    <td className="px-4 py-3 text-gray-300 text-sm">
+                      {customer.email ? (
+                        <div className="flex items-center gap-1">
+                          <Mail size={14} className="text-gold-500 flex-shrink-0" />
+                          <span className="truncate max-w-[200px]">{customer.email}</span>
+                        </div>
+                      ) : '-'}
+                    </td>
+                    <td className="px-4 py-3 text-gray-300 text-sm">
+                      {customer.phone ? (
+                        <div className="flex items-center gap-1">
                           <Phone size={14} className="text-gold-500 flex-shrink-0" />
                           <span>{customer.phone}</span>
                         </div>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-start gap-2 text-sm text-gray-300 flex-1">
+                      ) : '-'}
+                    </td>
+                    <td className="px-4 py-3 text-gray-300 text-sm">
+                      <div className="flex items-start gap-1">
                         <MapPin size={14} className="text-gold-500 flex-shrink-0 mt-0.5" />
-                        <div className="leading-tight">
-                          <div className="truncate">{customer.street}</div>
-                          <div>{customer.postal_code} {customer.city}</div>
+                        <div className="leading-tight text-xs">
+                          <div>{customer.street}</div>
+                          <div className="text-gray-400">{customer.postal_code} {customer.city}</div>
                         </div>
                       </div>
-                      {customer.booking_pin_code && (
-                        <div className="flex items-center gap-1.5 text-xs text-green-400 bg-green-900 bg-opacity-20 px-2 py-1 rounded flex-shrink-0">
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {customer.booking_pin_code ? (
+                        <div className="inline-flex items-center gap-1 text-xs text-green-400 bg-green-900 bg-opacity-20 px-2 py-1 rounded border border-green-700">
                           <Key size={12} />
                           <span>{customer.booking_pin_code}</span>
                         </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex gap-1 flex-shrink-0">
-                  <button
-                    onClick={() => handleEditCustomer(customer)}
-                    className="p-2 text-blue-400 hover:bg-dark-700 rounded-lg transition-colors"
-                    title="Bewerken"
-                  >
-                    <Edit2 size={16} />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(customer.id)}
-                    className="p-2 text-red-400 hover:bg-dark-700 rounded-lg transition-colors"
-                    title="Verwijderen"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
+                      ) : '-'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-1 justify-end">
+                        <button
+                          onClick={() => handleEditCustomer(customer)}
+                          className="text-blue-400 hover:text-blue-300 transition-colors p-1.5 rounded hover:bg-dark-700"
+                          title="Bewerken"
+                        >
+                          <Edit2 size={18} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(customer.id)}
+                          className="text-red-500 hover:text-red-400 transition-colors p-1.5 rounded hover:bg-dark-700"
+                          title="Verwijderen"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

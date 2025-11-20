@@ -589,80 +589,92 @@ export function LeaseManagement() {
         </div>
       )}
 
-      <div className="space-y-3">
-        {displayedLeases.map((lease) => {
-          const totalRent = calculateLeaseTotal(lease);
-          return (
-            <div
-              key={lease.id}
-              className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-5 hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-lg font-semibold text-gray-100">{lease.tenant.company_name}</h3>
-                    {getStatusBadge(lease.status)}
-                  </div>
-                  <div className="space-y-2 mb-3">
-                    {lease.lease_spaces.map((ls) => (
-                      <div key={ls.id} className="flex items-center gap-4 text-sm text-gray-300 bg-dark-950 px-3 py-2 rounded">
-                        <span className="font-medium">{ls.space.space_number}</span>
-                        <span>{ls.space.square_footage} m²</span>
-                        <span>×</span>
-                        <span>€{ls.price_per_sqm}/m²</span>
-                        <span>/12</span>
-                        <span>=</span>
-                        <span className="font-medium text-gray-100 ml-auto text-right">€{ls.monthly_rent.toFixed(2)}/mnd</span>
-                      </div>
-                    ))}
-                    {lease.security_deposit > 0 && (
-                      <div className="flex items-center gap-4 text-sm text-gray-300 bg-dark-800 px-3 py-2 rounded border border-dark-600">
-                        <span className="font-medium">Voorschot Gas, Water en Electra</span>
-                        <span className="flex-1"></span>
-                        <span className="font-medium text-gray-100 text-right">€{lease.security_deposit.toFixed(2)}/mnd</span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <p className="text-gray-300 mb-1">Totale Maandhuur</p>
-                      <p className="font-medium text-gray-100">
-                        €{(totalRent + lease.security_deposit).toFixed(2)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-gray-300 mb-1">BTW</p>
-                      <p className="font-medium text-gray-100">
-                        {lease.vat_inclusive ? 'Inclusief' : 'Exclusief'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-gray-300 mb-1">Huurperiode</p>
-                      <p className="font-medium text-gray-100 flex items-center gap-1">
-                        <Calendar size={14} />
-                        {new Date(lease.start_date).toLocaleDateString()} - {new Date(lease.end_date).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex gap-2 ml-4">
-                  <button
-                    onClick={() => handleEdit(lease)}
-                    className="text-gold-500 hover:text-gold-400 transition-colors p-2 hover:bg-dark-800 rounded-lg"
+      <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
+                <th className="text-left px-4 py-2 font-semibold">Huurder</th>
+                <th className="text-left px-4 py-2 font-semibold">Ruimtes</th>
+                <th className="text-right px-4 py-2 font-semibold">Maandhuur</th>
+                <th className="text-left px-4 py-2 font-semibold">BTW</th>
+                <th className="text-left px-4 py-2 font-semibold">Periode</th>
+                <th className="text-center px-4 py-2 font-semibold">Status</th>
+                <th className="text-right px-4 py-2 font-semibold">Acties</th>
+              </tr>
+            </thead>
+            <tbody>
+              {displayedLeases.map((lease) => {
+                const totalRent = calculateLeaseTotal(lease);
+                return (
+                  <tr
+                    key={lease.id}
+                    className="border-b border-dark-800 hover:bg-dark-800 transition-colors"
                   >
-                    <Edit2 size={18} />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(lease)}
-                    className="text-red-400 hover:text-red-300 transition-colors p-2 hover:bg-red-900 rounded-lg"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-              </div>
-            </div>
-          );
-        })}
+                    <td className="px-4 py-3 text-gray-100 font-medium">{lease.tenant.company_name}</td>
+                    <td className="px-4 py-3">
+                      <div className="space-y-1">
+                        {lease.lease_spaces.map((ls) => (
+                          <div key={ls.id} className="text-xs text-gray-300 flex items-center gap-2">
+                            <span className="font-medium">{ls.space.space_number}</span>
+                            <span className="text-gray-400">({ls.space.square_footage} m² × €{ls.price_per_sqm}/m²)</span>
+                          </div>
+                        ))}
+                        {lease.security_deposit > 0 && (
+                          <div className="text-xs text-green-400">
+                            + Voorschot G/W/E
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="text-gray-100 font-medium">
+                        €{(totalRent + lease.security_deposit).toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        (€{totalRent.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {lease.security_deposit > 0 && ` + €${lease.security_deposit.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`})
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-gray-300 text-sm">
+                      {lease.vat_inclusive ? 'Inclusief' : 'Exclusief'} ({lease.vat_rate}%)
+                    </td>
+                    <td className="px-4 py-3 text-gray-300 text-xs">
+                      <div className="flex items-center gap-1">
+                        <Calendar size={14} className="text-gold-500" />
+                        <div>
+                          <div>{new Date(lease.start_date).toLocaleDateString('nl-NL')}</div>
+                          <div className="text-gray-400">t/m {new Date(lease.end_date).toLocaleDateString('nl-NL')}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {getStatusBadge(lease.status)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-1 justify-end">
+                        <button
+                          onClick={() => handleEdit(lease)}
+                          className="text-gold-500 hover:text-gold-400 transition-colors p-1.5 rounded hover:bg-dark-700"
+                          title="Bewerken"
+                        >
+                          <Edit2 size={18} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(lease)}
+                          className="text-red-500 hover:text-red-400 transition-colors p-1.5 rounded hover:bg-dark-700"
+                          title="Verwijderen"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {leases.length === 0 && (

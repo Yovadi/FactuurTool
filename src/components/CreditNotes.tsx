@@ -462,48 +462,76 @@ export function CreditNotes() {
             <p className="text-gray-400">Geen credit nota's gevonden</p>
           </div>
         ) : (
-          creditNotes.map((note) => {
-            const customerName = note.tenant_id
-              ? note.tenants?.company_name
-              : note.external_customers?.company_name;
+          <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
+                    <th className="text-left px-4 py-2 font-semibold">Klant</th>
+                    <th className="text-left px-4 py-2 font-semibold">Credit Nota Nr.</th>
+                    <th className="text-left px-4 py-2 font-semibold">Datum</th>
+                    <th className="text-left px-4 py-2 font-semibold">Reden</th>
+                    <th className="text-right px-4 py-2 font-semibold">Bedrag</th>
+                    <th className="text-center px-4 py-2 font-semibold">Status</th>
+                    <th className="text-right px-4 py-2 font-semibold">Acties</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {creditNotes.map((note) => {
+                    const customerName = note.tenant_id
+                      ? note.tenants?.company_name
+                      : note.external_customers?.company_name;
 
-            return (
-              <div
-                key={note.id}
-                onClick={() => handlePreview(note)}
-                className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-5 hover:shadow-md hover:border-red-400 transition-all cursor-pointer"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4 flex-1">
-                    <FileText className="text-red-400" size={24} />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-1">
-                        <h3 className="text-lg font-semibold text-gray-100">
-                          {customerName}
-                        </h3>
-                        <span className="text-sm font-medium text-red-400">
+                    return (
+                      <tr
+                        key={note.id}
+                        className="border-b border-dark-800 hover:bg-dark-800 transition-colors cursor-pointer"
+                        onClick={() => handlePreview(note)}
+                      >
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <FileText className="text-red-400" size={18} />
+                            <span className="text-gray-100 font-medium">{customerName}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-red-400 font-medium text-sm">
                           {note.credit_note_number.replace(/^CN-/, '')}
-                        </span>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(note.status)}`}>
-                          {getStatusText(note.status)}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-4 text-sm text-gray-300">
-                        <span>{formatDate(note.credit_date)}</span>
-                        <span>•</span>
-                        <span className="line-clamp-1">{note.reason}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xl font-bold text-red-400">
-                      -{formatCurrency(note.total_amount)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })
+                        </td>
+                        <td className="px-4 py-3 text-gray-300 text-sm">
+                          {formatDate(note.credit_date)}
+                        </td>
+                        <td className="px-4 py-3 text-gray-300 text-sm">
+                          <span className="line-clamp-1 max-w-[300px]">{note.reason}</span>
+                        </td>
+                        <td className="px-4 py-3 text-right text-red-400 font-bold">
+                          -{formatCurrency(note.total_amount)}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(note.status)}`}>
+                            {getStatusText(note.status)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex gap-1 justify-end">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handlePreview(note);
+                              }}
+                              className="text-gold-500 hover:text-gold-400 transition-colors p-1.5 rounded hover:bg-dark-700"
+                              title="Bekijken"
+                            >
+                              <Eye size={18} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
         )}
       </div>
 
