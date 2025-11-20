@@ -61,15 +61,15 @@ export function CreditNotePreview({ creditNote, companySettings, onClose, onDown
     : `${creditNote.external_customer?.street}\n${creditNote.external_customer?.postal_code} ${creditNote.external_customer?.city}`;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-dark-900 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-dark-800 border-b border-dark-700 px-6 py-4 flex justify-between items-center">
-          <h3 className="text-xl font-bold text-gray-100">Credit Nota Preview</h3>
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 overflow-y-auto p-4">
+      <div className="bg-white rounded-lg shadow-2xl my-8 relative max-w-2xl w-full mx-auto">
+        <div className="sticky top-0 bg-gray-50 border-b border-gray-200 px-6 py-4 flex justify-between items-center rounded-t-lg">
+          <h3 className="text-xl font-bold text-gray-800">Credit Nota Preview</h3>
           <div className="flex items-center gap-2">
             {onApply && (
               <button
                 onClick={onApply}
-                className="flex items-center gap-1 text-yellow-400 hover:text-yellow-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-700"
+                className="flex items-center gap-1 text-yellow-600 hover:text-yellow-700 transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-100"
                 title="Toepassen"
               >
                 <Link size={20} />
@@ -79,7 +79,7 @@ export function CreditNotePreview({ creditNote, companySettings, onClose, onDown
             {onSend && (
               <button
                 onClick={onSend}
-                className="flex items-center gap-1 text-indigo-400 hover:text-indigo-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-700"
+                className="flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-100"
                 title="Versturen"
               >
                 <Send size={20} />
@@ -89,7 +89,7 @@ export function CreditNotePreview({ creditNote, companySettings, onClose, onDown
             {onEdit && (
               <button
                 onClick={onEdit}
-                className="flex items-center gap-1 text-blue-400 hover:text-blue-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-700"
+                className="flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-100"
                 title="Bewerken"
               >
                 <Edit size={20} />
@@ -99,7 +99,7 @@ export function CreditNotePreview({ creditNote, companySettings, onClose, onDown
             {onDownload && (
               <button
                 onClick={onDownload}
-                className="flex items-center gap-1 text-emerald-400 hover:text-emerald-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-700"
+                className="flex items-center gap-1 text-green-600 hover:text-green-700 transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-100"
                 title="Download PDF"
               >
                 <Download size={20} />
@@ -109,7 +109,7 @@ export function CreditNotePreview({ creditNote, companySettings, onClose, onDown
             {onDelete && (
               <button
                 onClick={onDelete}
-                className="flex items-center gap-1 text-red-400 hover:text-red-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-700"
+                className="flex items-center gap-1 text-red-600 hover:text-red-700 transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-100"
                 title="Verwijderen"
               >
                 <Trash2 size={20} />
@@ -117,114 +117,100 @@ export function CreditNotePreview({ creditNote, companySettings, onClose, onDown
             )}
             <button
               onClick={onClose}
-              className="p-2 hover:bg-dark-700 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
-              <X size={20} className="text-gray-300" />
+              <X size={20} className="text-gray-600" />
             </button>
           </div>
         </div>
 
-        <div className="p-8" id="credit-note-preview">
-          <div className="bg-white p-8 rounded-lg shadow-xl">
-            <div className="flex justify-between items-start mb-8">
-              <div>
-                <h1 className="text-2xl font-bold text-red-600 mb-2">CREDITFACTUUR</h1>
-              </div>
-              <div className="text-right">
-                <img src="/image copy copy copy copy copy copy.png" alt="Logo" className="h-12 ml-auto mb-2" />
+        <div className="p-6 space-y-6">
+          <div className="grid grid-cols-2 gap-6 pb-6 border-b border-gray-200">
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">Klant</h3>
+              <p className="text-gray-900 font-medium">{customerName}</p>
+              <div className="mt-2 text-sm text-gray-600">
+                <p className="whitespace-pre-line">{customerAddress}</p>
               </div>
             </div>
-
-            <div className="flex justify-between items-start mb-6">
-              <div className="bg-gray-50 p-4 rounded-lg w-80">
-                <p className="text-sm text-gray-600">t.a.v. {customerName}</p>
-                <p className="text-gray-700 whitespace-pre-line mt-1">{customerAddress}</p>
-              </div>
-
-              <div className="text-right text-sm">
-                <div className="mb-2">
-                  <span className="font-semibold text-gray-600">Creditfactuurnr: </span>
-                  <span className="text-gray-900">{creditNote.credit_note_number.replace(/^CN-/, '')}</span>
+            <div className="text-right">
+              <div className="space-y-1 text-sm">
+                <div>
+                  <span className="text-gray-600">Credit Nota Nummer: </span>
+                  <span className="font-semibold text-red-600">{creditNote.credit_note_number.replace(/^CN-/, '')}</span>
                 </div>
                 <div>
-                  <span className="font-semibold text-gray-600">Creditdatum: </span>
+                  <span className="text-gray-600">Creditdatum: </span>
                   <span className="text-gray-900">{formatDate(creditNote.credit_date)}</span>
+                </div>
+                <div className="mt-3 inline-block">
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    creditNote.status === 'draft' ? 'bg-gray-200 text-gray-700' :
+                    creditNote.status === 'issued' ? 'bg-blue-100 text-blue-700' :
+                    'bg-green-100 text-green-700'
+                  }`}>
+                    {creditNote.status === 'draft' ? 'Concept' :
+                     creditNote.status === 'issued' ? 'Uitgegeven' : 'Toegepast'}
+                  </span>
                 </div>
               </div>
             </div>
+          </div>
 
-            <div className="mb-6 bg-red-50 p-3 rounded-lg">
-              <p className="text-sm font-semibold text-red-800 mb-1">CREDITFACTUUR</p>
-              <p className="text-xs text-gray-700">Deze creditfactuur corrigeert een eerder verzonden factuur.</p>
-              <p className="text-xs text-gray-700 mt-1">Reden: {creditNote.reason}</p>
-            </div>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <p className="text-sm font-semibold text-red-800 mb-1">Credit Nota - {creditNote.reason}</p>
+            <p className="text-xs text-gray-700">Deze creditfactuur corrigeert een eerder verzonden factuur.</p>
+          </div>
 
-            <table className="w-full mb-8">
+          <div>
+            <h4 className="text-sm font-semibold text-gray-700 mb-3">Regels</h4>
+            <table className="w-full border border-gray-200">
               <thead>
-                <tr className="bg-red-600 text-white">
-                  <th className="text-left py-2 px-2 text-sm font-semibold">Omschrijving</th>
-                  <th className="text-right py-2 px-2 text-sm font-semibold">Bedrag</th>
-                  <th className="text-right py-2 px-2 text-sm font-semibold w-16">BTW</th>
+                <tr className="bg-red-50 border-b border-gray-200">
+                  <th className="text-left py-2 px-3 text-xs font-semibold text-gray-700">Omschrijving</th>
+                  <th className="text-right py-2 px-3 text-xs font-semibold text-gray-700">Aantal</th>
+                  <th className="text-right py-2 px-3 text-xs font-semibold text-gray-700">Prijs</th>
+                  <th className="text-right py-2 px-3 text-xs font-semibold text-gray-700">Bedrag</th>
                 </tr>
               </thead>
               <tbody>
                 {creditNote.credit_note_line_items?.map((item, index) => (
-                  <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : ''}>
-                    <td className="py-2 px-2 text-gray-900">
-                      {item.quantity > 1
-                        ? `${item.description} (${item.quantity}x ${formatCurrency(item.unit_price)})`
-                        : item.description
-                      }
-                    </td>
-                    <td className="py-2 px-2 text-right text-gray-900">{formatCurrency(-item.amount)}</td>
-                    <td className="py-2 px-2 text-right text-gray-900">{creditNote.vat_rate}%</td>
+                  <tr key={index} className="border-b border-gray-100">
+                    <td className="py-2 px-3 text-sm text-gray-900">{item.description}</td>
+                    <td className="py-2 px-3 text-sm text-right text-gray-700">{item.quantity}</td>
+                    <td className="py-2 px-3 text-sm text-right text-gray-700">{formatCurrency(item.unit_price)}</td>
+                    <td className="py-2 px-3 text-sm text-right font-medium text-red-600">{formatCurrency(-item.amount)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
 
-            {creditNote.notes && (
-              <div className="border-t border-gray-200 pt-4 mb-6">
-                <p className="text-sm font-semibold text-gray-700 mb-2">Toelichting:</p>
-                <p className="text-sm text-gray-700">{creditNote.notes}</p>
-              </div>
-            )}
-
-            <div className="flex justify-end mb-8">
-              <div className="w-64 text-sm">
-                <div className="flex justify-between py-1 text-gray-700">
-                  <span>Subtotaal excl. BTW:</span>
-                  <span className="font-semibold">{formatCurrency(-creditNote.subtotal)}</span>
-                </div>
-                <div className="flex justify-between py-1 text-gray-700">
-                  <span>BTW {creditNote.vat_rate}%:</span>
-                  <span className="font-semibold">{formatCurrency(-creditNote.vat_amount)}</span>
-                </div>
-                <div className="flex justify-between py-2 border-t-2 border-gray-400 text-base font-bold text-gray-900 mt-1">
-                  <span>Totaal incl. BTW:</span>
-                  <span className="text-red-600">{formatCurrency(-creditNote.total_amount)}</span>
-                </div>
-              </div>
+          {creditNote.notes && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <p className="text-sm font-semibold text-gray-700 mb-2">Opmerkingen</p>
+              <p className="text-sm text-gray-600">{creditNote.notes}</p>
             </div>
+          )}
 
-            <div className="bg-yellow-50 p-3 rounded-lg mb-6">
-              <p className="text-xs font-semibold text-gray-700">Let op:</p>
-              <p className="text-xs text-gray-600 mt-1">Dit bedrag wordt in mindering gebracht op uw openstaande saldo.</p>
-              <p className="text-xs text-gray-600">Het gecrediteerde bedrag wordt verrekend met toekomstige facturen of terugbetaald indien gewenst.</p>
+          <div className="mt-6 pt-4 border-t-2 border-gray-200 space-y-2">
+            <div className="flex justify-between text-gray-700">
+              <span>Subtotaal (excl. BTW):</span>
+              <span className="text-red-600">{formatCurrency(-creditNote.subtotal)}</span>
             </div>
+            <div className="flex justify-between text-gray-700">
+              <span>BTW ({creditNote.vat_rate.toFixed(0)}%):</span>
+              <span className="text-red-600">{formatCurrency(-creditNote.vat_amount)}</span>
+            </div>
+            <div className="flex justify-between text-lg font-bold text-gray-900 pt-2 border-t border-gray-300">
+              <span>Totaal Credit:</span>
+              <span className="text-red-600">{formatCurrency(-creditNote.total_amount)}</span>
+            </div>
+          </div>
 
-            <div className="border-t-2 border-yellow-500 pt-4 mb-8 text-xs text-gray-600">
-              <p>Bankrekening: {companySettings?.bank_account} t.n.v. {companySettings?.company_name}</p>
-              <p className="mt-1">Contact: {companySettings?.phone} | {companySettings?.email}</p>
-              <p className="mt-1">{companySettings?.address}, {companySettings?.postal_code} {companySettings?.city}</p>
-              <p className="mt-1">KvK-nummer: {companySettings?.kvk_number} | BTW-nummer: {companySettings?.btw_number}</p>
-            </div>
-
-            <div className="border-t border-gray-200 pt-4 text-center text-xs text-gray-500">
-              <p>{companySettings?.company_name} | KvK: {companySettings?.kvk_number} | BTW: {companySettings?.btw_number}</p>
-              <p className="mt-1">{companySettings?.address}, {companySettings?.postal_code} {companySettings?.city}</p>
-              <p className="mt-1">T: {companySettings?.phone} | E: {companySettings?.email}</p>
-            </div>
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+            <p className="text-xs font-semibold text-gray-700">Let op:</p>
+            <p className="text-xs text-gray-600 mt-1">Dit bedrag wordt in mindering gebracht op uw openstaande saldo. Het gecrediteerde bedrag kan worden verrekend met toekomstige facturen of terugbetaald indien gewenst.</p>
           </div>
         </div>
       </div>
