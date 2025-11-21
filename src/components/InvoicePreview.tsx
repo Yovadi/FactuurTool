@@ -131,7 +131,7 @@ export function InvoicePreview({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 overflow-y-auto p-4">
-      <div className="bg-white rounded-lg shadow-2xl my-8 relative max-w-2xl w-full mx-auto">
+      <div className="bg-white rounded-lg shadow-2xl my-8 relative max-w-5xl w-full mx-auto">
         <div className="sticky top-0 bg-white rounded-t-lg border-b border-gray-200 px-6 py-4 flex items-center justify-between">
           <h2 className="text-2xl font-bold text-gray-900">Factuur {invoiceNumberDisplay}</h2>
           <div className="flex items-center gap-2">

@@ -62,7 +62,7 @@ export function CreditNotePreview({ creditNote, companySettings, onClose, onDown
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 overflow-y-auto p-4">
-      <div className="bg-white rounded-lg shadow-2xl my-8 relative max-w-2xl w-full mx-auto">
+      <div className="bg-white rounded-lg shadow-2xl my-8 relative max-w-5xl w-full mx-auto">
         <div className="sticky top-0 bg-gray-50 border-b border-gray-200 px-6 py-4 flex justify-between items-center rounded-t-lg">
           <h3 className="text-xl font-bold text-gray-800">Credit Nota Preview</h3>
           <div className="flex items-center gap-2">
