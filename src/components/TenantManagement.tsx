@@ -504,16 +504,16 @@ export function TenantManagement() {
       {activeTab === 'active' ? (
         <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full table-fixed">
               <thead>
                 <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
-                  <th className="text-left px-4 py-2 font-semibold">Bedrijf</th>
-                  <th className="text-left px-4 py-2 font-semibold">Contactpersoon</th>
-                  <th className="text-left px-4 py-2 font-semibold">Email</th>
-                  <th className="text-left px-4 py-2 font-semibold">Telefoon</th>
-                  <th className="text-left px-4 py-2 font-semibold">Adres</th>
-                  <th className="text-center px-4 py-2 font-semibold">PIN</th>
-                  <th className="text-right px-4 py-2 font-semibold">Acties</th>
+                  <th className="text-left px-4 py-2 font-semibold w-[20%]">Bedrijf</th>
+                  <th className="text-left px-4 py-2 font-semibold w-[15%]">Contactpersoon</th>
+                  <th className="text-left px-4 py-2 font-semibold w-[18%]">Email</th>
+                  <th className="text-left px-4 py-2 font-semibold w-[12%]">Telefoon</th>
+                  <th className="text-left px-4 py-2 font-semibold w-[18%]">Adres</th>
+                  <th className="text-center px-4 py-2 font-semibold w-[8%]">PIN</th>
+                  <th className="text-right px-4 py-2 font-semibold w-[9%]">Acties</th>
                 </tr>
               </thead>
               <tbody>
@@ -604,15 +604,16 @@ export function TenantManagement() {
       ) : activeTab === 'inactive' ? (
         <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full table-fixed">
               <thead>
                 <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
-                  <th className="text-left px-4 py-2 font-semibold">Bedrijf</th>
-                  <th className="text-left px-4 py-2 font-semibold">Contactpersoon</th>
-                  <th className="text-left px-4 py-2 font-semibold">Email</th>
-                  <th className="text-left px-4 py-2 font-semibold">Telefoon</th>
-                  <th className="text-left px-4 py-2 font-semibold">Adres</th>
-                  <th className="text-right px-4 py-2 font-semibold">Acties</th>
+                  <th className="text-left px-4 py-2 font-semibold w-[20%]">Bedrijf</th>
+                  <th className="text-left px-4 py-2 font-semibold w-[15%]">Contactpersoon</th>
+                  <th className="text-left px-4 py-2 font-semibold w-[18%]">Email</th>
+                  <th className="text-left px-4 py-2 font-semibold w-[12%]">Telefoon</th>
+                  <th className="text-left px-4 py-2 font-semibold w-[18%]">Adres</th>
+                  <th className="text-center px-4 py-2 font-semibold w-[8%]">PIN</th>
+                  <th className="text-right px-4 py-2 font-semibold w-[9%]">Acties</th>
                 </tr>
               </thead>
               <tbody>
@@ -668,6 +669,9 @@ export function TenantManagement() {
                           </div>
                         ) : '-'}
                       </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="text-gray-500">-</span>
+                      </td>
                       <td className="px-4 py-3">
                         <div className="flex gap-1 justify-end">
                           <button
@@ -688,16 +692,16 @@ export function TenantManagement() {
       ) : (
         <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full table-fixed">
               <thead>
                 <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
-                  <th className="text-left px-4 py-2 font-semibold">Bedrijf</th>
-                  <th className="text-left px-4 py-2 font-semibold">Contactpersoon</th>
-                  <th className="text-left px-4 py-2 font-semibold">Email</th>
-                  <th className="text-left px-4 py-2 font-semibold">Telefoon</th>
-                  <th className="text-left px-4 py-2 font-semibold">Adres</th>
-                  <th className="text-center px-4 py-2 font-semibold">PIN</th>
-                  <th className="text-right px-4 py-2 font-semibold">Acties</th>
+                  <th className="text-left px-4 py-2 font-semibold w-[20%]">Bedrijf</th>
+                  <th className="text-left px-4 py-2 font-semibold w-[15%]">Contactpersoon</th>
+                  <th className="text-left px-4 py-2 font-semibold w-[18%]">Email</th>
+                  <th className="text-left px-4 py-2 font-semibold w-[12%]">Telefoon</th>
+                  <th className="text-left px-4 py-2 font-semibold w-[18%]">Adres</th>
+                  <th className="text-center px-4 py-2 font-semibold w-[8%]">PIN</th>
+                  <th className="text-right px-4 py-2 font-semibold w-[9%]">Acties</th>
                 </tr>
               </thead>
               <tbody>
