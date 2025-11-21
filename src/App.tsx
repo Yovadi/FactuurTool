@@ -11,7 +11,7 @@ import { LayoutDashboard, Users, Building, ScrollText, Settings, CalendarClock, 
 type Tab = 'dashboard' | 'tenants' | 'spaces' | 'bookings' | 'financial' | 'settings';
 
 function App() {
-  const [activeTab, setActiveTab] = useState<Tab>('bookings');
+  const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [isElectron, setIsElectron] = useState(false);
   const [loggedInTenantId, setLoggedInTenantId] = useState<string | null>(null);
   const [loggedInTenantName, setLoggedInTenantName] = useState<string>('');
