@@ -23,20 +23,20 @@ export function Financial() {
     <div>
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-gray-100 mb-4">Financieel</h2>
-        <div className="flex gap-2 border-b border-dark-700">
+        <div className="flex gap-4 border-b border-dark-700">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2 font-medium transition-colors ${
+                className={`flex items-center gap-2 px-4 py-3 font-semibold transition-colors ${
                   activeTab === tab.id
                     ? 'text-gold-500 border-b-2 border-gold-500'
-                    : 'text-gray-300 hover:text-gray-100'
+                    : 'text-gray-400 hover:text-gray-300'
                 }`}
               >
-                <Icon size={18} />
+                <Icon size={20} />
                 {tab.label}
               </button>
             );
