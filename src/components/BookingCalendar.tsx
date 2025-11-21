@@ -1191,7 +1191,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                       key={time}
                       className={`relative border-b border-gray-700 ${
                         !hasBookingHere && !isPast ? 'cursor-pointer hover:bg-dark-800/50' : ''
-                      } ${isSelected ? (isTouchDevice ? 'bg-yellow-500/60 border-2 border-yellow-300' : 'bg-yellow-200/40 border-2 border-yellow-400') : ''} ${isPast ? 'bg-dark-950/50' : isWorkHours ? 'bg-gray-500/50' : ''} ${isDraggingBooking && !hasBookingHere && !isPast ? 'bg-green-900/20' : ''} ${isTouchDevice && !hasBookingHere && !isPast ? 'active:bg-yellow-500/30 transition-colors' : ''}`}
+                      } ${isSelected ? (isTouchDevice ? 'bg-yellow-500/60 border-2 border-yellow-300' : 'bg-yellow-200/40 border-2 border-yellow-400') : ''} ${isPast ? 'bg-dark-950/50' : !isWorkHours ? 'bg-gray-900' : 'bg-dark-800'} ${isDraggingBooking && !hasBookingHere && !isPast ? 'bg-green-900/20' : ''} ${isTouchDevice && !hasBookingHere && !isPast ? 'active:bg-yellow-500/30 transition-colors' : ''}`}
                       style={{ height: `${CELL_HEIGHT}px` }}
                       onMouseDown={(e) => {
                         if (!isDraggingBooking && !isTouchDevice) {
