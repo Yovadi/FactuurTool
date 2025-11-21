@@ -168,8 +168,8 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     let filtered = bookingsList;
 
     if (filter === 'all') {
-      // Show all bookings
-      filtered = bookingsList;
+      // Show only bookings without invoice (not yet processed)
+      filtered = bookingsList.filter(b => !b.invoice_id);
     } else if (filter === 'internal') {
       // Only tenant bookings
       filtered = bookingsList.filter(b => b.booking_type === 'tenant');
