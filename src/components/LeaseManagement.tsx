@@ -317,23 +317,23 @@ export function LeaseManagement() {
         </button>
       </div>
 
-      <div className="bg-dark-800 rounded-lg p-3 mb-6 inline-flex gap-2">
+      <div className="flex gap-4 mb-6 border-b border-dark-700">
         <button
           onClick={() => setActiveTab('active')}
-          className={`px-4 py-2.5 font-medium rounded-lg transition-all ${
+          className={`px-4 py-3 font-semibold transition-colors ${
             activeTab === 'active'
-              ? 'bg-gold-500 text-white'
-              : 'text-gray-400 hover:bg-dark-700 hover:text-gray-300'
+              ? 'text-gold-500 border-b-2 border-gold-500'
+              : 'text-gray-400 hover:text-gray-300'
           }`}
         >
           Actief ({activeLeases.length})
         </button>
         <button
           onClick={() => setActiveTab('expired')}
-          className={`px-4 py-2.5 font-medium rounded-lg transition-all ${
+          className={`px-4 py-3 font-semibold transition-colors ${
             activeTab === 'expired'
-              ? 'bg-gold-500 text-white'
-              : 'text-gray-400 hover:bg-dark-700 hover:text-gray-300'
+              ? 'text-gold-500 border-b-2 border-gold-500'
+              : 'text-gray-400 hover:text-gray-300'
           }`}
         >
           Verlopen/Beëindigd ({expiredLeases.length})
