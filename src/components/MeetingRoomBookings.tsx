@@ -1146,30 +1146,30 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
         <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full table-fixed min-w-[1000px]">
-            <thead className="bg-dark-800 border-b border-dark-700">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider w-[16%]">
+            <thead>
+              <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
+                <th className="text-left px-4 py-3 font-semibold w-[16%]">
                   Datum & Tijd
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider w-[10%]">
+                <th className="text-left px-4 py-3 font-semibold w-[10%]">
                   Ruimte
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider w-[18%]">
+                <th className="text-left px-4 py-3 font-semibold w-[18%]">
                   Klant
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider w-[12%]">
+                <th className="text-left px-4 py-3 font-semibold w-[12%]">
                   Duur
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider w-[10%]">
+                <th className="text-left px-4 py-3 font-semibold w-[10%]">
                   Bedrag
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider w-[10%]">
+                <th className="text-left px-4 py-3 font-semibold w-[10%]">
                   Status
                 </th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-300 uppercase tracking-wider w-[12%]">
+                <th className="text-center px-4 py-3 font-semibold w-[12%]">
                   Factuur
                 </th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-300 uppercase tracking-wider w-[12%]">
+                <th className="text-center px-4 py-3 font-semibold w-[12%]">
                   Acties
                 </th>
               </tr>

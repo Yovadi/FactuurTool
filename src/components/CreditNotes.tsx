@@ -503,16 +503,16 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
         ) : (
           <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full table-fixed min-w-[1000px]">
                 <thead>
                   <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
-                    <th className="text-left px-4 py-2 font-semibold">Klant</th>
-                    <th className="text-left px-4 py-2 font-semibold">Credit Nota Nr.</th>
-                    <th className="text-left px-4 py-2 font-semibold">Datum</th>
-                    <th className="text-left px-4 py-2 font-semibold">Reden</th>
-                    <th className="text-right px-4 py-2 font-semibold">Bedrag</th>
-                    <th className="text-center px-4 py-2 font-semibold">Status</th>
-                    <th className="text-right px-4 py-2 font-semibold">Acties</th>
+                    <th className="text-left px-4 py-3 font-semibold w-[18%]">Klant</th>
+                    <th className="text-left px-4 py-3 font-semibold w-[12%]">Credit Nota Nr.</th>
+                    <th className="text-left px-4 py-3 font-semibold w-[12%]">Datum</th>
+                    <th className="text-left px-4 py-3 font-semibold w-[20%]">Reden</th>
+                    <th className="text-right px-4 py-3 font-semibold w-[12%]">Bedrag</th>
+                    <th className="text-center px-4 py-3 font-semibold w-[12%]">Status</th>
+                    <th className="text-right px-4 py-3 font-semibold w-[14%]">Acties</th>
                   </tr>
                 </thead>
                 <tbody>

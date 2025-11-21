@@ -762,16 +762,16 @@ export function LeaseManagement() {
 
       <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full table-fixed min-w-[1000px]">
             <thead>
               <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
-                <th className="text-left px-4 py-2 font-semibold">Huurder</th>
-                <th className="text-left px-4 py-2 font-semibold">Ruimtes</th>
-                <th className="text-right px-4 py-2 font-semibold">Maandhuur</th>
-                <th className="text-left px-4 py-2 font-semibold">BTW</th>
-                <th className="text-left px-4 py-2 font-semibold">Periode</th>
-                <th className="text-center px-4 py-2 font-semibold">Status</th>
-                <th className="text-right px-4 py-2 font-semibold">Acties</th>
+                <th className="text-left px-4 py-3 font-semibold w-[15%]">Huurder</th>
+                <th className="text-left px-4 py-3 font-semibold w-[20%]">Ruimtes</th>
+                <th className="text-right px-4 py-3 font-semibold w-[12%]">Maandhuur</th>
+                <th className="text-left px-4 py-3 font-semibold w-[10%]">BTW</th>
+                <th className="text-left px-4 py-3 font-semibold w-[18%]">Periode</th>
+                <th className="text-center px-4 py-3 font-semibold w-[12%]">Status</th>
+                <th className="text-right px-4 py-3 font-semibold w-[13%]">Acties</th>
               </tr>
             </thead>
             <tbody>
