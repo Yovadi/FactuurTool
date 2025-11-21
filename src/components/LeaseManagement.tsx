@@ -320,6 +320,9 @@ export function LeaseManagement() {
   };
 
   const calculateLeaseTotal = (lease: LeaseWithDetails) => {
+    if (lease.lease_type === 'part_time' && lease.daily_rate && lease.days_per_week) {
+      return Math.round(lease.daily_rate * lease.days_per_week * 4.33 * 100) / 100;
+    }
     return lease.lease_spaces.reduce((sum, ls) => sum + ls.monthly_rent, 0);
   };
 
@@ -418,6 +421,40 @@ export function LeaseManagement() {
                 </select>
               </div>
 
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-sm font-medium text-gray-200">
+                    Kantoorruimte
+                  </label>
+                </div>
+                <select
+                  required
+                  value={selectedSpaces.length > 0 ? selectedSpaces[0].space_id : ''}
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      setSelectedSpaces([{ space_id: e.target.value, price_per_sqm: '0' }]);
+                    } else {
+                      setSelectedSpaces([]);
+                    }
+                  }}
+                  className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                >
+                  <option value="">Selecteer een kantoor...</option>
+                  {spaces
+                    .filter(s => {
+                      const occupiedSpaceIds = leases
+                        .filter(l => !editingLease || l.id !== editingLease.id)
+                        .flatMap(l => l.lease_spaces.map(ls => ls.space_id));
+                      return !occupiedSpaceIds.includes(s.id) && s.space_type === 'kantoor';
+                    })
+                    .map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.space_number} ({s.square_footage} m²)
+                      </option>
+                    ))}
+                </select>
+              </div>
+
               {formData.lease_type === 'part_time' && (
                 <div className="bg-dark-950 p-4 rounded-lg space-y-3">
                   <div className="grid grid-cols-2 gap-4">
@@ -446,7 +483,9 @@ export function LeaseManagement() {
                       </label>
                       <select
                         value={formData.days_per_week}
-                        onChange={(e) => setFormData({ ...formData, days_per_week: e.target.value })}
+                        onChange={(e) => {
+                          setFormData({ ...formData, days_per_week: e.target.value, selected_days: [] });
+                        }}
                         className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                       >
                         <option value="1">1 dag</option>
@@ -746,12 +785,34 @@ export function LeaseManagement() {
                     <td className="px-4 py-3 text-gray-100 font-medium">{lease.tenant.company_name}</td>
                     <td className="px-4 py-3">
                       <div className="space-y-1">
-                        {lease.lease_spaces.map((ls) => (
-                          <div key={ls.id} className="text-xs text-gray-300 flex items-center gap-2">
-                            <span className="font-medium">{ls.space.space_number}</span>
-                            <span className="text-gray-400">({ls.space.square_footage} m² × €{ls.price_per_sqm}/m²)</span>
+                        {lease.lease_type === 'part_time' ? (
+                          <div className="text-xs text-gray-300">
+                            <div className="flex items-center gap-2">
+                              {lease.lease_spaces.length > 0 && (
+                                <span className="font-medium">{lease.lease_spaces[0].space.space_number}</span>
+                              )}
+                              <span className="text-gold-500 font-medium">Deeltijd</span>
+                            </div>
+                            <div className="text-gray-400 mt-1">
+                              {lease.days_per_week}x per week
+                              {lease.selected_days && lease.selected_days.length > 0 && (
+                                <span className="ml-1">({lease.selected_days.join(', ')})</span>
+                              )}
+                            </div>
+                            <div className="text-gray-400">
+                              €{lease.daily_rate?.toFixed(2)}/dag × {lease.days_per_week} × 4,33
+                            </div>
                           </div>
-                        ))}
+                        ) : (
+                          <>
+                            {lease.lease_spaces.map((ls) => (
+                              <div key={ls.id} className="text-xs text-gray-300 flex items-center gap-2">
+                                <span className="font-medium">{ls.space.space_number}</span>
+                                <span className="text-gray-400">({ls.space.square_footage} m² × €{ls.price_per_sqm}/m²)</span>
+                              </div>
+                            ))}
+                          </>
+                        )}
                         {lease.security_deposit > 0 && (
                           <div className="text-xs text-green-400">
                             + Voorschot G/W/E
