@@ -1287,35 +1287,35 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-100">Facturen</h2>
         <div className="flex gap-2">
-          {activeTab === 'draft' && leases.length > 0 && (
-            <button
-              onClick={generateBulkInvoices}
-              disabled={generatingBulk}
-              className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Calendar size={20} />
-              {generatingBulk ? 'Bezig...' : 'Huur Facturen'}
-            </button>
-          )}
-          {activeTab === 'draft' && tenants.length > 0 && (
-            <button
-              onClick={generateMeetingRoomInvoices}
-              disabled={generatingBulk}
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Calendar size={20} />
-              {generatingBulk ? 'Bezig...' : 'Vergaderruimte Facturen'}
-            </button>
-          )}
-          {activeTab === 'draft' && (
-            <button
-              onClick={() => setShowForm(true)}
-              className="flex items-center gap-2 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors"
-            >
-              <Plus size={20} />
-              Factuur Aanmaken
-            </button>
-          )}
+          <button
+            onClick={generateBulkInvoices}
+            disabled={generatingBulk}
+            className={`flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+              activeTab !== 'draft' || leases.length === 0 ? 'invisible' : ''
+            }`}
+          >
+            <Calendar size={20} />
+            {generatingBulk ? 'Bezig...' : 'Huur Facturen'}
+          </button>
+          <button
+            onClick={generateMeetingRoomInvoices}
+            disabled={generatingBulk}
+            className={`flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+              activeTab !== 'draft' || tenants.length === 0 ? 'invisible' : ''
+            }`}
+          >
+            <Calendar size={20} />
+            {generatingBulk ? 'Bezig...' : 'Vergaderruimte Facturen'}
+          </button>
+          <button
+            onClick={() => setShowForm(true)}
+            className={`flex items-center gap-2 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors ${
+              activeTab !== 'draft' ? 'invisible' : ''
+            }`}
+          >
+            <Plus size={20} />
+            Factuur Aanmaken
+          </button>
         </div>
       </div>
 
