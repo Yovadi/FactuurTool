@@ -1324,33 +1324,33 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
   return (
     <div>
 
-      <div className="flex gap-4 mb-6 border-b border-dark-700">
+      <div className="flex gap-2 mb-6">
         <button
           onClick={() => setActiveTab('draft')}
-          className={`px-4 py-3 font-semibold transition-colors ${
+          className={`px-4 py-2 font-medium rounded-lg transition-all ${
             activeTab === 'draft'
-              ? 'text-gold-500 border-b-2 border-gold-500'
-              : 'text-gray-400 hover:text-gray-300'
+              ? 'bg-gold-500 text-white shadow-lg'
+              : 'bg-dark-800 text-gray-400 hover:bg-dark-700 hover:text-gray-300'
           }`}
         >
           Concepten
         </button>
         <button
           onClick={() => setActiveTab('open')}
-          className={`px-4 py-3 font-semibold transition-colors ${
+          className={`px-4 py-2 font-medium rounded-lg transition-all ${
             activeTab === 'open'
-              ? 'text-gold-500 border-b-2 border-gold-500'
-              : 'text-gray-400 hover:text-gray-300'
+              ? 'bg-gold-500 text-white shadow-lg'
+              : 'bg-dark-800 text-gray-400 hover:bg-dark-700 hover:text-gray-300'
           }`}
         >
           Openstaand
         </button>
         <button
           onClick={() => setActiveTab('log')}
-          className={`px-4 py-3 font-semibold transition-colors ${
+          className={`px-4 py-2 font-medium rounded-lg transition-all ${
             activeTab === 'log'
-              ? 'text-gold-500 border-b-2 border-gold-500'
-              : 'text-gray-400 hover:text-gray-300'
+              ? 'bg-gold-500 text-white shadow-lg'
+              : 'bg-dark-800 text-gray-400 hover:bg-dark-700 hover:text-gray-300'
           }`}
         >
           Logboek

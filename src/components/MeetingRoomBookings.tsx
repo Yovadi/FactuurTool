@@ -684,13 +684,13 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
           </div>
 
           <div className="mb-6 flex justify-between items-center">
-            <div className="flex gap-2 border-b border-dark-700">
+            <div className="flex gap-2">
               <button
                 onClick={() => setSelectedView('calendar')}
-                className={`px-4 py-2 font-medium transition-colors flex items-center gap-2 ${
+                className={`px-4 py-2 font-medium rounded-lg transition-all flex items-center gap-2 ${
                   selectedView === 'calendar'
-                    ? 'text-gold-500 border-b-2 border-gold-500'
-                    : 'text-gray-300 hover:text-gray-100'
+                    ? 'bg-gold-500 text-white shadow-lg'
+                    : 'bg-dark-800 text-gray-400 hover:bg-dark-700 hover:text-gray-300'
                 }`}
               >
                 <CalendarDays size={18} />
@@ -698,10 +698,10 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
               </button>
               <button
                 onClick={() => setSelectedView('list')}
-                className={`px-4 py-2 font-medium transition-colors flex items-center gap-2 ${
+                className={`px-4 py-2 font-medium rounded-lg transition-all flex items-center gap-2 ${
                   selectedView === 'list'
-                    ? 'text-gold-500 border-b-2 border-gold-500'
-                    : 'text-gray-300 hover:text-gray-100'
+                    ? 'bg-gold-500 text-white shadow-lg'
+                    : 'bg-dark-800 text-gray-400 hover:bg-dark-700 hover:text-gray-300'
                 }`}
               >
                 <AlertCircle size={18} />
@@ -709,10 +709,10 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
               </button>
               <button
                 onClick={() => setSelectedView('rates')}
-                className={`px-4 py-2 font-medium transition-colors flex items-center gap-2 ${
+                className={`px-4 py-2 font-medium rounded-lg transition-all flex items-center gap-2 ${
                   selectedView === 'rates'
-                    ? 'text-gold-500 border-b-2 border-gold-500'
-                    : 'text-gray-300 hover:text-gray-100'
+                    ? 'bg-gold-500 text-white shadow-lg'
+                    : 'bg-dark-800 text-gray-400 hover:bg-dark-700 hover:text-gray-300'
                 }`}
               >
                 <DollarSign size={18} />
@@ -730,14 +730,14 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
             <h3 className="text-xl font-bold text-gray-100 mb-4">Nieuwe Boeking</h3>
 
             <div className="flex gap-2 mb-4">
-              <div className="flex gap-2 border-b border-dark-600 w-full">
+              <div className="flex gap-2 w-full">
                 <button
                   type="button"
                   onClick={() => setBookingType('tenant')}
-                  className={`px-4 py-2 font-medium transition-colors ${
+                  className={`px-4 py-2 font-medium rounded-lg transition-all ${
                     bookingType === 'tenant'
-                      ? 'text-gold-500 border-b-2 border-gold-500'
-                      : 'text-gray-400 hover:text-gray-200'
+                      ? 'bg-gold-500 text-white shadow-lg'
+                      : 'bg-dark-700 text-gray-400 hover:bg-dark-600 hover:text-gray-300'
                   }`}
                 >
                   Huurder
@@ -745,10 +745,10 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                 <button
                   type="button"
                   onClick={() => setBookingType('external')}
-                  className={`px-4 py-2 font-medium transition-colors ${
+                  className={`px-4 py-2 font-medium rounded-lg transition-all ${
                     bookingType === 'external'
-                      ? 'text-gold-500 border-b-2 border-gold-500'
-                      : 'text-gray-400 hover:text-gray-200'
+                      ? 'bg-gold-500 text-white shadow-lg'
+                      : 'bg-dark-700 text-gray-400 hover:bg-dark-600 hover:text-gray-300'
                   }`}
                 >
                   Externe partij
