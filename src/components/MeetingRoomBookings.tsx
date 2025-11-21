@@ -720,75 +720,6 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
               </button>
             </div>
 
-            {selectedView === 'list' && (
-              <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    setSelectedFilter('all');
-                    applyFilter(allBookings, 'all');
-                  }}
-                  className={`px-4 py-2 rounded-lg transition-colors ${
-                    selectedFilter === 'all'
-                      ? 'bg-gold-600 text-white'
-                      : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
-                  }`}
-                >
-                  Alle
-                </button>
-                <button
-                  onClick={() => {
-                    setSelectedFilter('internal');
-                    applyFilter(allBookings, 'internal');
-                  }}
-                  className={`px-4 py-2 rounded-lg transition-colors ${
-                    selectedFilter === 'internal'
-                      ? 'bg-gold-600 text-white'
-                      : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
-                  }`}
-                >
-                  Intern
-                </button>
-                <button
-                  onClick={() => {
-                    setSelectedFilter('external');
-                    applyFilter(allBookings, 'external');
-                  }}
-                  className={`px-4 py-2 rounded-lg transition-colors ${
-                    selectedFilter === 'external'
-                      ? 'bg-gold-600 text-white'
-                      : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
-                  }`}
-                >
-                  Extern
-                </button>
-                <button
-                  onClick={() => {
-                    setSelectedFilter('upcoming');
-                    applyFilter(allBookings, 'upcoming');
-                  }}
-                  className={`px-4 py-2 rounded-lg transition-colors ${
-                    selectedFilter === 'upcoming'
-                      ? 'bg-gold-600 text-white'
-                      : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
-                  }`}
-                >
-                  Aankomend
-                </button>
-                <button
-                  onClick={() => {
-                    setSelectedFilter('invoiced');
-                    applyFilter(allBookings, 'invoiced');
-                  }}
-                  className={`px-4 py-2 rounded-lg transition-colors ${
-                    selectedFilter === 'invoiced'
-                      ? 'bg-gold-600 text-white'
-                      : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
-                  }`}
-                >
-                  Gefactureerd
-                </button>
-              </div>
-            )}
           </div>
         </>
       )}
@@ -1144,9 +1075,78 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
         </div>
       ) : (
         <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
-          <h2 className="text-lg font-bold text-gray-100 px-4 py-3 bg-dark-800 border-b border-amber-500">
-            Vergaderruimte Boekingen
-          </h2>
+          <div className="flex justify-between items-center px-4 py-3 bg-dark-800 border-b border-amber-500">
+            <h2 className="text-lg font-bold text-gray-100">
+              Vergaderruimte Boekingen
+            </h2>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setSelectedFilter('all');
+                  applyFilter(allBookings, 'all');
+                }}
+                className={`px-3 py-1.5 rounded-lg transition-colors text-sm ${
+                  selectedFilter === 'all'
+                    ? 'bg-gold-600 text-white'
+                    : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
+                }`}
+              >
+                Alle
+              </button>
+              <button
+                onClick={() => {
+                  setSelectedFilter('internal');
+                  applyFilter(allBookings, 'internal');
+                }}
+                className={`px-3 py-1.5 rounded-lg transition-colors text-sm ${
+                  selectedFilter === 'internal'
+                    ? 'bg-gold-600 text-white'
+                    : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
+                }`}
+              >
+                Intern
+              </button>
+              <button
+                onClick={() => {
+                  setSelectedFilter('external');
+                  applyFilter(allBookings, 'external');
+                }}
+                className={`px-3 py-1.5 rounded-lg transition-colors text-sm ${
+                  selectedFilter === 'external'
+                    ? 'bg-gold-600 text-white'
+                    : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
+                }`}
+              >
+                Extern
+              </button>
+              <button
+                onClick={() => {
+                  setSelectedFilter('upcoming');
+                  applyFilter(allBookings, 'upcoming');
+                }}
+                className={`px-3 py-1.5 rounded-lg transition-colors text-sm ${
+                  selectedFilter === 'upcoming'
+                    ? 'bg-gold-600 text-white'
+                    : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
+                }`}
+              >
+                Aankomend
+              </button>
+              <button
+                onClick={() => {
+                  setSelectedFilter('invoiced');
+                  applyFilter(allBookings, 'invoiced');
+                }}
+                className={`px-3 py-1.5 rounded-lg transition-colors text-sm ${
+                  selectedFilter === 'invoiced'
+                    ? 'bg-gold-600 text-white'
+                    : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
+                }`}
+              >
+                Gefactureerd
+              </button>
+            </div>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full table-fixed min-w-[1000px]">
             <thead>
