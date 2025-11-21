@@ -8,8 +8,15 @@ import { FileText, AlertTriangle, Receipt, TrendingUp, DollarSign } from 'lucide
 
 type FinancialTab = 'invoices' | 'debtors' | 'creditnotes' | 'creditoverview' | 'analytics';
 
+type PrefilledInvoiceData = {
+  invoice: any;
+  tenant: any;
+  spaces: any[];
+};
+
 export function Financial() {
   const [activeTab, setActiveTab] = useState<FinancialTab>('invoices');
+  const [prefilledInvoiceData, setPrefilledInvoiceData] = useState<PrefilledInvoiceData | null>(null);
 
   const tabs = [
     { id: 'invoices' as FinancialTab, label: 'Facturen', icon: FileText },
@@ -45,9 +52,21 @@ export function Financial() {
       </div>
 
       <div>
-        {activeTab === 'invoices' && <InvoiceManagement />}
+        {activeTab === 'invoices' && (
+          <InvoiceManagement
+            onCreateCreditNote={(invoice, tenant, spaces) => {
+              setPrefilledInvoiceData({ invoice, tenant, spaces });
+              setActiveTab('creditnotes');
+            }}
+          />
+        )}
         {activeTab === 'debtors' && <DebtorsOverview />}
-        {activeTab === 'creditnotes' && <CreditNotes />}
+        {activeTab === 'creditnotes' && (
+          <CreditNotes
+            prefilledInvoiceData={prefilledInvoiceData}
+            onClearPrefilled={() => setPrefilledInvoiceData(null)}
+          />
+        )}
         {activeTab === 'creditoverview' && <CreditOverview />}
         {activeTab === 'analytics' && <Analytics />}
       </div>

@@ -51,7 +51,11 @@ function convertLineItemsToSpaces(items: InvoiceLineItem[]) {
   });
 }
 
-export function InvoiceManagement() {
+type InvoiceManagementProps = {
+  onCreateCreditNote?: (invoice: any, tenant: any, spaces: any[]) => void;
+};
+
+export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps = {}) {
   const [invoices, setInvoices] = useState<InvoiceWithDetails[]>([]);
   const [leases, setLeases] = useState<LeaseWithDetails[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -2432,6 +2436,13 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
           onMarkAsPaid={previewInvoice.invoice.status === 'sent' ? () => {
             markAsPaid(previewInvoice.invoice.id);
             setPreviewInvoice(null);
+          } : undefined}
+          onCreateCreditNote={onCreateCreditNote ? () => {
+            const tenant = getInvoiceTenant(previewInvoice.invoice);
+            if (tenant && onCreateCreditNote) {
+              onCreateCreditNote(previewInvoice.invoice, tenant, previewInvoice.spaces);
+              setPreviewInvoice(null);
+            }
           } : undefined}
         />
       )}

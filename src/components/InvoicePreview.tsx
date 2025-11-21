@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Download, Send, Edit, Trash2, Receipt } from 'lucide-react';
+import { X, Download, Send, Edit, Trash2, Receipt, FileText } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface InvoiceSpace {
@@ -66,6 +66,7 @@ interface InvoicePreviewProps {
   onEdit?: () => void;
   onDelete?: () => void;
   onMarkAsPaid?: () => void;
+  onCreateCreditNote?: () => void;
 }
 
 export function InvoicePreview({
@@ -79,6 +80,7 @@ export function InvoicePreview({
   onEdit,
   onDelete,
   onMarkAsPaid,
+  onCreateCreditNote,
 }: InvoicePreviewProps) {
   const [creditApplications, setCreditApplications] = useState<CreditApplication[]>([]);
   const [loading, setLoading] = useState(true);
@@ -133,6 +135,16 @@ export function InvoicePreview({
         <div className="sticky top-0 bg-white rounded-t-lg border-b border-gray-200 px-6 py-4 flex items-center justify-between">
           <h2 className="text-2xl font-bold text-gray-900">Factuur {invoiceNumberDisplay}</h2>
           <div className="flex items-center gap-2">
+            {onCreateCreditNote && (
+              <button
+                onClick={onCreateCreditNote}
+                className="flex items-center gap-1 text-yellow-600 hover:text-yellow-700 transition-colors px-3 py-1.5 rounded-lg hover:bg-yellow-50"
+                title="Maak Credit Nota"
+              >
+                <FileText size={20} />
+                <span className="text-sm font-medium">Credit Nota</span>
+              </button>
+            )}
             {onEdit && (
               <button
                 onClick={onEdit}

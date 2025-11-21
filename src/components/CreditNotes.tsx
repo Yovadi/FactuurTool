@@ -68,7 +68,16 @@ type ExternalCustomer = {
   contact_name: string;
 };
 
-export function CreditNotes() {
+type CreditNotesProps = {
+  prefilledInvoiceData?: {
+    invoice: any;
+    tenant: any;
+    spaces: any[];
+  } | null;
+  onClearPrefilled?: () => void;
+};
+
+export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNotesProps = {}) {
   const [creditNotes, setCreditNotes] = useState<CreditNote[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -98,6 +107,48 @@ export function CreditNotes() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (prefilledInvoiceData) {
+      handlePrefilledInvoice();
+    }
+  }, [prefilledInvoiceData]);
+
+  const handlePrefilledInvoice = () => {
+    if (!prefilledInvoiceData) return;
+
+    const { invoice, tenant, spaces } = prefilledInvoiceData;
+
+    const isExternal = !!invoice.external_customer_id;
+    setCustomerType(isExternal ? 'external' : 'tenant');
+
+    setFormData({
+      original_invoice_id: invoice.id || '',
+      tenant_id: invoice.tenant_id || '',
+      external_customer_id: invoice.external_customer_id || '',
+      credit_date: new Date().toISOString().split('T')[0],
+      reason: `Correctie factuur ${invoice.invoice_number}`,
+      vat_rate: invoice.vat_rate || 21,
+      notes: '',
+    });
+
+    const convertedLineItems = spaces.map(space => ({
+      description: space.space_name,
+      quantity: space.square_footage || 1,
+      unit_price: space.price_per_sqm || space.monthly_rent,
+      amount: space.monthly_rent,
+    }));
+
+    setLineItems(convertedLineItems.length > 0 ? convertedLineItems : [
+      { description: '', quantity: 1, unit_price: 0, amount: 0 }
+    ]);
+
+    setShowForm(true);
+
+    if (onClearPrefilled) {
+      onClearPrefilled();
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
