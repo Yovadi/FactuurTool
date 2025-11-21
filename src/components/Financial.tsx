@@ -4,18 +4,18 @@ import { DebtorsOverview } from './DebtorsOverview';
 import { CreditNotes } from './CreditNotes';
 import { CreditOverview } from './CreditOverview';
 import { Analytics } from './Analytics';
-import { FileText, AlertTriangle, Receipt, TrendingUp, DollarSign } from 'lucide-react';
+import { FileText, Receipt, TrendingUp } from 'lucide-react';
 
-type FinancialTab = 'invoices' | 'debtors' | 'creditnotes' | 'creditoverview' | 'analytics';
+type FinancialTab = 'invoices' | 'credit' | 'analytics';
 
 export function Financial() {
   const [activeTab, setActiveTab] = useState<FinancialTab>('invoices');
+  const [invoiceSubTab, setInvoiceSubTab] = useState<'invoices' | 'debtors'>('invoices');
+  const [creditSubTab, setCreditSubTab] = useState<'notes' | 'overview'>('notes');
 
   const tabs = [
-    { id: 'invoices' as FinancialTab, label: 'Facturen', icon: FileText },
-    { id: 'debtors' as FinancialTab, label: 'Debiteuren', icon: AlertTriangle },
-    { id: 'creditnotes' as FinancialTab, label: 'Credit Nota\'s', icon: Receipt },
-    { id: 'creditoverview' as FinancialTab, label: 'Credit Overzicht', icon: DollarSign },
+    { id: 'invoices' as FinancialTab, label: 'Facturen & Debiteuren', icon: FileText },
+    { id: 'credit' as FinancialTab, label: 'Credit Beheer', icon: Receipt },
     { id: 'analytics' as FinancialTab, label: 'Analyses', icon: TrendingUp },
   ];
 
@@ -45,10 +45,60 @@ export function Financial() {
       </div>
 
       <div>
-        {activeTab === 'invoices' && <InvoiceManagement />}
-        {activeTab === 'debtors' && <DebtorsOverview />}
-        {activeTab === 'creditnotes' && <CreditNotes />}
-        {activeTab === 'creditoverview' && <CreditOverview />}
+        {activeTab === 'invoices' && (
+          <div>
+            <div className="flex gap-4 mb-6 border-b border-dark-700">
+              <button
+                onClick={() => setInvoiceSubTab('invoices')}
+                className={`px-4 py-3 font-semibold transition-colors ${
+                  invoiceSubTab === 'invoices'
+                    ? 'text-gold-500 border-b-2 border-gold-500'
+                    : 'text-gray-400 hover:text-gray-300'
+                }`}
+              >
+                Facturen
+              </button>
+              <button
+                onClick={() => setInvoiceSubTab('debtors')}
+                className={`px-4 py-3 font-semibold transition-colors ${
+                  invoiceSubTab === 'debtors'
+                    ? 'text-gold-500 border-b-2 border-gold-500'
+                    : 'text-gray-400 hover:text-gray-300'
+                }`}
+              >
+                Debiteuren
+              </button>
+            </div>
+            {invoiceSubTab === 'invoices' ? <InvoiceManagement /> : <DebtorsOverview />}
+          </div>
+        )}
+        {activeTab === 'credit' && (
+          <div>
+            <div className="flex gap-4 mb-6 border-b border-dark-700">
+              <button
+                onClick={() => setCreditSubTab('notes')}
+                className={`px-4 py-3 font-semibold transition-colors ${
+                  creditSubTab === 'notes'
+                    ? 'text-gold-500 border-b-2 border-gold-500'
+                    : 'text-gray-400 hover:text-gray-300'
+                }`}
+              >
+                Credit Nota's
+              </button>
+              <button
+                onClick={() => setCreditSubTab('overview')}
+                className={`px-4 py-3 font-semibold transition-colors ${
+                  creditSubTab === 'overview'
+                    ? 'text-gold-500 border-b-2 border-gold-500'
+                    : 'text-gray-400 hover:text-gray-300'
+                }`}
+              >
+                Credit Overzicht
+              </button>
+            </div>
+            {creditSubTab === 'notes' ? <CreditNotes /> : <CreditOverview />}
+          </div>
+        )}
         {activeTab === 'analytics' && <Analytics />}
       </div>
     </div>

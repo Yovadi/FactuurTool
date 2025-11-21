@@ -1822,16 +1822,18 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               </h2>
               <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className="w-full">
+                  <table className="w-full table-fixed">
                     <thead>
                       <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
-                        <th className="text-left px-4 py-2 font-semibold">Klant</th>
-                        <th className="text-left px-4 py-2 font-semibold">Factuur Nr.</th>
-                        <th className="text-left px-4 py-2 font-semibold">Type</th>
-                        <th className="text-left px-4 py-2 font-semibold">Maand</th>
-                        <th className="text-left px-4 py-2 font-semibold">Vervaldatum</th>
-                        <th className="text-right px-4 py-2 font-semibold">Bedrag</th>
-                        <th className="text-center px-4 py-2 font-semibold">Status</th>
+                        <th className="text-left px-4 py-2 font-semibold w-[18%]">Klant</th>
+                        <th className="text-left px-4 py-2 font-semibold w-[10%]">Factuur Nr.</th>
+                        <th className="text-left px-4 py-2 font-semibold w-[10%]">Type</th>
+                        <th className="text-left px-4 py-2 font-semibold w-[10%]">Maand</th>
+                        <th className="text-left px-4 py-2 font-semibold w-[12%]">Factuur Datum</th>
+                        <th className="text-left px-4 py-2 font-semibold w-[12%]">Vervaldatum</th>
+                        <th className="text-right px-4 py-2 font-semibold w-[10%]">Bedrag</th>
+                        <th className="text-center px-4 py-2 font-semibold w-[10%]">Status</th>
+                        <th className="text-right px-4 py-2 font-semibold w-[8%]">Acties</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1872,6 +1874,9 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                               ) : '-'}
                             </td>
                             <td className="px-4 py-3 text-gray-300 text-sm">
+                              {new Date(invoice.invoice_date).toLocaleDateString('nl-NL')}
+                            </td>
+                            <td className="px-4 py-3 text-gray-300 text-sm">
                               <div className="flex items-center gap-1">
                                 <Calendar size={14} className="text-gold-500" />
                                 {new Date(invoice.due_date).toLocaleDateString('nl-NL')}
@@ -1891,6 +1896,13 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                               <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(invoice.status)}`}>
                                 {getStatusLabel(invoice.status)}
                               </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex gap-1 justify-end opacity-0">
+                                <button className="p-1.5">
+                                  <Edit2 size={16} />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -1938,18 +1950,18 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               </h2>
               <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className="w-full">
+                  <table className="w-full table-fixed">
                     <thead>
                       <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
-                        <th className="text-left px-4 py-2 font-semibold">Klant</th>
-                        <th className="text-left px-4 py-2 font-semibold">Factuur Nr.</th>
-                        <th className="text-left px-4 py-2 font-semibold">Type</th>
-                        <th className="text-left px-4 py-2 font-semibold">Maand</th>
-                        <th className="text-left px-4 py-2 font-semibold">Factuur Datum</th>
-                        <th className="text-left px-4 py-2 font-semibold">Vervaldatum</th>
-                        <th className="text-right px-4 py-2 font-semibold">Bedrag</th>
-                        <th className="text-center px-4 py-2 font-semibold">Status</th>
-                        <th className="text-right px-4 py-2 font-semibold">Acties</th>
+                        <th className="text-left px-4 py-2 font-semibold w-[18%]">Klant</th>
+                        <th className="text-left px-4 py-2 font-semibold w-[10%]">Factuur Nr.</th>
+                        <th className="text-left px-4 py-2 font-semibold w-[10%]">Type</th>
+                        <th className="text-left px-4 py-2 font-semibold w-[10%]">Maand</th>
+                        <th className="text-left px-4 py-2 font-semibold w-[12%]">Factuur Datum</th>
+                        <th className="text-left px-4 py-2 font-semibold w-[12%]">Vervaldatum</th>
+                        <th className="text-right px-4 py-2 font-semibold w-[10%]">Bedrag</th>
+                        <th className="text-center px-4 py-2 font-semibold w-[10%]">Status</th>
+                        <th className="text-right px-4 py-2 font-semibold w-[8%]">Acties</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2192,17 +2204,18 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                   </h3>
                   <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
                     <div className="overflow-x-auto">
-                      <table className="w-full">
+                      <table className="w-full table-fixed">
                         <thead>
                           <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
-                            <th className="text-left px-4 py-2 font-semibold">Factuur Nr.</th>
-                            <th className="text-left px-4 py-2 font-semibold">Type</th>
-                            <th className="text-left px-4 py-2 font-semibold">Maand</th>
-                            <th className="text-left px-4 py-2 font-semibold">Factuur Datum</th>
-                            <th className="text-left px-4 py-2 font-semibold">Betaald Op</th>
-                            <th className="text-right px-4 py-2 font-semibold">Bedrag</th>
-                            <th className="text-center px-4 py-2 font-semibold">Status</th>
-                            <th className="text-right px-4 py-2 font-semibold">Acties</th>
+                            <th className="text-left px-4 py-2 font-semibold w-[18%]">Klant</th>
+                            <th className="text-left px-4 py-2 font-semibold w-[10%]">Factuur Nr.</th>
+                            <th className="text-left px-4 py-2 font-semibold w-[10%]">Type</th>
+                            <th className="text-left px-4 py-2 font-semibold w-[10%]">Maand</th>
+                            <th className="text-left px-4 py-2 font-semibold w-[12%]">Factuur Datum</th>
+                            <th className="text-left px-4 py-2 font-semibold w-[12%]">Vervaldatum</th>
+                            <th className="text-right px-4 py-2 font-semibold w-[10%]">Bedrag</th>
+                            <th className="text-center px-4 py-2 font-semibold w-[10%]">Status</th>
+                            <th className="text-right px-4 py-2 font-semibold w-[8%]">Acties</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -2218,6 +2231,11 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                                 <td className="px-4 py-3">
                                   <div className="flex items-center gap-2">
                                     <FileText className="text-gray-500" size={18} />
+                                    <span className="text-gray-100 font-medium">{displayName}</span>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center gap-2">
                                     <span className="text-purple-600 font-medium text-sm">{invoice.invoice_number.replace(/^INV-/, '')}</span>
                                   </div>
                                 </td>
@@ -2238,13 +2256,13 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                                   ) : '-'}
                                 </td>
                                 <td className="px-4 py-3 text-gray-300 text-sm">
+                                  {new Date(invoice.invoice_date).toLocaleDateString('nl-NL')}
+                                </td>
+                                <td className="px-4 py-3 text-gray-300 text-sm">
                                   <div className="flex items-center gap-1">
                                     <Calendar size={14} className="text-gold-500" />
-                                    {new Date(invoice.invoice_date).toLocaleDateString('nl-NL')}
+                                    {new Date(invoice.due_date).toLocaleDateString('nl-NL')}
                                   </div>
-                                </td>
-                                <td className="px-4 py-3 text-green-400 text-sm">
-                                  {invoice.paid_at ? new Date(invoice.paid_at).toLocaleDateString('nl-NL') : '-'}
                                 </td>
                                 <td className="px-4 py-3 text-right">
                                   <div className="text-gray-100 font-bold">
