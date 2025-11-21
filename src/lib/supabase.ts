@@ -59,6 +59,10 @@ export type Lease = {
   status: 'active' | 'expired' | 'terminated';
   vat_rate: number;
   vat_inclusive: boolean;
+  lease_type: 'full_time' | 'part_time';
+  daily_rate: number | null;
+  days_per_week: number | null;
+  selected_days: string[] | null;
   created_at: string;
 };
 
