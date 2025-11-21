@@ -502,6 +502,9 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
           </div>
         ) : (
           <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
+            <h2 className="text-lg font-bold text-gray-100 px-4 py-3 bg-dark-800 border-b border-amber-500">
+              Credit Nota's
+            </h2>
             <div className="overflow-x-auto">
               <table className="w-full table-fixed min-w-[1000px]">
                 <thead>

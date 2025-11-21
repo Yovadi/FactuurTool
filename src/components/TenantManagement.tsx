@@ -302,8 +302,7 @@ export function TenantManagement() {
         <LeaseManagement />
       ) : (
         <div>
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-100">Huurders</h2>
+          <div className="flex justify-end items-center mb-6">
         <button
           onClick={() => setShowForm(true)}
           className={`flex items-center gap-2 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors ${
@@ -503,6 +502,9 @@ export function TenantManagement() {
 
       {activeTab === 'active' ? (
         <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
+          <h2 className="text-lg font-bold text-gray-100 px-4 py-3 bg-dark-800 border-b border-amber-500">
+            Actieve Huurders
+          </h2>
           <div className="overflow-x-auto">
             <table className="w-full table-fixed">
               <thead>
@@ -603,6 +605,9 @@ export function TenantManagement() {
         </div>
       ) : activeTab === 'inactive' ? (
         <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
+          <h2 className="text-lg font-bold text-gray-100 px-4 py-3 bg-dark-800 border-b border-amber-500">
+            Afgelopen Huurders
+          </h2>
           <div className="overflow-x-auto">
             <table className="w-full table-fixed">
               <thead>
@@ -691,6 +696,9 @@ export function TenantManagement() {
         </div>
       ) : (
         <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
+          <h2 className="text-lg font-bold text-gray-100 px-4 py-3 bg-dark-800 border-b border-amber-500">
+            Externe Huurders
+          </h2>
           <div className="overflow-x-auto">
             <table className="w-full table-fixed">
               <thead>

@@ -1862,10 +1862,10 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
           return (
             <div>
-              <h2 className="text-xl font-bold text-gray-100 mb-4 pb-2 border-b-2 border-dark-600">
-                Concept Facturen
-              </h2>
               <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
+                <h2 className="text-lg font-bold text-gray-100 px-4 py-3 bg-dark-800 border-b border-amber-500">
+                  Concept Facturen
+                </h2>
                 <div className="overflow-x-auto">
                   <table className="w-full table-fixed min-w-[1000px]">
                     <thead>
@@ -1990,10 +1990,10 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
           return (
             <div>
-              <h2 className="text-xl font-bold text-gray-100 mb-4 pb-2 border-b-2 border-orange-500">
-                Openstaande Facturen
-              </h2>
               <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
+                <h2 className="text-lg font-bold text-gray-100 px-4 py-3 bg-dark-800 border-b border-amber-500">
+                  Openstaande Facturen
+                </h2>
                 <div className="overflow-x-auto">
                   <table className="w-full table-fixed min-w-[1000px]">
                     <thead>
@@ -2244,10 +2244,10 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
               return (
                 <div key={tenantKey} className="mb-6">
-                  <h3 className="text-lg font-bold text-gray-100 mb-3 pb-2 border-b-2 border-emerald-500">
-                    {displayName}
-                  </h3>
                   <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
+                    <h2 className="text-lg font-bold text-gray-100 px-4 py-3 bg-dark-800 border-b border-amber-500">
+                      {displayName}
+                    </h2>
                     <div className="overflow-x-auto">
                       <table className="w-full table-fixed min-w-[1000px]">
                         <thead>
