@@ -1145,31 +1145,31 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       ) : (
         <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full table-fixed min-w-[1000px]">
             <thead className="bg-dark-800 border-b border-dark-700">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider w-[16%]">
                   Datum & Tijd
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider w-[10%]">
                   Ruimte
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider w-[18%]">
                   Klant
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider w-[12%]">
                   Duur
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider w-[10%]">
                   Bedrag
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider w-[10%]">
                   Status
                 </th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-300 uppercase tracking-wider w-[12%]">
                   Factuur
                 </th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-300 uppercase tracking-wider w-[12%]">
                   Acties
                 </th>
               </tr>
@@ -1184,7 +1184,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
               ) : (
                 bookings.map((booking) => (
                   <tr key={booking.id} className="hover:bg-dark-800/50 transition-colors">
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 w-[16%]">
                       <div className="text-sm text-gray-200 font-medium">
                         Week {getWeekNumber(new Date(booking.booking_date + 'T00:00:00'))} - {new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </div>
@@ -1192,12 +1192,12 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                         {booking.start_time.substring(0, 5)} - {booking.end_time.substring(0, 5)}
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 w-[10%]">
                       <div className="text-sm font-medium text-gray-200">
                         {booking.office_spaces?.space_number}
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 w-[18%]">
                       {booking.booking_type === 'external' ? (
                         <>
                           <div className="text-sm text-gray-200">{booking.external_customers?.contact_name}</div>
@@ -1212,7 +1212,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                         </>
                       )}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 w-[12%]">
                       <div className="text-sm text-gray-200">
                         {booking.total_hours.toFixed(1)} uur
                       </div>
@@ -1220,12 +1220,12 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                         €{booking.hourly_rate}/uur
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 w-[10%]">
                       <div className="text-sm font-semibold text-gray-200">
                         €{booking.total_amount.toFixed(2)}
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 w-[10%]">
                       <span
                         className={`inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full ${
                           booking.status === 'confirmed'
@@ -1242,7 +1242,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                           : 'Geannuleerd'}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 w-[12%]">
                       <div className="flex items-center justify-center">
                         {booking.invoice_id ? (
                           <span className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full bg-green-900/50 text-green-300 border border-green-700/50">
@@ -1257,7 +1257,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 w-[12%]">
                       <div className="flex items-center justify-center gap-2">
                         {!loggedInTenantId && !booking.invoice_id && booking.status === 'completed' && (
                           <button
