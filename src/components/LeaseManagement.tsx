@@ -317,13 +317,13 @@ export function LeaseManagement() {
         </button>
       </div>
 
-      <div className="flex gap-3 mb-6">
+      <div className="bg-dark-800 rounded-lg p-3 mb-6 inline-flex gap-2">
         <button
           onClick={() => setActiveTab('active')}
           className={`px-4 py-2.5 font-medium rounded-lg transition-all ${
             activeTab === 'active'
               ? 'bg-gold-500 text-white'
-              : 'text-gray-400 hover:bg-dark-800 hover:text-gray-300'
+              : 'text-gray-400 hover:bg-dark-700 hover:text-gray-300'
           }`}
         >
           Actief ({activeLeases.length})
@@ -333,7 +333,7 @@ export function LeaseManagement() {
           className={`px-4 py-2.5 font-medium rounded-lg transition-all ${
             activeTab === 'expired'
               ? 'bg-gold-500 text-white'
-              : 'text-gray-400 hover:bg-dark-800 hover:text-gray-300'
+              : 'text-gray-400 hover:bg-dark-700 hover:text-gray-300'
           }`}
         >
           Verlopen/Beëindigd ({expiredLeases.length})

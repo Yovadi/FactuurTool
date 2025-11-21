@@ -1319,13 +1319,13 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
         </div>
       </div>
 
-      <div className="flex gap-3 mb-6">
+      <div className="bg-dark-800 rounded-lg p-3 mb-6 inline-flex gap-2">
         <button
           onClick={() => setActiveTab('draft')}
           className={`px-4 py-2.5 font-medium rounded-lg transition-all ${
             activeTab === 'draft'
               ? 'bg-gold-500 text-white'
-              : 'text-gray-400 hover:bg-dark-800 hover:text-gray-300'
+              : 'text-gray-400 hover:bg-dark-700 hover:text-gray-300'
           }`}
         >
           Concepten
@@ -1335,7 +1335,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
           className={`px-4 py-2.5 font-medium rounded-lg transition-all ${
             activeTab === 'open'
               ? 'bg-gold-500 text-white'
-              : 'text-gray-400 hover:bg-dark-800 hover:text-gray-300'
+              : 'text-gray-400 hover:bg-dark-700 hover:text-gray-300'
           }`}
         >
           Openstaand
@@ -1345,7 +1345,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
           className={`px-4 py-2.5 font-medium rounded-lg transition-all ${
             activeTab === 'log'
               ? 'bg-gold-500 text-white'
-              : 'text-gray-400 hover:bg-dark-800 hover:text-gray-300'
+              : 'text-gray-400 hover:bg-dark-700 hover:text-gray-300'
           }`}
         >
           Logboek
