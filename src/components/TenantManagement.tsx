@@ -304,13 +304,15 @@ export function TenantManagement() {
         <div>
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-gray-100">Huurders</h2>
-        <button
-          onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors"
-        >
-          <Plus size={20} />
-          {activeTab === 'external' ? 'Externe Klant Toevoegen' : 'Huurder Toevoegen'}
-        </button>
+        {activeTab !== 'inactive' && (
+          <button
+            onClick={() => setShowForm(true)}
+            className="flex items-center gap-2 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors"
+          >
+            <Plus size={20} />
+            {activeTab === 'external' ? 'Externe Klant Toevoegen' : 'Huurder Toevoegen'}
+          </button>
+        )}
       </div>
 
       <div className="flex gap-4 mb-6 border-b border-dark-700">
