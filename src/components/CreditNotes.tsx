@@ -552,7 +552,7 @@ export function CreditNotes() {
                     className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                   >
                     <option value="tenant">Huurder</option>
-                    <option value="external">Externe Klant</option>
+                    <option value="external">Externe Huurder</option>
                   </select>
                 </div>
 
@@ -575,7 +575,7 @@ export function CreditNotes() {
                   </div>
                 ) : (
                   <div>
-                    <label className="block text-sm font-medium text-gray-200 mb-1">Externe Klant *</label>
+                    <label className="block text-sm font-medium text-gray-200 mb-1">Externe Huurder *</label>
                     <select
                       value={formData.external_customer_id}
                       onChange={(e) => setFormData({ ...formData, external_customer_id: e.target.value })}

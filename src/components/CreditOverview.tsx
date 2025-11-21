@@ -187,7 +187,7 @@ export function CreditOverview() {
                         {customer.customer_name}
                       </h3>
                       <p className="text-sm text-gray-400">
-                        {customer.customer_type === 'tenant' ? 'Huurder' : 'Externe Klant'}
+                        {customer.customer_type === 'tenant' ? 'Huurder' : 'Externe Huurder'}
                       </p>
                     </div>
                   </div>

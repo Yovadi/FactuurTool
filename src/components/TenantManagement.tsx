@@ -304,15 +304,15 @@ export function TenantManagement() {
         <div>
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-gray-100">Huurders</h2>
-        {activeTab !== 'inactive' && (
-          <button
-            onClick={() => setShowForm(true)}
-            className="flex items-center gap-2 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors"
-          >
-            <Plus size={20} />
-            {activeTab === 'external' ? 'Externe Klant Toevoegen' : 'Huurder Toevoegen'}
-          </button>
-        )}
+        <button
+          onClick={() => setShowForm(true)}
+          className={`flex items-center gap-2 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors ${
+            activeTab === 'inactive' ? 'invisible' : ''
+          }`}
+        >
+          <Plus size={20} />
+          {activeTab === 'external' ? 'Externe Huurder Toevoegen' : 'Huurder Toevoegen'}
+        </button>
       </div>
 
       <div className="flex gap-4 mb-6 border-b border-dark-700">
@@ -336,7 +336,7 @@ export function TenantManagement() {
           }`}
         >
           <Users size={20} />
-          Externe Klanten
+          Externe Huurders
         </button>
         <button
           onClick={() => setActiveTab('inactive')}
@@ -356,7 +356,7 @@ export function TenantManagement() {
           <div className="bg-dark-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-bold text-gray-100 mb-4">
               {activeTab === 'external'
-                ? (editingCustomer ? 'Externe Klant Bewerken' : 'Nieuwe Externe Klant')
+                ? (editingCustomer ? 'Externe Huurder Bewerken' : 'Nieuwe Externe Huurder')
                 : (editingTenant ? 'Huurder Bewerken' : 'Nieuwe Huurder')
               }
             </h3>
@@ -798,7 +798,7 @@ export function TenantManagement() {
 
       {activeTab === 'external' && externalCustomers.length === 0 && (
         <div className="text-center py-12 text-gray-400">
-          Nog geen externe klanten. Klik op "Externe Klant Toevoegen" om je eerste externe klant aan te maken.
+          Nog geen externe huurders. Klik op "Externe Huurder Toevoegen" om je eerste externe huurder aan te maken.
         </div>
       )}
         </div>

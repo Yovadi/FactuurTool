@@ -142,7 +142,7 @@ export function ExternalCustomers() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-100">Externe Klanten</h2>
+        <h2 className="text-2xl font-bold text-gray-100">Externe Huurders</h2>
         <button
           onClick={() => {
             setShowForm(true);
