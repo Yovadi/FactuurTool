@@ -462,25 +462,35 @@ export function LeaseManagement() {
                       Welke dagen? (optioneel)
                     </label>
                     <div className="flex gap-2">
-                      {['ma', 'di', 'wo', 'do', 'vr'].map((day) => (
-                        <button
-                          key={day}
-                          type="button"
-                          onClick={() => {
-                            const newDays = formData.selected_days.includes(day)
-                              ? formData.selected_days.filter(d => d !== day)
-                              : [...formData.selected_days, day];
-                            setFormData({ ...formData, selected_days: newDays });
-                          }}
-                          className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                            formData.selected_days.includes(day)
-                              ? 'bg-gold-500 text-white'
-                              : 'bg-dark-800 text-gray-400 hover:bg-dark-700'
-                          }`}
-                        >
-                          {day}
-                        </button>
-                      ))}
+                      {['ma', 'di', 'wo', 'do', 'vr'].map((day) => {
+                        const maxDays = parseInt(formData.days_per_week);
+                        const isSelected = formData.selected_days.includes(day);
+                        const canSelect = isSelected || formData.selected_days.length < maxDays;
+
+                        return (
+                          <button
+                            key={day}
+                            type="button"
+                            onClick={() => {
+                              if (!canSelect && !isSelected) return;
+                              const newDays = isSelected
+                                ? formData.selected_days.filter(d => d !== day)
+                                : [...formData.selected_days, day];
+                              setFormData({ ...formData, selected_days: newDays });
+                            }}
+                            disabled={!canSelect && !isSelected}
+                            className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                              isSelected
+                                ? 'bg-gold-500 text-white'
+                                : canSelect
+                                ? 'bg-dark-800 text-gray-400 hover:bg-dark-700'
+                                : 'bg-dark-800 text-gray-600 opacity-50 cursor-not-allowed'
+                            }`}
+                          >
+                            {day}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                   {formData.daily_rate && formData.days_per_week && (
