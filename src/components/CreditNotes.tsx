@@ -764,7 +764,7 @@ export function CreditNotes() {
             handleEdit(previewCreditNote);
           }}
           onDelete={() => {
-            handleDelete(previewCreditNote);
+            handleDelete(previewCreditNote.id);
           }}
           onApply={() => {
             setPreviewCreditNote(null);
