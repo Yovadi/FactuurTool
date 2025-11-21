@@ -186,11 +186,9 @@ export function CreditNotes() {
     e.preventDefault();
 
     if (customerType === 'tenant' && !formData.tenant_id) {
-      alert('Selecteer een huurder');
       return;
     }
     if (customerType === 'external' && !formData.external_customer_id) {
-      alert('Selecteer een externe klant');
       return;
     }
 
@@ -235,8 +233,6 @@ export function CreditNotes() {
           .insert(lineItemsToInsert);
 
         if (lineItemsError) throw lineItemsError;
-
-        alert('Credit nota succesvol bijgewerkt!');
       } else {
         const { data: creditNoteNumber } = await supabase.rpc('generate_credit_note_number');
 
@@ -274,8 +270,6 @@ export function CreditNotes() {
           .insert(lineItemsToInsert);
 
         if (lineItemsError) throw lineItemsError;
-
-        alert('Credit nota succesvol aangemaakt!');
       }
 
       setShowForm(false);
@@ -283,7 +277,6 @@ export function CreditNotes() {
       loadData();
     } catch (error) {
       console.error('Error saving credit note:', error);
-      alert('Fout bij opslaan credit nota');
     }
   };
 
@@ -324,7 +317,6 @@ export function CreditNotes() {
 
   const handleDownloadPDF = async (creditNote: CreditNote) => {
     if (!creditNote.credit_note_line_items || creditNote.credit_note_line_items.length === 0) {
-      alert('Kan geen PDF genereren: geen regelitems gevonden');
       return;
     }
 
@@ -370,7 +362,6 @@ export function CreditNotes() {
       await generateCreditNotePDF(pdfData, companySettings?.root_folder_path);
     } catch (error) {
       console.error('Error generating PDF:', error);
-      alert('Fout bij genereren PDF');
     }
   };
 
@@ -385,20 +376,17 @@ export function CreditNotes() {
       loadData();
     } catch (error) {
       console.error('Error updating status:', error);
-      alert('Fout bij wijzigen status');
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Weet je zeker dat je deze credit nota wilt verwijderen?')) return;
-
     try {
       const { error } = await supabase.from('credit_notes').delete().eq('id', id);
       if (error) throw error;
+      setPreviewCreditNote(null);
       loadData();
     } catch (error) {
       console.error('Error deleting credit note:', error);
-      alert('Fout bij verwijderen credit nota');
     }
   };
 
@@ -770,9 +758,7 @@ export function CreditNotes() {
             setPreviewCreditNote(null);
             setApplyingCreditNote(previewCreditNote);
           }}
-          onSend={previewCreditNote.status === 'draft' ? () => {
-            alert('Email functionaliteit voor credit nota\'s komt binnenkort!');
-          } : undefined}
+          onSend={undefined}
         />
       )}
 
