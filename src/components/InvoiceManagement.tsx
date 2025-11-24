@@ -1844,15 +1844,14 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                     <table className="w-full table-fixed min-w-[1000px]">
                       <thead>
                         <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
-                        <th className="text-left px-4 py-3 font-semibold w-[18%]">Klant</th>
+                        <th className="text-left px-4 py-3 font-semibold w-[20%]">Klant</th>
                         <th className="text-left px-4 py-3 font-semibold w-[10%]">Factuur Nr.</th>
-                        <th className="text-left px-4 py-3 font-semibold w-[10%]">Type</th>
                         <th className="text-left px-4 py-3 font-semibold w-[10%]">Maand</th>
                         <th className="text-left px-4 py-3 font-semibold w-[12%]">Factuur Datum</th>
                         <th className="text-left px-4 py-3 font-semibold w-[12%]">Vervaldatum</th>
                         <th className="text-right px-4 py-3 font-semibold w-[10%]">Bedrag</th>
                         <th className="text-center px-4 py-3 font-semibold w-[10%]">Status</th>
-                        <th className="text-right px-4 py-3 font-semibold w-[8%]">Acties</th>
+                        <th className="text-right px-4 py-3 font-semibold w-[16%]">Acties</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1874,13 +1873,6 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                             </td>
                             <td className="px-4 py-3 text-purple-600 font-medium text-sm">
                               {invoice.invoice_number.replace(/^INV-/, '')}
-                            </td>
-                            <td className="px-4 py-3 text-gray-300 text-sm">
-                              {hasLease ? (
-                                <span>{invoice.lease!.lease_spaces.length} {invoice.lease!.lease_spaces.length === 1 ? 'ruimte' : 'ruimtes'}</span>
-                              ) : (
-                                <span className="text-gray-400 italic">Handmatig</span>
-                              )}
                             </td>
                             <td className="px-4 py-3 text-gray-300 text-sm">
                               {invoice.invoice_month ?
@@ -2006,15 +1998,14 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                       <table className="w-full table-fixed min-w-[1000px]">
                         <thead>
                           <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
-                            <th className="text-left px-4 py-3 font-semibold w-[18%]">Klant</th>
+                            <th className="text-left px-4 py-3 font-semibold w-[20%]">Klant</th>
                             <th className="text-left px-4 py-3 font-semibold w-[10%]">Factuur Nr.</th>
-                            <th className="text-left px-4 py-3 font-semibold w-[10%]">Type</th>
                             <th className="text-left px-4 py-3 font-semibold w-[10%]">Maand</th>
                             <th className="text-left px-4 py-3 font-semibold w-[12%]">Factuur Datum</th>
                             <th className="text-left px-4 py-3 font-semibold w-[12%]">Vervaldatum</th>
                             <th className="text-right px-4 py-3 font-semibold w-[10%]">Bedrag</th>
                             <th className="text-center px-4 py-3 font-semibold w-[10%]">Status</th>
-                            <th className="text-right px-4 py-3 font-semibold w-[8%]">Acties</th>
+                            <th className="text-right px-4 py-3 font-semibold w-[16%]">Acties</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -2037,13 +2028,6 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                                 </td>
                                 <td className="px-4 py-3 text-purple-600 font-medium text-sm">
                                   {invoice.invoice_number.replace(/^INV-/, '')}
-                                </td>
-                                <td className="px-4 py-3 text-gray-300 text-sm">
-                                  {hasLease ? (
-                                    <span>{invoice.lease!.lease_spaces.length} {invoice.lease!.lease_spaces.length === 1 ? 'ruimte' : 'ruimtes'}</span>
-                                  ) : (
-                                    <span className="text-gray-400 italic">Handmatig</span>
-                                  )}
                                 </td>
                                 <td className="px-4 py-3 text-gray-300 text-sm">
                                   {invoice.invoice_month ? (
