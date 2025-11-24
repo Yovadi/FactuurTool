@@ -197,10 +197,10 @@ export function DebtorsOverview() {
   }
 
   return (
-    <div className="h-full bg-dark-950 p-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="h-full bg-dark-950">
+      <div>
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-100 mb-2">Debiteuren Overzicht</h1>
+          <h1 className="text-2xl font-bold text-gray-100 mb-4">Debiteuren Overzicht</h1>
           <div className="flex gap-2 mb-4 border-b border-dark-700">
             <button
               onClick={() => setActiveTab('open')}
@@ -225,16 +225,18 @@ export function DebtorsOverview() {
               Logboek
             </button>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="bg-dark-900 px-4 py-2 rounded-lg">
-              <div className="text-sm text-gray-400">Totaal Openstaand</div>
-              <div className="text-2xl font-bold text-yellow-500">{formatCurrency(totalOutstanding)}</div>
+          {activeTab === 'open' && (
+            <div className="flex items-center gap-4">
+              <div className="bg-dark-900 px-4 py-2 rounded-lg">
+                <div className="text-sm text-gray-400">Totaal Openstaand</div>
+                <div className="text-2xl font-bold text-yellow-500">{formatCurrency(totalOutstanding)}</div>
+              </div>
+              <div className="bg-dark-900 px-4 py-2 rounded-lg">
+                <div className="text-sm text-gray-400">Aantal Debiteuren</div>
+                <div className="text-2xl font-bold text-gray-100">{debtors.length}</div>
+              </div>
             </div>
-            <div className="bg-dark-900 px-4 py-2 rounded-lg">
-              <div className="text-sm text-gray-400">Aantal Debiteuren</div>
-              <div className="text-2xl font-bold text-gray-100">{debtors.length}</div>
-            </div>
-          </div>
+          )}
         </div>
 
         {activeTab === 'open' && (
