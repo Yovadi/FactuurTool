@@ -1907,8 +1907,41 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
       <div className="space-y-8">
         {(() => {
-          const draftInvoices = invoices
-            .filter(inv => inv.status === 'draft')
+          const allDraftInvoices = invoices.filter(inv => inv.status === 'draft');
+
+          // Categorize draft invoices
+          const draftLeaseInvoices = allDraftInvoices
+            .filter(inv => inv.lease_id !== null)
+            .sort((a, b) => {
+                const tenantA = getInvoiceTenant(a);
+                const tenantB = getInvoiceTenant(b);
+                if (tenantA && tenantB) {
+                  const nameCompare = tenantA.company_name.localeCompare(tenantB.company_name);
+                  if (nameCompare !== 0) return nameCompare;
+                }
+                if (a.invoice_month && b.invoice_month) {
+                  return b.invoice_month.localeCompare(a.invoice_month);
+                }
+                return new Date(b.invoice_date).getTime() - new Date(a.invoice_date).getTime();
+              });
+
+          const draftMeetingRoomInvoices = allDraftInvoices
+            .filter(inv => inv.lease_id === null && inv.notes?.includes('Vergaderruimte gebruik'))
+            .sort((a, b) => {
+                const tenantA = getInvoiceTenant(a);
+                const tenantB = getInvoiceTenant(b);
+                if (tenantA && tenantB) {
+                  const nameCompare = tenantA.company_name.localeCompare(tenantB.company_name);
+                  if (nameCompare !== 0) return nameCompare;
+                }
+                if (a.invoice_month && b.invoice_month) {
+                  return b.invoice_month.localeCompare(a.invoice_month);
+                }
+                return new Date(b.invoice_date).getTime() - new Date(a.invoice_date).getTime();
+              });
+
+          const draftManualInvoices = allDraftInvoices
+            .filter(inv => inv.lease_id === null && !inv.notes?.includes('Vergaderruimte gebruik'))
             .sort((a, b) => {
                 const tenantA = getInvoiceTenant(a);
                 const tenantB = getInvoiceTenant(b);
@@ -1937,7 +1970,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                 return new Date(b.invoice_date).getTime() - new Date(a.invoice_date).getTime();
               });
 
-            const hasAny = draftInvoices.length > 0 || openInvoices.length > 0;
+            const hasAny = draftLeaseInvoices.length > 0 || draftMeetingRoomInvoices.length > 0 || draftManualInvoices.length > 0 || openInvoices.length > 0;
 
             if (!hasAny) {
               return (
@@ -1948,40 +1981,24 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               );
             }
 
-          return (
-            <div>
-              <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-3 bg-dark-800 border-b border-amber-500">
-                  <h2 className="text-lg font-bold text-gray-100">
-                    Concept Facturen
-                  </h2>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={generateBulkInvoices}
-                      disabled={generatingBulk}
-                      className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <Calendar size={18} />
-                      {generatingBulk ? 'Bezig...' : 'Genereer Huur Facturen'}
-                    </button>
-                    <button
-                      onClick={generateMeetingRoomInvoices}
-                      disabled={generatingBulk}
-                      className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <Calendar size={18} />
-                      {generatingBulk ? 'Bezig...' : 'Genereer Vergaderruimte Facturen'}
-                    </button>
-                    <button
-                      onClick={() => setShowForm(true)}
-                      className="flex items-center gap-2 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors"
-                    >
-                      <Plus size={18} />
-                      Nieuwe Factuur
-                    </button>
-                  </div>
-                </div>
-                {draftInvoices.length > 0 ? (
+          const renderInvoiceTable = (invoices: typeof draftLeaseInvoices, title: string, borderColor: string, buttonConfig?: { label: string; onClick: () => void; color: string; disabled?: boolean }) => (
+            <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 bg-dark-800 border-b" style={{ borderBottomColor: borderColor }}>
+                <h2 className="text-lg font-bold text-gray-100">
+                  {title}
+                </h2>
+                {buttonConfig && (
+                  <button
+                    onClick={buttonConfig.onClick}
+                    disabled={buttonConfig.disabled}
+                    className={`flex items-center gap-2 ${buttonConfig.color} text-white px-4 py-2 rounded-lg hover:opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+                  >
+                    <Calendar size={18} />
+                    {buttonConfig.label}
+                  </button>
+                )}
+              </div>
+              {invoices.length > 0 ? (
                   <div className="overflow-x-auto">
                     <table className="w-full table-fixed min-w-[1000px]">
                       <thead>
@@ -1990,11 +2007,11 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              toggleSelectAll(draftInvoices);
+                              toggleSelectAll(invoices);
                             }}
                             className="text-gray-300 hover:text-gold-500 transition-colors"
                           >
-                            {selectedInvoices.size === draftInvoices.length && draftInvoices.length > 0 ? (
+                            {invoices.every(inv => selectedInvoices.has(inv.id)) && invoices.length > 0 ? (
                               <CheckSquare size={18} />
                             ) : (
                               <Square size={18} />
@@ -2012,7 +2029,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                       </tr>
                     </thead>
                     <tbody>
-                      {draftInvoices.map((invoice) => {
+                      {invoices.map((invoice) => {
                         const tenant = getInvoiceTenant(invoice);
                         const displayName = tenant?.company_name || 'Onbekende huurder';
                         const hasLease = invoice.lease && invoice.lease.lease_spaces;
@@ -2086,10 +2103,55 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                   </table>
                 </div>
                 ) : (
-                  <div className="bg-dark-900 rounded-lg p-8 text-center">
+                  <div className="p-8 text-center">
                     <CheckCircle size={48} className="text-green-500 mx-auto mb-4" />
-                    <p className="text-gray-400">Geen conceptfacturen gevonden</p>
+                    <p className="text-gray-400">Geen facturen in deze categorie</p>
                   </div>
+                )}
+            </div>
+          );
+
+          return (
+            <div>
+              {/* Concept Huur Facturen */}
+              {renderInvoiceTable(
+                draftLeaseInvoices,
+                'Concept Huur Facturen',
+                '#10b981',
+                {
+                  label: generatingBulk ? 'Bezig...' : 'Genereer Huur Facturen',
+                  onClick: generateBulkInvoices,
+                  color: 'bg-emerald-600',
+                  disabled: generatingBulk
+                }
+              )}
+
+              {/* Concept Vergaderruimte Facturen */}
+              <div className="mt-8">
+                {renderInvoiceTable(
+                  draftMeetingRoomInvoices,
+                  'Concept Vergaderruimte Facturen',
+                  '#3b82f6',
+                  {
+                    label: generatingBulk ? 'Bezig...' : 'Genereer Vergaderruimte Facturen',
+                    onClick: generateMeetingRoomInvoices,
+                    color: 'bg-blue-600',
+                    disabled: generatingBulk
+                  }
+                )}
+              </div>
+
+              {/* Concept Handgemaakte Facturen */}
+              <div className="mt-8">
+                {renderInvoiceTable(
+                  draftManualInvoices,
+                  'Concept Handgemaakte Facturen',
+                  '#f59e0b',
+                  {
+                    label: 'Nieuwe Factuur',
+                    onClick: () => setShowForm(true),
+                    color: 'bg-gold-500'
+                  }
                 )}
               </div>
 
