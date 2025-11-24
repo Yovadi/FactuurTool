@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Dashboard } from './components/Dashboard';
-import { TenantManagement } from './components/TenantManagement';
+import { LeaseTabs } from './components/LeaseTabs';
 import { SpacesTabs } from './components/SpacesTabs';
 import { CompanySettings } from './components/CompanySettings';
 import { MeetingRoomBookings } from './components/MeetingRoomBookings';
@@ -137,7 +137,7 @@ function App() {
             <div className="bg-dark-950">
               {activeTab === 'dashboard' && <Dashboard />}
               {activeTab === 'spaces' && <SpacesTabs />}
-              {activeTab === 'tenants' && <TenantManagement />}
+              {activeTab === 'tenants' && <LeaseTabs />}
               {activeTab === 'bookings' && <MeetingRoomBookings />}
               {activeTab === 'financial' && <Financial />}
               {activeTab === 'settings' && <CompanySettings />}
