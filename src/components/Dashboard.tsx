@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Building, Users, AlertCircle, Calendar, Clock, CalendarClock, FileText, DollarSign } from 'lucide-react';
+import { Building, Users, AlertCircle, Calendar, Clock, CalendarClock, FileText, DollarSign, CheckCircle } from 'lucide-react';
 
 type DashboardStats = {
   totalTenants: number;
