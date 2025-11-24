@@ -1826,8 +1826,9 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
             if (!hasAny) {
               return (
-                <div className="text-center py-12 text-gray-400">
-                  Geen facturen gevonden.
+                <div className="bg-dark-900 rounded-lg p-8 text-center">
+                  <AlertCircle size={48} className="text-gray-500 mx-auto mb-4" />
+                  <p className="text-gray-400">Geen facturen gevonden</p>
                 </div>
               );
             }
@@ -1989,8 +1990,9 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                   </table>
                 </div>
                 ) : (
-                  <div className="text-center py-12 text-gray-400">
-                    Geen conceptfacturen gevonden.
+                  <div className="bg-dark-900 rounded-lg p-8 text-center">
+                    <CheckCircle size={48} className="text-green-500 mx-auto mb-4" />
+                    <p className="text-gray-400">Geen conceptfacturen gevonden</p>
                   </div>
                 )}
 

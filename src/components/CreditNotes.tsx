@@ -486,6 +486,7 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
       <div className="space-y-4">
         {creditNotes.length === 0 ? (
           <div className="bg-dark-900 rounded-lg p-8 text-center">
+            <CheckCircle size={48} className="text-green-500 mx-auto mb-4" />
             <p className="text-gray-400">Geen credit nota's gevonden</p>
           </div>
         ) : (

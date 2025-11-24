@@ -268,9 +268,9 @@ export function DebtorsOverview() {
             </div>
             <div className="overflow-auto max-h-[600px]">
               {debtors.length === 0 ? (
-                <div className="p-8 text-center text-gray-400">
-                  <CheckCircle size={48} className="mx-auto mb-3 text-green-500" />
-                  <p>Geen openstaande facturen</p>
+                <div className="bg-dark-900 rounded-lg p-8 text-center">
+                  <CheckCircle size={48} className="text-green-500 mx-auto mb-4" />
+                  <p className="text-gray-400">Geen openstaande debiteuren</p>
                 </div>
               ) : (
                 <div className="divide-y divide-dark-700">
@@ -316,12 +316,14 @@ export function DebtorsOverview() {
             </div>
             <div className="overflow-auto max-h-[600px]">
               {!selectedDebtor ? (
-                <div className="p-8 text-center text-gray-400">
-                  Selecteer een debiteur om facturen te bekijken
+                <div className="bg-dark-900 rounded-lg p-8 text-center">
+                  <AlertCircle size={48} className="text-gray-500 mx-auto mb-4" />
+                  <p className="text-gray-400">Selecteer een debiteur om facturen te bekijken</p>
                 </div>
               ) : debtorInvoices.length === 0 ? (
-                <div className="p-8 text-center text-gray-400">
-                  Geen openstaande facturen voor deze debiteur
+                <div className="bg-dark-900 rounded-lg p-8 text-center">
+                  <CheckCircle size={48} className="text-green-500 mx-auto mb-4" />
+                  <p className="text-gray-400">Geen openstaande facturen voor deze debiteur</p>
                 </div>
               ) : (
                 <div className="divide-y divide-dark-700">
@@ -375,8 +377,9 @@ export function DebtorsOverview() {
               Betaalde Facturen (Logboek)
             </h2>
             {paidInvoices.length === 0 ? (
-              <div className="text-center py-12 text-gray-400">
-                Geen betaalde facturen gevonden.
+              <div className="bg-dark-900 rounded-lg p-8 text-center">
+                <CheckCircle size={48} className="text-green-500 mx-auto mb-4" />
+                <p className="text-gray-400">Geen betaalde facturen gevonden</p>
               </div>
             ) : (
               <div className="overflow-x-auto">

@@ -802,8 +802,9 @@ export function TenantManagement() {
         t.leases.length === 0 ||
         t.leases.some(l => l.status === 'active')
       ).length === 0 && (
-        <div className="text-center py-12 text-gray-400">
-          Geen actieve huurders gevonden.
+        <div className="bg-dark-900 rounded-lg p-8 text-center">
+          <AlertCircle size={48} className="text-gray-500 mx-auto mb-4" />
+          <p className="text-gray-400">Geen actieve huurders gevonden</p>
         </div>
       )}
 
@@ -812,14 +813,16 @@ export function TenantManagement() {
         t.leases.length > 0 &&
         t.leases.every(l => l.status !== 'active')
       ).length === 0 && (
-        <div className="text-center py-12 text-gray-400">
-          Geen afgelopen huurders gevonden.
+        <div className="bg-dark-900 rounded-lg p-8 text-center">
+          <CheckCircle size={48} className="text-green-500 mx-auto mb-4" />
+          <p className="text-gray-400">Geen afgelopen huurders gevonden</p>
         </div>
       )}
 
       {activeTab === 'external' && externalCustomers.length === 0 && (
-        <div className="text-center py-12 text-gray-400">
-          Nog geen externe huurders. Klik op "Externe Huurder Toevoegen" om je eerste externe huurder aan te maken.
+        <div className="bg-dark-900 rounded-lg p-8 text-center">
+          <AlertCircle size={48} className="text-gray-500 mx-auto mb-4" />
+          <p className="text-gray-400">Nog geen externe huurders. Klik op "Externe Huurder Toevoegen" om je eerste externe huurder aan te maken.</p>
         </div>
       )}
         </div>

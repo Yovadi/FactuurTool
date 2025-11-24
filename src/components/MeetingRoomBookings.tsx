@@ -999,7 +999,10 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
 
           <div className="space-y-4">
             {meetingRooms.length === 0 ? (
-              <p className="text-center py-8 text-gray-400">Geen vergaderruimtes gevonden</p>
+              <div className="bg-dark-900 rounded-lg p-8 text-center">
+                <AlertCircle size={48} className="text-gray-500 mx-auto mb-4" />
+                <p className="text-gray-400">Geen vergaderruimtes gevonden</p>
+              </div>
             ) : (
               meetingRooms.map((space) => (
                 <div
@@ -1175,8 +1178,11 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
             <tbody className="divide-y divide-dark-700">
               {bookings.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-gray-400">
-                    Geen boekingen gevonden
+                  <td colSpan={8} className="px-4 py-12">
+                    <div className="flex flex-col items-center">
+                      <CheckCircle size={48} className="text-green-500 mb-4" />
+                      <p className="text-gray-400">Geen boekingen gevonden</p>
+                    </div>
                   </td>
                 </tr>
               ) : (

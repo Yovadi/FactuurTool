@@ -484,8 +484,9 @@ export function Dashboard() {
                 ))}
               </>
             ) : (
-              <div className="text-center py-8 text-gray-400">
-                Geen financiële meldingen
+              <div className="bg-dark-800 rounded-lg p-6 text-center">
+                <CheckCircle size={40} className="text-green-500 mx-auto mb-3" />
+                <p className="text-gray-400">Geen financiële meldingen</p>
               </div>
             )}
           </div>
@@ -557,8 +558,9 @@ export function Dashboard() {
                 </div>
               ))
             ) : (
-              <div className="text-center py-8 text-gray-400">
-                Geen boekingen of ruimte meldingen
+              <div className="bg-dark-800 rounded-lg p-6 text-center">
+                <CheckCircle size={40} className="text-green-500 mx-auto mb-3" />
+                <p className="text-gray-400">Geen boekingen of ruimte meldingen</p>
               </div>
             )}
           </div>

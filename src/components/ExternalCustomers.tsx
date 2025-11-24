@@ -318,11 +318,15 @@ export function ExternalCustomers() {
       )}
 
       {loading ? (
-        <div className="text-center py-12 text-gray-400">Laden...</div>
+        <div className="bg-dark-900 rounded-lg p-8 text-center">
+          <AlertCircle size={48} className="text-gray-500 mx-auto mb-4" />
+          <p className="text-gray-400">Laden...</p>
+        </div>
       ) : customers.length === 0 ? (
-        <div className="text-center py-12 text-gray-400">
-          <p>Geen externe klanten gevonden.</p>
-          <p className="text-sm mt-2">Klik op "Nieuwe Klant" om te beginnen.</p>
+        <div className="bg-dark-900 rounded-lg p-8 text-center">
+          <AlertCircle size={48} className="text-gray-500 mx-auto mb-4" />
+          <p className="text-gray-400">Geen externe klanten gevonden.</p>
+          <p className="text-sm text-gray-500 mt-2">Klik op "Nieuwe Klant" om te beginnen.</p>
         </div>
       ) : (
         <div className="grid gap-3">

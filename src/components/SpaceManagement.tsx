@@ -407,8 +407,9 @@ export function SpaceManagement() {
       </div>
 
       {spaces.length === 0 && (
-        <div className="text-center py-12 text-gray-400">
-          Nog geen ruimtes. Klik op "Ruimte Toevoegen" om je eerste ruimte aan te maken.
+        <div className="bg-dark-900 rounded-lg p-8 text-center">
+          <AlertCircle size={48} className="text-gray-500 mx-auto mb-4" />
+          <p className="text-gray-400">Nog geen ruimtes. Klik op "Ruimte Toevoegen" om je eerste ruimte aan te maken.</p>
         </div>
       )}
     </div>
