@@ -50,7 +50,7 @@ type TenantWithLeases = Tenant & {
 };
 
 export function PartTimeAvailability() {
-  const [activeTab, setActiveTab] = useState<'availability' | 'tenants'>('availability');
+  const [activeTab, setActiveTab] = useState<'availability' | 'tenants'>('tenants');
   const [spaceAvailability, setSpaceAvailability] = useState<SpaceAvailability[]>([]);
   const [tenants, setTenants] = useState<TenantWithLeases[]>([]);
   const [loading, setLoading] = useState(true);
@@ -161,17 +161,6 @@ export function PartTimeAvailability() {
     <div>
       <div className="flex gap-2 mb-6 border-b border-dark-700">
         <button
-          onClick={() => setActiveTab('availability')}
-          className={`flex items-center gap-2 px-4 py-3 font-medium transition-all border-b-2 ${
-            activeTab === 'availability'
-              ? 'text-gold-500 border-gold-500'
-              : 'text-gray-400 border-transparent hover:text-gray-300'
-          }`}
-        >
-          <Calendar size={18} />
-          Beschikbaarheid
-        </button>
-        <button
           onClick={() => setActiveTab('tenants')}
           className={`flex items-center gap-2 px-4 py-3 font-medium transition-all border-b-2 ${
             activeTab === 'tenants'
@@ -182,95 +171,20 @@ export function PartTimeAvailability() {
           <Users size={18} />
           Deeltijd Huurders
         </button>
+        <button
+          onClick={() => setActiveTab('availability')}
+          className={`flex items-center gap-2 px-4 py-3 font-medium transition-all border-b-2 ${
+            activeTab === 'availability'
+              ? 'text-gold-500 border-gold-500'
+              : 'text-gray-400 border-transparent hover:text-gray-300'
+          }`}
+        >
+          <Calendar size={18} />
+          Beschikbaarheid
+        </button>
       </div>
 
-      {activeTab === 'availability' ? (
-        <div>
-
-      <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-dark-800 border-b border-dark-700">
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-100">
-                  Ruimte
-                </th>
-                {DAYS.map((day) => (
-                  <th key={day} className="px-4 py-3 text-center text-sm font-semibold text-gray-100">
-                    {DAY_NAMES[day as keyof typeof DAY_NAMES]}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-dark-700">
-              {spaceAvailability.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-12">
-                    <div className="flex flex-col items-center">
-                      <AlertCircle size={48} className="text-gray-500 mb-4" />
-                      <p className="text-gray-400">Geen kantoorruimtes gevonden</p>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                spaceAvailability.map((spaceAvail) => (
-                  <tr key={spaceAvail.space.id} className="hover:bg-dark-800/50 transition-colors">
-                    <td className="px-4 py-4">
-                      <div>
-                        <div className="font-medium text-gray-100">
-                          {spaceAvail.space.space_number}
-                        </div>
-                        <div className="text-xs text-gray-400 capitalize">
-                          {spaceAvail.space.space_type.replace('_', ' ')}
-                        </div>
-                      </div>
-                    </td>
-                    {DAYS.map((day) => {
-                      const dayInfo = spaceAvail.availability[day];
-                      return (
-                        <td key={day} className="px-4 py-4 text-center">
-                          {dayInfo.available ? (
-                            <div className="flex flex-col items-center gap-1">
-                              <CheckCircle size={24} className="text-green-500" />
-                              <span className="text-xs text-green-400 font-medium">Vrij</span>
-                            </div>
-                          ) : (
-                            <div className="flex flex-col items-center gap-1">
-                              <XCircle size={24} className="text-red-500" />
-                              <span className="text-xs text-red-400 font-medium">Bezet</span>
-                              {dayInfo.tenant && (
-                                <span className="text-xs text-gray-400 max-w-[100px] truncate" title={dayInfo.tenant}>
-                                  {dayInfo.tenant}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="mt-6 bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4">
-        <h3 className="text-sm font-semibold text-gray-100 mb-3">Legenda</h3>
-        <div className="flex flex-wrap gap-6">
-          <div className="flex items-center gap-2">
-            <CheckCircle size={20} className="text-green-500" />
-            <span className="text-sm text-gray-400">Beschikbaar voor deeltijd verhuur</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <XCircle size={20} className="text-red-500" />
-            <span className="text-sm text-gray-400">Bezet door bestaand deeltijd contract</span>
-          </div>
-        </div>
-      </div>
-        </div>
-      ) : (
+      {activeTab === 'tenants' ? (
         <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
           <div className="flex justify-between items-center px-4 py-3 bg-dark-800 border-b border-amber-500">
             <h2 className="text-lg font-bold text-gray-100">
@@ -357,6 +271,70 @@ export function PartTimeAvailability() {
             <div className="bg-dark-900 p-8 text-center">
               <AlertCircle size={48} className="text-gray-500 mx-auto mb-4" />
               <p className="text-gray-400">Geen deeltijd huurders gevonden</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div>
+          {spaceAvailability.length === 0 ? (
+            <div className="bg-dark-900 rounded-lg p-12 text-center">
+              <AlertCircle size={48} className="text-gray-500 mx-auto mb-4" />
+              <p className="text-gray-400">Geen kantoorruimtes gevonden</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {spaceAvailability.map((spaceAvail) => (
+                <div key={spaceAvail.space.id} className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
+                  <div className="px-4 py-3 bg-dark-800 border-b border-dark-700">
+                    <div className="flex items-center gap-3">
+                      <Building2 size={20} className="text-gold-500" />
+                      <div>
+                        <h3 className="font-semibold text-gray-100">{spaceAvail.space.space_number}</h3>
+                        <p className="text-xs text-gray-400 capitalize">{spaceAvail.space.space_type.replace('_', ' ')}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-4">
+                    <div className="grid grid-cols-5 gap-3">
+                      {DAYS.map((day) => {
+                        const dayInfo = spaceAvail.availability[day];
+                        return (
+                          <div
+                            key={day}
+                            className={`rounded-lg p-4 border-2 transition-all ${
+                              dayInfo.available
+                                ? 'bg-green-500/10 border-green-500/30 hover:border-green-500/50'
+                                : 'bg-red-500/10 border-red-500/30'
+                            }`}
+                          >
+                            <div className="flex flex-col items-center gap-2">
+                              <span className="text-sm font-semibold text-gray-300">
+                                {DAY_NAMES[day as keyof typeof DAY_NAMES]}
+                              </span>
+                              {dayInfo.available ? (
+                                <>
+                                  <CheckCircle size={32} className="text-green-500" />
+                                  <span className="text-xs font-medium text-green-400">Beschikbaar</span>
+                                </>
+                              ) : (
+                                <>
+                                  <XCircle size={32} className="text-red-500" />
+                                  <span className="text-xs font-medium text-red-400">Bezet</span>
+                                  {dayInfo.tenant && (
+                                    <span className="text-xs text-gray-400 text-center line-clamp-2" title={dayInfo.tenant}>
+                                      {dayInfo.tenant}
+                                    </span>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
