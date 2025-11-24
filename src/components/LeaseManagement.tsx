@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, type Lease, type Tenant, type OfficeSpace, type LeaseSpace } from '../lib/supabase';
-import { Plus, CreditCard as Edit2, Trash2, Calendar, Euro, X } from 'lucide-react';
+import { Plus, CreditCard as Edit2, Trash2, Calendar, Euro, X, CheckCircle, XCircle } from 'lucide-react';
 
 type LeaseWithDetails = Lease & {
   tenant: Tenant;
@@ -340,22 +340,24 @@ export function LeaseManagement() {
       <div className="flex gap-2 mb-6">
         <button
           onClick={() => setActiveTab('active')}
-          className={`px-4 py-2 font-medium rounded-lg transition-all ${
+          className={`flex items-center gap-2 px-4 py-2 font-medium rounded-lg transition-all ${
             activeTab === 'active'
               ? 'bg-gold-500 text-white shadow-lg'
               : 'bg-dark-800 text-gray-400 hover:bg-dark-700 hover:text-gray-300'
           }`}
         >
+          <CheckCircle size={18} />
           Actief ({activeLeases.length})
         </button>
         <button
           onClick={() => setActiveTab('expired')}
-          className={`px-4 py-2 font-medium rounded-lg transition-all ${
+          className={`flex items-center gap-2 px-4 py-2 font-medium rounded-lg transition-all ${
             activeTab === 'expired'
               ? 'bg-gold-500 text-white shadow-lg'
               : 'bg-dark-800 text-gray-400 hover:bg-dark-700 hover:text-gray-300'
           }`}
         >
+          <XCircle size={18} />
           Verlopen/Beëindigd ({expiredLeases.length})
         </button>
       </div>

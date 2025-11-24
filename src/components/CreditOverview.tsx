@@ -146,22 +146,24 @@ export function CreditOverview() {
       <div className="mb-6 flex gap-2">
         <button
           onClick={() => setActiveTab('customers')}
-          className={`px-4 py-2 rounded-lg transition-colors ${
+          className={`flex items-center gap-2 px-4 py-2 font-medium rounded-lg transition-all ${
             activeTab === 'customers'
-              ? 'bg-gold-500 text-white'
-              : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
+              ? 'bg-gold-500 text-white shadow-lg'
+              : 'bg-dark-800 text-gray-400 hover:bg-dark-700 hover:text-gray-300'
           }`}
         >
+          <User size={18} />
           Klanten met Credit ({customerCredits.length})
         </button>
         <button
           onClick={() => setActiveTab('unapplied')}
-          className={`px-4 py-2 rounded-lg transition-colors ${
+          className={`flex items-center gap-2 px-4 py-2 font-medium rounded-lg transition-all ${
             activeTab === 'unapplied'
-              ? 'bg-gold-500 text-white'
-              : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
+              ? 'bg-gold-500 text-white shadow-lg'
+              : 'bg-dark-800 text-gray-400 hover:bg-dark-700 hover:text-gray-300'
           }`}
         >
+          <FileText size={18} />
           Niet Toegepaste Credit Nota's ({unappliedCreditNotes.length})
         </button>
       </div>
