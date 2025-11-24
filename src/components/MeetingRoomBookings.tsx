@@ -514,7 +514,12 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       existingInvoiceQuery = existingInvoiceQuery.eq('external_customer_id', booking.external_customer_id);
     }
 
-    const { data: existingInvoice } = await existingInvoiceQuery.maybeSingle();
+    const { data: existingInvoice, error: queryError } = await existingInvoiceQuery.maybeSingle();
+
+    if (queryError) {
+      console.error('Error querying invoice:', queryError);
+      throw new Error('Fout bij het zoeken naar bestaande factuur');
+    }
 
     const bookingLine = `- ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)} (${booking.total_hours}u) = €${booking.total_amount.toFixed(2)}`;
 
@@ -535,9 +540,8 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
         .eq('id', existingInvoice.id);
 
       if (updateError) {
-        console.error('Error updating invoice:', updateError.message);
-        showNotification('Fout bij het bijwerken van de factuur.', 'error');
-        return;
+        console.error('Error updating invoice:', updateError);
+        throw new Error('Fout bij het bijwerken van de factuur');
       }
 
       const { error: linkError } = await supabase
@@ -546,8 +550,11 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
         .eq('id', booking.id);
 
       if (linkError) {
-        console.error('Error linking booking to invoice:', linkError.message);
+        console.error('Error linking booking to invoice:', linkError);
+        throw new Error('Fout bij het koppelen van boeking aan factuur');
       }
+
+      showNotification('Factuur succesvol bijgewerkt', 'success');
     } else {
       const invoiceDate = new Date().toISOString().split('T')[0];
       const dueDate = new Date();
@@ -558,8 +565,13 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       const vatAmount = subtotal * (vatRate / 100);
       const totalAmount = subtotal + vatAmount;
 
-      const { data: invoiceNumberResult } = await supabase
+      const { data: invoiceNumberResult, error: rpcError } = await supabase
         .rpc('generate_invoice_number');
+
+      if (rpcError) {
+        console.error('Error generating invoice number:', rpcError);
+        throw new Error('Fout bij het genereren van factuurnummer');
+      }
 
       const invoiceNumber = invoiceNumberResult || 'INV-ERROR';
 
@@ -590,9 +602,8 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
         .single();
 
       if (invoiceError || !invoiceData) {
-        console.error('Error creating invoice:', invoiceError?.message);
-        showNotification('Fout bij het aanmaken van de factuur.', 'error');
-        return;
+        console.error('Error creating invoice:', invoiceError);
+        throw new Error('Fout bij het aanmaken van de factuur');
       }
 
       const { error: linkError } = await supabase
@@ -601,8 +612,11 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
         .eq('id', booking.id);
 
       if (linkError) {
-        console.error('Error linking booking to invoice:', linkError.message);
+        console.error('Error linking booking to invoice:', linkError);
+        throw new Error('Fout bij het koppelen van boeking aan factuur');
       }
+
+      showNotification('Factuur succesvol aangemaakt', 'success');
     }
   };
 
@@ -611,25 +625,30 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       return;
     }
 
-    await createOrUpdateInvoiceForBooking(booking);
+    try {
+      await createOrUpdateInvoiceForBooking(booking);
 
-    // Update the booking in state to reflect the invoice link
-    const { data: updatedBooking } = await supabase
-      .from('meeting_room_bookings')
-      .select(`
-        *,
-        tenants(name, company_name),
-        office_spaces(space_number)
-      `)
-      .eq('id', booking.id)
-      .single();
+      const { data: updatedBooking } = await supabase
+        .from('meeting_room_bookings')
+        .select(`
+          *,
+          tenants(name, company_name),
+          external_customers(company_name, contact_name, email, phone, street, postal_code, city, country),
+          office_spaces(space_number)
+        `)
+        .eq('id', booking.id)
+        .single();
 
-    if (updatedBooking) {
-      setBookings(prev => prev.map(b => b.id === booking.id ? updatedBooking : b));
-      setAllBookings(prev => prev.map(b => b.id === booking.id ? updatedBooking : b));
+      if (updatedBooking) {
+        setBookings(prev => prev.map(b => b.id === booking.id ? updatedBooking : b));
+        setAllBookings(prev => prev.map(b => b.id === booking.id ? updatedBooking : b));
+      }
+
+      await loadData();
+    } catch (error) {
+      console.error('Error generating invoice:', error);
+      showNotification('Fout bij het genereren van de factuur', 'error');
     }
-
-    showNotification('Factuur succesvol aangemaakt!', 'success');
   };
 
   const handleSpaceChange = (spaceId: string) => {
