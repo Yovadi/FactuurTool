@@ -883,13 +883,15 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
-    const previousMonth = month === 0 ? 11 : month - 1;
-    const previousYear = month === 0 ? year - 1 : year;
-    const previousMonthString = `${previousYear}-${String(previousMonth + 1).padStart(2, '0')}`;
 
-    console.log('Generating meeting room invoices for month:', previousMonthString);
+    // Use current month instead of previous month for meeting room bookings
+    const invoiceMonthString = `${year}-${String(month + 1).padStart(2, '0')}`;
+
+    console.log('=== MEETING ROOM INVOICE GENERATION ===');
+    console.log('Generating meeting room invoices for month:', invoiceMonthString);
     console.log('Current date:', currentDate.toISOString());
     console.log('Total tenants:', tenants.length);
+    console.log('Test mode:', settings?.test_mode);
 
     const invoiceDate = currentDate.toISOString().split('T')[0];
     const dueDateObj = new Date(currentDate);
@@ -900,7 +902,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
     for (const tenant of tenants) {
       console.log('Checking tenant:', tenant.company_name, 'ID:', tenant.id);
-      const bookingItems = await fetchMeetingRoomBookingsForMonth(tenant.id, previousMonthString, 'tenant');
+      const bookingItems = await fetchMeetingRoomBookingsForMonth(tenant.id, invoiceMonthString, 'tenant');
       console.log('Found bookings:', bookingItems.length, 'for tenant:', tenant.company_name);
 
       if (bookingItems.length > 0) {
@@ -916,9 +918,11 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
       .from('external_customers')
       .select('*');
 
+    console.log('External customers found:', externalCustomers?.length || 0);
+
     for (const customer of externalCustomers || []) {
       console.log('Checking external customer:', customer.company_name, 'ID:', customer.id);
-      const bookingItems = await fetchMeetingRoomBookingsForMonth(customer.id, previousMonthString, 'external');
+      const bookingItems = await fetchMeetingRoomBookingsForMonth(customer.id, invoiceMonthString, 'external');
       console.log('Found bookings:', bookingItems.length, 'for external customer:', customer.company_name);
 
       if (bookingItems.length > 0) {
@@ -931,25 +935,29 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
     }
 
     console.log('Total customers with bookings:', customersWithBookings.size);
+    console.log('Starting invoice creation...');
 
     let successCount = 0;
     let failCount = 0;
 
     for (const [key, { customer, customerType, bookings }] of customersWithBookings) {
       try {
+        console.log('Processing customer:', customer.company_name, 'type:', customerType);
+
         let existingInvoice;
         if (customerType === 'tenant') {
           existingInvoice = invoices.find(
-            inv => inv.tenant_id === customer.id && inv.invoice_month === previousMonthString && inv.lease_id === null
+            inv => inv.tenant_id === customer.id && inv.invoice_month === invoiceMonthString && inv.lease_id === null
           );
         } else {
           existingInvoice = invoices.find(
-            inv => inv.external_customer_id === customer.id && inv.invoice_month === previousMonthString && inv.lease_id === null
+            inv => inv.external_customer_id === customer.id && inv.invoice_month === invoiceMonthString && inv.lease_id === null
           );
         }
 
         if (existingInvoice) {
           console.log('Invoice already exists for customer:', customer.company_name);
+          failCount++;
           continue;
         }
 
@@ -961,14 +969,24 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
         const { subtotal, vatAmount, total } = calculateVAT(baseAmount, 21, false);
 
-        const { data: invoiceNumber } = await supabase.rpc('generate_invoice_number');
+        console.log('Calculated amounts:', { baseAmount, subtotal, vatAmount, total });
+
+        const { data: invoiceNumber, error: invoiceNumberError } = await supabase.rpc('generate_invoice_number');
+
+        if (invoiceNumberError) {
+          console.error('Error generating invoice number:', invoiceNumberError);
+          failCount++;
+          continue;
+        }
+
+        console.log('Generated invoice number:', invoiceNumber);
 
         const invoiceData: any = {
           lease_id: null,
           invoice_number: invoiceNumber,
           invoice_date: invoiceDate,
           due_date: dueDate,
-          invoice_month: previousMonthString,
+          invoice_month: invoiceMonthString,
           subtotal: subtotal,
           vat_amount: vatAmount,
           amount: total,
@@ -1063,8 +1081,10 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
     setGeneratingBulk(false);
 
-    if (successCount > 0 || failCount > 0) {
-      console.log(`Meeting room invoices generated - Success: ${successCount}, Failed: ${failCount}`);
+    console.log('=== GENERATION COMPLETE ===');
+    console.log(`Success: ${successCount}, Failed: ${failCount}`);
+
+    if (successCount > 0) {
       await loadInvoices();
     }
   };
