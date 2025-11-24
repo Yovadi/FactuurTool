@@ -73,7 +73,6 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
     spaces: any[];
   } | null>(null);
   const [selectedInvoices, setSelectedInvoices] = useState<Set<string>>(new Set());
-  const [showBatchActions, setShowBatchActions] = useState(false);
 
   const getNextMonthString = async () => {
     const { data: settings } = await supabase
@@ -1346,7 +1345,6 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
     await fetchInvoices();
     setSelectedInvoices(new Set());
-    setShowBatchActions(false);
   };
 
   const handleBatchStatusChange = async (newStatus: string) => {
@@ -1364,7 +1362,6 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
     await fetchInvoices();
     setSelectedInvoices(new Set());
-    setShowBatchActions(false);
   };
 
   if (loading) {
@@ -1821,38 +1818,24 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
         <div className="flex gap-2">
           {selectedInvoices.size > 0 && (
             <>
-              <button
-                onClick={() => setShowBatchActions(!showBatchActions)}
-                className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
-              >
+              <div className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg">
                 <CheckSquare size={18} />
                 {selectedInvoices.size} Geselecteerd
+              </div>
+              <button
+                onClick={() => handleBatchStatusChange('sent')}
+                className="flex items-center gap-2 bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 transition-colors"
+              >
+                <Send size={18} />
+                Markeer Verzonden
               </button>
-              {showBatchActions && (
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleBatchStatusChange('sent')}
-                    className="flex items-center gap-2 bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 transition-colors"
-                  >
-                    <Send size={18} />
-                    Markeer Verzonden
-                  </button>
-                  <button
-                    onClick={() => handleBatchStatusChange('paid')}
-                    className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
-                  >
-                    <CheckCircle size={18} />
-                    Markeer Betaald
-                  </button>
-                  <button
-                    onClick={handleBatchDelete}
-                    className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
-                  >
-                    <Trash2 size={18} />
-                    Verwijder
-                  </button>
-                </div>
-              )}
+              <button
+                onClick={handleBatchDelete}
+                className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+              >
+                <Trash2 size={18} />
+                Verwijder
+              </button>
             </>
           )}
         </div>
