@@ -27,7 +27,8 @@ export function Dashboard() {
     upcomingBookings: 0,
     totalBookings: 0
   });
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [financialNotifications, setFinancialNotifications] = useState<Notification[]>([]);
+  const [bookingNotifications, setBookingNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -110,10 +111,11 @@ export function Dashboard() {
       totalBookings: bookings?.length || 0
     });
 
-    const newNotifications: Notification[] = [];
+    const newFinancialNotifications: Notification[] = [];
+    const newBookingNotifications: Notification[] = [];
 
     if (overdueInvoices.length > 0) {
-      newNotifications.push({
+      newFinancialNotifications.push({
         type: 'danger',
         icon: <DollarSign size={18} />,
         title: 'Achterstallige Facturen',
@@ -122,7 +124,7 @@ export function Dashboard() {
     }
 
     if (expiredLeases.length > 0) {
-      newNotifications.push({
+      newFinancialNotifications.push({
         type: 'danger',
         icon: <Calendar size={18} />,
         title: 'Verlopen Contracten',
@@ -131,7 +133,7 @@ export function Dashboard() {
     }
 
     if (upcomingDueInvoices.length > 0) {
-      newNotifications.push({
+      newFinancialNotifications.push({
         type: 'warning',
         icon: <FileText size={18} />,
         title: 'Binnenkort Te Betalen',
@@ -140,7 +142,7 @@ export function Dashboard() {
     }
 
     if (expiringLeases.length > 0) {
-      newNotifications.push({
+      newFinancialNotifications.push({
         type: 'warning',
         icon: <Clock size={18} />,
         title: 'Contracten Verlopen Binnenkort',
@@ -149,7 +151,7 @@ export function Dashboard() {
     }
 
     if (todayBookings > 0) {
-      newNotifications.push({
+      newBookingNotifications.push({
         type: 'info',
         icon: <CalendarClock size={18} />,
         title: 'Vergaderruimte Boekingen Vandaag',
@@ -159,7 +161,7 @@ export function Dashboard() {
 
     const availableSpaces = totalRentableSpaces - occupiedSpaces;
     if (availableSpaces > 0) {
-      newNotifications.push({
+      newBookingNotifications.push({
         type: 'info',
         icon: <Building size={18} />,
         title: 'Beschikbare Ruimtes',
@@ -167,7 +169,8 @@ export function Dashboard() {
       });
     }
 
-    setNotifications(newNotifications);
+    setFinancialNotifications(newFinancialNotifications);
+    setBookingNotifications(newBookingNotifications);
     setLoading(false);
   };
 
@@ -257,44 +260,31 @@ export function Dashboard() {
         </div>
       </div>
 
-      <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 bg-dark-700 rounded-lg">
-            <AlertCircle className="text-amber-400" size={20} />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-dark-700 rounded-lg">
+              <DollarSign className="text-green-400" size={20} />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-100">Financiële Meldingen</h3>
           </div>
-          <h3 className="text-lg font-semibold text-gray-100">Meldingen & Notificaties</h3>
-        </div>
-        <div className="space-y-3">
-          {notifications.length > 0 ? (
-            notifications.map((notification, index) => (
-              <div
-                key={index}
-                className={`flex items-start gap-3 p-3 rounded-lg ${
-                  notification.type === 'danger'
-                    ? 'bg-red-900/50 border border-red-800'
-                    : notification.type === 'warning'
-                    ? 'bg-amber-900/50 border border-amber-800'
-                    : notification.type === 'info'
-                    ? 'bg-blue-900/50 border border-blue-800'
-                    : 'bg-green-900/50 border border-green-800'
-                }`}
-              >
+          <div className="space-y-3">
+            {financialNotifications.length > 0 ? (
+              financialNotifications.map((notification, index) => (
                 <div
-                  className={`mt-0.5 ${
+                  key={index}
+                  className={`flex items-start gap-3 p-3 rounded-lg ${
                     notification.type === 'danger'
-                      ? 'text-red-400'
+                      ? 'bg-red-900/50 border border-red-800'
                       : notification.type === 'warning'
-                      ? 'text-amber-400'
+                      ? 'bg-amber-900/50 border border-amber-800'
                       : notification.type === 'info'
-                      ? 'text-blue-400'
-                      : 'text-green-400'
+                      ? 'bg-blue-900/50 border border-blue-800'
+                      : 'bg-green-900/50 border border-green-800'
                   }`}
                 >
-                  {notification.icon}
-                </div>
-                <div className="flex-1">
-                  <p
-                    className={`text-sm font-medium ${
+                  <div
+                    className={`mt-0.5 ${
                       notification.type === 'danger'
                         ? 'text-red-400'
                         : notification.type === 'warning'
@@ -304,29 +294,117 @@ export function Dashboard() {
                         : 'text-green-400'
                     }`}
                   >
-                    {notification.title}
-                  </p>
-                  <p
-                    className={`text-xs mt-0.5 ${
+                    {notification.icon}
+                  </div>
+                  <div className="flex-1">
+                    <p
+                      className={`text-sm font-medium ${
+                        notification.type === 'danger'
+                          ? 'text-red-400'
+                          : notification.type === 'warning'
+                          ? 'text-amber-400'
+                          : notification.type === 'info'
+                          ? 'text-blue-400'
+                          : 'text-green-400'
+                      }`}
+                    >
+                      {notification.title}
+                    </p>
+                    <p
+                      className={`text-xs mt-0.5 ${
+                        notification.type === 'danger'
+                          ? 'text-red-300'
+                          : notification.type === 'warning'
+                          ? 'text-amber-300'
+                          : notification.type === 'info'
+                          ? 'text-blue-300'
+                          : 'text-green-300'
+                      }`}
+                    >
+                      {notification.message}
+                    </p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-8 text-gray-400">
+                Geen financiële meldingen
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-dark-700 rounded-lg">
+              <CalendarClock className="text-blue-400" size={20} />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-100">Boekingen & Ruimtes</h3>
+          </div>
+          <div className="space-y-3">
+            {bookingNotifications.length > 0 ? (
+              bookingNotifications.map((notification, index) => (
+                <div
+                  key={index}
+                  className={`flex items-start gap-3 p-3 rounded-lg ${
+                    notification.type === 'danger'
+                      ? 'bg-red-900/50 border border-red-800'
+                      : notification.type === 'warning'
+                      ? 'bg-amber-900/50 border border-amber-800'
+                      : notification.type === 'info'
+                      ? 'bg-blue-900/50 border border-blue-800'
+                      : 'bg-green-900/50 border border-green-800'
+                  }`}
+                >
+                  <div
+                    className={`mt-0.5 ${
                       notification.type === 'danger'
-                        ? 'text-red-300'
+                        ? 'text-red-400'
                         : notification.type === 'warning'
-                        ? 'text-amber-300'
+                        ? 'text-amber-400'
                         : notification.type === 'info'
-                        ? 'text-blue-300'
-                        : 'text-green-300'
+                        ? 'text-blue-400'
+                        : 'text-green-400'
                     }`}
                   >
-                    {notification.message}
-                  </p>
+                    {notification.icon}
+                  </div>
+                  <div className="flex-1">
+                    <p
+                      className={`text-sm font-medium ${
+                        notification.type === 'danger'
+                          ? 'text-red-400'
+                          : notification.type === 'warning'
+                          ? 'text-amber-400'
+                          : notification.type === 'info'
+                          ? 'text-blue-400'
+                          : 'text-green-400'
+                      }`}
+                    >
+                      {notification.title}
+                    </p>
+                    <p
+                      className={`text-xs mt-0.5 ${
+                        notification.type === 'danger'
+                          ? 'text-red-300'
+                          : notification.type === 'warning'
+                          ? 'text-amber-300'
+                          : notification.type === 'info'
+                          ? 'text-blue-300'
+                          : 'text-green-300'
+                      }`}
+                    >
+                      {notification.message}
+                    </p>
+                  </div>
                 </div>
+              ))
+            ) : (
+              <div className="text-center py-8 text-gray-400">
+                Geen boekingen of ruimte meldingen
               </div>
-            ))
-          ) : (
-            <div className="text-center py-8 text-gray-400">
-              Geen notificaties op dit moment
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>
