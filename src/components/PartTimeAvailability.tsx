@@ -52,11 +52,11 @@ export function PartTimeAvailability() {
   const loadAvailability = async () => {
     setLoading(true);
 
-    // Load all office spaces (excluding meeting rooms)
+    // Load only offices and consultation rooms
     const { data: spaces } = await supabase
       .from('office_spaces')
       .select('id, space_number, space_type')
-      .neq('space_type', 'meeting_room')
+      .in('space_type', ['office', 'consultation_room'])
       .order('space_number');
 
     // Load all active part-time leases
