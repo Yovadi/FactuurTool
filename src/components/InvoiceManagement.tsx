@@ -100,7 +100,7 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
     return result;
   };
 
-  const fetchMeetingRoomBookingsForMonth = async (tenantId: string, invoiceMonth: string) => {
+  const fetchMeetingRoomBookingsForMonth = async (customerId: string, invoiceMonth: string, customerType: 'tenant' | 'external' = 'tenant') => {
     if (!invoiceMonth) return [];
 
     const [year, month] = invoiceMonth.split('-').map(Number);
@@ -110,10 +110,10 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
     const startDateStr = startDate.toISOString().split('T')[0];
     const endDateStr = endDate.toISOString().split('T')[0];
 
-    console.log('Fetching bookings for tenant:', tenantId);
+    console.log('Fetching bookings for customer:', customerId, 'type:', customerType);
     console.log('Date range:', startDateStr, 'to', endDateStr);
 
-    const { data: bookings, error } = await supabase
+    let query = supabase
       .from('meeting_room_bookings')
       .select(`
         id,
@@ -127,11 +127,18 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
         invoice_id,
         office_spaces(space_number)
       `)
-      .eq('tenant_id', tenantId)
       .gte('booking_date', startDateStr)
       .lte('booking_date', endDateStr)
       .in('status', ['confirmed', 'completed'])
       .is('invoice_id', null);
+
+    if (customerType === 'tenant') {
+      query = query.eq('tenant_id', customerId);
+    } else {
+      query = query.eq('external_customer_id', customerId);
+    }
+
+    const { data: bookings, error } = await query;
 
     if (error) {
       console.error('Error fetching meeting room bookings:', error);
@@ -889,33 +896,60 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
     dueDateObj.setDate(dueDateObj.getDate() + 14);
     const dueDate = dueDateObj.toISOString().split('T')[0];
 
-    const tenantsWithBookings = new Map<string, { tenant: Tenant; bookings: any[] }>();
+    const customersWithBookings = new Map<string, { customer: any; customerType: 'tenant' | 'external'; bookings: any[] }>();
 
     for (const tenant of tenants) {
       console.log('Checking tenant:', tenant.company_name, 'ID:', tenant.id);
-      const bookingItems = await fetchMeetingRoomBookingsForMonth(tenant.id, previousMonthString);
+      const bookingItems = await fetchMeetingRoomBookingsForMonth(tenant.id, previousMonthString, 'tenant');
       console.log('Found bookings:', bookingItems.length, 'for tenant:', tenant.company_name);
 
       if (bookingItems.length > 0) {
-        tenantsWithBookings.set(tenant.id, {
-          tenant,
+        customersWithBookings.set(`tenant-${tenant.id}`, {
+          customer: tenant,
+          customerType: 'tenant',
           bookings: bookingItems
         });
       }
     }
 
-    console.log('Total tenants with bookings:', tenantsWithBookings.size);
+    const { data: externalCustomers } = await supabase
+      .from('external_customers')
+      .select('*');
+
+    for (const customer of externalCustomers || []) {
+      console.log('Checking external customer:', customer.company_name, 'ID:', customer.id);
+      const bookingItems = await fetchMeetingRoomBookingsForMonth(customer.id, previousMonthString, 'external');
+      console.log('Found bookings:', bookingItems.length, 'for external customer:', customer.company_name);
+
+      if (bookingItems.length > 0) {
+        customersWithBookings.set(`external-${customer.id}`, {
+          customer,
+          customerType: 'external',
+          bookings: bookingItems
+        });
+      }
+    }
+
+    console.log('Total customers with bookings:', customersWithBookings.size);
 
     let successCount = 0;
     let failCount = 0;
 
-    for (const [tenantId, { tenant, bookings }] of tenantsWithBookings) {
+    for (const [key, { customer, customerType, bookings }] of customersWithBookings) {
       try {
-        const existingInvoice = invoices.find(
-          inv => inv.tenant_id === tenantId && inv.invoice_month === previousMonthString && inv.lease_id === null
-        );
+        let existingInvoice;
+        if (customerType === 'tenant') {
+          existingInvoice = invoices.find(
+            inv => inv.tenant_id === customer.id && inv.invoice_month === previousMonthString && inv.lease_id === null
+          );
+        } else {
+          existingInvoice = invoices.find(
+            inv => inv.external_customer_id === customer.id && inv.invoice_month === previousMonthString && inv.lease_id === null
+          );
+        }
 
         if (existingInvoice) {
+          console.log('Invoice already exists for customer:', customer.company_name);
           continue;
         }
 
@@ -929,23 +963,30 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
         const { data: invoiceNumber } = await supabase.rpc('generate_invoice_number');
 
+        const invoiceData: any = {
+          lease_id: null,
+          invoice_number: invoiceNumber,
+          invoice_date: invoiceDate,
+          due_date: dueDate,
+          invoice_month: previousMonthString,
+          subtotal: subtotal,
+          vat_amount: vatAmount,
+          amount: total,
+          vat_rate: 21,
+          vat_inclusive: false,
+          status: 'draft',
+          notes: 'Vergaderruimte gebruik'
+        };
+
+        if (customerType === 'tenant') {
+          invoiceData.tenant_id = customer.id;
+        } else {
+          invoiceData.external_customer_id = customer.id;
+        }
+
         const { data: newInvoice, error: invoiceError } = await supabase
           .from('invoices')
-          .insert([{
-            lease_id: null,
-            tenant_id: tenantId,
-            invoice_number: invoiceNumber,
-            invoice_date: invoiceDate,
-            due_date: dueDate,
-            invoice_month: previousMonthString,
-            subtotal: subtotal,
-            vat_amount: vatAmount,
-            amount: total,
-            vat_rate: 21,
-            vat_inclusive: false,
-            status: 'draft',
-            notes: 'Vergaderruimte gebruik'
-          }])
+          .insert([invoiceData])
           .select()
           .single();
 
@@ -1003,7 +1044,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                 space:office_spaces(*)
               )
             ),
-            tenant:tenants(*)
+            tenant:tenants(*),
+            external_customer:external_customers(*)
           `)
           .eq('id', newInvoice.id)
           .single();
@@ -1011,6 +1053,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
         if (fullInvoice) {
           setInvoices(prev => [fullInvoice as InvoiceWithDetails, ...prev]);
         }
+
+        console.log('Successfully created invoice for customer:', customer.company_name);
       } catch (err) {
         console.error('Error generating meeting room invoice:', err);
         failCount++;
@@ -1018,7 +1062,11 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
     }
 
     setGeneratingBulk(false);
-    alert(`Vergaderruimte facturen gegenereerd!\n\nSuccesvol: ${successCount}\nMislukt: ${failCount}`);
+
+    if (successCount > 0 || failCount > 0) {
+      console.log(`Meeting room invoices generated - Success: ${successCount}, Failed: ${failCount}`);
+      await loadInvoices();
+    }
   };
 
   const generateBulkInvoices = async () => {
