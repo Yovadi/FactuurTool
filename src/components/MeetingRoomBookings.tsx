@@ -678,19 +678,15 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
 
       {!isProduction && (
         <>
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-100 mb-2">Vergaderruimte Boekingen</h1>
-            <p className="text-gray-300">Beheer boekingen voor vergaderruimtes op uurbasis</p>
-          </div>
-
-          <div className="mb-6 flex justify-between items-center">
-            <div className="flex gap-2">
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-gray-100 mb-4">Vergaderruimte Boekingen</h1>
+            <div className="flex gap-2 border-b border-dark-700">
               <button
                 onClick={() => setSelectedView('calendar')}
-                className={`px-4 py-2 font-medium rounded-lg transition-all flex items-center gap-2 ${
+                className={`flex items-center gap-2 px-4 py-3 font-medium transition-all border-b-2 ${
                   selectedView === 'calendar'
-                    ? 'bg-gold-500 text-white shadow-lg'
-                    : 'bg-dark-800 text-gray-400 hover:bg-dark-700 hover:text-gray-300'
+                    ? 'text-gold-500 border-gold-500'
+                    : 'text-gray-400 border-transparent hover:text-gray-300'
                 }`}
               >
                 <CalendarDays size={18} />
@@ -698,10 +694,10 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
               </button>
               <button
                 onClick={() => setSelectedView('list')}
-                className={`px-4 py-2 font-medium rounded-lg transition-all flex items-center gap-2 ${
+                className={`flex items-center gap-2 px-4 py-3 font-medium transition-all border-b-2 ${
                   selectedView === 'list'
-                    ? 'bg-gold-500 text-white shadow-lg'
-                    : 'bg-dark-800 text-gray-400 hover:bg-dark-700 hover:text-gray-300'
+                    ? 'text-gold-500 border-gold-500'
+                    : 'text-gray-400 border-transparent hover:text-gray-300'
                 }`}
               >
                 <AlertCircle size={18} />
@@ -709,17 +705,16 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
               </button>
               <button
                 onClick={() => setSelectedView('rates')}
-                className={`px-4 py-2 font-medium rounded-lg transition-all flex items-center gap-2 ${
+                className={`flex items-center gap-2 px-4 py-3 font-medium transition-all border-b-2 ${
                   selectedView === 'rates'
-                    ? 'bg-gold-500 text-white shadow-lg'
-                    : 'bg-dark-800 text-gray-400 hover:bg-dark-700 hover:text-gray-300'
+                    ? 'text-gold-500 border-gold-500'
+                    : 'text-gray-400 border-transparent hover:text-gray-300'
                 }`}
               >
                 <DollarSign size={18} />
                 Tarieven
               </button>
             </div>
-
           </div>
         </>
       )}
