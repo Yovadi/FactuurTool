@@ -1862,57 +1862,28 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
         </div>
       )}
 
-      <div className="mb-6 flex gap-2 justify-between">
-        <div className="flex gap-2">
-          {selectedInvoices.size > 0 && (
-            <>
-              <div className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg">
-                <CheckSquare size={18} />
-                {selectedInvoices.size} Geselecteerd
-              </div>
-              <button
-                onClick={() => handleBatchStatusChange('sent')}
-                className="flex items-center gap-2 bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 transition-colors"
-              >
-                <Send size={18} />
-                Markeer Verzonden
-              </button>
-              <button
-                onClick={handleBatchDelete}
-                className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
-              >
-                <Trash2 size={18} />
-                Verwijder
-              </button>
-            </>
-          )}
-        </div>
-        <div className="flex gap-2">
+      {selectedInvoices.size > 0 && (
+        <div className="mb-6 flex gap-2">
+          <div className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg">
+            <CheckSquare size={18} />
+            {selectedInvoices.size} Geselecteerd
+          </div>
           <button
-            onClick={generateBulkInvoices}
-            disabled={generatingBulk}
-            className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => handleBatchStatusChange('sent')}
+            className="flex items-center gap-2 bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 transition-colors"
           >
-            <Calendar size={18} />
-            {generatingBulk ? 'Bezig...' : 'Genereer Huur Facturen'}
+            <Send size={18} />
+            Markeer Verzonden
           </button>
           <button
-            onClick={generateMeetingRoomInvoices}
-            disabled={generatingBulk}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={handleBatchDelete}
+            className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
           >
-            <Calendar size={18} />
-            {generatingBulk ? 'Bezig...' : 'Genereer Vergaderruimte Facturen'}
-          </button>
-          <button
-            onClick={() => setShowForm(true)}
-            className="flex items-center gap-2 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors"
-          >
-            <Plus size={18} />
-            Nieuwe Factuur
+            <Trash2 size={18} />
+            Verwijder
           </button>
         </div>
-      </div>
+      )}
 
       <div className="space-y-8">
         {(() => {
@@ -1960,9 +1931,36 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
           return (
             <div>
               <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
-                <h2 className="text-lg font-bold text-gray-100 px-4 py-3 bg-dark-800 border-b border-amber-500">
-                  Concept Facturen
-                </h2>
+                <div className="flex items-center justify-between px-4 py-3 bg-dark-800 border-b border-amber-500">
+                  <h2 className="text-lg font-bold text-gray-100">
+                    Concept Facturen
+                  </h2>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={generateBulkInvoices}
+                      disabled={generatingBulk}
+                      className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Calendar size={18} />
+                      {generatingBulk ? 'Bezig...' : 'Genereer Huur Facturen'}
+                    </button>
+                    <button
+                      onClick={generateMeetingRoomInvoices}
+                      disabled={generatingBulk}
+                      className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Calendar size={18} />
+                      {generatingBulk ? 'Bezig...' : 'Genereer Vergaderruimte Facturen'}
+                    </button>
+                    <button
+                      onClick={() => setShowForm(true)}
+                      className="flex items-center gap-2 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors"
+                    >
+                      <Plus size={18} />
+                      Nieuwe Factuur
+                    </button>
+                  </div>
+                </div>
                 {draftInvoices.length > 0 ? (
                   <div className="overflow-x-auto">
                     <table className="w-full table-fixed min-w-[1000px]">
