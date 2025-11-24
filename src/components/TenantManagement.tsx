@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase, type Tenant, type CompanySettings } from '../lib/supabase';
-import { Plus, Edit2, Trash2, Mail, Phone, MapPin, Key, Users, Building2, AlertCircle, CheckCircle, Calendar } from 'lucide-react';
+import { Plus, Edit2, Trash2, Mail, Phone, MapPin, Key, Users, Building2, AlertCircle, CheckCircle, Calendar, Eye } from 'lucide-react';
+import { BookingOverview } from './BookingOverview';
 
 type TenantWithLeases = Tenant & {
   leases?: Array<{
@@ -34,6 +35,11 @@ export function TenantManagement() {
   const [editingCustomer, setEditingCustomer] = useState<ExternalCustomer | null>(null);
   const [loading, setLoading] = useState(true);
   const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
+  const [showBookingOverview, setShowBookingOverview] = useState<{
+    customerId: string;
+    customerType: 'tenant' | 'external';
+    customerName: string;
+  } | null>(null);
 
   const [formData, setFormData] = useState({
     company_name: '',
@@ -478,13 +484,13 @@ export function TenantManagement() {
             <table className="w-full table-fixed">
               <thead>
                 <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
-                  <th className="text-left px-4 py-3 font-semibold w-[20%]">Bedrijf</th>
-                  <th className="text-left px-4 py-3 font-semibold w-[15%]">Contactpersoon</th>
-                  <th className="text-left px-4 py-3 font-semibold w-[18%]">Email</th>
-                  <th className="text-left px-4 py-3 font-semibold w-[12%]">Telefoon</th>
-                  <th className="text-left px-4 py-3 font-semibold w-[18%]">Adres</th>
-                  <th className="text-center px-4 py-3 font-semibold w-[8%]">PIN</th>
-                  <th className="text-right px-4 py-3 font-semibold w-[9%]">Acties</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[18%]">Bedrijf</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[14%]">Contactpersoon</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[16%]">Email</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[11%]">Telefoon</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[16%]">Adres</th>
+                  <th className="text-center px-4 py-3 font-semibold w-[7%]">PIN</th>
+                  <th className="text-right px-4 py-3 font-semibold w-[18%]">Acties</th>
                 </tr>
               </thead>
               <tbody>
@@ -553,6 +559,17 @@ export function TenantManagement() {
                       <td className="px-4 py-3">
                         <div className="flex gap-1 justify-end">
                           <button
+                            onClick={() => setShowBookingOverview({
+                              customerId: tenant.id,
+                              customerType: 'tenant',
+                              customerName: tenant.company_name
+                            })}
+                            className="text-purple-400 hover:text-purple-300 transition-colors p-1.5 rounded hover:bg-dark-700"
+                            title="Bekijk Boekingen"
+                          >
+                            <Calendar size={18} />
+                          </button>
+                          <button
                             onClick={() => handleEdit(tenant)}
                             className="text-blue-400 hover:text-blue-300 transition-colors p-1.5 rounded hover:bg-dark-700"
                             title="Bewerken"
@@ -592,13 +609,13 @@ export function TenantManagement() {
             <table className="w-full table-fixed">
               <thead>
                 <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
-                  <th className="text-left px-4 py-3 font-semibold w-[20%]">Bedrijf</th>
-                  <th className="text-left px-4 py-3 font-semibold w-[15%]">Contactpersoon</th>
-                  <th className="text-left px-4 py-3 font-semibold w-[18%]">Email</th>
-                  <th className="text-left px-4 py-3 font-semibold w-[12%]">Telefoon</th>
-                  <th className="text-left px-4 py-3 font-semibold w-[18%]">Adres</th>
-                  <th className="text-center px-4 py-3 font-semibold w-[8%]">PIN</th>
-                  <th className="text-right px-4 py-3 font-semibold w-[9%]">Acties</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[18%]">Bedrijf</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[14%]">Contactpersoon</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[16%]">Email</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[11%]">Telefoon</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[16%]">Adres</th>
+                  <th className="text-center px-4 py-3 font-semibold w-[7%]">PIN</th>
+                  <th className="text-right px-4 py-3 font-semibold w-[18%]">Acties</th>
                 </tr>
               </thead>
               <tbody>
@@ -671,17 +688,28 @@ export function TenantManagement() {
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => setShowBookingOverview({
+                              customerId: customer.id,
+                              customerType: 'external',
+                              customerName: customer.company_name
+                            })}
+                            className="p-1.5 text-purple-400 hover:text-purple-300 hover:bg-dark-700 rounded transition-colors"
+                            title="Bekijk Boekingen"
+                          >
+                            <Calendar size={18} />
+                          </button>
                           <button
                             onClick={() => handleEditCustomer(customer)}
-                            className="p-2 text-gold-500 hover:bg-dark-700 rounded-lg transition-colors"
+                            className="p-1.5 text-blue-400 hover:text-blue-300 hover:bg-dark-700 rounded transition-colors"
                             title="Bewerken"
                           >
                             <Edit2 size={18} />
                           </button>
                           <button
                             onClick={() => handleDeleteCustomer(customer.id)}
-                            className="p-2 text-red-500 hover:bg-dark-700 rounded-lg transition-colors"
+                            className="p-1.5 text-red-500 hover:text-red-400 hover:bg-dark-700 rounded transition-colors"
                             title="Verwijderen"
                           >
                             <Trash2 size={18} />
@@ -916,6 +944,15 @@ export function TenantManagement() {
           <AlertCircle size={48} className="text-gray-500 mx-auto mb-4" />
           <p className="text-gray-400">Nog geen externe huurders. Klik op "Externe Huurder Toevoegen" om je eerste externe huurder aan te maken.</p>
         </div>
+      )}
+
+      {showBookingOverview && (
+        <BookingOverview
+          customerId={showBookingOverview.customerId}
+          customerType={showBookingOverview.customerType}
+          customerName={showBookingOverview.customerName}
+          onClose={() => setShowBookingOverview(null)}
+        />
       )}
     </div>
   );

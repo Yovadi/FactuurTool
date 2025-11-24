@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, type Invoice, type Lease, type Tenant, type ExternalCustomer, type LeaseSpace, type OfficeSpace, type InvoiceLineItem } from '../lib/supabase';
-import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, Edit, Search, CreditCard as Edit2, AlertCircle } from 'lucide-react';
+import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, Edit, Search, CreditCard as Edit2, AlertCircle, CheckSquare, Square } from 'lucide-react';
 import { generateInvoicePDF } from '../utils/pdfGenerator';
 import { InvoicePreview } from './InvoicePreview';
 import { checkAndRunScheduledJobs } from '../utils/scheduledJobs';
@@ -72,6 +72,8 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
     invoice: InvoiceWithDetails;
     spaces: any[];
   } | null>(null);
+  const [selectedInvoices, setSelectedInvoices] = useState<Set<string>>(new Set());
+  const [showBatchActions, setShowBatchActions] = useState(false);
 
   const getNextMonthString = async () => {
     const { data: settings } = await supabase
@@ -1314,6 +1316,57 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
     setPreviewInvoice(null);
   };
 
+  const toggleSelectInvoice = (invoiceId: string) => {
+    const newSelected = new Set(selectedInvoices);
+    if (newSelected.has(invoiceId)) {
+      newSelected.delete(invoiceId);
+    } else {
+      newSelected.add(invoiceId);
+    }
+    setSelectedInvoices(newSelected);
+  };
+
+  const toggleSelectAll = (invoiceList: InvoiceWithDetails[]) => {
+    if (selectedInvoices.size === invoiceList.length) {
+      setSelectedInvoices(new Set());
+    } else {
+      setSelectedInvoices(new Set(invoiceList.map(inv => inv.id)));
+    }
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedInvoices.size === 0) return;
+    if (!window.confirm(`Weet je zeker dat je ${selectedInvoices.size} facturen wilt verwijderen?`)) return;
+
+    const idsToDelete = Array.from(selectedInvoices);
+
+    for (const id of idsToDelete) {
+      await supabase.from('invoices').delete().eq('id', id);
+    }
+
+    await fetchInvoices();
+    setSelectedInvoices(new Set());
+    setShowBatchActions(false);
+  };
+
+  const handleBatchStatusChange = async (newStatus: string) => {
+    if (selectedInvoices.size === 0) return;
+    if (!window.confirm(`Weet je zeker dat je ${selectedInvoices.size} facturen wilt markeren als ${getStatusLabel(newStatus)}?`)) return;
+
+    const idsToUpdate = Array.from(selectedInvoices);
+
+    for (const id of idsToUpdate) {
+      await supabase
+        .from('invoices')
+        .update({ status: newStatus })
+        .eq('id', id);
+    }
+
+    await fetchInvoices();
+    setSelectedInvoices(new Set());
+    setShowBatchActions(false);
+  };
+
   if (loading) {
     return <div className="text-center py-8">Facturen laden...</div>;
   }
@@ -1764,30 +1817,70 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
         </div>
       )}
 
-      <div className="mb-6 flex gap-2 justify-end">
-        <button
-          onClick={generateBulkInvoices}
-          disabled={generatingBulk}
-          className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <Calendar size={18} />
-          {generatingBulk ? 'Bezig...' : 'Genereer Huur Facturen'}
-        </button>
-        <button
-          onClick={generateMeetingRoomInvoices}
-          disabled={generatingBulk}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <Calendar size={18} />
-          {generatingBulk ? 'Bezig...' : 'Genereer Vergaderruimte Facturen'}
-        </button>
-        <button
-          onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors"
-        >
-          <Plus size={18} />
-          Nieuwe Factuur
-        </button>
+      <div className="mb-6 flex gap-2 justify-between">
+        <div className="flex gap-2">
+          {selectedInvoices.size > 0 && (
+            <>
+              <button
+                onClick={() => setShowBatchActions(!showBatchActions)}
+                className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                <CheckSquare size={18} />
+                {selectedInvoices.size} Geselecteerd
+              </button>
+              {showBatchActions && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleBatchStatusChange('sent')}
+                    className="flex items-center gap-2 bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 transition-colors"
+                  >
+                    <Send size={18} />
+                    Markeer Verzonden
+                  </button>
+                  <button
+                    onClick={() => handleBatchStatusChange('paid')}
+                    className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    <CheckCircle size={18} />
+                    Markeer Betaald
+                  </button>
+                  <button
+                    onClick={handleBatchDelete}
+                    className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                  >
+                    <Trash2 size={18} />
+                    Verwijder
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={generateBulkInvoices}
+            disabled={generatingBulk}
+            className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Calendar size={18} />
+            {generatingBulk ? 'Bezig...' : 'Genereer Huur Facturen'}
+          </button>
+          <button
+            onClick={generateMeetingRoomInvoices}
+            disabled={generatingBulk}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Calendar size={18} />
+            {generatingBulk ? 'Bezig...' : 'Genereer Vergaderruimte Facturen'}
+          </button>
+          <button
+            onClick={() => setShowForm(true)}
+            className="flex items-center gap-2 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors"
+          >
+            <Plus size={18} />
+            Nieuwe Factuur
+          </button>
+        </div>
       </div>
 
       <div className="space-y-8">
@@ -1844,7 +1937,22 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                     <table className="w-full table-fixed min-w-[1000px]">
                       <thead>
                         <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
-                        <th className="text-left px-4 py-3 font-semibold w-[20%]">Klant</th>
+                        <th className="text-center px-4 py-3 font-semibold w-[5%]">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleSelectAll(draftInvoices);
+                            }}
+                            className="text-gray-300 hover:text-gold-500 transition-colors"
+                          >
+                            {selectedInvoices.size === draftInvoices.length && draftInvoices.length > 0 ? (
+                              <CheckSquare size={18} />
+                            ) : (
+                              <Square size={18} />
+                            )}
+                          </button>
+                        </th>
+                        <th className="text-left px-4 py-3 font-semibold w-[19%]">Klant</th>
                         <th className="text-left px-4 py-3 font-semibold w-[10%]">Factuur Nr.</th>
                         <th className="text-left px-4 py-3 font-semibold w-[10%]">Maand</th>
                         <th className="text-left px-4 py-3 font-semibold w-[12%]">Factuur Datum</th>
@@ -1866,6 +1974,18 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                             onClick={() => showInvoicePreview(invoice)}
                             className="border-b border-dark-800 hover:bg-dark-800 hover:border-gold-500 transition-colors cursor-pointer"
                           >
+                            <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                onClick={() => toggleSelectInvoice(invoice.id)}
+                                className="text-gray-300 hover:text-gold-500 transition-colors"
+                              >
+                                {selectedInvoices.has(invoice.id) ? (
+                                  <CheckSquare size={18} />
+                                ) : (
+                                  <Square size={18} />
+                                )}
+                              </button>
+                            </td>
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2">
                                 <FileText className="text-gray-500" size={18} />
@@ -1933,7 +2053,22 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                       <table className="w-full table-fixed min-w-[1000px]">
                         <thead>
                           <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
-                            <th className="text-left px-4 py-3 font-semibold w-[20%]">Klant</th>
+                            <th className="text-center px-4 py-3 font-semibold w-[5%]">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleSelectAll(openInvoices);
+                                }}
+                                className="text-gray-300 hover:text-gold-500 transition-colors"
+                              >
+                                {selectedInvoices.size === openInvoices.length && openInvoices.length > 0 ? (
+                                  <CheckSquare size={18} />
+                                ) : (
+                                  <Square size={18} />
+                                )}
+                              </button>
+                            </th>
+                            <th className="text-left px-4 py-3 font-semibold w-[19%]">Klant</th>
                             <th className="text-left px-4 py-3 font-semibold w-[10%]">Factuur Nr.</th>
                             <th className="text-left px-4 py-3 font-semibold w-[10%]">Maand</th>
                             <th className="text-left px-4 py-3 font-semibold w-[12%]">Factuur Datum</th>
@@ -1955,6 +2090,18 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                                 onClick={() => showInvoicePreview(invoice)}
                                 className="border-b border-dark-800 hover:bg-dark-800 hover:border-gold-500 transition-colors cursor-pointer"
                               >
+                                <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                                  <button
+                                    onClick={() => toggleSelectInvoice(invoice.id)}
+                                    className="text-gray-300 hover:text-gold-500 transition-colors"
+                                  >
+                                    {selectedInvoices.has(invoice.id) ? (
+                                      <CheckSquare size={18} />
+                                    ) : (
+                                      <Square size={18} />
+                                    )}
+                                  </button>
+                                </td>
                                 <td className="px-4 py-3">
                                   <div className="flex items-center gap-2">
                                     <FileText className="text-gray-500" size={18} />
