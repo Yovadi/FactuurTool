@@ -56,7 +56,7 @@ export function PartTimeAvailability() {
     const { data: spaces } = await supabase
       .from('office_spaces')
       .select('id, space_number, space_type')
-      .in('space_type', ['office', 'consultation_room'])
+      .in('space_type', ['kantoor', 'spreekkamer'])
       .order('space_number');
 
     // Load all active part-time leases
