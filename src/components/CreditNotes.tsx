@@ -482,6 +482,16 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
 
   return (
     <div>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold text-gray-100">Credit Nota's</h2>
+        <button
+          onClick={() => setShowForm(true)}
+          className="flex items-center gap-2 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors"
+        >
+          <Plus size={20} />
+          Nieuwe Credit Nota
+        </button>
+      </div>
 
       <div className="space-y-4">
         {creditNotes.length === 0 ? (
@@ -491,18 +501,6 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
           </div>
         ) : (
           <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
-            <div className="flex justify-between items-center px-4 py-3 bg-dark-800 border-b border-amber-500">
-              <h2 className="text-lg font-bold text-gray-100">
-                Credit Nota's
-              </h2>
-              <button
-                onClick={() => setShowForm(true)}
-                className="flex items-center gap-2 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors"
-              >
-                <Plus size={20} />
-                Nieuwe Credit Nota
-              </button>
-            </div>
             <div className="overflow-x-auto">
               <table className="w-full table-fixed min-w-[1000px]">
                 <thead>
