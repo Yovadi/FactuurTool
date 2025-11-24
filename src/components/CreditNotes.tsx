@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, Eye, Trash2, Download, Edit, Edit2, FileText } from 'lucide-react';
+import { Plus, Eye, Trash2, Download, Edit, Edit2, FileText, CheckCircle } from 'lucide-react';
 import { CreditNotePreview } from './CreditNotePreview';
 import { CreditNoteApplications } from './CreditNoteApplications';
 import { generateCreditNotePDF } from '../utils/pdfGenerator';

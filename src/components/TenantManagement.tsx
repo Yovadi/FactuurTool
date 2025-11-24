@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, type Tenant, type CompanySettings } from '../lib/supabase';
-import { Plus, Edit2, Trash2, Mail, Phone, MapPin, Key, Users, Building2, ScrollText } from 'lucide-react';
+import { Plus, Edit2, Trash2, Mail, Phone, MapPin, Key, Users, Building2, ScrollText, AlertCircle, CheckCircle } from 'lucide-react';
 import { LeaseManagement } from './LeaseManagement';
 
 type TenantWithLeases = Tenant & {
