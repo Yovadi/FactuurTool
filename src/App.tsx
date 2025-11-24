@@ -6,9 +6,10 @@ import { CompanySettings } from './components/CompanySettings';
 import { MeetingRoomBookings } from './components/MeetingRoomBookings';
 import { PinLogin } from './components/PinLogin';
 import { Financial } from './components/Financial';
-import { LayoutDashboard, Users, Building, ScrollText, Settings, CalendarClock, LogOut, Euro } from 'lucide-react';
+import { Analytics } from './components/Analytics';
+import { LayoutDashboard, Users, Building, ScrollText, Settings, CalendarClock, LogOut, Euro, TrendingUp } from 'lucide-react';
 
-type Tab = 'dashboard' | 'rental' | 'spaces' | 'bookings' | 'financial' | 'settings';
+type Tab = 'dashboard' | 'rental' | 'spaces' | 'bookings' | 'financial' | 'analytics' | 'settings';
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -29,7 +30,8 @@ function App() {
     { id: 'spaces' as Tab, label: 'Ruimtes', icon: Building },
     { id: 'rental' as Tab, label: 'Huur', icon: Users },
     { id: 'bookings' as Tab, label: 'Vergaderruimte', icon: CalendarClock },
-    { id: 'financial' as Tab, label: 'Financieel', icon: Euro },
+    { id: 'financial' as Tab, label: 'Facturen', icon: Euro },
+    { id: 'analytics' as Tab, label: 'Analyses', icon: TrendingUp },
   ];
 
   const bottomNavigation = [
@@ -140,6 +142,7 @@ function App() {
               {activeTab === 'rental' && <RentalManagement />}
               {activeTab === 'bookings' && <MeetingRoomBookings />}
               {activeTab === 'financial' && <Financial />}
+              {activeTab === 'analytics' && <Analytics />}
               {activeTab === 'settings' && <CompanySettings />}
             </div>
           </main>

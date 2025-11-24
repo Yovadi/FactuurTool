@@ -3,10 +3,9 @@ import { InvoiceManagement } from './InvoiceManagement';
 import { DebtorsOverview } from './DebtorsOverview';
 import { CreditNotes } from './CreditNotes';
 import { CreditOverview } from './CreditOverview';
-import { Analytics } from './Analytics';
-import { FileText, AlertTriangle, Receipt, TrendingUp, DollarSign } from 'lucide-react';
+import { FileText, AlertTriangle, Receipt, DollarSign } from 'lucide-react';
 
-type FinancialTab = 'invoices' | 'debtors' | 'creditnotes' | 'creditoverview' | 'analytics';
+type FinancialTab = 'invoices' | 'debtors' | 'creditnotes' | 'creditoverview';
 
 type PrefilledInvoiceData = {
   invoice: any;
@@ -23,13 +22,12 @@ export function Financial() {
     { id: 'debtors' as FinancialTab, label: 'Debiteuren', icon: AlertTriangle },
     { id: 'creditnotes' as FinancialTab, label: 'Credit Nota\'s', icon: Receipt },
     { id: 'creditoverview' as FinancialTab, label: 'Credit Overzicht', icon: DollarSign },
-    { id: 'analytics' as FinancialTab, label: 'Analyses', icon: TrendingUp },
   ];
 
   return (
     <div>
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-100 mb-4">Financieel</h2>
+        <h2 className="text-2xl font-bold text-gray-100 mb-4">Facturen</h2>
         <div className="flex gap-2 border-b border-dark-700">
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -68,7 +66,6 @@ export function Financial() {
           />
         )}
         {activeTab === 'creditoverview' && <CreditOverview />}
-        {activeTab === 'analytics' && <Analytics />}
       </div>
     </div>
   );
