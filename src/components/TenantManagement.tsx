@@ -303,13 +303,13 @@ export function TenantManagement() {
       ) : (
         <div>
 
-      <div className="flex gap-2 mb-6">
+      <div className="flex gap-2 mb-6 border-b border-dark-700">
         <button
           onClick={() => setActiveTab('active')}
-          className={`flex items-center gap-2 px-4 py-2 font-medium rounded-lg transition-all ${
+          className={`flex items-center gap-2 px-4 py-3 font-medium transition-all border-b-2 ${
             activeTab === 'active'
-              ? 'bg-gold-500 text-white shadow-lg'
-              : 'bg-dark-800 text-gray-400 hover:bg-dark-700 hover:text-gray-300'
+              ? 'text-gold-500 border-gold-500'
+              : 'text-gray-400 border-transparent hover:text-gray-300'
           }`}
         >
           <Building2 size={18} />
@@ -317,10 +317,10 @@ export function TenantManagement() {
         </button>
         <button
           onClick={() => setActiveTab('external')}
-          className={`flex items-center gap-2 px-4 py-2 font-medium rounded-lg transition-all ${
+          className={`flex items-center gap-2 px-4 py-3 font-medium transition-all border-b-2 ${
             activeTab === 'external'
-              ? 'bg-gold-500 text-white shadow-lg'
-              : 'bg-dark-800 text-gray-400 hover:bg-dark-700 hover:text-gray-300'
+              ? 'text-gold-500 border-gold-500'
+              : 'text-gray-400 border-transparent hover:text-gray-300'
           }`}
         >
           <Users size={18} />
@@ -328,10 +328,10 @@ export function TenantManagement() {
         </button>
         <button
           onClick={() => setActiveTab('inactive')}
-          className={`flex items-center gap-2 px-4 py-2 font-medium rounded-lg transition-all ${
+          className={`flex items-center gap-2 px-4 py-3 font-medium transition-all border-b-2 ${
             activeTab === 'inactive'
-              ? 'bg-gold-500 text-white shadow-lg'
-              : 'bg-dark-800 text-gray-400 hover:bg-dark-700 hover:text-gray-300'
+              ? 'text-gold-500 border-gold-500'
+              : 'text-gray-400 border-transparent hover:text-gray-300'
           }`}
         >
           <Building2 size={18} />

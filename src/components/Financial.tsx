@@ -30,17 +30,17 @@ export function Financial() {
     <div>
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-gray-100 mb-4">Financieel</h2>
-        <div className="flex gap-2">
+        <div className="flex gap-2 border-b border-dark-700">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2 font-medium rounded-lg transition-all ${
+                className={`flex items-center gap-2 px-4 py-3 font-medium transition-all border-b-2 ${
                   activeTab === tab.id
-                    ? 'bg-gold-500 text-white shadow-lg'
-                    : 'bg-dark-800 text-gray-400 hover:bg-dark-700 hover:text-gray-300'
+                    ? 'text-gold-500 border-gold-500'
+                    : 'text-gray-400 border-transparent hover:text-gray-300'
                 }`}
               >
                 <Icon size={18} />

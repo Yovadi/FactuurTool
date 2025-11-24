@@ -201,13 +201,13 @@ export function DebtorsOverview() {
       <div className="max-w-7xl mx-auto">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-100 mb-2">Debiteuren Overzicht</h1>
-          <div className="flex gap-2 mb-4">
+          <div className="flex gap-2 mb-4 border-b border-dark-700">
             <button
               onClick={() => setActiveTab('open')}
-              className={`flex items-center gap-2 px-4 py-2 font-medium rounded-lg transition-all ${
+              className={`flex items-center gap-2 px-4 py-3 font-medium transition-all border-b-2 ${
                 activeTab === 'open'
-                  ? 'bg-gold-500 text-white shadow-lg'
-                  : 'bg-dark-800 text-gray-400 hover:bg-dark-700 hover:text-gray-300'
+                  ? 'text-gold-500 border-gold-500'
+                  : 'text-gray-400 border-transparent hover:text-gray-300'
               }`}
             >
               <AlertCircle size={18} />
@@ -215,10 +215,10 @@ export function DebtorsOverview() {
             </button>
             <button
               onClick={() => setActiveTab('log')}
-              className={`flex items-center gap-2 px-4 py-2 font-medium rounded-lg transition-all ${
+              className={`flex items-center gap-2 px-4 py-3 font-medium transition-all border-b-2 ${
                 activeTab === 'log'
-                  ? 'bg-gold-500 text-white shadow-lg'
-                  : 'bg-dark-800 text-gray-400 hover:bg-dark-700 hover:text-gray-300'
+                  ? 'text-gold-500 border-gold-500'
+                  : 'text-gray-400 border-transparent hover:text-gray-300'
               }`}
             >
               <CheckCircle size={18} />
