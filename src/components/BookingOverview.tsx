@@ -7,11 +7,10 @@ type Booking = {
   booking_date: string;
   start_time: string;
   end_time: string;
-  booking_type: 'internal' | 'external';
-  invoiced: boolean;
+  booking_type: 'tenant' | 'external';
+  invoice_id: string | null;
   space: {
-    space_name: string;
-    space_type: string;
+    space_number: string;
   };
 };
 
@@ -42,14 +41,14 @@ export function BookingOverview({ customerId, customerType, customerName, onClos
         start_time,
         end_time,
         booking_type,
-        invoiced,
-        space:office_spaces(space_name, space_type)
+        invoice_id,
+        space:office_spaces(space_number)
       `)
       .order('booking_date', { ascending: false })
       .order('start_time', { ascending: false });
 
     if (customerType === 'tenant') {
-      query.eq('tenant_id', customerId).eq('booking_type', 'internal');
+      query.eq('tenant_id', customerId).eq('booking_type', 'tenant');
     } else {
       query.eq('external_customer_id', customerId).eq('booking_type', 'external');
     }
@@ -67,14 +66,14 @@ export function BookingOverview({ customerId, customerType, customerName, onClos
 
   const filteredBookings = bookings.filter(booking => {
     if (filter === 'all') return true;
-    if (filter === 'invoiced') return booking.invoiced;
-    if (filter === 'not_invoiced') return !booking.invoiced;
+    if (filter === 'invoiced') return booking.invoice_id !== null;
+    if (filter === 'not_invoiced') return booking.invoice_id === null;
     return true;
   });
 
   const totalBookings = bookings.length;
-  const invoicedBookings = bookings.filter(b => b.invoiced).length;
-  const notInvoicedBookings = bookings.filter(b => !b.invoiced).length;
+  const invoicedBookings = bookings.filter(b => b.invoice_id !== null).length;
+  const notInvoicedBookings = bookings.filter(b => b.invoice_id === null).length;
 
   if (loading) {
     return (
@@ -189,18 +188,18 @@ export function BookingOverview({ customerId, customerType, customerName, onClos
                       </td>
                       <td className="px-4 py-3">
                         <span className="text-gray-100 font-medium">
-                          {booking.space.space_name}
+                          {booking.space.space_number}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-center">
                         <span
                           className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
-                            booking.invoiced
+                            booking.invoice_id !== null
                               ? 'bg-green-900 text-green-400'
                               : 'bg-amber-900 text-amber-400'
                           }`}
                         >
-                          {booking.invoiced ? 'GEFACTUREERD' : 'NIET GEFACTUREERD'}
+                          {booking.invoice_id !== null ? 'GEFACTUREERD' : 'NIET GEFACTUREERD'}
                         </span>
                       </td>
                     </tr>

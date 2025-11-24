@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { TrendingUp, Euro, FileText, DollarSign, Calendar, Download } from 'lucide-react';
+import { TrendingUp, Euro, FileText, DollarSign, Calendar, Download, Users } from 'lucide-react';
+import { BookingOverview } from './BookingOverview';
 
 type AnalyticsStats = {
   totalRevenue: number;
@@ -67,10 +68,32 @@ export function Analytics() {
   const [vatData, setVATData] = useState<VATData[]>([]);
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [loading, setLoading] = useState(true);
+  const [tenants, setTenants] = useState<any[]>([]);
+  const [externalCustomers, setExternalCustomers] = useState<any[]>([]);
+  const [selectedCustomer, setSelectedCustomer] = useState<{id: string; type: 'tenant' | 'external'; name: string} | null>(null);
 
   useEffect(() => {
     loadAllData();
   }, [selectedYear]);
+
+  useEffect(() => {
+    loadCustomers();
+  }, []);
+
+  const loadCustomers = async () => {
+    const { data: tenantsData } = await supabase
+      .from('tenants')
+      .select('id, company_name')
+      .order('company_name');
+
+    const { data: externalData } = await supabase
+      .from('external_customers')
+      .select('id, company_name')
+      .order('company_name');
+
+    setTenants(tenantsData || []);
+    setExternalCustomers(externalData || []);
+  };
 
   const loadAllData = async () => {
     setLoading(true);
@@ -595,6 +618,55 @@ export function Analytics() {
         )}
       </div>
 
+      <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6 mb-8">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="p-2 bg-dark-700 rounded-lg">
+            <Users className="text-gold-500" size={20} />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-100">Boekingsoverzicht per Klant</h3>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h4 className="text-sm font-semibold text-gray-300 mb-3">Huurders</h4>
+            <div className="space-y-2">
+              {tenants.length === 0 ? (
+                <p className="text-gray-400 text-sm">Geen huurders gevonden</p>
+              ) : (
+                tenants.map(tenant => (
+                  <button
+                    key={tenant.id}
+                    onClick={() => setSelectedCustomer({ id: tenant.id, type: 'tenant', name: tenant.company_name })}
+                    className="w-full text-left px-4 py-3 bg-dark-800 hover:bg-dark-700 text-gray-200 rounded-lg transition-colors border border-dark-700"
+                  >
+                    {tenant.company_name}
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div>
+            <h4 className="text-sm font-semibold text-gray-300 mb-3">Externe Klanten</h4>
+            <div className="space-y-2">
+              {externalCustomers.length === 0 ? (
+                <p className="text-gray-400 text-sm">Geen externe klanten gevonden</p>
+              ) : (
+                externalCustomers.map(customer => (
+                  <button
+                    key={customer.id}
+                    onClick={() => setSelectedCustomer({ id: customer.id, type: 'external', name: customer.company_name })}
+                    className="w-full text-left px-4 py-3 bg-dark-800 hover:bg-dark-700 text-gray-200 rounded-lg transition-colors border border-dark-700"
+                  >
+                    {customer.company_name}
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
       {stats.overdueInvoices > 0 && (
         <div className="bg-red-900/20 border border-red-800 rounded-lg p-6">
           <div className="flex items-center gap-3 mb-2">
@@ -611,6 +683,15 @@ export function Analytics() {
             Bekijk de facturen sectie voor meer details en neem contact op met huurders indien nodig.
           </p>
         </div>
+      )}
+
+      {selectedCustomer && (
+        <BookingOverview
+          customerId={selectedCustomer.id}
+          customerType={selectedCustomer.type}
+          customerName={selectedCustomer.name}
+          onClose={() => setSelectedCustomer(null)}
+        />
       )}
     </div>
   );
