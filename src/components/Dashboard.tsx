@@ -92,6 +92,14 @@ export function Dashboard() {
       lease => lease.status === 'active' && lease.end_date < todayStr
     ) || [];
 
+    const draftInvoices = invoices?.filter(
+      inv => inv.status === 'concept'
+    ) || [];
+
+    const outstandingInvoices = invoices?.filter(
+      inv => inv.status === 'verzonden'
+    ) || [];
+
     const overdueInvoices = invoices?.filter(
       inv => inv.status !== 'paid' && inv.due_date < todayStr
     ) || [];
@@ -101,6 +109,8 @@ export function Dashboard() {
     ) || [];
 
     const overdueAmount = overdueInvoices.reduce((sum, inv) => sum + Number(inv.amount), 0);
+    const draftAmount = draftInvoices.reduce((sum, inv) => sum + Number(inv.amount), 0);
+    const outstandingAmount = outstandingInvoices.reduce((sum, inv) => sum + Number(inv.amount), 0);
 
     setStats({
       totalTenants: tenants?.length || 0,
@@ -113,6 +123,24 @@ export function Dashboard() {
 
     const newFinancialNotifications: Notification[] = [];
     const newBookingNotifications: Notification[] = [];
+
+    if (draftInvoices.length > 0) {
+      newFinancialNotifications.push({
+        type: 'info',
+        icon: <FileText size={18} />,
+        title: 'Concept Facturen',
+        message: `${draftInvoices.length} factu${draftInvoices.length !== 1 ? 'ren' : 'ur'} in concept (€${draftAmount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`
+      });
+    }
+
+    if (outstandingInvoices.length > 0) {
+      newFinancialNotifications.push({
+        type: 'info',
+        icon: <FileText size={18} />,
+        title: 'Openstaande Facturen',
+        message: `${outstandingInvoices.length} factu${outstandingInvoices.length !== 1 ? 'ren' : 'ur'} openstaand (€${outstandingAmount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`
+      });
+    }
 
     if (overdueInvoices.length > 0) {
       newFinancialNotifications.push({
@@ -270,35 +298,86 @@ export function Dashboard() {
           </div>
           <div className="space-y-3">
             {financialNotifications.length > 0 ? (
-              financialNotifications.map((notification, index) => (
-                <div
-                  key={index}
-                  className={`flex items-start gap-3 p-3 rounded-lg ${
-                    notification.type === 'danger'
-                      ? 'bg-red-900/50 border border-red-800'
-                      : notification.type === 'warning'
-                      ? 'bg-amber-900/50 border border-amber-800'
-                      : notification.type === 'info'
-                      ? 'bg-blue-900/50 border border-blue-800'
-                      : 'bg-green-900/50 border border-green-800'
-                  }`}
-                >
+              <>
+                {financialNotifications.filter(n => n.title.includes('Concept')).length > 0 && (
+                  <>
+                    {financialNotifications.filter(n => n.title.includes('Concept')).map((notification, index) => (
+                      <div
+                        key={`draft-${index}`}
+                        className={`flex items-start gap-3 p-3 rounded-lg ${
+                          notification.type === 'danger'
+                            ? 'bg-red-900/50 border border-red-800'
+                            : notification.type === 'warning'
+                            ? 'bg-amber-900/50 border border-amber-800'
+                            : notification.type === 'info'
+                            ? 'bg-blue-900/50 border border-blue-800'
+                            : 'bg-green-900/50 border border-green-800'
+                        }`}
+                      >
+                        <div
+                          className={`mt-0.5 ${
+                            notification.type === 'danger'
+                              ? 'text-red-400'
+                              : notification.type === 'warning'
+                              ? 'text-amber-400'
+                              : notification.type === 'info'
+                              ? 'text-blue-400'
+                              : 'text-green-400'
+                          }`}
+                        >
+                          {notification.icon}
+                        </div>
+                        <div className="flex-1">
+                          <p
+                            className={`text-sm font-medium ${
+                              notification.type === 'danger'
+                                ? 'text-red-400'
+                                : notification.type === 'warning'
+                                ? 'text-amber-400'
+                                : notification.type === 'info'
+                                ? 'text-blue-400'
+                                : 'text-green-400'
+                            }`}
+                          >
+                            {notification.title}
+                          </p>
+                          <p
+                            className={`text-xs mt-0.5 ${
+                              notification.type === 'danger'
+                                ? 'text-red-300'
+                                : notification.type === 'warning'
+                                ? 'text-amber-300'
+                                : notification.type === 'info'
+                                ? 'text-blue-300'
+                                : 'text-green-300'
+                            }`}
+                          >
+                            {notification.message}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                    {financialNotifications.filter(n => n.title.includes('Openstaande')).length > 0 && (
+                      <div className="border-t border-dark-700 my-2"></div>
+                    )}
+                  </>
+                )}
+
+                {financialNotifications.filter(n => n.title.includes('Openstaande')).map((notification, index) => (
                   <div
-                    className={`mt-0.5 ${
+                    key={`outstanding-${index}`}
+                    className={`flex items-start gap-3 p-3 rounded-lg ${
                       notification.type === 'danger'
-                        ? 'text-red-400'
+                        ? 'bg-red-900/50 border border-red-800'
                         : notification.type === 'warning'
-                        ? 'text-amber-400'
+                        ? 'bg-amber-900/50 border border-amber-800'
                         : notification.type === 'info'
-                        ? 'text-blue-400'
-                        : 'text-green-400'
+                        ? 'bg-blue-900/50 border border-blue-800'
+                        : 'bg-green-900/50 border border-green-800'
                     }`}
                   >
-                    {notification.icon}
-                  </div>
-                  <div className="flex-1">
-                    <p
-                      className={`text-sm font-medium ${
+                    <div
+                      className={`mt-0.5 ${
                         notification.type === 'danger'
                           ? 'text-red-400'
                           : notification.type === 'warning'
@@ -308,24 +387,102 @@ export function Dashboard() {
                           : 'text-green-400'
                       }`}
                     >
-                      {notification.title}
-                    </p>
-                    <p
-                      className={`text-xs mt-0.5 ${
+                      {notification.icon}
+                    </div>
+                    <div className="flex-1">
+                      <p
+                        className={`text-sm font-medium ${
+                          notification.type === 'danger'
+                            ? 'text-red-400'
+                            : notification.type === 'warning'
+                            ? 'text-amber-400'
+                            : notification.type === 'info'
+                            ? 'text-blue-400'
+                            : 'text-green-400'
+                        }`}
+                      >
+                        {notification.title}
+                      </p>
+                      <p
+                        className={`text-xs mt-0.5 ${
+                          notification.type === 'danger'
+                            ? 'text-red-300'
+                            : notification.type === 'warning'
+                            ? 'text-amber-300'
+                            : notification.type === 'info'
+                            ? 'text-blue-300'
+                            : 'text-green-300'
+                        }`}
+                      >
+                        {notification.message}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+
+                {(financialNotifications.filter(n => n.title.includes('Concept')).length > 0 ||
+                  financialNotifications.filter(n => n.title.includes('Openstaande')).length > 0) &&
+                 financialNotifications.filter(n => !n.title.includes('Concept') && !n.title.includes('Openstaande')).length > 0 && (
+                  <div className="border-t border-dark-700 my-2"></div>
+                )}
+
+                {financialNotifications.filter(n => !n.title.includes('Concept') && !n.title.includes('Openstaande')).map((notification, index) => (
+                  <div
+                    key={`other-${index}`}
+                    className={`flex items-start gap-3 p-3 rounded-lg ${
+                      notification.type === 'danger'
+                        ? 'bg-red-900/50 border border-red-800'
+                        : notification.type === 'warning'
+                        ? 'bg-amber-900/50 border border-amber-800'
+                        : notification.type === 'info'
+                        ? 'bg-blue-900/50 border border-blue-800'
+                        : 'bg-green-900/50 border border-green-800'
+                    }`}
+                  >
+                    <div
+                      className={`mt-0.5 ${
                         notification.type === 'danger'
-                          ? 'text-red-300'
+                          ? 'text-red-400'
                           : notification.type === 'warning'
-                          ? 'text-amber-300'
+                          ? 'text-amber-400'
                           : notification.type === 'info'
-                          ? 'text-blue-300'
-                          : 'text-green-300'
+                          ? 'text-blue-400'
+                          : 'text-green-400'
                       }`}
                     >
-                      {notification.message}
-                    </p>
+                      {notification.icon}
+                    </div>
+                    <div className="flex-1">
+                      <p
+                        className={`text-sm font-medium ${
+                          notification.type === 'danger'
+                            ? 'text-red-400'
+                            : notification.type === 'warning'
+                            ? 'text-amber-400'
+                            : notification.type === 'info'
+                            ? 'text-blue-400'
+                            : 'text-green-400'
+                        }`}
+                      >
+                        {notification.title}
+                      </p>
+                      <p
+                        className={`text-xs mt-0.5 ${
+                          notification.type === 'danger'
+                            ? 'text-red-300'
+                            : notification.type === 'warning'
+                            ? 'text-amber-300'
+                            : notification.type === 'info'
+                            ? 'text-blue-300'
+                            : 'text-green-300'
+                        }`}
+                      >
+                        {notification.message}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))
+                ))}
+              </>
             ) : (
               <div className="text-center py-8 text-gray-400">
                 Geen financiële meldingen
