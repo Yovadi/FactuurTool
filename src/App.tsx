@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Dashboard } from './components/Dashboard';
-import { TenantManagement } from './components/TenantManagement';
-import { PartTimeAvailability } from './components/PartTimeAvailability';
+import { RentalManagement } from './components/RentalManagement';
 import { SpacesTabs } from './components/SpacesTabs';
 import { CompanySettings } from './components/CompanySettings';
 import { MeetingRoomBookings } from './components/MeetingRoomBookings';
@@ -9,7 +8,7 @@ import { PinLogin } from './components/PinLogin';
 import { Financial } from './components/Financial';
 import { LayoutDashboard, Users, Building, ScrollText, Settings, CalendarClock, LogOut, Euro } from 'lucide-react';
 
-type Tab = 'dashboard' | 'tenants' | 'parttime' | 'spaces' | 'bookings' | 'financial' | 'settings';
+type Tab = 'dashboard' | 'rental' | 'spaces' | 'bookings' | 'financial' | 'settings';
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -28,8 +27,7 @@ function App() {
   const navigation = [
     { id: 'dashboard' as Tab, label: 'Overzicht', icon: LayoutDashboard },
     { id: 'spaces' as Tab, label: 'Ruimtes', icon: Building },
-    { id: 'tenants' as Tab, label: 'Voltijd', icon: Users },
-    { id: 'parttime' as Tab, label: 'Deeltijd', icon: CalendarClock },
+    { id: 'rental' as Tab, label: 'Huur', icon: Users },
     { id: 'bookings' as Tab, label: 'Vergaderruimte', icon: CalendarClock },
     { id: 'financial' as Tab, label: 'Financieel', icon: Euro },
   ];
@@ -139,8 +137,7 @@ function App() {
             <div className="bg-dark-950">
               {activeTab === 'dashboard' && <Dashboard />}
               {activeTab === 'spaces' && <SpacesTabs />}
-              {activeTab === 'tenants' && <TenantManagement />}
-              {activeTab === 'parttime' && <PartTimeAvailability />}
+              {activeTab === 'rental' && <RentalManagement />}
               {activeTab === 'bookings' && <MeetingRoomBookings />}
               {activeTab === 'financial' && <Financial />}
               {activeTab === 'settings' && <CompanySettings />}
