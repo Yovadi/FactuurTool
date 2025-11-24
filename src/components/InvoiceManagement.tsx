@@ -68,7 +68,7 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
   const [deletePassword, setDeletePassword] = useState('');
   const [invoiceMode, setInvoiceMode] = useState<'lease' | 'manual'>('lease');
   const [generatingBulk, setGeneratingBulk] = useState(false);
-  const [activeTab, setActiveTab] = useState<'draft' | 'open' | 'log'>('draft');
+  const [activeTab, setActiveTab] = useState<'current' | 'log'>('current');
   const [previewInvoice, setPreviewInvoice] = useState<{
     invoice: InvoiceWithDetails;
     spaces: any[];
@@ -1326,9 +1326,9 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
       <div className="flex gap-2 mb-6">
         <button
-          onClick={() => setActiveTab('draft')}
+          onClick={() => setActiveTab('current')}
           className={`px-4 py-2 font-medium rounded-lg transition-all ${
-            activeTab === 'draft'
+            activeTab === 'current'
               ? 'bg-gold-500 text-white shadow-lg'
               : 'bg-dark-800 text-gray-400 hover:bg-dark-700 hover:text-gray-300'
           }`}
@@ -1336,9 +1336,9 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
           Concepten
         </button>
         <button
-          onClick={() => setActiveTab('open')}
+          onClick={() => setActiveTab('current')}
           className={`px-4 py-2 font-medium rounded-lg transition-all ${
-            activeTab === 'open'
+            activeTab === 'current'
               ? 'bg-gold-500 text-white shadow-lg'
               : 'bg-dark-800 text-gray-400 hover:bg-dark-700 hover:text-gray-300'
           }`}
@@ -1800,31 +1800,48 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
         </div>
       )}
 
-      {activeTab === 'draft' && (
+      {activeTab === 'current' && (
         <div className="space-y-8">
           {(() => {
-            let groupedInvoices = invoices.filter(inv => inv.status === 'draft');
+            const draftInvoices = invoices
+              .filter(inv => inv.status === 'draft')
+              .sort((a, b) => {
+                const tenantA = getInvoiceTenant(a);
+                const tenantB = getInvoiceTenant(b);
+                if (tenantA && tenantB) {
+                  const nameCompare = tenantA.company_name.localeCompare(tenantB.company_name);
+                  if (nameCompare !== 0) return nameCompare;
+                }
+                if (a.invoice_month && b.invoice_month) {
+                  return b.invoice_month.localeCompare(a.invoice_month);
+                }
+                return new Date(b.invoice_date).getTime() - new Date(a.invoice_date).getTime();
+              });
 
-            if (groupedInvoices.length === 0) return (
-              <div className="text-center py-12 text-gray-400">
-                Geen conceptfacturen gevonden.
-              </div>
-            );
+            const openInvoices = invoices
+              .filter(inv => inv.status !== 'paid' && inv.status !== 'draft')
+              .sort((a, b) => {
+                const tenantA = getInvoiceTenant(a);
+                const tenantB = getInvoiceTenant(b);
+                if (tenantA && tenantB) {
+                  const nameCompare = tenantA.company_name.localeCompare(tenantB.company_name);
+                  if (nameCompare !== 0) return nameCompare;
+                }
+                if (a.invoice_month && b.invoice_month) {
+                  return b.invoice_month.localeCompare(a.invoice_month);
+                }
+                return new Date(b.invoice_date).getTime() - new Date(a.invoice_date).getTime();
+              });
 
-            groupedInvoices = groupedInvoices.sort((a, b) => {
-              const tenantA = getInvoiceTenant(a);
-              const tenantB = getInvoiceTenant(b);
+            const hasAny = draftInvoices.length > 0 || openInvoices.length > 0;
 
-              if (tenantA && tenantB) {
-                const nameCompare = tenantA.company_name.localeCompare(tenantB.company_name);
-                if (nameCompare !== 0) return nameCompare;
-              }
-
-              if (a.invoice_month && b.invoice_month) {
-                return b.invoice_month.localeCompare(a.invoice_month);
-              }
-              return new Date(b.invoice_date).getTime() - new Date(a.invoice_date).getTime();
-            });
+            if (!hasAny) {
+              return (
+                <div className="text-center py-12 text-gray-400">
+                  Geen facturen gevonden.
+                </div>
+              );
+            }
 
           return (
             <div>
@@ -1859,10 +1876,11 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                     </button>
                   </div>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full table-fixed min-w-[1000px]">
-                    <thead>
-                      <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
+                {draftInvoices.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full table-fixed min-w-[1000px]">
+                      <thead>
+                        <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
                         <th className="text-left px-4 py-3 font-semibold w-[18%]">Klant</th>
                         <th className="text-left px-4 py-3 font-semibold w-[10%]">Factuur Nr.</th>
                         <th className="text-left px-4 py-3 font-semibold w-[10%]">Type</th>
@@ -1875,7 +1893,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                       </tr>
                     </thead>
                     <tbody>
-                      {groupedInvoices.map((invoice) => {
+                      {draftInvoices.map((invoice) => {
                         const tenant = getInvoiceTenant(invoice);
                         const displayName = tenant?.company_name || 'Onbekende huurder';
                         const hasLease = invoice.lease && invoice.lease.lease_spaces;
@@ -1883,135 +1901,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                         return (
                           <tr
                             key={invoice.id}
-                            onClick={() => showInvoicePreview(invoice)}
                             className="border-b border-dark-800 hover:bg-dark-800 hover:border-gold-500 transition-colors cursor-pointer"
-                          >
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-2">
-                                <FileText className="text-gray-500" size={18} />
-                                <span className="text-gray-100 font-medium">{displayName}</span>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 text-purple-600 font-medium text-sm">
-                              {invoice.invoice_number.replace(/^INV-/, '')}
-                            </td>
-                            <td className="px-4 py-3 text-gray-300 text-sm">
-                              {hasLease ? (
-                                <span>{invoice.lease!.lease_spaces.length} {invoice.lease!.lease_spaces.length === 1 ? 'ruimte' : 'ruimtes'}</span>
-                              ) : (
-                                <span className="text-gray-400 italic">Handmatig</span>
-                              )}
-                            </td>
-                            <td className="px-4 py-3 text-gray-300 text-sm">
-                              {invoice.invoice_month ? (
-                                (() => {
-                                  const [year, month] = invoice.invoice_month.split('-');
-                                  const monthNames = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
-                                  return `${monthNames[parseInt(month) - 1]} ${year}`;
-                                })()
-                              ) : '-'}
-                            </td>
-                            <td className="px-4 py-3 text-gray-300 text-sm">
-                              {new Date(invoice.invoice_date).toLocaleDateString('nl-NL')}
-                            </td>
-                            <td className="px-4 py-3 text-gray-300 text-sm">
-                              <div className="flex items-center gap-1">
-                                <Calendar size={14} className="text-gold-500" />
-                                {new Date(invoice.due_date).toLocaleDateString('nl-NL')}
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              <div className="text-gray-100 font-bold">
-                                €{invoice.amount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </div>
-                              {invoice.applied_credit > 0 && (
-                                <div className="text-xs text-green-400">
-                                  -€{invoice.applied_credit.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} credit
-                                </div>
-                              )}
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(invoice.status)}`}>
-                                {getStatusLabel(invoice.status)}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex gap-1 justify-end opacity-0">
-                                <button className="p-1.5">
-                                  <Edit2 size={16} />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          );
-          })()}
-        </div>
-      )}
-
-      {activeTab === 'open' && (
-        <div className="space-y-8">
-          {(() => {
-            let groupedInvoices = invoices.filter(inv => inv.status !== 'paid' && inv.status !== 'draft');
-
-            if (groupedInvoices.length === 0) return (
-              <div className="text-center py-12 text-gray-400">
-                Geen openstaande facturen gevonden.
-              </div>
-            );
-
-            groupedInvoices = groupedInvoices.sort((a, b) => {
-              const tenantA = getInvoiceTenant(a);
-              const tenantB = getInvoiceTenant(b);
-
-              if (tenantA && tenantB) {
-                const nameCompare = tenantA.company_name.localeCompare(tenantB.company_name);
-                if (nameCompare !== 0) return nameCompare;
-              }
-
-              if (a.invoice_month && b.invoice_month) {
-                return b.invoice_month.localeCompare(a.invoice_month);
-              }
-              return new Date(b.invoice_date).getTime() - new Date(a.invoice_date).getTime();
-            });
-
-          return (
-            <div>
-              <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
-                <h2 className="text-lg font-bold text-gray-100 px-4 py-3 bg-dark-800 border-b border-amber-500">
-                  Openstaande Facturen
-                </h2>
-                <div className="overflow-x-auto">
-                  <table className="w-full table-fixed min-w-[1000px]">
-                    <thead>
-                      <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
-                        <th className="text-left px-4 py-3 font-semibold w-[18%]">Klant</th>
-                        <th className="text-left px-4 py-3 font-semibold w-[10%]">Factuur Nr.</th>
-                        <th className="text-left px-4 py-3 font-semibold w-[10%]">Type</th>
-                        <th className="text-left px-4 py-3 font-semibold w-[10%]">Maand</th>
-                        <th className="text-left px-4 py-3 font-semibold w-[12%]">Factuur Datum</th>
-                        <th className="text-left px-4 py-3 font-semibold w-[12%]">Vervaldatum</th>
-                        <th className="text-right px-4 py-3 font-semibold w-[10%]">Bedrag</th>
-                        <th className="text-center px-4 py-3 font-semibold w-[10%]">Status</th>
-                        <th className="text-right px-4 py-3 font-semibold w-[8%]">Acties</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {groupedInvoices.map((invoice) => {
-                        const tenant = getInvoiceTenant(invoice);
-                        const displayName = tenant?.company_name || 'Onbekende huurder';
-                        const hasLease = invoice.lease && invoice.lease.lease_spaces;
-
-                        return (
-                          <tr
-                            key={invoice.id}
-                            className="border-b border-dark-800 hover:bg-dark-800 transition-colors"
                           >
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2">
@@ -2053,7 +1943,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                                 {getStatusLabel(invoice.status)}
                               </span>
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                               <div className="flex gap-1 justify-end">
                                 <button
                                   onClick={() => showInvoicePreview(invoice)}
@@ -2114,15 +2004,13 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                                 >
                                   <Download size={18} />
                                 </button>
-                                {invoice.status === 'sent' && (
-                                  <button
-                                    onClick={() => markAsPaid(invoice.id)}
-                                    className="text-green-400 hover:text-green-300 transition-colors p-1.5 rounded hover:bg-dark-700"
-                                    title="Markeer als betaald"
-                                  >
-                                    <CheckCircle size={18} />
-                                  </button>
-                                )}
+                                <button
+                                  onClick={() => sendInvoiceEmail(invoice.id)}
+                                  className="text-emerald-500 hover:text-emerald-400 transition-colors p-1.5 rounded hover:bg-dark-700"
+                                  title="Verzenden"
+                                >
+                                  <Send size={18} />
+                                </button>
                                 <button
                                   onClick={() => setShowDeleteConfirm(invoice.id)}
                                   className="text-red-500 hover:text-red-400 transition-colors p-1.5 rounded hover:bg-dark-700"
@@ -2138,6 +2026,181 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                     </tbody>
                   </table>
                 </div>
+                ) : (
+                  <div className="text-center py-12 text-gray-400">
+                    Geen conceptfacturen gevonden.
+                  </div>
+                )}
+
+                {openInvoices.length > 0 && (
+                  <>
+                    <div className="border-t-4 border-dark-700 my-4"></div>
+                    <h2 className="text-lg font-bold text-gray-100 px-4 py-3 bg-dark-800 border-b border-amber-500">
+                      Openstaande Facturen
+                    </h2>
+                    <div className="overflow-x-auto">
+                      <table className="w-full table-fixed min-w-[1000px]">
+                        <thead>
+                          <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
+                            <th className="text-left px-4 py-3 font-semibold w-[18%]">Klant</th>
+                            <th className="text-left px-4 py-3 font-semibold w-[10%]">Factuur Nr.</th>
+                            <th className="text-left px-4 py-3 font-semibold w-[10%]">Type</th>
+                            <th className="text-left px-4 py-3 font-semibold w-[10%]">Maand</th>
+                            <th className="text-left px-4 py-3 font-semibold w-[12%]">Factuur Datum</th>
+                            <th className="text-left px-4 py-3 font-semibold w-[12%]">Vervaldatum</th>
+                            <th className="text-right px-4 py-3 font-semibold w-[10%]">Bedrag</th>
+                            <th className="text-center px-4 py-3 font-semibold w-[10%]">Status</th>
+                            <th className="text-right px-4 py-3 font-semibold w-[8%]">Acties</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {openInvoices.map((invoice) => {
+                            const tenant = getInvoiceTenant(invoice);
+                            const displayName = tenant?.company_name || 'Onbekende huurder';
+                            const hasLease = invoice.lease && invoice.lease.lease_spaces;
+
+                            return (
+                              <tr
+                                key={invoice.id}
+                                onClick={() => showInvoicePreview(invoice)}
+                                className="border-b border-dark-800 hover:bg-dark-800 hover:border-gold-500 transition-colors cursor-pointer"
+                              >
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center gap-2">
+                                    <FileText className="text-gray-500" size={18} />
+                                    <span className="text-gray-100 font-medium">{displayName}</span>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 text-purple-600 font-medium text-sm">
+                                  {invoice.invoice_number.replace(/^INV-/, '')}
+                                </td>
+                                <td className="px-4 py-3 text-gray-300 text-sm">
+                                  {hasLease ? (
+                                    <span>{invoice.lease!.lease_spaces.length} {invoice.lease!.lease_spaces.length === 1 ? 'ruimte' : 'ruimtes'}</span>
+                                  ) : (
+                                    <span className="text-gray-400 italic">Handmatig</span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3 text-gray-300 text-sm">
+                                  {invoice.invoice_month ? (
+                                    (() => {
+                                      const [year, month] = invoice.invoice_month.split('-');
+                                      const monthNames = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+                                      return `${monthNames[parseInt(month) - 1]} ${year}`;
+                                    })()
+                                  ) : '-'}
+                                </td>
+                                <td className="px-4 py-3 text-gray-300 text-sm">
+                                  {new Date(invoice.invoice_date).toLocaleDateString('nl-NL')}
+                                </td>
+                                <td className="px-4 py-3 text-gray-300 text-sm">
+                                  <div className="flex items-center gap-1">
+                                    <Calendar size={14} className="text-gold-500" />
+                                    {new Date(invoice.due_date).toLocaleDateString('nl-NL')}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 text-right">
+                                  <div className="text-gray-100 font-bold">
+                                    €{invoice.amount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </div>
+                                  {invoice.applied_credit > 0 && (
+                                    <div className="text-xs text-green-400">
+                                      -€{invoice.applied_credit.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} credit
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(invoice.status)}`}>
+                                    {getStatusLabel(invoice.status)}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                                  <div className="flex gap-1 justify-end">
+                                    <button
+                                      onClick={() => showInvoicePreview(invoice)}
+                                      className="text-gold-500 hover:text-gold-400 transition-colors p-1.5 rounded hover:bg-dark-700"
+                                      title="Bekijken"
+                                    >
+                                      <Eye size={18} />
+                                    </button>
+                                    <button
+                                      onClick={async () => {
+                                        const { data: items } = await supabase
+                                          .from('invoice_line_items')
+                                          .select('*')
+                                          .eq('invoice_id', invoice.id);
+
+                                        const spaces = items ? convertLineItemsToSpaces(items) : [];
+                                        const tenant = getInvoiceTenant(invoice);
+
+                                        generateInvoicePDF({
+                                          invoice_number: invoice.invoice_number,
+                                          tenant_name: ('name' in (tenant || {}) ? tenant?.name : undefined) || undefined,
+                                          tenant_contact_name: ('contact_name' in (tenant || {}) ? (tenant as any)?.contact_name : undefined) || undefined,
+                                          tenant_company_name: tenant?.company_name || '',
+                                          tenant_email: tenant?.email || '',
+                                          tenant_phone: tenant?.phone || undefined,
+                                          tenant_billing_address: tenant?.billing_address || undefined,
+                                          tenant_street: tenant?.street || undefined,
+                                          tenant_postal_code: tenant?.postal_code || undefined,
+                                          tenant_city: tenant?.city || undefined,
+                                          tenant_country: tenant?.country || undefined,
+                                          invoice_month: invoice.invoice_month || undefined,
+                                          notes: invoice.notes || undefined,
+                                          spaces,
+                                          security_deposit: 0,
+                                          subtotal: invoice.subtotal,
+                                          amount: invoice.amount,
+                                          vat_amount: invoice.vat_amount,
+                                          vat_rate: invoice.vat_rate,
+                                          vat_inclusive: invoice.vat_inclusive,
+                                          due_date: invoice.due_date,
+                                          invoice_date: invoice.invoice_date,
+                                          company: companySettings ? {
+                                            name: companySettings.company_name,
+                                            address: companySettings.address,
+                                            postal_code: companySettings.postal_code,
+                                            city: companySettings.city,
+                                            kvk: companySettings.kvk_number,
+                                            btw: companySettings.vat_number,
+                                            iban: companySettings.bank_account,
+                                            email: companySettings.email,
+                                            phone: companySettings.phone,
+                                            website: companySettings.website
+                                          } : undefined
+                                        }, false);
+                                      }}
+                                      className="text-gold-500 hover:text-gold-400 transition-colors p-1.5 rounded hover:bg-dark-700"
+                                      title="Downloaden"
+                                    >
+                                      <Download size={18} />
+                                    </button>
+                                    {invoice.status === 'sent' && (
+                                      <button
+                                        onClick={() => markAsPaid(invoice.id)}
+                                        className="text-green-400 hover:text-green-300 transition-colors p-1.5 rounded hover:bg-dark-700"
+                                        title="Markeer als betaald"
+                                      >
+                                        <CheckCircle size={18} />
+                                      </button>
+                                    )}
+                                    <button
+                                      onClick={() => setShowDeleteConfirm(invoice.id)}
+                                      className="text-red-500 hover:text-red-400 transition-colors p-1.5 rounded hover:bg-dark-700"
+                                      title="Verwijderen"
+                                    >
+                                      <Trash2 size={18} />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           );
