@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Euro, Calendar, AlertCircle, CheckCircle, FileText } from 'lucide-react';
+import { Euro, Calendar, AlertCircle, CheckCircle, FileText, Trash2 } from 'lucide-react';
 
 type Debtor = {
   id: string;
@@ -174,6 +174,27 @@ export function DebtorsOverview() {
       style: 'currency',
       currency: 'EUR',
     }).format(amount);
+  };
+
+  const handleDeleteInvoice = async (invoiceId: string) => {
+    if (!confirm('Weet je zeker dat je deze factuur wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('invoices')
+        .delete()
+        .eq('id', invoiceId);
+
+      if (error) throw error;
+
+      await loadPaidInvoices();
+      alert('Factuur succesvol verwijderd.');
+    } catch (error) {
+      console.error('Error deleting invoice:', error);
+      alert('Fout bij verwijderen van factuur. Probeer het opnieuw.');
+    }
   };
 
   const formatDate = (dateStr: string) => {
@@ -359,16 +380,17 @@ export function DebtorsOverview() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full table-fixed min-w-[1000px]">
+                <table className="w-full table-fixed min-w-[1100px]">
                   <thead>
                     <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
-                      <th className="text-left px-4 py-3 font-semibold w-[18%]">Klant</th>
+                      <th className="text-left px-4 py-3 font-semibold w-[16%]">Klant</th>
                       <th className="text-left px-4 py-3 font-semibold w-[10%]">Factuur Nr.</th>
                       <th className="text-left px-4 py-3 font-semibold w-[10%]">Maand</th>
                       <th className="text-left px-4 py-3 font-semibold w-[12%]">Factuur Datum</th>
                       <th className="text-left px-4 py-3 font-semibold w-[12%]">Vervaldatum</th>
                       <th className="text-right px-4 py-3 font-semibold w-[10%]">Bedrag</th>
                       <th className="text-center px-4 py-3 font-semibold w-[10%]">Status</th>
+                      <th className="text-center px-4 py-3 font-semibold w-[10%]">Acties</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -418,6 +440,16 @@ export function DebtorsOverview() {
                             <span className="inline-block px-2 py-1 rounded-full text-xs font-medium bg-green-900 text-green-400">
                               BETAALD
                             </span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <button
+                              onClick={() => handleDeleteInvoice(invoice.id)}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 bg-red-900 hover:bg-red-800 text-red-300 rounded-lg transition-colors text-sm font-medium"
+                              title="Factuur verwijderen"
+                            >
+                              <Trash2 size={14} />
+                              Verwijder
+                            </button>
                           </td>
                         </tr>
                       );
