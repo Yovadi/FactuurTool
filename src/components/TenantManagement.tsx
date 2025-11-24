@@ -499,7 +499,7 @@ export function TenantManagement() {
                     tenant.leases &&
                     tenant.leases.some(lease =>
                       lease.status === 'active' &&
-                      (lease.lease_type === 'fulltime' || !lease.lease_type)
+                      (lease.lease_type === 'full_time' || lease.lease_type === 'fulltime' || !lease.lease_type)
                     )
                   )
                   .map((tenant) => (
