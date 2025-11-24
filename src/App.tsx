@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Dashboard } from './components/Dashboard';
 import { TenantManagement } from './components/TenantManagement';
-import { SpaceManagement } from './components/SpaceManagement';
+import { SpacesTabs } from './components/SpacesTabs';
 import { CompanySettings } from './components/CompanySettings';
 import { MeetingRoomBookings } from './components/MeetingRoomBookings';
 import { PinLogin } from './components/PinLogin';
@@ -136,7 +136,7 @@ function App() {
           <main className="flex-1 min-w-0">
             <div className="bg-dark-950">
               {activeTab === 'dashboard' && <Dashboard />}
-              {activeTab === 'spaces' && <SpaceManagement />}
+              {activeTab === 'spaces' && <SpacesTabs />}
               {activeTab === 'tenants' && <TenantManagement />}
               {activeTab === 'bookings' && <MeetingRoomBookings />}
               {activeTab === 'financial' && <Financial />}
