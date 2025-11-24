@@ -129,7 +129,7 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
       `)
       .gte('booking_date', startDateStr)
       .lte('booking_date', endDateStr)
-      .in('status', ['confirmed', 'completed'])
+      .eq('status', 'completed')
       .is('invoice_id', null);
 
     if (customerType === 'tenant') {
