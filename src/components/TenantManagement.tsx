@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, type Tenant, type CompanySettings } from '../lib/supabase';
-import { Plus, Edit2, Trash2, Mail, Phone, MapPin, Key, Users, Building2, ScrollText, AlertCircle, CheckCircle, Calendar } from 'lucide-react';
-import { LeaseManagement } from './LeaseManagement';
-import { PartTimeAvailability } from './PartTimeAvailability';
+import { Plus, Edit2, Trash2, Mail, Phone, MapPin, Key, Users, Building2, AlertCircle, CheckCircle, Calendar } from 'lucide-react';
 
 type TenantWithLeases = Tenant & {
   leases?: Array<{
@@ -28,7 +26,6 @@ type ExternalCustomer = {
 };
 
 export function TenantManagement() {
-  const [mainTab, setMainTab] = useState<'tenants' | 'availability' | 'leases'>('tenants');
   const [activeTab, setActiveTab] = useState<'fulltime' | 'parttime' | 'external' | 'inactive'>('fulltime');
   const [tenants, setTenants] = useState<TenantWithLeases[]>([]);
   const [externalCustomers, setExternalCustomers] = useState<ExternalCustomer[]>([]);
@@ -276,48 +273,6 @@ export function TenantManagement() {
 
   return (
     <div>
-      <div className="flex gap-4 mb-6 border-b border-dark-700">
-        <button
-          onClick={() => setMainTab('tenants')}
-          className={`flex items-center gap-2 px-4 py-3 font-semibold transition-colors ${
-            mainTab === 'tenants'
-              ? 'text-gold-500 border-b-2 border-gold-500'
-              : 'text-gray-400 hover:text-gray-300'
-          }`}
-        >
-          <Users size={20} />
-          Huurders
-        </button>
-        <button
-          onClick={() => setMainTab('availability')}
-          className={`flex items-center gap-2 px-4 py-3 font-semibold transition-colors ${
-            mainTab === 'availability'
-              ? 'text-gold-500 border-b-2 border-gold-500'
-              : 'text-gray-400 hover:text-gray-300'
-          }`}
-        >
-          <Calendar size={20} />
-          Deeltijd Beschikbaarheid
-        </button>
-        <button
-          onClick={() => setMainTab('leases')}
-          className={`flex items-center gap-2 px-4 py-3 font-semibold transition-colors ${
-            mainTab === 'leases'
-              ? 'text-gold-500 border-b-2 border-gold-500'
-              : 'text-gray-400 hover:text-gray-300'
-          }`}
-        >
-          <ScrollText size={20} />
-          Huurcontracten
-        </button>
-      </div>
-
-      {mainTab === 'availability' ? (
-        <PartTimeAvailability />
-      ) : mainTab === 'leases' ? (
-        <LeaseManagement />
-      ) : (
-        <div>
 
       <div className="flex gap-2 mb-6 border-b border-dark-700">
         <button
@@ -989,8 +944,6 @@ export function TenantManagement() {
         <div className="bg-dark-900 rounded-lg p-8 text-center">
           <AlertCircle size={48} className="text-gray-500 mx-auto mb-4" />
           <p className="text-gray-400">Nog geen externe huurders. Klik op "Externe Huurder Toevoegen" om je eerste externe huurder aan te maken.</p>
-        </div>
-      )}
         </div>
       )}
     </div>
