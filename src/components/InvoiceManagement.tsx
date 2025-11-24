@@ -1863,6 +1863,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                         return (
                           <tr
                             key={invoice.id}
+                            onClick={() => showInvoicePreview(invoice)}
                             className="border-b border-dark-800 hover:bg-dark-800 hover:border-gold-500 transition-colors cursor-pointer"
                           >
                             <td className="px-4 py-3">
