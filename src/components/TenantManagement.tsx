@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase, type Tenant, type CompanySettings } from '../lib/supabase';
 import { Plus, Edit2, Trash2, Mail, Phone, MapPin, Key, Users, Building2, ScrollText, AlertCircle, CheckCircle, Calendar } from 'lucide-react';
 import { LeaseManagement } from './LeaseManagement';
+import { PartTimeAvailability } from './PartTimeAvailability';
 
 type TenantWithLeases = Tenant & {
   leases?: Array<{
