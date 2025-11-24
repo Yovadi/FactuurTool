@@ -204,22 +204,24 @@ export function DebtorsOverview() {
           <div className="flex gap-2 mb-4">
             <button
               onClick={() => setActiveTab('open')}
-              className={`px-4 py-2 font-medium rounded-lg transition-all ${
+              className={`flex items-center gap-2 px-4 py-2 font-medium rounded-lg transition-all ${
                 activeTab === 'open'
                   ? 'bg-gold-500 text-white shadow-lg'
                   : 'bg-dark-800 text-gray-400 hover:bg-dark-700 hover:text-gray-300'
               }`}
             >
+              <AlertCircle size={18} />
               Openstaand
             </button>
             <button
               onClick={() => setActiveTab('log')}
-              className={`px-4 py-2 font-medium rounded-lg transition-all ${
+              className={`flex items-center gap-2 px-4 py-2 font-medium rounded-lg transition-all ${
                 activeTab === 'log'
                   ? 'bg-gold-500 text-white shadow-lg'
                   : 'bg-dark-800 text-gray-400 hover:bg-dark-700 hover:text-gray-300'
               }`}
             >
+              <CheckCircle size={18} />
               Logboek
             </button>
           </div>
