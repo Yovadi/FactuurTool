@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
-import { Calendar, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { supabase, type Tenant } from '../lib/supabase';
+import { Calendar, CheckCircle, XCircle, AlertCircle, Users, Plus, Edit2, Trash2, Mail, Phone, MapPin, Key, Building2 } from 'lucide-react';
 
 type OfficeSpace = {
   id: string;
@@ -41,13 +41,42 @@ const DAY_NAMES = {
   vr: 'Vrijdag',
 };
 
+type TenantWithLeases = Tenant & {
+  leases?: Array<{
+    id: string;
+    status: string;
+    lease_type?: string;
+  }>;
+};
+
 export function PartTimeAvailability() {
+  const [activeTab, setActiveTab] = useState<'availability' | 'tenants'>('availability');
   const [spaceAvailability, setSpaceAvailability] = useState<SpaceAvailability[]>([]);
+  const [tenants, setTenants] = useState<TenantWithLeases[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadAvailability();
+    loadTenants();
   }, []);
+
+  const loadTenants = async () => {
+    const { data, error } = await supabase
+      .from('tenants')
+      .select(`
+        *,
+        leases (
+          id,
+          status,
+          lease_type
+        )
+      `)
+      .order('company_name');
+
+    if (data) {
+      setTenants(data);
+    }
+  };
 
   const loadAvailability = async () => {
     setLoading(true);
@@ -120,19 +149,43 @@ export function PartTimeAvailability() {
     );
   }
 
+  const partTimeTenants = tenants.filter(tenant =>
+    tenant.leases &&
+    tenant.leases.some(lease =>
+      lease.status === 'active' &&
+      lease.lease_type === 'parttime'
+    )
+  );
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-dark-700 rounded-lg">
-            <Calendar className="text-blue-400" size={24} />
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold text-gray-100">Deeltijd Beschikbaarheid</h2>
-            <p className="text-gray-400 text-sm">Overzicht van beschikbare dagen per kantoorruimte</p>
-          </div>
-        </div>
+      <div className="flex gap-2 mb-6 border-b border-dark-700">
+        <button
+          onClick={() => setActiveTab('availability')}
+          className={`flex items-center gap-2 px-4 py-3 font-medium transition-all border-b-2 ${
+            activeTab === 'availability'
+              ? 'text-gold-500 border-gold-500'
+              : 'text-gray-400 border-transparent hover:text-gray-300'
+          }`}
+        >
+          <Calendar size={18} />
+          Beschikbaarheid
+        </button>
+        <button
+          onClick={() => setActiveTab('tenants')}
+          className={`flex items-center gap-2 px-4 py-3 font-medium transition-all border-b-2 ${
+            activeTab === 'tenants'
+              ? 'text-gold-500 border-gold-500'
+              : 'text-gray-400 border-transparent hover:text-gray-300'
+          }`}
+        >
+          <Users size={18} />
+          Deeltijd Huurders
+        </button>
       </div>
+
+      {activeTab === 'availability' ? (
+        <div>
 
       <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
         <div className="overflow-x-auto">
@@ -216,6 +269,98 @@ export function PartTimeAvailability() {
           </div>
         </div>
       </div>
+        </div>
+      ) : (
+        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
+          <div className="flex justify-between items-center px-4 py-3 bg-dark-800 border-b border-amber-500">
+            <h2 className="text-lg font-bold text-gray-100">
+              Deeltijd Huurders
+            </h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full table-fixed">
+              <thead>
+                <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
+                  <th className="text-left px-4 py-3 font-semibold w-[20%]">Bedrijf</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[15%]">Contactpersoon</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[18%]">Email</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[12%]">Telefoon</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[18%]">Adres</th>
+                  <th className="text-center px-4 py-3 font-semibold w-[8%]">PIN</th>
+                </tr>
+              </thead>
+              <tbody>
+                {partTimeTenants.map((tenant) => (
+                  <tr
+                    key={tenant.id}
+                    className="border-b border-dark-800 hover:bg-dark-800 transition-colors"
+                  >
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <Building2 size={18} className="text-gray-400" />
+                        <span className="font-medium text-gray-100 truncate">{tenant.company_name}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 truncate">
+                      <span className="text-gray-300 truncate">{tenant.name || '-'}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {tenant.email ? (
+                        <a
+                          href={`mailto:${tenant.email}`}
+                          className="text-gold-500 hover:text-gold-400 flex items-center gap-2 truncate"
+                        >
+                          <Mail size={16} />
+                          <span className="truncate">{tenant.email}</span>
+                        </a>
+                      ) : (
+                        <span className="text-gray-500">-</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {tenant.phone ? (
+                        <a
+                          href={`tel:${tenant.phone}`}
+                          className="text-gold-500 hover:text-gold-400 flex items-center gap-2 truncate"
+                        >
+                          <Phone size={16} />
+                          <span className="truncate">{tenant.phone}</span>
+                        </a>
+                      ) : (
+                        <span className="text-gray-500">-</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2 truncate">
+                        <MapPin size={16} className="text-gray-400 flex-shrink-0" />
+                        <span className="text-gray-300 text-sm truncate">
+                          {tenant.street}, {tenant.city}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {tenant.booking_pin_code ? (
+                        <div className="flex items-center justify-center gap-1">
+                          <Key size={16} className="text-gold-500" />
+                          <span className="text-gray-300 font-mono">{tenant.booking_pin_code}</span>
+                        </div>
+                      ) : (
+                        <span className="text-gray-500">-</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {partTimeTenants.length === 0 && (
+            <div className="bg-dark-900 p-8 text-center">
+              <AlertCircle size={48} className="text-gray-500 mx-auto mb-4" />
+              <p className="text-gray-400">Geen deeltijd huurders gevonden</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -26,7 +26,7 @@ type ExternalCustomer = {
 };
 
 export function TenantManagement() {
-  const [activeTab, setActiveTab] = useState<'fulltime' | 'parttime' | 'external' | 'inactive'>('fulltime');
+  const [activeTab, setActiveTab] = useState<'fulltime' | 'external' | 'inactive'>('fulltime');
   const [tenants, setTenants] = useState<TenantWithLeases[]>([]);
   const [externalCustomers, setExternalCustomers] = useState<ExternalCustomer[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -104,7 +104,7 @@ export function TenantManagement() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (activeTab === 'fulltime' || activeTab === 'parttime' || activeTab === 'inactive') {
+    if (activeTab === 'fulltime' || activeTab === 'inactive') {
       if (editingTenant) {
         const { data, error } = await supabase
           .from('tenants')
@@ -233,7 +233,7 @@ export function TenantManagement() {
   };
 
   const handleDelete = async (id: string) => {
-    if (activeTab === 'fulltime' || activeTab === 'parttime' || activeTab === 'inactive') {
+    if (activeTab === 'fulltime' || activeTab === 'inactive') {
       const { error } = await supabase
         .from('tenants')
         .delete()
@@ -285,17 +285,6 @@ export function TenantManagement() {
         >
           <Building2 size={18} />
           Voltijd Huurders
-        </button>
-        <button
-          onClick={() => setActiveTab('parttime')}
-          className={`flex items-center gap-2 px-4 py-3 font-medium transition-all border-b-2 ${
-            activeTab === 'parttime'
-              ? 'text-gold-500 border-gold-500'
-              : 'text-gray-400 border-transparent hover:text-gray-300'
-          }`}
-        >
-          <Calendar size={18} />
-          Deeltijd Huurders
         </button>
         <button
           onClick={() => setActiveTab('external')}
@@ -585,18 +574,18 @@ export function TenantManagement() {
             </table>
           </div>
         </div>
-      ) : activeTab === 'parttime' ? (
+      ) : activeTab === 'external' ? (
         <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
           <div className="flex justify-between items-center px-4 py-3 bg-dark-800 border-b border-amber-500">
             <h2 className="text-lg font-bold text-gray-100">
-              Deeltijd Huurders
+              Externe Huurders
             </h2>
             <button
               onClick={() => setShowForm(true)}
               className="flex items-center gap-2 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors"
             >
               <Plus size={20} />
-              Huurder Toevoegen
+              Externe Huurder Toevoegen
             </button>
           </div>
           <div className="overflow-x-auto">
@@ -613,66 +602,58 @@ export function TenantManagement() {
                 </tr>
               </thead>
               <tbody>
-                {tenants
-                  .filter(tenant =>
-                    tenant.leases &&
-                    tenant.leases.some(lease =>
-                      lease.status === 'active' &&
-                      lease.lease_type === 'parttime'
-                    )
-                  )
-                  .map((tenant) => (
+                {externalCustomers.map((customer) => (
                     <tr
-                      key={tenant.id}
+                      key={customer.id}
                       className="border-b border-dark-800 hover:bg-dark-800 transition-colors"
                     >
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <div className="w-8 h-8 bg-gold-600 bg-opacity-20 rounded-lg flex items-center justify-center flex-shrink-0">
                             <span className="text-gold-500 font-bold text-sm">
-                              {tenant.company_name.charAt(0)}
+                              {customer.company_name.charAt(0)}
                             </span>
                           </div>
                           <span className="text-gray-100 font-medium truncate">
-                            {tenant.company_name}
+                            {customer.company_name}
                           </span>
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-gray-300 truncate block">{tenant.name}</span>
+                        <span className="text-gray-300 truncate block">{customer.contact_name}</span>
                       </td>
                       <td className="px-4 py-3">
-                        {tenant.email ? (
+                        {customer.email ? (
                           <a
-                            href={`mailto:${tenant.email}`}
+                            href={`mailto:${customer.email}`}
                             className="text-gold-500 hover:text-gold-400 flex items-center gap-2 truncate"
                           >
                             <Mail size={16} />
-                            <span className="truncate">{tenant.email}</span>
+                            <span className="truncate">{customer.email}</span>
                           </a>
                         ) : (
                           <span className="text-gray-500">-</span>
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        {tenant.phone ? (
+                        {customer.phone ? (
                           <a
-                            href={`tel:${tenant.phone}`}
+                            href={`tel:${customer.phone}`}
                             className="text-gold-500 hover:text-gold-400 flex items-center gap-2 truncate"
                           >
                             <Phone size={16} />
-                            <span className="truncate">{tenant.phone}</span>
+                            <span className="truncate">{customer.phone}</span>
                           </a>
                         ) : (
                           <span className="text-gray-500">-</span>
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        {tenant.street ? (
+                        {customer.street ? (
                           <div className="flex items-start gap-2">
                             <MapPin size={16} className="text-gray-400 mt-0.5 flex-shrink-0" />
                             <span className="text-gray-300 text-sm truncate">
-                              {tenant.street}, {tenant.postal_code} {tenant.city}
+                              {customer.street}, {customer.postal_code} {customer.city}
                             </span>
                           </div>
                         ) : (
@@ -680,10 +661,10 @@ export function TenantManagement() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-center">
-                        {tenant.booking_pin_code ? (
+                        {customer.booking_pin_code ? (
                           <div className="flex items-center justify-center gap-1">
                             <Key size={16} className="text-gold-500" />
-                            <span className="text-gray-300 font-mono text-sm">{tenant.booking_pin_code}</span>
+                            <span className="text-gray-300 font-mono text-sm">{customer.booking_pin_code}</span>
                           </div>
                         ) : (
                           <span className="text-gray-500">-</span>
@@ -692,14 +673,14 @@ export function TenantManagement() {
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-2">
                           <button
-                            onClick={() => handleEdit(tenant)}
+                            onClick={() => handleEditCustomer(customer)}
                             className="p-2 text-gold-500 hover:bg-dark-700 rounded-lg transition-colors"
                             title="Bewerken"
                           >
                             <Edit2 size={18} />
                           </button>
                           <button
-                            onClick={() => handleDelete(tenant.id)}
+                            onClick={() => handleDeleteCustomer(customer.id)}
                             className="p-2 text-red-500 hover:bg-dark-700 rounded-lg transition-colors"
                             title="Verwijderen"
                           >
@@ -916,16 +897,6 @@ export function TenantManagement() {
         <div className="bg-dark-900 rounded-lg p-8 text-center">
           <AlertCircle size={48} className="text-gray-500 mx-auto mb-4" />
           <p className="text-gray-400">Geen voltijd huurders gevonden</p>
-        </div>
-      )}
-
-      {activeTab === 'parttime' && tenants.filter(t =>
-        t.leases &&
-        t.leases.some(l => l.status === 'active' && l.lease_type === 'parttime')
-      ).length === 0 && (
-        <div className="bg-dark-900 rounded-lg p-8 text-center">
-          <AlertCircle size={48} className="text-gray-500 mx-auto mb-4" />
-          <p className="text-gray-400">Geen deeltijd huurders gevonden</p>
         </div>
       )}
 
