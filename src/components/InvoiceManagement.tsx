@@ -1922,14 +1922,13 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                     <p className="text-gray-400">Geen conceptfacturen gevonden</p>
                   </div>
                 )}
+              </div>
 
-                {openInvoices.length > 0 && (
-                  <>
-                    <div className="my-8"></div>
-                    <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
-                      <h2 className="text-lg font-bold text-gray-100 px-4 py-3 bg-dark-800 border-b border-amber-500">
-                        Openstaande Facturen
-                      </h2>
+              {openInvoices.length > 0 && (
+                <div className="mt-8 bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
+                  <h2 className="text-lg font-bold text-gray-100 px-4 py-3 bg-dark-800 border-b border-amber-500">
+                    Openstaande Facturen
+                  </h2>
                     <div className="overflow-x-auto">
                       <table className="w-full table-fixed min-w-[1000px]">
                         <thead>
@@ -2015,10 +2014,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                         </tbody>
                       </table>
                     </div>
-                    </div>
-                  </>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           );
           })()}
