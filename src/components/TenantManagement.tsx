@@ -7,6 +7,7 @@ type TenantWithLeases = Tenant & {
   leases?: Array<{
     id: string;
     status: string;
+    lease_type?: string;
   }>;
 };
 
@@ -26,8 +27,8 @@ type ExternalCustomer = {
 };
 
 export function TenantManagement() {
-  const [mainTab, setMainTab] = useState<'tenants' | 'leases'>('tenants');
-  const [activeTab, setActiveTab] = useState<'active' | 'external' | 'inactive'>('active');
+  const [mainTab, setMainTab] = useState<'tenants' | 'availability' | 'leases'>('tenants');
+  const [activeTab, setActiveTab] = useState<'fulltime' | 'parttime' | 'external' | 'inactive'>('fulltime');
   const [tenants, setTenants] = useState<TenantWithLeases[]>([]);
   const [externalCustomers, setExternalCustomers] = useState<ExternalCustomer[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -62,7 +63,8 @@ export function TenantManagement() {
         *,
         leases(
           id,
-          status
+          status,
+          lease_type
         )
       `)
       .order('name');
@@ -104,7 +106,7 @@ export function TenantManagement() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (activeTab === 'active' || activeTab === 'inactive') {
+    if (activeTab === 'fulltime' || activeTab === 'parttime' || activeTab === 'inactive') {
       if (editingTenant) {
         const { data, error } = await supabase
           .from('tenants')
@@ -233,7 +235,7 @@ export function TenantManagement() {
   };
 
   const handleDelete = async (id: string) => {
-    if (activeTab === 'active' || activeTab === 'inactive') {
+    if (activeTab === 'fulltime' || activeTab === 'parttime' || activeTab === 'inactive') {
       const { error } = await supabase
         .from('tenants')
         .delete()
@@ -286,6 +288,17 @@ export function TenantManagement() {
           Huurders
         </button>
         <button
+          onClick={() => setMainTab('availability')}
+          className={`flex items-center gap-2 px-4 py-3 font-semibold transition-colors ${
+            mainTab === 'availability'
+              ? 'text-gold-500 border-b-2 border-gold-500'
+              : 'text-gray-400 hover:text-gray-300'
+          }`}
+        >
+          <Calendar size={20} />
+          Deeltijd Beschikbaarheid
+        </button>
+        <button
           onClick={() => setMainTab('leases')}
           className={`flex items-center gap-2 px-4 py-3 font-semibold transition-colors ${
             mainTab === 'leases'
@@ -298,22 +311,35 @@ export function TenantManagement() {
         </button>
       </div>
 
-      {mainTab === 'leases' ? (
+      {mainTab === 'availability' ? (
+        <PartTimeAvailability />
+      ) : mainTab === 'leases' ? (
         <LeaseManagement />
       ) : (
         <div>
 
       <div className="flex gap-2 mb-6 border-b border-dark-700">
         <button
-          onClick={() => setActiveTab('active')}
+          onClick={() => setActiveTab('fulltime')}
           className={`flex items-center gap-2 px-4 py-3 font-medium transition-all border-b-2 ${
-            activeTab === 'active'
+            activeTab === 'fulltime'
               ? 'text-gold-500 border-gold-500'
               : 'text-gray-400 border-transparent hover:text-gray-300'
           }`}
         >
           <Building2 size={18} />
-          Actieve Huurders
+          Voltijd Huurders
+        </button>
+        <button
+          onClick={() => setActiveTab('parttime')}
+          className={`flex items-center gap-2 px-4 py-3 font-medium transition-all border-b-2 ${
+            activeTab === 'parttime'
+              ? 'text-gold-500 border-gold-500'
+              : 'text-gray-400 border-transparent hover:text-gray-300'
+          }`}
+        >
+          <Calendar size={18} />
+          Deeltijd Huurders
         </button>
         <button
           onClick={() => setActiveTab('external')}
@@ -489,11 +515,11 @@ export function TenantManagement() {
         </div>
       )}
 
-      {activeTab === 'active' ? (
+      {activeTab === 'fulltime' ? (
         <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
           <div className="flex justify-between items-center px-4 py-3 bg-dark-800 border-b border-amber-500">
             <h2 className="text-lg font-bold text-gray-100">
-              Actieve Huurders
+              Voltijd Huurders
             </h2>
             <button
               onClick={() => setShowForm(true)}
@@ -519,9 +545,11 @@ export function TenantManagement() {
               <tbody>
                 {tenants
                   .filter(tenant =>
-                    !tenant.leases ||
-                    tenant.leases.length === 0 ||
-                    tenant.leases.some(lease => lease.status === 'active')
+                    tenant.leases &&
+                    tenant.leases.some(lease =>
+                      lease.status === 'active' &&
+                      (lease.lease_type === 'fulltime' || !lease.lease_type)
+                    )
                   )
                   .map((tenant) => (
                     <tr
@@ -589,6 +617,134 @@ export function TenantManagement() {
                           <button
                             onClick={() => handleDelete(tenant.id)}
                             className="text-red-500 hover:text-red-400 transition-colors p-1.5 rounded hover:bg-dark-700"
+                            title="Verwijderen"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : activeTab === 'parttime' ? (
+        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
+          <div className="flex justify-between items-center px-4 py-3 bg-dark-800 border-b border-amber-500">
+            <h2 className="text-lg font-bold text-gray-100">
+              Deeltijd Huurders
+            </h2>
+            <button
+              onClick={() => setShowForm(true)}
+              className="flex items-center gap-2 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors"
+            >
+              <Plus size={20} />
+              Huurder Toevoegen
+            </button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full table-fixed">
+              <thead>
+                <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
+                  <th className="text-left px-4 py-3 font-semibold w-[20%]">Bedrijf</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[15%]">Contactpersoon</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[18%]">Email</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[12%]">Telefoon</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[18%]">Adres</th>
+                  <th className="text-center px-4 py-3 font-semibold w-[8%]">PIN</th>
+                  <th className="text-right px-4 py-3 font-semibold w-[9%]">Acties</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tenants
+                  .filter(tenant =>
+                    tenant.leases &&
+                    tenant.leases.some(lease =>
+                      lease.status === 'active' &&
+                      lease.lease_type === 'parttime'
+                    )
+                  )
+                  .map((tenant) => (
+                    <tr
+                      key={tenant.id}
+                      className="border-b border-dark-800 hover:bg-dark-800 transition-colors"
+                    >
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 bg-gold-600 bg-opacity-20 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <span className="text-gold-500 font-bold text-sm">
+                              {tenant.company_name.charAt(0)}
+                            </span>
+                          </div>
+                          <span className="text-gray-100 font-medium truncate">
+                            {tenant.company_name}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-gray-300 truncate block">{tenant.name}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {tenant.email ? (
+                          <a
+                            href={`mailto:${tenant.email}`}
+                            className="text-gold-500 hover:text-gold-400 flex items-center gap-2 truncate"
+                          >
+                            <Mail size={16} />
+                            <span className="truncate">{tenant.email}</span>
+                          </a>
+                        ) : (
+                          <span className="text-gray-500">-</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {tenant.phone ? (
+                          <a
+                            href={`tel:${tenant.phone}`}
+                            className="text-gold-500 hover:text-gold-400 flex items-center gap-2 truncate"
+                          >
+                            <Phone size={16} />
+                            <span className="truncate">{tenant.phone}</span>
+                          </a>
+                        ) : (
+                          <span className="text-gray-500">-</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {tenant.street ? (
+                          <div className="flex items-start gap-2">
+                            <MapPin size={16} className="text-gray-400 mt-0.5 flex-shrink-0" />
+                            <span className="text-gray-300 text-sm truncate">
+                              {tenant.street}, {tenant.postal_code} {tenant.city}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-gray-500">-</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {tenant.booking_pin_code ? (
+                          <div className="flex items-center justify-center gap-1">
+                            <Key size={16} className="text-gold-500" />
+                            <span className="text-gray-300 font-mono text-sm">{tenant.booking_pin_code}</span>
+                          </div>
+                        ) : (
+                          <span className="text-gray-500">-</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleEdit(tenant)}
+                            className="p-2 text-gold-500 hover:bg-dark-700 rounded-lg transition-colors"
+                            title="Bewerken"
+                          >
+                            <Edit2 size={18} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(tenant.id)}
+                            className="p-2 text-red-500 hover:bg-dark-700 rounded-lg transition-colors"
                             title="Verwijderen"
                           >
                             <Trash2 size={18} />
@@ -797,14 +953,23 @@ export function TenantManagement() {
         </div>
       )}
 
-      {activeTab === 'active' && tenants.filter(t =>
-        !t.leases ||
-        t.leases.length === 0 ||
-        t.leases.some(l => l.status === 'active')
+      {activeTab === 'fulltime' && tenants.filter(t =>
+        t.leases &&
+        t.leases.some(l => l.status === 'active' && (l.lease_type === 'fulltime' || !l.lease_type))
       ).length === 0 && (
         <div className="bg-dark-900 rounded-lg p-8 text-center">
           <AlertCircle size={48} className="text-gray-500 mx-auto mb-4" />
-          <p className="text-gray-400">Geen actieve huurders gevonden</p>
+          <p className="text-gray-400">Geen voltijd huurders gevonden</p>
+        </div>
+      )}
+
+      {activeTab === 'parttime' && tenants.filter(t =>
+        t.leases &&
+        t.leases.some(l => l.status === 'active' && l.lease_type === 'parttime')
+      ).length === 0 && (
+        <div className="bg-dark-900 rounded-lg p-8 text-center">
+          <AlertCircle size={48} className="text-gray-500 mx-auto mb-4" />
+          <p className="text-gray-400">Geen deeltijd huurders gevonden</p>
         </div>
       )}
 
