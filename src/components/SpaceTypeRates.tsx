@@ -110,267 +110,145 @@ export function SpaceTypeRates() {
         </div>
       )}
 
-      <div className="grid gap-3">
-        {rates.map(rate => (
-          <div key={rate.id} className="bg-dark-900 rounded-lg border border-dark-700 p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Calculator className="text-gold-500" size={18} />
-                <h3 className="text-base font-bold text-gray-100">
-                  {SPACE_TYPE_LABELS[rate.space_type] || rate.space_type}
-                </h3>
-              </div>
-              <button
-                onClick={() => saveRate(rate)}
-                disabled={saving === rate.id}
-                className="flex items-center gap-1.5 bg-gold-500 text-dark-950 px-3 py-1.5 rounded-lg hover:bg-gold-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-              >
-                <Save size={14} />
-                {saving === rate.id ? 'Opslaan...' : 'Opslaan'}
-              </button>
-            </div>
-
-            <div className="flex flex-wrap items-end gap-3 mb-3">
-              <div className="w-48">
-                <label className="block text-xs font-medium text-gray-300 mb-1.5">
-                  Berekeningsmethode
-                </label>
-                <select
-                  value={rate.calculation_method}
-                  onChange={(e) => updateRate(rate.id, 'calculation_method', e.target.value)}
-                  className="w-full px-2.5 py-1.5 text-sm bg-dark-800 border border-dark-600 rounded-lg text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                >
-                  {Object.entries(CALCULATION_METHOD_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </select>
-              </div>
-
-              {rate.calculation_method === 'per_sqm' && (
-                <>
-                  <div className="w-32">
-                    <label className="block text-xs font-medium text-gray-300 mb-1.5">
-                      Prijs/m² {rate.is_annual && '(j)'}
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={rate.rate_per_sqm}
-                      onChange={(e) => updateRate(rate.id, 'rate_per_sqm', parseFloat(e.target.value) || 0)}
-                      className="w-full px-2.5 py-1.5 text-sm bg-dark-800 border border-dark-600 rounded-lg text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                    />
-                  </div>
-                  {rate.space_type === 'kantoor' && (
-                    <div className="w-32">
-                      <label className="block text-xs font-medium text-gray-300 mb-1.5">
-                        Gem. /m² {rate.is_annual && '(j)'}
-                      </label>
+      <div className="bg-dark-900 rounded-lg border border-dark-700 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-dark-700 bg-dark-800">
+                <th className="text-left py-2 px-3 text-gray-300 font-semibold">Ruimtetype</th>
+                <th className="text-left py-2 px-3 text-gray-300 font-semibold">Methode</th>
+                <th className="text-center py-2 px-3 text-gray-300 font-semibold">Prijs/m²</th>
+                <th className="text-center py-2 px-3 text-gray-300 font-semibold">Gem. /m²</th>
+                <th className="text-center py-2 px-3 text-gray-300 font-semibold">Vast bedrag</th>
+                <th className="text-center py-2 px-3 text-gray-300 font-semibold">Gem. vast</th>
+                <th className="text-center py-2 px-3 text-gray-300 font-semibold">Uurprijs</th>
+                <th className="text-center py-2 px-3 text-gray-300 font-semibold">Jaarlijks</th>
+                <th className="text-left py-2 px-3 text-gray-300 font-semibold">Beschrijving</th>
+                <th className="text-left py-2 px-3 text-gray-300 font-semibold">Gem. beschr.</th>
+                <th className="text-center py-2 px-3 text-gray-300 font-semibold">Acties</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rates.map(rate => (
+                <tr key={rate.id} className="border-b border-dark-700/50 hover:bg-dark-800/50">
+                  <td className="py-2 px-3">
+                    <div className="flex items-center gap-2">
+                      <Calculator className="text-gold-500" size={14} />
+                      <span className="font-medium text-gray-100">
+                        {SPACE_TYPE_LABELS[rate.space_type] || rate.space_type}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="py-2 px-3">
+                    <select
+                      value={rate.calculation_method}
+                      onChange={(e) => updateRate(rate.id, 'calculation_method', e.target.value)}
+                      className="w-32 px-2 py-1 text-xs bg-dark-800 border border-dark-600 rounded text-gray-100 focus:ring-1 focus:ring-gold-500"
+                    >
+                      {Object.entries(CALCULATION_METHOD_LABELS).map(([value, label]) => (
+                        <option key={value} value={value}>{label}</option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="py-2 px-3">
+                    {(rate.calculation_method === 'per_sqm' || rate.calculation_method === 'custom') && (
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={rate.rate_per_sqm}
+                        onChange={(e) => updateRate(rate.id, 'rate_per_sqm', parseFloat(e.target.value) || 0)}
+                        className="w-20 px-2 py-1 text-xs bg-dark-800 border border-dark-600 rounded text-gray-100 text-center focus:ring-1 focus:ring-gold-500"
+                      />
+                    )}
+                  </td>
+                  <td className="py-2 px-3">
+                    {rate.space_type === 'kantoor' && (rate.calculation_method === 'per_sqm' || rate.calculation_method === 'custom') && (
                       <input
                         type="number"
                         step="0.01"
                         value={rate.rate_per_sqm_furnished}
                         onChange={(e) => updateRate(rate.id, 'rate_per_sqm_furnished', parseFloat(e.target.value) || 0)}
-                        className="w-full px-2.5 py-1.5 text-sm bg-dark-800 border border-dark-600 rounded-lg text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                        className="w-20 px-2 py-1 text-xs bg-dark-800 border border-dark-600 rounded text-gray-100 text-center focus:ring-1 focus:ring-gold-500"
                       />
-                    </div>
-                  )}
-                </>
-              )}
-
-              {rate.calculation_method === 'fixed_monthly' && (
-                <>
-                  <div className="w-32">
-                    <label className="block text-xs font-medium text-gray-300 mb-1.5">
-                      {rate.is_annual ? 'Jaar (€)' : 'Maand (€)'}
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={rate.fixed_rate}
-                      onChange={(e) => updateRate(rate.id, 'fixed_rate', parseFloat(e.target.value) || 0)}
-                      className="w-full px-2.5 py-1.5 text-sm bg-dark-800 border border-dark-600 rounded-lg text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                    />
-                  </div>
-                  {rate.space_type === 'kantoor' && (
-                    <div className="w-32">
-                      <label className="block text-xs font-medium text-gray-300 mb-1.5">
-                        Gem. {rate.is_annual ? '(j)' : '(m)'} (€)
-                      </label>
+                    )}
+                  </td>
+                  <td className="py-2 px-3">
+                    {(rate.calculation_method === 'fixed_monthly' || rate.calculation_method === 'custom') && (
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={rate.fixed_rate}
+                        onChange={(e) => updateRate(rate.id, 'fixed_rate', parseFloat(e.target.value) || 0)}
+                        className="w-20 px-2 py-1 text-xs bg-dark-800 border border-dark-600 rounded text-gray-100 text-center focus:ring-1 focus:ring-gold-500"
+                      />
+                    )}
+                  </td>
+                  <td className="py-2 px-3">
+                    {rate.space_type === 'kantoor' && (rate.calculation_method === 'fixed_monthly' || rate.calculation_method === 'custom') && (
                       <input
                         type="number"
                         step="0.01"
                         value={rate.fixed_rate_furnished}
                         onChange={(e) => updateRate(rate.id, 'fixed_rate_furnished', parseFloat(e.target.value) || 0)}
-                        className="w-full px-2.5 py-1.5 text-sm bg-dark-800 border border-dark-600 rounded-lg text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                        className="w-20 px-2 py-1 text-xs bg-dark-800 border border-dark-600 rounded text-gray-100 text-center focus:ring-1 focus:ring-gold-500"
                       />
-                    </div>
-                  )}
-                </>
-              )}
-
-              {rate.calculation_method === 'hourly' && (
-                <div className="w-32">
-                  <label className="block text-xs font-medium text-gray-300 mb-1.5">
-                    Per uur (€)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={rate.hourly_rate}
-                    onChange={(e) => updateRate(rate.id, 'hourly_rate', parseFloat(e.target.value) || 0)}
-                    className="w-full px-2.5 py-1.5 text-sm bg-dark-800 border border-dark-600 rounded-lg text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                  />
-                </div>
-              )}
-
-              {rate.calculation_method === 'custom' && (
-                <>
-                  <div className="w-32">
-                    <label className="block text-xs font-medium text-gray-300 mb-1.5">
-                      Prijs/m² {rate.is_annual && '(j)'}
-                    </label>
+                    )}
+                  </td>
+                  <td className="py-2 px-3">
+                    {rate.calculation_method === 'hourly' && (
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={rate.hourly_rate}
+                        onChange={(e) => updateRate(rate.id, 'hourly_rate', parseFloat(e.target.value) || 0)}
+                        className="w-20 px-2 py-1 text-xs bg-dark-800 border border-dark-600 rounded text-gray-100 text-center focus:ring-1 focus:ring-gold-500"
+                      />
+                    )}
+                  </td>
+                  <td className="py-2 px-3 text-center">
                     <input
-                      type="number"
-                      step="0.01"
-                      value={rate.rate_per_sqm}
-                      onChange={(e) => updateRate(rate.id, 'rate_per_sqm', parseFloat(e.target.value) || 0)}
-                      className="w-full px-2.5 py-1.5 text-sm bg-dark-800 border border-dark-600 rounded-lg text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                      type="checkbox"
+                      id={`is_annual_${rate.id}`}
+                      checked={rate.is_annual}
+                      onChange={(e) => updateRate(rate.id, 'is_annual', e.target.checked)}
+                      className="w-4 h-4 text-gold-500 border-dark-600 rounded focus:ring-1 focus:ring-gold-500"
                     />
-                  </div>
-                  <div className="w-32">
-                    <label className="block text-xs font-medium text-gray-300 mb-1.5">
-                      Vast {rate.is_annual && '(j)'} (€)
-                    </label>
+                  </td>
+                  <td className="py-2 px-3">
                     <input
-                      type="number"
-                      step="0.01"
-                      value={rate.fixed_rate}
-                      onChange={(e) => updateRate(rate.id, 'fixed_rate', parseFloat(e.target.value) || 0)}
-                      className="w-full px-2.5 py-1.5 text-sm bg-dark-800 border border-dark-600 rounded-lg text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                      type="text"
+                      value={rate.description || ''}
+                      onChange={(e) => updateRate(rate.id, 'description', e.target.value)}
+                      className="w-32 px-2 py-1 text-xs bg-dark-800 border border-dark-600 rounded text-gray-100 focus:ring-1 focus:ring-gold-500"
+                      placeholder="Optioneel"
                     />
-                  </div>
-                  {rate.space_type === 'kantoor' && (
-                    <>
-                      <div className="w-32">
-                        <label className="block text-xs font-medium text-gray-300 mb-1.5">
-                          Gem. /m² {rate.is_annual && '(j)'}
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={rate.rate_per_sqm_furnished}
-                          onChange={(e) => updateRate(rate.id, 'rate_per_sqm_furnished', parseFloat(e.target.value) || 0)}
-                          className="w-full px-2.5 py-1.5 text-sm bg-dark-800 border border-dark-600 rounded-lg text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                        />
-                      </div>
-                      <div className="w-32">
-                        <label className="block text-xs font-medium text-gray-300 mb-1.5">
-                          Gem. vast {rate.is_annual && '(j)'}
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={rate.fixed_rate_furnished}
-                          onChange={(e) => updateRate(rate.id, 'fixed_rate_furnished', parseFloat(e.target.value) || 0)}
-                          className="w-full px-2.5 py-1.5 text-sm bg-dark-800 border border-dark-600 rounded-lg text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                        />
-                      </div>
-                    </>
-                  )}
-                </>
-              )}
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id={`is_annual_${rate.id}`}
-                  checked={rate.is_annual}
-                  onChange={(e) => updateRate(rate.id, 'is_annual', e.target.checked)}
-                  className="w-4 h-4 text-gold-500 border-dark-600 rounded focus:ring-2 focus:ring-gold-500"
-                />
-                <label htmlFor={`is_annual_${rate.id}`} className="text-xs font-medium text-gray-300">
-                  Jaarlijks (÷12)
-                </label>
-              </div>
-            </div>
-
-            {/* Tabel met beschrijvingen */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b border-dark-700">
-                    <th className="text-left py-1.5 px-2 text-gray-300 font-medium">Type</th>
-                    <th className="text-left py-1.5 px-2 text-gray-300 font-medium">Beschrijving</th>
-                    {rate.is_annual && <th className="text-right py-1.5 px-2 text-gray-300 font-medium">Per maand</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-b border-dark-700/50">
-                    <td className="py-1.5 px-2 text-gray-400">Standaard</td>
-                    <td className="py-1.5 px-2">
+                  </td>
+                  <td className="py-2 px-3">
+                    {rate.space_type === 'kantoor' && (
                       <input
                         type="text"
-                        value={rate.description || ''}
-                        onChange={(e) => updateRate(rate.id, 'description', e.target.value)}
-                        className="w-full px-2 py-1 text-xs bg-dark-800 border border-dark-600 rounded text-gray-100 focus:ring-1 focus:ring-gold-500 focus:border-transparent"
+                        value={rate.description_furnished || ''}
+                        onChange={(e) => updateRate(rate.id, 'description_furnished', e.target.value)}
+                        className="w-32 px-2 py-1 text-xs bg-dark-800 border border-dark-600 rounded text-gray-100 focus:ring-1 focus:ring-gold-500"
                         placeholder="Optioneel"
                       />
-                    </td>
-                    {rate.is_annual && (
-                      <td className="py-1.5 px-2 text-right text-gray-400">
-                        {rate.calculation_method === 'per_sqm' && rate.rate_per_sqm > 0 && (
-                          <span>€{(rate.rate_per_sqm / 12).toFixed(2)}/m²</span>
-                        )}
-                        {rate.calculation_method === 'fixed_monthly' && rate.fixed_rate > 0 && (
-                          <span>€{(rate.fixed_rate / 12).toFixed(2)}</span>
-                        )}
-                        {rate.calculation_method === 'custom' && (
-                          <>
-                            {rate.rate_per_sqm > 0 && <span>€{(rate.rate_per_sqm / 12).toFixed(2)}/m²</span>}
-                            {rate.rate_per_sqm > 0 && rate.fixed_rate > 0 && <span> + </span>}
-                            {rate.fixed_rate > 0 && <span>€{(rate.fixed_rate / 12).toFixed(2)}</span>}
-                          </>
-                        )}
-                      </td>
                     )}
-                  </tr>
-                  {rate.space_type === 'kantoor' && (
-                    <tr>
-                      <td className="py-1.5 px-2 text-gray-400">Gemeubileerd</td>
-                      <td className="py-1.5 px-2">
-                        <input
-                          type="text"
-                          value={rate.description_furnished || ''}
-                          onChange={(e) => updateRate(rate.id, 'description_furnished', e.target.value)}
-                          className="w-full px-2 py-1 text-xs bg-dark-800 border border-dark-600 rounded text-gray-100 focus:ring-1 focus:ring-gold-500 focus:border-transparent"
-                          placeholder="Optioneel"
-                        />
-                      </td>
-                      {rate.is_annual && (
-                        <td className="py-1.5 px-2 text-right text-gray-400">
-                          {rate.calculation_method === 'per_sqm' && rate.rate_per_sqm_furnished > 0 && (
-                            <span>€{(rate.rate_per_sqm_furnished / 12).toFixed(2)}/m²</span>
-                          )}
-                          {rate.calculation_method === 'fixed_monthly' && rate.fixed_rate_furnished > 0 && (
-                            <span>€{(rate.fixed_rate_furnished / 12).toFixed(2)}</span>
-                          )}
-                          {rate.calculation_method === 'custom' && (
-                            <>
-                              {rate.rate_per_sqm_furnished > 0 && <span>€{(rate.rate_per_sqm_furnished / 12).toFixed(2)}/m²</span>}
-                              {rate.rate_per_sqm_furnished > 0 && rate.fixed_rate_furnished > 0 && <span> + </span>}
-                              {rate.fixed_rate_furnished > 0 && <span>€{(rate.fixed_rate_furnished / 12).toFixed(2)}</span>}
-                            </>
-                          )}
-                        </td>
-                      )}
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-          </div>
-        ))}
+                  </td>
+                  <td className="py-2 px-3 text-center">
+                    <button
+                      onClick={() => saveRate(rate)}
+                      disabled={saving === rate.id}
+                      className="inline-flex items-center gap-1 bg-gold-500 text-dark-950 px-2 py-1 rounded hover:bg-gold-600 transition-colors disabled:opacity-50 text-xs font-medium"
+                    >
+                      <Save size={12} />
+                      {saving === rate.id ? 'Bezig...' : 'Opslaan'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="bg-dark-900 rounded-lg border border-dark-700 p-3">
