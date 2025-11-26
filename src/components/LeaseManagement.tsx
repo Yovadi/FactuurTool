@@ -119,15 +119,16 @@ export function LeaseManagement() {
 
       const leaseSpacesData = selectedSpaces.map(space => {
         const officeSpace = spaces.find(s => s.id === space.space_id);
+        const effectivePrice = space.price_per_sqm || getDefaultRate(space.space_id);
         let monthlyRent = 0;
-        if (officeSpace) {
-          const yearlyRent = officeSpace.square_footage * parseFloat(space.price_per_sqm);
+        if (officeSpace && effectivePrice) {
+          const yearlyRent = officeSpace.square_footage * parseFloat(effectivePrice);
           monthlyRent = officeSpace.space_type === 'bedrijfsruimte' ? yearlyRent / 12 : yearlyRent;
         }
         return {
           lease_id: editingLease.id,
           space_id: space.space_id,
-          price_per_sqm: parseFloat(space.price_per_sqm),
+          price_per_sqm: parseFloat(effectivePrice),
           monthly_rent: monthlyRent
         };
       });
@@ -164,15 +165,16 @@ export function LeaseManagement() {
 
       const leaseSpacesData = selectedSpaces.map(space => {
         const officeSpace = spaces.find(s => s.id === space.space_id);
+        const effectivePrice = space.price_per_sqm || getDefaultRate(space.space_id);
         let monthlyRent = 0;
-        if (officeSpace) {
-          const yearlyRent = officeSpace.square_footage * parseFloat(space.price_per_sqm);
+        if (officeSpace && effectivePrice) {
+          const yearlyRent = officeSpace.square_footage * parseFloat(effectivePrice);
           monthlyRent = officeSpace.space_type === 'bedrijfsruimte' ? yearlyRent / 12 : yearlyRent;
         }
         return {
           lease_id: newLease.id,
           space_id: space.space_id,
-          price_per_sqm: parseFloat(space.price_per_sqm),
+          price_per_sqm: parseFloat(effectivePrice),
           monthly_rent: monthlyRent
         };
       });
@@ -250,30 +252,34 @@ export function LeaseManagement() {
 
   const getDefaultRate = (spaceId: string): string => {
     const space = spaces.find(s => s.id === spaceId);
-    if (!space) {
-      console.log('Space niet gevonden voor ID:', spaceId);
-      return '';
-    }
-
-    console.log('Space gevonden:', space.space_number, 'Type:', space.space_type, 'Gemeubileerd:', space.is_furnished);
+    if (!space) return '';
 
     const rate = spaceTypeRates.find(r => r.space_type === space.space_type);
-    if (!rate) {
-      console.log('Geen tarief gevonden voor type:', space.space_type);
-      console.log('Beschikbare tarieven:', spaceTypeRates.map(r => r.space_type));
-      return '';
-    }
-
-    console.log('Tarief gevonden:', rate);
+    if (!rate) return '';
 
     const isFurnished = space.is_furnished ?? false;
-    const pricePerSqm = isFurnished && space.space_type === 'kantoor'
-      ? rate.rate_per_sqm_furnished
-      : rate.rate_per_sqm;
 
-    console.log('Berekende prijs per m²:', pricePerSqm);
+    let pricePerSqm = 0;
 
-    return pricePerSqm > 0 ? pricePerSqm.toString() : '';
+    if (rate.calculation_method === 'per_sqm') {
+      pricePerSqm = isFurnished && space.space_type === 'kantoor'
+        ? rate.rate_per_sqm_furnished
+        : rate.rate_per_sqm;
+
+      if (rate.is_annual && pricePerSqm > 0) {
+        pricePerSqm = pricePerSqm / 12;
+      }
+    } else if (rate.calculation_method === 'custom') {
+      pricePerSqm = isFurnished && space.space_type === 'kantoor'
+        ? rate.rate_per_sqm_furnished
+        : rate.rate_per_sqm;
+
+      if (rate.is_annual && pricePerSqm > 0) {
+        pricePerSqm = pricePerSqm / 12;
+      }
+    }
+
+    return pricePerSqm > 0 ? pricePerSqm.toFixed(2) : '';
   };
 
   const updateSpace = (index: number, field: 'space_id' | 'price_per_sqm', value: string) => {
@@ -309,8 +315,12 @@ export function LeaseManagement() {
 
   const calculateSpaceRent = (spaceId: string, pricePerSqm: string) => {
     const space = spaces.find(s => s.id === spaceId);
-    if (!space || !pricePerSqm) return 0;
-    const yearlyRent = space.square_footage * parseFloat(pricePerSqm);
+    if (!space) return 0;
+
+    const effectivePrice = pricePerSqm || getDefaultRate(spaceId);
+    if (!effectivePrice) return 0;
+
+    const yearlyRent = space.square_footage * parseFloat(effectivePrice);
     return space.space_type === 'bedrijfsruimte' ? yearlyRent / 12 : yearlyRent;
   };
 
@@ -627,8 +637,8 @@ export function LeaseManagement() {
                                 <input
                                   type="text"
                                   inputMode="decimal"
-                                  required
-                                  placeholder="Prijs per m²"
+                                  required={!space.price_per_sqm}
+                                  placeholder={space.space_id && getDefaultRate(space.space_id) ? `Standaard: €${getDefaultRate(space.space_id)}/m²` : "Prijs per m²"}
                                   value={space.price_per_sqm}
                                   onChange={(e) => {
                                     const value = e.target.value;
@@ -639,18 +649,26 @@ export function LeaseManagement() {
                                   className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                                 />
                                 {space.space_id && space.price_per_sqm && getDefaultRate(space.space_id) === space.price_per_sqm && (
-                                  <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-green-500">
-                                    ✓ Standaardtarief
+                                  <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-emerald-500 flex items-center gap-1">
+                                    <CheckCircle size={12} />
+                                    Standaardtarief
+                                  </div>
+                                )}
+                                {space.space_id && !space.price_per_sqm && getDefaultRate(space.space_id) && (
+                                  <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-blue-400">
+                                    (automatisch ingevuld)
                                   </div>
                                 )}
                               </div>
                             </div>
-                            {selectedSpace && space.price_per_sqm && (
+                            {selectedSpace && (space.price_per_sqm || getDefaultRate(space.space_id)) && (
                               <div className="text-sm text-gray-300 whitespace-nowrap">
-                                {selectedSpace.space_type === 'bedrijfsruimte'
-                                  ? `(${selectedSpace.square_footage} m² × €${parseFloat(space.price_per_sqm).toFixed(2)} / 12) = €${monthlyRent.toFixed(2)}/mnd`
-                                  : `(${selectedSpace.square_footage} m² × €${parseFloat(space.price_per_sqm).toFixed(2)}) = €${monthlyRent.toFixed(2)}/mnd`
-                                }
+                                {(() => {
+                                  const effectivePrice = space.price_per_sqm || getDefaultRate(space.space_id);
+                                  return selectedSpace.space_type === 'bedrijfsruimte'
+                                    ? `(${selectedSpace.square_footage} m² × €${parseFloat(effectivePrice).toFixed(2)} / 12) = €${monthlyRent.toFixed(2)}/mnd`
+                                    : `(${selectedSpace.square_footage} m² × €${parseFloat(effectivePrice).toFixed(2)}) = €${monthlyRent.toFixed(2)}/mnd`;
+                                })()}
                               </div>
                             )}
                           </div>
