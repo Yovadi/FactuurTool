@@ -40,6 +40,12 @@ export function LeaseManagement() {
     loadData();
   }, []);
 
+  useEffect(() => {
+    if (showForm && !editingLease && selectedSpaces.length === 0 && formData.lease_type === 'full_time') {
+      setSelectedSpaces([{ space_id: '', price_per_sqm: '' }]);
+    }
+  }, [showForm, editingLease, formData.lease_type]);
+
   const loadData = async () => {
     setLoading(true);
 
