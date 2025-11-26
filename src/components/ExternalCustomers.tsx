@@ -22,7 +22,8 @@ export function ExternalCustomers() {
   const [showForm, setShowForm] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<ExternalCustomer | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showDeleteError, setShowDeleteError] = useState<{
+  const [showDeleteWarning, setShowDeleteWarning] = useState<{
+    customerId: string;
     message: string;
     details: string[];
   } | null>(null);
@@ -126,57 +127,50 @@ export function ExternalCustomers() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Weet je zeker dat je deze externe klant wilt verwijderen?')) {
-      return;
-    }
-
-    console.log('Starting delete check for customer:', id);
     const details: string[] = [];
 
     // Check for existing invoices
-    const { data: invoices, error: invoicesError } = await supabase
+    const { data: invoices } = await supabase
       .from('invoices')
       .select('id')
       .eq('external_customer_id', id);
-
-    console.log('Invoices check:', { invoices, invoicesError });
 
     if (invoices && invoices.length > 0) {
       details.push(`${invoices.length} factuur${invoices.length > 1 ? 'uren' : ''}`);
     }
 
     // Check for existing credit notes
-    const { data: creditNotes, error: creditNotesError } = await supabase
+    const { data: creditNotes } = await supabase
       .from('credit_notes')
       .select('id')
       .eq('external_customer_id', id);
-
-    console.log('Credit notes check:', { creditNotes, creditNotesError });
 
     if (creditNotes && creditNotes.length > 0) {
       details.push(`${creditNotes.length} creditnota${creditNotes.length > 1 ? "'s" : ''}`);
     }
 
     // Check for existing bookings
-    const { data: bookings, error: bookingsError } = await supabase
+    const { data: bookings } = await supabase
       .from('meeting_room_bookings')
       .select('id')
       .eq('external_customer_id', id);
-
-    console.log('Bookings check:', { bookings, bookingsError });
 
     if (bookings && bookings.length > 0) {
       details.push(`${bookings.length} boeking${bookings.length > 1 ? 'en' : ''}`);
     }
 
-    console.log('Details collected:', details);
-
+    // If there are related records, show warning modal
     if (details.length > 0) {
-      console.log('Setting delete error modal');
-      setShowDeleteError({
-        message: 'Deze externe klant kan niet worden verwijderd',
+      setShowDeleteWarning({
+        customerId: id,
+        message: 'Let op: Deze actie verwijdert ook gerelateerde gegevens',
         details
       });
+      return;
+    }
+
+    // Simple confirmation if no related records
+    if (!confirm('Weet je zeker dat je deze externe klant wilt verwijderen?')) {
       return;
     }
 
@@ -187,14 +181,28 @@ export function ExternalCustomers() {
 
     if (error) {
       console.error('Error deleting customer:', error);
-      setShowDeleteError({
-        message: 'Fout bij verwijderen',
-        details: [error.message]
-      });
+      alert('Fout bij verwijderen: ' + error.message);
     } else {
-      console.log('Customer deleted successfully');
       setCustomers(customers.filter(c => c.id !== id));
     }
+  };
+
+  const confirmDelete = async () => {
+    if (!showDeleteWarning) return;
+
+    const { error } = await supabase
+      .from('external_customers')
+      .delete()
+      .eq('id', showDeleteWarning.customerId);
+
+    if (error) {
+      console.error('Error deleting customer:', error);
+      alert('Fout bij verwijderen: ' + error.message);
+    } else {
+      setCustomers(customers.filter(c => c.id !== showDeleteWarning.customerId));
+    }
+
+    setShowDeleteWarning(null);
   };
 
   return (
@@ -464,41 +472,47 @@ export function ExternalCustomers() {
         </div>
       )}
 
-      {/* Delete Error Modal */}
-      {showDeleteError && (
+      {/* Delete Warning Modal */}
+      {showDeleteWarning && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-dark-800 rounded-lg shadow-xl max-w-md w-full border border-red-900">
+          <div className="bg-dark-800 rounded-lg shadow-xl max-w-md w-full border border-yellow-900">
             <div className="p-6">
               <div className="flex items-start gap-4">
                 <div className="flex-shrink-0">
-                  <div className="w-12 h-12 bg-red-900 bg-opacity-20 rounded-full flex items-center justify-center">
-                    <AlertCircle size={24} className="text-red-500" />
+                  <div className="w-12 h-12 bg-yellow-900 bg-opacity-20 rounded-full flex items-center justify-center">
+                    <AlertCircle size={24} className="text-yellow-500" />
                   </div>
                 </div>
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold text-gray-100 mb-2">
-                    {showDeleteError.message}
+                    {showDeleteWarning.message}
                   </h3>
                   <p className="text-gray-300 mb-3">
-                    Deze externe klant heeft nog actieve koppelingen:
+                    Deze externe klant heeft de volgende gerelateerde gegevens die ook worden verwijderd:
                   </p>
                   <ul className="list-disc list-inside space-y-1 mb-4">
-                    {showDeleteError.details.map((detail, index) => (
+                    {showDeleteWarning.details.map((detail, index) => (
                       <li key={index} className="text-gray-400">{detail}</li>
                     ))}
                   </ul>
-                  <p className="text-sm text-gray-400">
-                    Verwijder eerst deze koppelingen voordat je de externe klant verwijdert.
+                  <p className="text-sm text-yellow-400 font-medium">
+                    Deze actie kan niet ongedaan worden gemaakt!
                   </p>
                 </div>
               </div>
             </div>
-            <div className="px-6 py-4 bg-dark-900 rounded-b-lg flex justify-end">
+            <div className="px-6 py-4 bg-dark-900 rounded-b-lg flex justify-end gap-3">
               <button
-                onClick={() => setShowDeleteError(null)}
-                className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                onClick={() => setShowDeleteWarning(null)}
+                className="px-6 py-2 border border-dark-600 text-gray-300 rounded-lg hover:bg-dark-700 transition-colors"
               >
-                Sluiten
+                Annuleren
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Ja, verwijderen
               </button>
             </div>
           </div>
