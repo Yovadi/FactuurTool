@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Calendar, Clock, Plus, X, Check, AlertCircle, Trash2, CalendarDays, FileText, CheckCircle, XCircle, Info, DollarSign, Save } from 'lucide-react';
+import { Calendar, Clock, Plus, X, Check, AlertCircle, Trash2, CalendarDays, FileText, CheckCircle, XCircle, Info } from 'lucide-react';
 import { BookingCalendar } from './BookingCalendar';
 import { InlineDatePicker } from './InlineDatePicker';
 
@@ -68,7 +68,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
   const [meetingRooms, setMeetingRooms] = useState<Space[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [selectedView, setSelectedView] = useState<'list' | 'calendar' | 'rates'>('calendar');
+  const [selectedView, setSelectedView] = useState<'list' | 'calendar'>('calendar');
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'internal' | 'external' | 'upcoming' | 'invoiced'>('all');
   const [selectedTab, setSelectedTab] = useState<'tenant' | 'external'>('tenant');
   const [bookingType, setBookingType] = useState<'tenant' | 'external'>('tenant');
@@ -722,17 +722,6 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                 <AlertCircle size={18} />
                 Lijst
               </button>
-              <button
-                onClick={() => setSelectedView('rates')}
-                className={`flex items-center gap-2 px-4 py-3 font-medium transition-all border-b-2 ${
-                  selectedView === 'rates'
-                    ? 'text-gold-500 border-gold-500'
-                    : 'text-gray-400 border-transparent hover:text-gray-300'
-                }`}
-              >
-                <DollarSign size={18} />
-                Tarieven
-              </button>
             </div>
           </div>
         </>
@@ -1008,87 +997,6 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
             }
           }
         }} />
-        </div>
-      ) : selectedView === 'rates' ? (
-        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
-          <div className="flex items-center gap-2 mb-6">
-            <DollarSign className="text-gold-500" size={24} />
-            <h2 className="text-xl font-semibold text-gray-100">Vergaderruimte Tarieven</h2>
-          </div>
-
-          <div className="space-y-4">
-            {meetingRooms.length === 0 ? (
-              <div className="bg-dark-900 rounded-lg p-8 text-center">
-                <AlertCircle size={48} className="text-gray-500 mx-auto mb-4" />
-                <p className="text-gray-400">Geen vergaderruimtes gevonden</p>
-              </div>
-            ) : (
-              meetingRooms.map((space) => (
-                <div
-                  key={space.id}
-                  className="flex items-center justify-between p-4 bg-dark-800 rounded-lg border border-dark-700 hover:border-gold-600 transition-colors"
-                >
-                  <div className="flex-1">
-                    <h3 className="text-lg font-medium text-gray-100">{space.space_number}</h3>
-                    <p className="text-sm text-gray-400">Vergaderruimte</p>
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-300">€</span>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={space.hourly_rate || 25}
-                        onChange={(e) => {
-                          const value = parseFloat(e.target.value) || 0;
-                          setMeetingRooms(meetingRooms.map(s => s.id === space.id ? { ...s, hourly_rate: value } : s));
-                        }}
-                        className="w-24 px-3 py-2 bg-dark-900 border border-dark-600 rounded-lg text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                      />
-                      <span className="text-sm text-gray-300">/uur</span>
-                    </div>
-
-                    <button
-                      onClick={async () => {
-                        const { error } = await supabase
-                          .from('office_spaces')
-                          .update({ hourly_rate: space.hourly_rate || 25 })
-                          .eq('id', space.id);
-
-                        if (error) {
-                          console.error('Error updating rate:', error.message);
-                          showNotification('Fout bij het bijwerken van het tarief.', 'error');
-                          return;
-                        }
-
-                        showNotification('Tarief succesvol bijgewerkt!', 'success');
-                      }}
-                      className="bg-gold-600 text-white px-4 py-2 rounded-lg hover:bg-gold-700 transition-colors flex items-center gap-2"
-                    >
-                      <Save size={18} />
-                      Opslaan
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-
-          <div className="mt-6 p-4 bg-blue-900/20 border border-blue-700/50 rounded-lg">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="text-blue-400 flex-shrink-0 mt-0.5" size={20} />
-              <div className="text-sm text-blue-300">
-                <p className="font-medium mb-1">Let op:</p>
-                <ul className="list-disc list-inside space-y-1">
-                  <li>Deze tarieven zijn van toepassing op nieuwe boekingen</li>
-                  <li>Bestaande boekingen behouden hun originele tarief</li>
-                  <li>Tarieven zijn zichtbaar op de publieke boekingspagina</li>
-                </ul>
-              </div>
-            </div>
-          </div>
         </div>
       ) : (
         <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
