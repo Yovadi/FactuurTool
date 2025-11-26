@@ -250,15 +250,28 @@ export function LeaseManagement() {
 
   const getDefaultRate = (spaceId: string): string => {
     const space = spaces.find(s => s.id === spaceId);
-    if (!space) return '';
+    if (!space) {
+      console.log('Space niet gevonden voor ID:', spaceId);
+      return '';
+    }
+
+    console.log('Space gevonden:', space.space_number, 'Type:', space.space_type, 'Gemeubileerd:', space.is_furnished);
 
     const rate = spaceTypeRates.find(r => r.space_type === space.space_type);
-    if (!rate) return '';
+    if (!rate) {
+      console.log('Geen tarief gevonden voor type:', space.space_type);
+      console.log('Beschikbare tarieven:', spaceTypeRates.map(r => r.space_type));
+      return '';
+    }
+
+    console.log('Tarief gevonden:', rate);
 
     const isFurnished = space.is_furnished ?? false;
     const pricePerSqm = isFurnished && space.space_type === 'kantoor'
       ? rate.rate_per_sqm_furnished
       : rate.rate_per_sqm;
+
+    console.log('Berekende prijs per m²:', pricePerSqm);
 
     return pricePerSqm > 0 ? pricePerSqm.toString() : '';
   };
