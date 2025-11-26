@@ -466,6 +466,8 @@ export function LeaseManagement() {
                 </select>
               </div>
 
+              {formData.lease_type === 'part_time' && (
+                <>
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <label className="block text-sm font-medium text-gray-200">
@@ -500,7 +502,6 @@ export function LeaseManagement() {
                 </select>
               </div>
 
-              {formData.lease_type === 'part_time' && (
                 <div className="bg-dark-950 p-4 rounded-lg space-y-3">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -588,13 +589,14 @@ export function LeaseManagement() {
                     </div>
                   )}
                 </div>
+                </>
               )}
 
               {formData.lease_type === 'full_time' && (
                 <div>
                   <div className="flex justify-between items-center mb-2">
                     <label className="block text-sm font-medium text-gray-200">
-                      Kantoorruimtes
+                      Ruimtes
                     </label>
                     <button
                       type="button"
@@ -622,12 +624,12 @@ export function LeaseManagement() {
                             <option value="">Selecteer een ruimte...</option>
                             {space.space_id && selectedSpace && (
                               <option value={space.space_id}>
-                                {selectedSpace.space_number} - {selectedSpace.space_type === 'kantoor' ? 'Kantoor' : selectedSpace.space_type === 'buitenterrein' ? 'Buitenterrein' : 'Hal'} ({selectedSpace.square_footage} m²)
+                                {selectedSpace.space_number} - {selectedSpace.space_type === 'kantoor' ? 'Kantoor' : selectedSpace.space_type === 'buitenterrein' ? 'Buitenterrein' : selectedSpace.space_type === 'bedrijfsruimte' ? 'Bedrijfsruimte' : selectedSpace.space_type === 'meeting_room' ? 'Vergaderruimte' : 'Overig'} ({selectedSpace.square_footage} m²)
                               </option>
                             )}
                             {availableSpaces.map((s) => (
                               <option key={s.id} value={s.id}>
-                                {s.space_number} - {s.space_type === 'kantoor' ? 'Kantoor' : s.space_type === 'buitenterrein' ? 'Buitenterrein' : 'Hal'} ({s.square_footage} m²)
+                                {s.space_number} - {s.space_type === 'kantoor' ? 'Kantoor' : s.space_type === 'buitenterrein' ? 'Buitenterrein' : s.space_type === 'bedrijfsruimte' ? 'Bedrijfsruimte' : s.space_type === 'meeting_room' ? 'Vergaderruimte' : 'Overig'} ({s.square_footage} m²)
                               </option>
                             ))}
                           </select>
