@@ -130,39 +130,49 @@ export function ExternalCustomers() {
       return;
     }
 
+    console.log('Starting delete check for customer:', id);
     const details: string[] = [];
 
     // Check for existing invoices
-    const { data: invoices } = await supabase
+    const { data: invoices, error: invoicesError } = await supabase
       .from('invoices')
       .select('id')
       .eq('external_customer_id', id);
+
+    console.log('Invoices check:', { invoices, invoicesError });
 
     if (invoices && invoices.length > 0) {
       details.push(`${invoices.length} factuur${invoices.length > 1 ? 'uren' : ''}`);
     }
 
     // Check for existing credit notes
-    const { data: creditNotes } = await supabase
+    const { data: creditNotes, error: creditNotesError } = await supabase
       .from('credit_notes')
       .select('id')
       .eq('external_customer_id', id);
+
+    console.log('Credit notes check:', { creditNotes, creditNotesError });
 
     if (creditNotes && creditNotes.length > 0) {
       details.push(`${creditNotes.length} creditnota${creditNotes.length > 1 ? "'s" : ''}`);
     }
 
     // Check for existing bookings
-    const { data: bookings } = await supabase
+    const { data: bookings, error: bookingsError } = await supabase
       .from('meeting_room_bookings')
       .select('id')
       .eq('external_customer_id', id);
+
+    console.log('Bookings check:', { bookings, bookingsError });
 
     if (bookings && bookings.length > 0) {
       details.push(`${bookings.length} boeking${bookings.length > 1 ? 'en' : ''}`);
     }
 
+    console.log('Details collected:', details);
+
     if (details.length > 0) {
+      console.log('Setting delete error modal');
       setShowDeleteError({
         message: 'Deze externe klant kan niet worden verwijderd',
         details
@@ -182,6 +192,7 @@ export function ExternalCustomers() {
         details: [error.message]
       });
     } else {
+      console.log('Customer deleted successfully');
       setCustomers(customers.filter(c => c.id !== id));
     }
   };

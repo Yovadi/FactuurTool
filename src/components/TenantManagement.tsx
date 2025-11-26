@@ -708,7 +708,7 @@ export function TenantManagement() {
                             <Edit2 size={18} />
                           </button>
                           <button
-                            onClick={() => handleDeleteCustomer(customer.id)}
+                            onClick={() => handleDelete(customer.id)}
                             className="p-1.5 text-red-500 hover:text-red-400 hover:bg-dark-700 rounded transition-colors"
                             title="Verwijderen"
                           >
