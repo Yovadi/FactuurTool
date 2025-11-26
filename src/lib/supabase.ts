@@ -130,10 +130,16 @@ export type CompanySettings = {
 
 export type SpaceTypeRate = {
   id: string;
-  space_type: 'bedrijfsruimte' | 'kantoor' | 'buitenterrein' | 'diversen';
-  is_furnished: boolean;
-  rate_type: 'monthly' | 'annual';
-  price_per_sqm: number;
+  space_type: string;
+  rate_per_sqm: number;
+  rate_per_sqm_furnished: number;
+  calculation_method: 'per_sqm' | 'fixed_monthly' | 'hourly' | 'custom';
+  fixed_rate: number;
+  fixed_rate_furnished: number;
+  hourly_rate: number;
+  is_annual: boolean;
+  description: string;
+  description_furnished: string;
   created_at: string;
   updated_at: string;
 };

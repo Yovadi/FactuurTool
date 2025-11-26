@@ -252,13 +252,15 @@ export function LeaseManagement() {
     const space = spaces.find(s => s.id === spaceId);
     if (!space) return '';
 
-    const rate = spaceTypeRates.find(r =>
-      r.space_type === space.space_type &&
-      r.is_furnished === (space.is_furnished ?? false) &&
-      r.rate_type === (space.space_type === 'bedrijfsruimte' ? 'annual' : 'monthly')
-    );
+    const rate = spaceTypeRates.find(r => r.space_type === space.space_type);
+    if (!rate) return '';
 
-    return rate ? rate.price_per_sqm.toString() : '';
+    const isFurnished = space.is_furnished ?? false;
+    const pricePerSqm = isFurnished && space.space_type === 'kantoor'
+      ? rate.rate_per_sqm_furnished
+      : rate.rate_per_sqm;
+
+    return pricePerSqm > 0 ? pricePerSqm.toString() : '';
   };
 
   const updateSpace = (index: number, field: 'space_id' | 'price_per_sqm', value: string) => {
