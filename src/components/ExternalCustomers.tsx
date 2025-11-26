@@ -126,6 +126,39 @@ export function ExternalCustomers() {
       return;
     }
 
+    // Check for existing invoices
+    const { data: invoices } = await supabase
+      .from('invoices')
+      .select('id')
+      .eq('external_customer_id', id);
+
+    if (invoices && invoices.length > 0) {
+      alert(`Deze externe klant kan niet worden verwijderd omdat er ${invoices.length} factuur/facturen aan gekoppeld zijn. Verwijder eerst de facturen.`);
+      return;
+    }
+
+    // Check for existing credit notes
+    const { data: creditNotes } = await supabase
+      .from('credit_notes')
+      .select('id')
+      .eq('external_customer_id', id);
+
+    if (creditNotes && creditNotes.length > 0) {
+      alert(`Deze externe klant kan niet worden verwijderd omdat er ${creditNotes.length} creditnota/creditnota's aan gekoppeld zijn. Verwijder eerst de creditnota's.`);
+      return;
+    }
+
+    // Check for existing bookings
+    const { data: bookings } = await supabase
+      .from('meeting_room_bookings')
+      .select('id')
+      .eq('external_customer_id', id);
+
+    if (bookings && bookings.length > 0) {
+      alert(`Deze externe klant kan niet worden verwijderd omdat er ${bookings.length} boeking/boekingen aan gekoppeld zijn. Verwijder eerst de boekingen.`);
+      return;
+    }
+
     const { error } = await supabase
       .from('external_customers')
       .delete()
