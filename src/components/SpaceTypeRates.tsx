@@ -130,8 +130,8 @@ export function SpaceTypeRates() {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-              <div>
+            <div className="flex flex-wrap items-end gap-3 mb-3">
+              <div className="w-48">
                 <label className="block text-xs font-medium text-gray-300 mb-1.5">
                   Berekeningsmethode
                 </label>
@@ -146,31 +146,56 @@ export function SpaceTypeRates() {
                 </select>
               </div>
 
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id={`is_annual_${rate.id}`}
-                  checked={rate.is_annual}
-                  onChange={(e) => updateRate(rate.id, 'is_annual', e.target.checked)}
-                  className="w-4 h-4 text-gold-500 border-dark-600 rounded focus:ring-2 focus:ring-gold-500"
-                />
-                <label htmlFor={`is_annual_${rate.id}`} className="text-sm font-medium text-gray-300">
-                  Tarief is jaarlijks (delen door 12)
-                </label>
-              </div>
-            </div>
+              {rate.calculation_method === 'per_sqm' && (
+                <div className="w-40">
+                  <label className="block text-xs font-medium text-gray-300 mb-1.5">
+                    Prijs per m² (€) {rate.is_annual && '(jaar)'}
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={rate.rate_per_sqm}
+                    onChange={(e) => updateRate(rate.id, 'rate_per_sqm', parseFloat(e.target.value) || 0)}
+                    className="w-full px-2.5 py-1.5 text-sm bg-dark-800 border border-dark-600 rounded-lg text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                  />
+                </div>
+              )}
 
-            {/* Standaard tarieven */}
-            <div className="mb-3">
-              <h4 className="text-sm font-semibold text-gray-200 mb-2 flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-gold-500"></span>
-                Standaard Tarieven
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-2">
-                {rate.calculation_method === 'per_sqm' && (
-                  <div>
+              {rate.calculation_method === 'fixed_monthly' && (
+                <div className="w-40">
+                  <label className="block text-xs font-medium text-gray-300 mb-1.5">
+                    {rate.is_annual ? 'Jaarbedrag' : 'Maandbedrag'} (€)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={rate.fixed_rate}
+                    onChange={(e) => updateRate(rate.id, 'fixed_rate', parseFloat(e.target.value) || 0)}
+                    className="w-full px-2.5 py-1.5 text-sm bg-dark-800 border border-dark-600 rounded-lg text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                  />
+                </div>
+              )}
+
+              {rate.calculation_method === 'hourly' && (
+                <div className="w-40">
+                  <label className="block text-xs font-medium text-gray-300 mb-1.5">
+                    Prijs per uur (€)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={rate.hourly_rate}
+                    onChange={(e) => updateRate(rate.id, 'hourly_rate', parseFloat(e.target.value) || 0)}
+                    className="w-full px-2.5 py-1.5 text-sm bg-dark-800 border border-dark-600 rounded-lg text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                  />
+                </div>
+              )}
+
+              {rate.calculation_method === 'custom' && (
+                <>
+                  <div className="w-40">
                     <label className="block text-xs font-medium text-gray-300 mb-1.5">
-                      Prijs per m² (€) {rate.is_annual && '(per jaar)'}
+                      Prijs per m² (€) {rate.is_annual && '(jaar)'}
                     </label>
                     <input
                       type="number"
@@ -179,18 +204,10 @@ export function SpaceTypeRates() {
                       onChange={(e) => updateRate(rate.id, 'rate_per_sqm', parseFloat(e.target.value) || 0)}
                       className="w-full px-2.5 py-1.5 text-sm bg-dark-800 border border-dark-600 rounded-lg text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
                     />
-                    {rate.is_annual && rate.rate_per_sqm > 0 && (
-                      <p className="text-xs text-gray-400 mt-1">
-                        Per maand: €{(rate.rate_per_sqm / 12).toFixed(2)}/m²
-                      </p>
-                    )}
                   </div>
-                )}
-
-                {rate.calculation_method === 'fixed_monthly' && (
-                  <div>
+                  <div className="w-40">
                     <label className="block text-xs font-medium text-gray-300 mb-1.5">
-                      Vast {rate.is_annual ? 'jaarbedrag' : 'maandbedrag'} (€)
+                      Vast bedrag (€) {rate.is_annual && '(jaar)'}
                     </label>
                     <input
                       type="number"
@@ -199,84 +216,65 @@ export function SpaceTypeRates() {
                       onChange={(e) => updateRate(rate.id, 'fixed_rate', parseFloat(e.target.value) || 0)}
                       className="w-full px-2.5 py-1.5 text-sm bg-dark-800 border border-dark-600 rounded-lg text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
                     />
-                    {rate.is_annual && rate.fixed_rate > 0 && (
-                      <p className="text-xs text-gray-400 mt-1">
-                        Per maand: €{(rate.fixed_rate / 12).toFixed(2)}
-                      </p>
-                    )}
                   </div>
-                )}
+                </>
+              )}
 
-                {rate.calculation_method === 'hourly' && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-300 mb-1.5">
-                      Prijs per uur (€)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={rate.hourly_rate}
-                      onChange={(e) => updateRate(rate.id, 'hourly_rate', parseFloat(e.target.value) || 0)}
-                      className="w-full px-2.5 py-1.5 text-sm bg-dark-800 border border-dark-600 rounded-lg text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                    />
-                  </div>
-                )}
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id={`is_annual_${rate.id}`}
+                  checked={rate.is_annual}
+                  onChange={(e) => updateRate(rate.id, 'is_annual', e.target.checked)}
+                  className="w-4 h-4 text-gold-500 border-dark-600 rounded focus:ring-2 focus:ring-gold-500"
+                />
+                <label htmlFor={`is_annual_${rate.id}`} className="text-xs font-medium text-gray-300">
+                  Jaarlijks (÷12)
+                </label>
+              </div>
+            </div>
 
+            {/* Beschrijving */}
+            {rate.is_annual && (
+              <div className="mb-2 text-xs text-gray-400">
+                {rate.calculation_method === 'per_sqm' && rate.rate_per_sqm > 0 && (
+                  <span>Maandelijks: €{(rate.rate_per_sqm / 12).toFixed(2)}/m²</span>
+                )}
+                {rate.calculation_method === 'fixed_monthly' && rate.fixed_rate > 0 && (
+                  <span>Maandelijks: €{(rate.fixed_rate / 12).toFixed(2)}</span>
+                )}
                 {rate.calculation_method === 'custom' && (
                   <>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-300 mb-1.5">
-                        Prijs per m² (€) {rate.is_annual && '(per jaar)'}
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={rate.rate_per_sqm}
-                        onChange={(e) => updateRate(rate.id, 'rate_per_sqm', parseFloat(e.target.value) || 0)}
-                        className="w-full px-2.5 py-1.5 text-sm bg-dark-800 border border-dark-600 rounded-lg text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-300 mb-1.5">
-                        Vast bedrag (€) {rate.is_annual && '(per jaar)'}
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={rate.fixed_rate}
-                        onChange={(e) => updateRate(rate.id, 'fixed_rate', parseFloat(e.target.value) || 0)}
-                        className="w-full px-2.5 py-1.5 text-sm bg-dark-800 border border-dark-600 rounded-lg text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                      />
-                    </div>
+                    {rate.rate_per_sqm > 0 && <span>Maandelijks: €{(rate.rate_per_sqm / 12).toFixed(2)}/m²</span>}
+                    {rate.rate_per_sqm > 0 && rate.fixed_rate > 0 && <span> + </span>}
+                    {rate.fixed_rate > 0 && <span>€{(rate.fixed_rate / 12).toFixed(2)}</span>}
                   </>
                 )}
               </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-300 mb-1.5">
-                  Beschrijving
-                </label>
-                <textarea
-                  value={rate.description || ''}
-                  onChange={(e) => updateRate(rate.id, 'description', e.target.value)}
-                  rows={1}
-                  className="w-full px-2.5 py-1.5 text-sm bg-dark-800 border border-dark-600 rounded-lg text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                  placeholder="Optionele beschrijving voor dit tarief"
-                />
-              </div>
+            )}
+
+            <div className="mb-3">
+              <label className="block text-xs font-medium text-gray-300 mb-1.5">
+                Beschrijving
+              </label>
+              <textarea
+                value={rate.description || ''}
+                onChange={(e) => updateRate(rate.id, 'description', e.target.value)}
+                rows={1}
+                className="w-full px-2.5 py-1.5 text-sm bg-dark-800 border border-dark-600 rounded-lg text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                placeholder="Optionele beschrijving voor dit tarief"
+              />
             </div>
 
             {/* Gemeubileerde tarieven (alleen voor kantoren) */}
             {rate.space_type === 'kantoor' && (
               <div className="mb-3 border-t border-dark-700 pt-3">
-                <h4 className="text-sm font-semibold text-gray-200 mb-2 flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-gold-500"></span>
-                  Gemeubileerd Tarieven
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-2">
+                <h4 className="text-xs font-semibold text-gray-200 mb-2">Gemeubileerd</h4>
+                <div className="flex flex-wrap items-end gap-3">
                   {rate.calculation_method === 'per_sqm' && (
-                    <div>
+                    <div className="w-40">
                       <label className="block text-xs font-medium text-gray-300 mb-1.5">
-                        Prijs per m² gemeubileerd (€) {rate.is_annual && '(per jaar)'}
+                        Prijs per m² (€) {rate.is_annual && '(jaar)'}
                       </label>
                       <input
                         type="number"
@@ -285,18 +283,13 @@ export function SpaceTypeRates() {
                         onChange={(e) => updateRate(rate.id, 'rate_per_sqm_furnished', parseFloat(e.target.value) || 0)}
                         className="w-full px-2.5 py-1.5 text-sm bg-dark-800 border border-dark-600 rounded-lg text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
                       />
-                      {rate.is_annual && rate.rate_per_sqm_furnished > 0 && (
-                        <p className="text-xs text-gray-400 mt-1">
-                          Per maand: €{(rate.rate_per_sqm_furnished / 12).toFixed(2)}/m²
-                        </p>
-                      )}
                     </div>
                   )}
 
                   {(rate.calculation_method === 'fixed_monthly' || rate.calculation_method === 'custom') && (
-                    <div>
+                    <div className="w-40">
                       <label className="block text-xs font-medium text-gray-300 mb-1.5">
-                        Vast bedrag gemeubileerd (€) {rate.is_annual && '(per jaar)'}
+                        Vast bedrag (€) {rate.is_annual && '(jaar)'}
                       </label>
                       <input
                         type="number"
@@ -305,18 +298,13 @@ export function SpaceTypeRates() {
                         onChange={(e) => updateRate(rate.id, 'fixed_rate_furnished', parseFloat(e.target.value) || 0)}
                         className="w-full px-2.5 py-1.5 text-sm bg-dark-800 border border-dark-600 rounded-lg text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
                       />
-                      {rate.is_annual && rate.fixed_rate_furnished > 0 && (
-                        <p className="text-xs text-gray-400 mt-1">
-                          Per maand: €{(rate.fixed_rate_furnished / 12).toFixed(2)}
-                        </p>
-                      )}
                     </div>
                   )}
 
                   {rate.calculation_method === 'custom' && (
-                    <div>
+                    <div className="w-40">
                       <label className="block text-xs font-medium text-gray-300 mb-1.5">
-                        Prijs per m² gemeubileerd (€) {rate.is_annual && '(per jaar)'}
+                        Prijs per m² (€) {rate.is_annual && '(jaar)'}
                       </label>
                       <input
                         type="number"
@@ -327,19 +315,38 @@ export function SpaceTypeRates() {
                       />
                     </div>
                   )}
+
+                  <div className="flex-1">
+                    <label className="block text-xs font-medium text-gray-300 mb-1.5">
+                      Beschrijving gemeubileerd
+                    </label>
+                    <textarea
+                      value={rate.description_furnished || ''}
+                      onChange={(e) => updateRate(rate.id, 'description_furnished', e.target.value)}
+                      rows={1}
+                      className="w-full px-2.5 py-1.5 text-sm bg-dark-800 border border-dark-600 rounded-lg text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                      placeholder="Optionele beschrijving"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-300 mb-1.5">
-                    Beschrijving gemeubileerd
-                  </label>
-                  <textarea
-                    value={rate.description_furnished || ''}
-                    onChange={(e) => updateRate(rate.id, 'description_furnished', e.target.value)}
-                    rows={1}
-                    className="w-full px-2.5 py-1.5 text-sm bg-dark-800 border border-dark-600 rounded-lg text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                    placeholder="Optionele beschrijving voor gemeubileerd tarief"
-                  />
-                </div>
+
+                {rate.is_annual && (
+                  <div className="mt-2 text-xs text-gray-400">
+                    {rate.calculation_method === 'per_sqm' && rate.rate_per_sqm_furnished > 0 && (
+                      <span>Maandelijks: €{(rate.rate_per_sqm_furnished / 12).toFixed(2)}/m²</span>
+                    )}
+                    {rate.calculation_method === 'fixed_monthly' && rate.fixed_rate_furnished > 0 && (
+                      <span>Maandelijks: €{(rate.fixed_rate_furnished / 12).toFixed(2)}</span>
+                    )}
+                    {rate.calculation_method === 'custom' && (
+                      <>
+                        {rate.rate_per_sqm_furnished > 0 && <span>Maandelijks: €{(rate.rate_per_sqm_furnished / 12).toFixed(2)}/m²</span>}
+                        {rate.rate_per_sqm_furnished > 0 && rate.fixed_rate_furnished > 0 && <span> + </span>}
+                        {rate.fixed_rate_furnished > 0 && <span>€{(rate.fixed_rate_furnished / 12).toFixed(2)}</span>}
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
