@@ -29,9 +29,7 @@ export function SpaceManagement() {
     setLoading(true);
     const { data: spacesData, error } = await supabase
       .from('office_spaces')
-      .select('*')
-      .order('floor')
-      .order('space_number');
+      .select('*');
 
     if (error) {
       console.error('Error loading spaces:', error);
@@ -70,6 +68,13 @@ export function SpaceManagement() {
         return { ...space, is_available: true };
       })
     );
+
+    // Sort spaces by name (space_number)
+    spacesWithTenants.sort((a, b) => {
+      const nameA = a.space_number.toLowerCase();
+      const nameB = b.space_number.toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
 
     setSpaces(spacesWithTenants);
     setLoading(false);
