@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, type SpaceTypeRate } from '../lib/supabase';
-import { Plus, Edit2, AlertCircle, Calculator, X, Building2, DollarSign, Clock } from 'lucide-react';
+import { Plus, Edit2, AlertCircle, Calculator, X, Building2, Euro, Clock } from 'lucide-react';
 
 const SPACE_TYPE_LABELS: Record<string, string> = {
   'bedrijfsruimte': 'Bedrijfsruimte',
@@ -193,7 +193,7 @@ export function SpaceTypeRates() {
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-400">Standaard:</span>
                       <div className="flex items-center gap-1">
-                        <DollarSign size={14} className="text-gold-500" />
+                        <Euro size={14} className="text-gold-500" />
                         <span className="text-gray-100 font-bold">€{rate.rate_per_sqm.toFixed(2)}</span>
                         <span className="text-gray-400">/m²</span>
                       </div>
@@ -202,7 +202,7 @@ export function SpaceTypeRates() {
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-400">Gemeubileerd:</span>
                         <div className="flex items-center gap-1">
-                          <DollarSign size={14} className="text-gold-500" />
+                          <Euro size={14} className="text-gold-500" />
                           <span className="text-gray-100 font-bold">€{rate.rate_per_sqm_furnished.toFixed(2)}</span>
                           <span className="text-gray-400">/m²</span>
                         </div>
@@ -216,7 +216,7 @@ export function SpaceTypeRates() {
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-400">Vast bedrag:</span>
                       <div className="flex items-center gap-1">
-                        <DollarSign size={14} className="text-gold-500" />
+                        <Euro size={14} className="text-gold-500" />
                         <span className="text-gray-100 font-bold">€{rate.fixed_rate.toFixed(2)}</span>
                       </div>
                     </div>
@@ -224,7 +224,7 @@ export function SpaceTypeRates() {
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-400">Gemeubileerd:</span>
                         <div className="flex items-center gap-1">
-                          <DollarSign size={14} className="text-gold-500" />
+                          <Euro size={14} className="text-gold-500" />
                           <span className="text-gray-100 font-bold">€{rate.fixed_rate_furnished.toFixed(2)}</span>
                         </div>
                       </div>
