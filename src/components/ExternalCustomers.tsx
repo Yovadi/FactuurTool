@@ -22,6 +22,10 @@ export function ExternalCustomers() {
   const [showForm, setShowForm] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<ExternalCustomer | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showDeleteError, setShowDeleteError] = useState<{
+    message: string;
+    details: string[];
+  } | null>(null);
 
   const [formData, setFormData] = useState({
     company_name: '',
@@ -126,6 +130,8 @@ export function ExternalCustomers() {
       return;
     }
 
+    const details: string[] = [];
+
     // Check for existing invoices
     const { data: invoices } = await supabase
       .from('invoices')
@@ -133,8 +139,7 @@ export function ExternalCustomers() {
       .eq('external_customer_id', id);
 
     if (invoices && invoices.length > 0) {
-      alert(`Deze externe klant kan niet worden verwijderd omdat er ${invoices.length} factuur/facturen aan gekoppeld zijn. Verwijder eerst de facturen.`);
-      return;
+      details.push(`${invoices.length} factuur${invoices.length > 1 ? 'uren' : ''}`);
     }
 
     // Check for existing credit notes
@@ -144,8 +149,7 @@ export function ExternalCustomers() {
       .eq('external_customer_id', id);
 
     if (creditNotes && creditNotes.length > 0) {
-      alert(`Deze externe klant kan niet worden verwijderd omdat er ${creditNotes.length} creditnota/creditnota's aan gekoppeld zijn. Verwijder eerst de creditnota's.`);
-      return;
+      details.push(`${creditNotes.length} creditnota${creditNotes.length > 1 ? "'s" : ''}`);
     }
 
     // Check for existing bookings
@@ -155,7 +159,14 @@ export function ExternalCustomers() {
       .eq('external_customer_id', id);
 
     if (bookings && bookings.length > 0) {
-      alert(`Deze externe klant kan niet worden verwijderd omdat er ${bookings.length} boeking/boekingen aan gekoppeld zijn. Verwijder eerst de boekingen.`);
+      details.push(`${bookings.length} boeking${bookings.length > 1 ? 'en' : ''}`);
+    }
+
+    if (details.length > 0) {
+      setShowDeleteError({
+        message: 'Deze externe klant kan niet worden verwijderd',
+        details
+      });
       return;
     }
 
@@ -166,7 +177,10 @@ export function ExternalCustomers() {
 
     if (error) {
       console.error('Error deleting customer:', error);
-      alert('Fout bij verwijderen: ' + error.message);
+      setShowDeleteError({
+        message: 'Fout bij verwijderen',
+        details: [error.message]
+      });
     } else {
       setCustomers(customers.filter(c => c.id !== id));
     }
@@ -436,6 +450,47 @@ export function ExternalCustomers() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Delete Error Modal */}
+      {showDeleteError && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-dark-800 rounded-lg shadow-xl max-w-md w-full border border-red-900">
+            <div className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0">
+                  <div className="w-12 h-12 bg-red-900 bg-opacity-20 rounded-full flex items-center justify-center">
+                    <AlertCircle size={24} className="text-red-500" />
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-gray-100 mb-2">
+                    {showDeleteError.message}
+                  </h3>
+                  <p className="text-gray-300 mb-3">
+                    Deze externe klant heeft nog actieve koppelingen:
+                  </p>
+                  <ul className="list-disc list-inside space-y-1 mb-4">
+                    {showDeleteError.details.map((detail, index) => (
+                      <li key={index} className="text-gray-400">{detail}</li>
+                    ))}
+                  </ul>
+                  <p className="text-sm text-gray-400">
+                    Verwijder eerst deze koppelingen voordat je de externe klant verwijdert.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-4 bg-dark-900 rounded-b-lg flex justify-end">
+              <button
+                onClick={() => setShowDeleteError(null)}
+                className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                Sluiten
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
