@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase, type Lease, type Tenant, type OfficeSpace, type LeaseSpace } from '../lib/supabase';
+import { supabase, type Lease, type Tenant, type OfficeSpace, type LeaseSpace, type SpaceTypeRate } from '../lib/supabase';
 import { Plus, CreditCard as Edit2, Trash2, Calendar, Euro, X, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 
 type LeaseWithDetails = Lease & {
@@ -11,6 +11,7 @@ export function LeaseManagement() {
   const [leases, setLeases] = useState<LeaseWithDetails[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [spaces, setSpaces] = useState<OfficeSpace[]>([]);
+  const [spaceTypeRates, setSpaceTypeRates] = useState<SpaceTypeRate[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingLease, setEditingLease] = useState<LeaseWithDetails | null>(null);
   const [loading, setLoading] = useState(true);
@@ -64,9 +65,14 @@ export function LeaseManagement() {
       .select('*')
       .order('space_number');
 
+    const { data: ratesData } = await supabase
+      .from('space_type_rates')
+      .select('*');
+
     setLeases(leasesData as LeaseWithDetails[] || []);
     setTenants(tenantsData || []);
     setSpaces(spacesData || []);
+    setSpaceTypeRates(ratesData || []);
     setLoading(false);
   };
 
@@ -242,9 +248,32 @@ export function LeaseManagement() {
     setSelectedSpaces(selectedSpaces.filter((_, i) => i !== index));
   };
 
+  const getDefaultRate = (spaceId: string): string => {
+    const space = spaces.find(s => s.id === spaceId);
+    if (!space) return '';
+
+    const rate = spaceTypeRates.find(r =>
+      r.space_type === space.space_type &&
+      r.is_furnished === (space.is_furnished ?? false) &&
+      r.rate_type === (space.space_type === 'bedrijfsruimte' ? 'annual' : 'monthly')
+    );
+
+    return rate ? rate.price_per_sqm.toString() : '';
+  };
+
   const updateSpace = (index: number, field: 'space_id' | 'price_per_sqm', value: string) => {
     const updated = [...selectedSpaces];
-    updated[index] = { ...updated[index], [field]: value };
+
+    if (field === 'space_id') {
+      const defaultRate = getDefaultRate(value);
+      updated[index] = {
+        space_id: value,
+        price_per_sqm: defaultRate
+      };
+    } else {
+      updated[index] = { ...updated[index], [field]: value };
+    }
+
     setSelectedSpaces(updated);
   };
 
@@ -579,20 +608,27 @@ export function LeaseManagement() {
                           </select>
                           <div className="flex gap-2 items-center">
                             <div className="flex-1">
-                              <input
-                                type="text"
-                                inputMode="decimal"
-                                required
-                                placeholder="Prijs per m²"
-                                value={space.price_per_sqm}
-                                onChange={(e) => {
-                                  const value = e.target.value;
-                                  if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                                    updateSpace(index, 'price_per_sqm', value);
-                                  }
-                                }}
-                                className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                              />
+                              <div className="relative">
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  required
+                                  placeholder="Prijs per m²"
+                                  value={space.price_per_sqm}
+                                  onChange={(e) => {
+                                    const value = e.target.value;
+                                    if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                                      updateSpace(index, 'price_per_sqm', value);
+                                    }
+                                  }}
+                                  className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                                />
+                                {space.space_id && space.price_per_sqm && getDefaultRate(space.space_id) === space.price_per_sqm && (
+                                  <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-green-500">
+                                    ✓ Standaardtarief
+                                  </div>
+                                )}
+                              </div>
                             </div>
                             {selectedSpace && space.price_per_sqm && (
                               <div className="text-sm text-gray-300 whitespace-nowrap">

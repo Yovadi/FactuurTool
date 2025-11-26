@@ -127,3 +127,13 @@ export type CompanySettings = {
   created_at: string;
   updated_at: string;
 };
+
+export type SpaceTypeRate = {
+  id: string;
+  space_type: 'bedrijfsruimte' | 'kantoor' | 'buitenterrein' | 'diversen';
+  is_furnished: boolean;
+  rate_type: 'monthly' | 'annual';
+  price_per_sqm: number;
+  created_at: string;
+  updated_at: string;
+};
