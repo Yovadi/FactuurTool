@@ -288,19 +288,13 @@ export function LeaseManagement() {
     return pricePerSqm > 0 ? pricePerSqm.toFixed(2) : '';
   };
 
-  const updateSpace = (index: number, field: 'space_id' | 'price_per_sqm', value: string) => {
+  const updateSpace = (index: number, spaceId: string) => {
     const updated = [...selectedSpaces];
-
-    if (field === 'space_id') {
-      const defaultRate = getDefaultRate(value);
-      updated[index] = {
-        space_id: value,
-        price_per_sqm: defaultRate
-      };
-    } else {
-      updated[index] = { ...updated[index], [field]: value };
-    }
-
+    const defaultRate = getDefaultRate(spaceId);
+    updated[index] = {
+      space_id: spaceId,
+      price_per_sqm: defaultRate
+    };
     setSelectedSpaces(updated);
   };
 
@@ -622,7 +616,7 @@ export function LeaseManagement() {
                           <select
                             required
                             value={space.space_id}
-                            onChange={(e) => updateSpace(index, 'space_id', e.target.value)}
+                            onChange={(e) => updateSpace(index, e.target.value)}
                             className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                           >
                             <option value="">Selecteer een ruimte...</option>
@@ -637,47 +631,46 @@ export function LeaseManagement() {
                               </option>
                             ))}
                           </select>
-                          <div className="flex gap-2 items-center">
-                            <div className="flex-1">
-                              <div className="relative">
-                                <input
-                                  type="text"
-                                  inputMode="decimal"
-                                  required={!space.price_per_sqm}
-                                  placeholder={space.space_id && getDefaultRate(space.space_id) ? `Standaard: €${getDefaultRate(space.space_id)}/m²` : "Prijs per m²"}
-                                  value={space.price_per_sqm}
-                                  onChange={(e) => {
-                                    const value = e.target.value;
-                                    if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                                      updateSpace(index, 'price_per_sqm', value);
-                                    }
-                                  }}
-                                  className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                                />
-                                {space.space_id && space.price_per_sqm && getDefaultRate(space.space_id) === space.price_per_sqm && (
-                                  <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-emerald-500 flex items-center gap-1">
+                          {space.space_id && selectedSpace && (
+                            <div className="flex gap-2 items-center bg-dark-950 p-3 rounded-lg">
+                              <div className="flex-1">
+                                <div className="text-sm text-gray-400 mb-1">Tarief per m²</div>
+                                <div className="text-lg font-bold text-gold-500">
+                                  €{(() => {
+                                    const effectivePrice = space.price_per_sqm || getDefaultRate(space.space_id);
+                                    return effectivePrice ? parseFloat(effectivePrice).toFixed(2) : '0.00';
+                                  })()}/m²
+                                </div>
+                                {space.space_id && getDefaultRate(space.space_id) && (
+                                  <div className="text-xs text-emerald-500 flex items-center gap-1 mt-1">
                                     <CheckCircle size={12} />
                                     Standaardtarief
                                   </div>
                                 )}
-                                {space.space_id && !space.price_per_sqm && getDefaultRate(space.space_id) && (
-                                  <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-blue-400">
-                                    (automatisch ingevuld)
-                                  </div>
-                                )}
+                              </div>
+                              <div className="text-right">
+                                <div className="text-sm text-gray-400 mb-1">Maandelijkse huur</div>
+                                <div className="text-lg font-bold text-gray-100">
+                                  {(() => {
+                                    const effectivePrice = space.price_per_sqm || getDefaultRate(space.space_id);
+                                    if (!effectivePrice) return '€0.00/mnd';
+                                    return selectedSpace.space_type === 'bedrijfsruimte'
+                                      ? `€${monthlyRent.toFixed(2)}/mnd`
+                                      : `€${monthlyRent.toFixed(2)}/mnd`;
+                                  })()}
+                                </div>
+                                <div className="text-xs text-gray-500 mt-1">
+                                  {selectedSpace.space_type === 'bedrijfsruimte'
+                                    ? `${selectedSpace.square_footage} m² × tarief / 12`
+                                    : `${selectedSpace.square_footage} m² × tarief`
+                                  }
+                                </div>
                               </div>
                             </div>
-                            {selectedSpace && (space.price_per_sqm || getDefaultRate(space.space_id)) && (
-                              <div className="text-sm text-gray-300 whitespace-nowrap">
-                                {(() => {
-                                  const effectivePrice = space.price_per_sqm || getDefaultRate(space.space_id);
-                                  return selectedSpace.space_type === 'bedrijfsruimte'
-                                    ? `(${selectedSpace.square_footage} m² × €${parseFloat(effectivePrice).toFixed(2)} / 12) = €${monthlyRent.toFixed(2)}/mnd`
-                                    : `(${selectedSpace.square_footage} m² × €${parseFloat(effectivePrice).toFixed(2)}) = €${monthlyRent.toFixed(2)}/mnd`;
-                                })()}
-                              </div>
-                            )}
-                          </div>
+                          )}
+                          {space.space_id && !selectedSpace && (
+                            <div className="text-sm text-amber-500">Selecteer een ruimte om het tarief te zien</div>
+                          )}
                         </div>
                         {selectedSpaces.length > 1 && (
                           <button
