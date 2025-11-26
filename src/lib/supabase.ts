@@ -46,7 +46,9 @@ export type OfficeSpace = {
   square_footage: number;
   base_rent: number;
   is_available: boolean;
+  is_furnished: boolean | null;
   space_type: 'bedrijfsruimte' | 'kantoor' | 'buitenterrein' | 'diversen';
+  hourly_rate?: number | null;
   created_at: string;
 };
 

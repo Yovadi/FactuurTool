@@ -17,7 +17,8 @@ export function SpaceManagement() {
     space_number: '',
     square_footage: '',
     hourly_rate: '',
-    is_available: true
+    is_available: true,
+    is_furnished: false
   });
 
   useEffect(() => {
@@ -83,7 +84,8 @@ export function SpaceManagement() {
       square_footage: formData.space_type === 'Meeting Room' ? 0 : (parseFloat(formData.square_footage) || 0),
       space_type: formData.space_type,
       base_rent: 0,
-      is_available: formData.is_available
+      is_available: formData.is_available,
+      is_furnished: formData.space_type === 'kantoor' ? formData.is_furnished : null
     };
 
     if (formData.space_type === 'Meeting Room') {
@@ -141,7 +143,8 @@ export function SpaceManagement() {
       space_number: space.space_number,
       square_footage: space.square_footage.toString(),
       hourly_rate: space.hourly_rate ? space.hourly_rate.toString() : '',
-      is_available: space.is_available
+      is_available: space.is_available,
+      is_furnished: space.is_furnished || false
     });
     setShowForm(true);
   };
@@ -166,7 +169,8 @@ export function SpaceManagement() {
       space_number: '',
       square_footage: '',
       hourly_rate: '',
-      is_available: true
+      is_available: true,
+      is_furnished: false
     });
     setEditingSpace(null);
     setShowForm(false);
@@ -274,6 +278,20 @@ export function SpaceManagement() {
                   />
                 </div>
               )}
+              {formData.space_type === 'kantoor' && (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="is_furnished"
+                    checked={formData.is_furnished}
+                    onChange={(e) => setFormData({ ...formData, is_furnished: e.target.checked })}
+                    className="w-4 h-4 text-gold-500 border-dark-600 rounded focus:ring-2 focus:ring-gold-500"
+                  />
+                  <label htmlFor="is_furnished" className="text-sm font-medium text-gray-200">
+                    Gemeubileerd
+                  </label>
+                </div>
+              )}
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
@@ -347,6 +365,11 @@ export function SpaceManagement() {
                           <div className="flex items-center gap-2">
                             <Home className="text-gold-500" size={18} />
                             <span className="text-gray-100 font-medium">{space.space_number}</span>
+                            {space.space_type === 'kantoor' && space.is_furnished && (
+                              <span className="text-xs bg-gold-500 text-dark-950 px-2 py-0.5 rounded-full font-medium">
+                                Gemeubileerd
+                              </span>
+                            )}
                           </div>
                         </td>
                         <td className="px-4 py-3 text-gray-300 text-sm">
