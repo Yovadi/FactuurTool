@@ -16,7 +16,6 @@ export function SpaceManagement() {
     space_type: 'bedrijfsruimte' as 'bedrijfsruimte' | 'kantoor' | 'buitenterrein' | 'diversen' | 'Meeting Room',
     space_number: '',
     square_footage: '',
-    hourly_rate: '',
     is_available: true,
     is_furnished: false
   });
@@ -93,11 +92,7 @@ export function SpaceManagement() {
       is_furnished: formData.space_type === 'kantoor' ? formData.is_furnished : null
     };
 
-    if (formData.space_type === 'Meeting Room') {
-      spaceData.hourly_rate = formData.hourly_rate ? parseFloat(formData.hourly_rate) : null;
-    } else {
-      spaceData.hourly_rate = null;
-    }
+    spaceData.hourly_rate = null;
 
     if (editingSpace) {
       const { data, error } = await supabase
@@ -147,7 +142,6 @@ export function SpaceManagement() {
       space_type: space.space_type,
       space_number: space.space_number,
       square_footage: space.square_footage.toString(),
-      hourly_rate: space.hourly_rate ? space.hourly_rate.toString() : '',
       is_available: space.is_available,
       is_furnished: space.is_furnished || false
     });
@@ -173,7 +167,6 @@ export function SpaceManagement() {
       space_type: 'bedrijfsruimte',
       space_number: '',
       square_footage: '',
-      hourly_rate: '',
       is_available: true,
       is_furnished: false
     });
@@ -217,7 +210,7 @@ export function SpaceManagement() {
                       ...formData,
                       space_type: newType,
                       square_footage: newType === 'Meeting Room' ? '0' : formData.square_footage,
-                      hourly_rate: newType === 'Meeting Room' ? formData.hourly_rate : ''
+                      is_furnished: newType === 'kantoor' ? formData.is_furnished : false
                     });
                   }}
                   className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
@@ -260,26 +253,6 @@ export function SpaceManagement() {
                     }}
                     className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                     placeholder={formData.space_type === 'diversen' ? 'bijv. 150.00' : 'bijv. 50.5'}
-                  />
-                </div>
-              )}
-              {formData.space_type === 'Meeting Room' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-200 mb-1">
-                    Uurtarief (€)
-                  </label>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={formData.hourly_rate}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                        setFormData({ ...formData, hourly_rate: value });
-                      }
-                    }}
-                    className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                    placeholder="bijv. 25.00"
                   />
                 </div>
               )}
@@ -378,9 +351,7 @@ export function SpaceManagement() {
                           </div>
                         </td>
                         <td className="px-4 py-3 text-gray-300 text-sm">
-                          {space.space_type === 'Meeting Room' && space.hourly_rate
-                            ? `€ ${space.hourly_rate.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/uur`
-                            : space.space_type === 'diversen'
+                          {space.space_type === 'diversen'
                             ? `€ ${space.square_footage.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                             : `${space.square_footage.toLocaleString('nl-NL', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} m²`
                           }
