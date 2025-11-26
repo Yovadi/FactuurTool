@@ -1970,17 +1970,6 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                 return new Date(b.invoice_date).getTime() - new Date(a.invoice_date).getTime();
               });
 
-            const hasAny = draftLeaseInvoices.length > 0 || draftMeetingRoomInvoices.length > 0 || draftManualInvoices.length > 0 || openInvoices.length > 0;
-
-            if (!hasAny) {
-              return (
-                <div className="bg-dark-900 rounded-lg p-8 text-center">
-                  <AlertCircle size={48} className="text-gray-500 mx-auto mb-4" />
-                  <p className="text-gray-400">Geen facturen gevonden</p>
-                </div>
-              );
-            }
-
           const renderInvoiceTable = (invoices: typeof draftLeaseInvoices, title: string, borderColor: string, buttonConfig?: { label: string; onClick: () => void; color: string; disabled?: boolean }) => (
             <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
               <div className="flex items-center justify-between px-4 py-3 bg-dark-800 border-b" style={{ borderBottomColor: borderColor }}>
