@@ -110,145 +110,182 @@ export function SpaceTypeRates() {
         </div>
       )}
 
-      <div className="bg-dark-900 rounded-lg border border-dark-700 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b border-dark-700 bg-dark-800">
-                <th className="text-left py-2 px-3 text-gray-300 font-semibold">Ruimtetype</th>
-                <th className="text-left py-2 px-3 text-gray-300 font-semibold">Methode</th>
-                <th className="text-center py-2 px-3 text-gray-300 font-semibold">Prijs/m²</th>
-                <th className="text-center py-2 px-3 text-gray-300 font-semibold">Gem. /m²</th>
-                <th className="text-center py-2 px-3 text-gray-300 font-semibold">Vast bedrag</th>
-                <th className="text-center py-2 px-3 text-gray-300 font-semibold">Gem. vast</th>
-                <th className="text-center py-2 px-3 text-gray-300 font-semibold">Uurprijs</th>
-                <th className="text-center py-2 px-3 text-gray-300 font-semibold">Jaarlijks</th>
-                <th className="text-left py-2 px-3 text-gray-300 font-semibold">Beschrijving</th>
-                <th className="text-left py-2 px-3 text-gray-300 font-semibold">Gem. beschr.</th>
-                <th className="text-center py-2 px-3 text-gray-300 font-semibold">Acties</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rates.map(rate => (
-                <tr key={rate.id} className="border-b border-dark-700/50 hover:bg-dark-800/50">
-                  <td className="py-2 px-3">
-                    <div className="flex items-center gap-2">
-                      <Calculator className="text-gold-500" size={14} />
-                      <span className="font-medium text-gray-100">
-                        {SPACE_TYPE_LABELS[rate.space_type] || rate.space_type}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="py-2 px-3">
-                    <select
-                      value={rate.calculation_method}
-                      onChange={(e) => updateRate(rate.id, 'calculation_method', e.target.value)}
-                      className="w-32 px-2 py-1 text-xs bg-dark-800 border border-dark-600 rounded text-gray-100 focus:ring-1 focus:ring-gold-500"
-                    >
-                      {Object.entries(CALCULATION_METHOD_LABELS).map(([value, label]) => (
-                        <option key={value} value={value}>{label}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="py-2 px-3">
-                    {(rate.calculation_method === 'per_sqm' || rate.calculation_method === 'custom') && (
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={rate.rate_per_sqm}
-                        onChange={(e) => updateRate(rate.id, 'rate_per_sqm', parseFloat(e.target.value) || 0)}
-                        className="w-20 px-2 py-1 text-xs bg-dark-800 border border-dark-600 rounded text-gray-100 text-center focus:ring-1 focus:ring-gold-500"
-                      />
-                    )}
-                  </td>
-                  <td className="py-2 px-3">
-                    {rate.space_type === 'kantoor' && (rate.calculation_method === 'per_sqm' || rate.calculation_method === 'custom') && (
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={rate.rate_per_sqm_furnished}
-                        onChange={(e) => updateRate(rate.id, 'rate_per_sqm_furnished', parseFloat(e.target.value) || 0)}
-                        className="w-20 px-2 py-1 text-xs bg-dark-800 border border-dark-600 rounded text-gray-100 text-center focus:ring-1 focus:ring-gold-500"
-                      />
-                    )}
-                  </td>
-                  <td className="py-2 px-3">
-                    {(rate.calculation_method === 'fixed_monthly' || rate.calculation_method === 'custom') && (
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={rate.fixed_rate}
-                        onChange={(e) => updateRate(rate.id, 'fixed_rate', parseFloat(e.target.value) || 0)}
-                        className="w-20 px-2 py-1 text-xs bg-dark-800 border border-dark-600 rounded text-gray-100 text-center focus:ring-1 focus:ring-gold-500"
-                      />
-                    )}
-                  </td>
-                  <td className="py-2 px-3">
-                    {rate.space_type === 'kantoor' && (rate.calculation_method === 'fixed_monthly' || rate.calculation_method === 'custom') && (
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={rate.fixed_rate_furnished}
-                        onChange={(e) => updateRate(rate.id, 'fixed_rate_furnished', parseFloat(e.target.value) || 0)}
-                        className="w-20 px-2 py-1 text-xs bg-dark-800 border border-dark-600 rounded text-gray-100 text-center focus:ring-1 focus:ring-gold-500"
-                      />
-                    )}
-                  </td>
-                  <td className="py-2 px-3">
-                    {rate.calculation_method === 'hourly' && (
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={rate.hourly_rate}
-                        onChange={(e) => updateRate(rate.id, 'hourly_rate', parseFloat(e.target.value) || 0)}
-                        className="w-20 px-2 py-1 text-xs bg-dark-800 border border-dark-600 rounded text-gray-100 text-center focus:ring-1 focus:ring-gold-500"
-                      />
-                    )}
-                  </td>
-                  <td className="py-2 px-3 text-center">
-                    <input
-                      type="checkbox"
-                      id={`is_annual_${rate.id}`}
-                      checked={rate.is_annual}
-                      onChange={(e) => updateRate(rate.id, 'is_annual', e.target.checked)}
-                      className="w-4 h-4 text-gold-500 border-dark-600 rounded focus:ring-1 focus:ring-gold-500"
-                    />
-                  </td>
-                  <td className="py-2 px-3">
-                    <input
-                      type="text"
-                      value={rate.description || ''}
-                      onChange={(e) => updateRate(rate.id, 'description', e.target.value)}
-                      className="w-32 px-2 py-1 text-xs bg-dark-800 border border-dark-600 rounded text-gray-100 focus:ring-1 focus:ring-gold-500"
-                      placeholder="Optioneel"
-                    />
-                  </td>
-                  <td className="py-2 px-3">
-                    {rate.space_type === 'kantoor' && (
-                      <input
-                        type="text"
-                        value={rate.description_furnished || ''}
-                        onChange={(e) => updateRate(rate.id, 'description_furnished', e.target.value)}
-                        className="w-32 px-2 py-1 text-xs bg-dark-800 border border-dark-600 rounded text-gray-100 focus:ring-1 focus:ring-gold-500"
-                        placeholder="Optioneel"
-                      />
-                    )}
-                  </td>
-                  <td className="py-2 px-3 text-center">
-                    <button
-                      onClick={() => saveRate(rate)}
-                      disabled={saving === rate.id}
-                      className="inline-flex items-center gap-1 bg-gold-500 text-dark-950 px-2 py-1 rounded hover:bg-gold-600 transition-colors disabled:opacity-50 text-xs font-medium"
-                    >
-                      <Save size={12} />
-                      {saving === rate.id ? 'Bezig...' : 'Opslaan'}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      <div className="grid gap-3">
+        {rates.map(rate => (
+          <div key={rate.id} className="bg-dark-900 rounded-lg border border-dark-700 overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-2.5 bg-dark-800 border-b border-dark-700">
+              <div className="flex items-center gap-2">
+                <Calculator className="text-gold-500" size={16} />
+                <h3 className="text-sm font-bold text-gray-100">
+                  {SPACE_TYPE_LABELS[rate.space_type] || rate.space_type}
+                </h3>
+              </div>
+              <button
+                onClick={() => saveRate(rate)}
+                disabled={saving === rate.id}
+                className="flex items-center gap-1.5 bg-gold-500 text-dark-950 px-2.5 py-1.5 rounded hover:bg-gold-600 transition-colors disabled:opacity-50 text-xs font-medium"
+              >
+                <Save size={12} />
+                {saving === rate.id ? 'Opslaan...' : 'Opslaan'}
+              </button>
+            </div>
+
+            <div className="p-4">
+              <table className="w-full text-xs">
+                <tbody>
+                  <tr className="border-b border-dark-700">
+                    <td className="py-2.5 pr-4 text-gray-400 font-medium w-48">Berekeningsmethode</td>
+                    <td className="py-2.5">
+                      <select
+                        value={rate.calculation_method}
+                        onChange={(e) => updateRate(rate.id, 'calculation_method', e.target.value)}
+                        className="w-full max-w-xs px-2.5 py-1.5 text-xs bg-dark-800 border border-dark-600 rounded text-gray-100 focus:ring-1 focus:ring-gold-500"
+                      >
+                        {Object.entries(CALCULATION_METHOD_LABELS).map(([value, label]) => (
+                          <option key={value} value={value}>{label}</option>
+                        ))}
+                      </select>
+                    </td>
+                  </tr>
+
+                  {(rate.calculation_method === 'per_sqm' || rate.calculation_method === 'custom') && (
+                    <tr className="border-b border-dark-700">
+                      <td className="py-2.5 pr-4 text-gray-400 font-medium">Prijs per m²</td>
+                      <td className="py-2.5">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-400 text-xs">Standaard:</span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={rate.rate_per_sqm}
+                              onChange={(e) => updateRate(rate.id, 'rate_per_sqm', parseFloat(e.target.value) || 0)}
+                              className="w-24 px-2.5 py-1.5 text-xs bg-dark-800 border border-dark-600 rounded text-gray-100 focus:ring-1 focus:ring-gold-500"
+                            />
+                            <span className="text-gray-400">€/m²</span>
+                          </div>
+                          {rate.space_type === 'kantoor' && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-400 text-xs">Gemeubileerd:</span>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={rate.rate_per_sqm_furnished}
+                                onChange={(e) => updateRate(rate.id, 'rate_per_sqm_furnished', parseFloat(e.target.value) || 0)}
+                                className="w-24 px-2.5 py-1.5 text-xs bg-dark-800 border border-dark-600 rounded text-gray-100 focus:ring-1 focus:ring-gold-500"
+                              />
+                              <span className="text-gray-400">€/m²</span>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+
+                  {(rate.calculation_method === 'fixed_monthly' || rate.calculation_method === 'custom') && (
+                    <tr className="border-b border-dark-700">
+                      <td className="py-2.5 pr-4 text-gray-400 font-medium">Vast bedrag</td>
+                      <td className="py-2.5">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-400 text-xs">Standaard:</span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={rate.fixed_rate}
+                              onChange={(e) => updateRate(rate.id, 'fixed_rate', parseFloat(e.target.value) || 0)}
+                              className="w-24 px-2.5 py-1.5 text-xs bg-dark-800 border border-dark-600 rounded text-gray-100 focus:ring-1 focus:ring-gold-500"
+                            />
+                            <span className="text-gray-400">€</span>
+                          </div>
+                          {rate.space_type === 'kantoor' && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-400 text-xs">Gemeubileerd:</span>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={rate.fixed_rate_furnished}
+                                onChange={(e) => updateRate(rate.id, 'fixed_rate_furnished', parseFloat(e.target.value) || 0)}
+                                className="w-24 px-2.5 py-1.5 text-xs bg-dark-800 border border-dark-600 rounded text-gray-100 focus:ring-1 focus:ring-gold-500"
+                              />
+                              <span className="text-gray-400">€</span>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+
+                  {rate.calculation_method === 'hourly' && (
+                    <tr className="border-b border-dark-700">
+                      <td className="py-2.5 pr-4 text-gray-400 font-medium">Prijs per uur</td>
+                      <td className="py-2.5">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={rate.hourly_rate}
+                            onChange={(e) => updateRate(rate.id, 'hourly_rate', parseFloat(e.target.value) || 0)}
+                            className="w-24 px-2.5 py-1.5 text-xs bg-dark-800 border border-dark-600 rounded text-gray-100 focus:ring-1 focus:ring-gold-500"
+                          />
+                          <span className="text-gray-400">€/uur</span>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+
+                  <tr className="border-b border-dark-700">
+                    <td className="py-2.5 pr-4 text-gray-400 font-medium">Jaarlijks tarief</td>
+                    <td className="py-2.5">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id={`is_annual_${rate.id}`}
+                          checked={rate.is_annual}
+                          onChange={(e) => updateRate(rate.id, 'is_annual', e.target.checked)}
+                          className="w-4 h-4 text-gold-500 border-dark-600 rounded focus:ring-1 focus:ring-gold-500"
+                        />
+                        <label htmlFor={`is_annual_${rate.id}`} className="text-xs text-gray-400">
+                          Automatisch delen door 12 voor maandelijkse facturering
+                        </label>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <tr className="border-b border-dark-700">
+                    <td className="py-2.5 pr-4 text-gray-400 font-medium align-top pt-3">Beschrijving</td>
+                    <td className="py-2.5">
+                      <div className="space-y-2">
+                        <div>
+                          <span className="text-gray-400 text-xs block mb-1">Standaard:</span>
+                          <input
+                            type="text"
+                            value={rate.description || ''}
+                            onChange={(e) => updateRate(rate.id, 'description', e.target.value)}
+                            className="w-full max-w-md px-2.5 py-1.5 text-xs bg-dark-800 border border-dark-600 rounded text-gray-100 focus:ring-1 focus:ring-gold-500"
+                            placeholder="Optioneel"
+                          />
+                        </div>
+                        {rate.space_type === 'kantoor' && (
+                          <div>
+                            <span className="text-gray-400 text-xs block mb-1">Gemeubileerd:</span>
+                            <input
+                              type="text"
+                              value={rate.description_furnished || ''}
+                              onChange={(e) => updateRate(rate.id, 'description_furnished', e.target.value)}
+                              className="w-full max-w-md px-2.5 py-1.5 text-xs bg-dark-800 border border-dark-600 rounded text-gray-100 focus:ring-1 focus:ring-gold-500"
+                              placeholder="Optioneel"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ))}
       </div>
 
       <div className="bg-dark-900 rounded-lg border border-dark-700 p-3">
