@@ -31,6 +31,7 @@ export function SpaceTypeRates() {
     fixed_rate: '',
     fixed_rate_furnished: '',
     hourly_rate: '',
+    is_annual: false,
     description: '',
     description_furnished: ''
   });
@@ -59,15 +60,27 @@ export function SpaceTypeRates() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    let ratePerSqm = parseFloat(formData.rate_per_sqm) || 0;
+    let ratePerSqmFurnished = parseFloat(formData.rate_per_sqm_furnished) || 0;
+    let fixedRate = parseFloat(formData.fixed_rate) || 0;
+    let fixedRateFurnished = parseFloat(formData.fixed_rate_furnished) || 0;
+
+    if (formData.is_annual) {
+      ratePerSqm = ratePerSqm / 12;
+      ratePerSqmFurnished = ratePerSqmFurnished / 12;
+      fixedRate = fixedRate / 12;
+      fixedRateFurnished = fixedRateFurnished / 12;
+    }
+
     const rateData = {
       space_type: formData.space_type,
-      rate_per_sqm: parseFloat(formData.rate_per_sqm) || 0,
-      rate_per_sqm_furnished: parseFloat(formData.rate_per_sqm_furnished) || 0,
+      rate_per_sqm: ratePerSqm,
+      rate_per_sqm_furnished: ratePerSqmFurnished,
       calculation_method: formData.calculation_method,
-      fixed_rate: parseFloat(formData.fixed_rate) || 0,
-      fixed_rate_furnished: parseFloat(formData.fixed_rate_furnished) || 0,
+      fixed_rate: fixedRate,
+      fixed_rate_furnished: fixedRateFurnished,
       hourly_rate: parseFloat(formData.hourly_rate) || 0,
-      is_annual: false,
+      is_annual: formData.is_annual,
       description: formData.description,
       description_furnished: formData.description_furnished
     };
@@ -99,14 +112,18 @@ export function SpaceTypeRates() {
 
   const handleEdit = (rate: SpaceTypeRate) => {
     setEditingRate(rate);
+
+    const multiplier = rate.is_annual ? 12 : 1;
+
     setFormData({
       space_type: rate.space_type,
-      rate_per_sqm: rate.rate_per_sqm.toString(),
-      rate_per_sqm_furnished: rate.rate_per_sqm_furnished.toString(),
+      rate_per_sqm: (rate.rate_per_sqm * multiplier).toString(),
+      rate_per_sqm_furnished: (rate.rate_per_sqm_furnished * multiplier).toString(),
       calculation_method: rate.calculation_method,
-      fixed_rate: rate.fixed_rate.toString(),
-      fixed_rate_furnished: rate.fixed_rate_furnished.toString(),
+      fixed_rate: (rate.fixed_rate * multiplier).toString(),
+      fixed_rate_furnished: (rate.fixed_rate_furnished * multiplier).toString(),
       hourly_rate: rate.hourly_rate.toString(),
+      is_annual: rate.is_annual,
       description: rate.description || '',
       description_furnished: rate.description_furnished || ''
     });
@@ -122,6 +139,7 @@ export function SpaceTypeRates() {
       fixed_rate: '',
       fixed_rate_furnished: '',
       hourly_rate: '',
+      is_annual: false,
       description: '',
       description_furnished: ''
     });
@@ -240,6 +258,14 @@ export function SpaceTypeRates() {
                   </div>
                 )}
 
+                {rate.is_annual && (
+                  <div className="pt-2 border-t border-dark-700">
+                    <div className="flex items-center gap-2 text-xs text-amber-400">
+                      <AlertCircle size={12} />
+                      <span>Jaarlijks tarief (gedeeld door 12)</span>
+                    </div>
+                  </div>
+                )}
 
                 {rate.description && (
                   <div className="pt-2 border-t border-dark-700">
@@ -425,6 +451,19 @@ export function SpaceTypeRates() {
                 </div>
               )}
 
+              <div className="flex items-center gap-3 p-4 bg-dark-900 rounded-lg">
+                <input
+                  type="checkbox"
+                  id="is_annual"
+                  checked={formData.is_annual}
+                  onChange={(e) => setFormData({ ...formData, is_annual: e.target.checked })}
+                  className="w-4 h-4 text-gold-500 border-dark-600 rounded focus:ring-2 focus:ring-gold-500"
+                />
+                <label htmlFor="is_annual" className="text-sm text-gray-300">
+                  Dit is een jaarlijks tarief (automatisch delen door 12 voor maandelijkse facturering)
+                </label>
+              </div>
+
               <div className="space-y-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-200 mb-1">
@@ -484,7 +523,8 @@ export function SpaceTypeRates() {
           <p><strong className="text-gold-500">Vast maandbedrag:</strong> Een vast bedrag per maand, onafhankelijk van grootte</p>
           <p><strong className="text-gold-500">Per uur:</strong> Prijs wordt berekend per uur gebruik (voor vergaderruimtes)</p>
           <p><strong className="text-gold-500">Aangepast:</strong> Combinatie van m²-prijs en vast bedrag mogelijk</p>
-          <p className="pt-2 border-t border-dark-700"><strong className="text-gold-500">Gemeubileerd:</strong> Voor kantoren kun je aparte tarieven instellen voor gemeubileerde en niet-gemeubileerde ruimtes</p>
+          <p className="pt-2 border-t border-dark-700"><strong className="text-gold-500">Jaarlijks tarief:</strong> Wanneer aangevinkt wordt het opgegeven tarief automatisch gedeeld door 12 voor maandelijkse facturering</p>
+          <p><strong className="text-gold-500">Gemeubileerd:</strong> Voor kantoren kun je aparte tarieven instellen voor gemeubileerde en niet-gemeubileerde ruimtes</p>
         </div>
       </div>
     </div>
