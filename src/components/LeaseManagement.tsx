@@ -271,18 +271,10 @@ export function LeaseManagement() {
       pricePerSqm = isFurnished && space.space_type === 'kantoor'
         ? rate.rate_per_sqm_furnished
         : rate.rate_per_sqm;
-
-      if (rate.is_annual && pricePerSqm > 0) {
-        pricePerSqm = pricePerSqm / 12;
-      }
     } else if (rate.calculation_method === 'custom') {
       pricePerSqm = isFurnished && space.space_type === 'kantoor'
         ? rate.rate_per_sqm_furnished
         : rate.rate_per_sqm;
-
-      if (rate.is_annual && pricePerSqm > 0) {
-        pricePerSqm = pricePerSqm / 12;
-      }
     }
 
     return pricePerSqm > 0 ? pricePerSqm.toFixed(2) : '';
