@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Euro, Calendar, AlertCircle, CheckCircle, FileText, Trash2, Eye } from 'lucide-react';
+import { Euro, Calendar, AlertCircle, CheckCircle, FileText, Trash2, Eye, ArrowUpDown } from 'lucide-react';
 
 type Debtor = {
   id: string;
@@ -31,6 +31,8 @@ export function DebtorsOverview() {
   const [activeTab, setActiveTab] = useState<'open' | 'log'>('open');
   const [paidInvoices, setPaidInvoices] = useState<any[]>([]);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+  const [sortBy, setSortBy] = useState<'date' | 'customer' | 'period'>('date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
     if (activeTab === 'open') {
@@ -160,15 +162,38 @@ export function DebtorsOverview() {
           notes,
           line_items,
           tenant_id,
-          external_customer_id,
-          tenants (id, name, company_name, email),
-          external_customers (id, company_name, contact_name, email)
+          external_customer_id
         `)
         .eq('status', 'paid')
         .order('invoice_date', { ascending: false });
 
       if (error) throw error;
-      setPaidInvoices(invoices || []);
+
+      const invoicesWithCustomers = await Promise.all(
+        (invoices || []).map(async (invoice) => {
+          let customer = null;
+
+          if (invoice.tenant_id) {
+            const { data: tenant } = await supabase
+              .from('tenants')
+              .select('id, name, company_name, email')
+              .eq('id', invoice.tenant_id)
+              .single();
+            customer = tenant ? { tenants: tenant } : null;
+          } else if (invoice.external_customer_id) {
+            const { data: extCustomer } = await supabase
+              .from('external_customers')
+              .select('id, company_name, contact_name, email')
+              .eq('id', invoice.external_customer_id)
+              .single();
+            customer = extCustomer ? { external_customers: extCustomer } : null;
+          }
+
+          return { ...invoice, ...customer };
+        })
+      );
+
+      setPaidInvoices(invoicesWithCustomers);
     } catch (error) {
       console.error('Error loading paid invoices:', error);
     } finally {
@@ -214,6 +239,39 @@ export function DebtorsOverview() {
     const diffTime = today.getTime() - due.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays > 0 ? diffDays : 0;
+  };
+
+  const getSortedPaidInvoices = () => {
+    const sorted = [...paidInvoices];
+
+    sorted.sort((a, b) => {
+      let compareValue = 0;
+
+      if (sortBy === 'date') {
+        compareValue = new Date(a.invoice_date).getTime() - new Date(b.invoice_date).getTime();
+      } else if (sortBy === 'customer') {
+        const nameA = a.tenants?.company_name || a.external_customers?.company_name || '';
+        const nameB = b.tenants?.company_name || b.external_customers?.company_name || '';
+        compareValue = nameA.localeCompare(nameB);
+      } else if (sortBy === 'period') {
+        const periodA = a.invoice_month || '';
+        const periodB = b.invoice_month || '';
+        compareValue = periodA.localeCompare(periodB);
+      }
+
+      return sortOrder === 'asc' ? compareValue : -compareValue;
+    });
+
+    return sorted;
+  };
+
+  const toggleSort = (newSortBy: 'date' | 'customer' | 'period') => {
+    if (sortBy === newSortBy) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(newSortBy);
+      setSortOrder('desc');
+    }
   };
 
   if (loading) {
@@ -391,22 +449,56 @@ export function DebtorsOverview() {
                 <p className="text-gray-400">Geen betaalde facturen gevonden</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full table-fixed min-w-[1100px]">
-                  <thead>
-                    <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
-                      <th className="text-left px-4 py-3 font-semibold w-[16%]">Klant</th>
-                      <th className="text-left px-4 py-3 font-semibold w-[10%]">Factuur Nr.</th>
-                      <th className="text-left px-4 py-3 font-semibold w-[10%]">Maand</th>
-                      <th className="text-left px-4 py-3 font-semibold w-[12%]">Factuur Datum</th>
-                      <th className="text-left px-4 py-3 font-semibold w-[12%]">Vervaldatum</th>
-                      <th className="text-right px-4 py-3 font-semibold w-[10%]">Bedrag</th>
-                      <th className="text-center px-4 py-3 font-semibold w-[10%]">Status</th>
-                      <th className="text-center px-4 py-3 font-semibold w-[10%]">Acties</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paidInvoices.map((invoice: any) => {
+              <div>
+                <div className="px-4 py-3 bg-dark-800 border-b border-dark-700 flex gap-2">
+                  <span className="text-sm text-gray-400">Sorteren op:</span>
+                  <button
+                    onClick={() => toggleSort('customer')}
+                    className={`flex items-center gap-1 text-sm px-2 py-1 rounded transition-colors ${
+                      sortBy === 'customer' ? 'bg-gold-500 text-white' : 'text-gray-400 hover:text-gray-200'
+                    }`}
+                  >
+                    Klant
+                    <ArrowUpDown size={14} />
+                  </button>
+                  <button
+                    onClick={() => toggleSort('period')}
+                    className={`flex items-center gap-1 text-sm px-2 py-1 rounded transition-colors ${
+                      sortBy === 'period' ? 'bg-gold-500 text-white' : 'text-gray-400 hover:text-gray-200'
+                    }`}
+                  >
+                    Periode
+                    <ArrowUpDown size={14} />
+                  </button>
+                  <button
+                    onClick={() => toggleSort('date')}
+                    className={`flex items-center gap-1 text-sm px-2 py-1 rounded transition-colors ${
+                      sortBy === 'date' ? 'bg-gold-500 text-white' : 'text-gray-400 hover:text-gray-200'
+                    }`}
+                  >
+                    Datum
+                    <ArrowUpDown size={14} />
+                  </button>
+                  <span className="text-sm text-gray-500 ml-2">
+                    ({sortOrder === 'asc' ? 'Oplopend' : 'Aflopend'})
+                  </span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full table-fixed min-w-[1100px]">
+                    <thead>
+                      <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
+                        <th className="text-left px-4 py-3 font-semibold w-[16%]">Klant</th>
+                        <th className="text-left px-4 py-3 font-semibold w-[10%]">Factuur Nr.</th>
+                        <th className="text-left px-4 py-3 font-semibold w-[10%]">Maand</th>
+                        <th className="text-left px-4 py-3 font-semibold w-[12%]">Factuur Datum</th>
+                        <th className="text-left px-4 py-3 font-semibold w-[12%]">Vervaldatum</th>
+                        <th className="text-right px-4 py-3 font-semibold w-[10%]">Bedrag</th>
+                        <th className="text-center px-4 py-3 font-semibold w-[10%]">Status</th>
+                        <th className="text-center px-4 py-3 font-semibold w-[10%]">Acties</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {getSortedPaidInvoices().map((invoice: any) => {
                       const customer = invoice.tenant_id && invoice.tenants
                         ? invoice.tenants
                         : invoice.external_customer_id && invoice.external_customers
@@ -476,8 +568,9 @@ export function DebtorsOverview() {
                         </tr>
                       );
                     })}
-                  </tbody>
-                </table>
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </div>
