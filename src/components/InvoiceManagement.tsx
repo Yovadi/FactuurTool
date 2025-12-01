@@ -271,7 +271,8 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
           )
         ),
         tenant:tenants(*),
-        external_customer:external_customers(*)
+        external_customer:external_customers(*),
+        line_items:invoice_line_items(*)
       `)
       .order('created_at', { ascending: false });
 
