@@ -30,7 +30,7 @@ function App() {
     { id: 'spaces' as Tab, label: 'Ruimtes', icon: Building },
     { id: 'rental' as Tab, label: 'Huur', icon: Users },
     { id: 'bookings' as Tab, label: 'Vergaderruimte', icon: CalendarClock },
-    { id: 'financial' as Tab, label: 'Facturen', icon: Euro },
+    { id: 'financial' as Tab, label: 'Facturatie', icon: Euro },
     { id: 'analytics' as Tab, label: 'Analyses', icon: TrendingUp },
   ];
 
