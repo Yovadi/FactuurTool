@@ -1987,38 +1987,44 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                   </button>
                 )}
               </div>
-              {invoices.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full table-fixed min-w-[1000px]">
-                      <thead>
-                        <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
-                        <th className="text-center px-4 py-3 font-semibold w-[5%]">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleSelectAll(invoices);
-                            }}
-                            className="text-gray-300 hover:text-gold-500 transition-colors"
-                          >
-                            {invoices.every(inv => selectedInvoices.has(inv.id)) && invoices.length > 0 ? (
-                              <CheckSquare size={18} />
-                            ) : (
-                              <Square size={18} />
-                            )}
-                          </button>
-                        </th>
-                        <th className="text-left px-4 py-3 font-semibold w-[19%]">Klant</th>
-                        <th className="text-left px-4 py-3 font-semibold w-[10%]">Factuur Nr.</th>
-                        <th className="text-left px-4 py-3 font-semibold w-[10%]">Maand</th>
-                        <th className="text-left px-4 py-3 font-semibold w-[12%]">Factuur Datum</th>
-                        <th className="text-left px-4 py-3 font-semibold w-[12%]">Vervaldatum</th>
-                        <th className="text-right px-4 py-3 font-semibold w-[10%]">Bedrag</th>
-                        <th className="text-center px-4 py-3 font-semibold w-[10%]">Status</th>
-                        <th className="text-right px-4 py-3 font-semibold w-[16%]">Acties</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {invoices.map((invoice) => {
+              <div className="overflow-x-auto">
+                <table className="w-full table-fixed min-w-[1000px]">
+                  <thead>
+                    <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
+                    <th className="text-center px-4 py-3 font-semibold w-[5%]">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleSelectAll(invoices);
+                        }}
+                        className="text-gray-300 hover:text-gold-500 transition-colors"
+                      >
+                        {invoices.every(inv => selectedInvoices.has(inv.id)) && invoices.length > 0 ? (
+                          <CheckSquare size={18} />
+                        ) : (
+                          <Square size={18} />
+                        )}
+                      </button>
+                    </th>
+                    <th className="text-left px-4 py-3 font-semibold w-[19%]">Klant</th>
+                    <th className="text-left px-4 py-3 font-semibold w-[10%]">Factuur Nr.</th>
+                    <th className="text-left px-4 py-3 font-semibold w-[10%]">Maand</th>
+                    <th className="text-left px-4 py-3 font-semibold w-[12%]">Factuur Datum</th>
+                    <th className="text-left px-4 py-3 font-semibold w-[12%]">Vervaldatum</th>
+                    <th className="text-right px-4 py-3 font-semibold w-[10%]">Bedrag</th>
+                    <th className="text-center px-4 py-3 font-semibold w-[10%]">Status</th>
+                    <th className="text-right px-4 py-3 font-semibold w-[16%]">Acties</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {invoices.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="px-4 py-8 text-center text-gray-400">
+                        Geen facturen in deze categorie
+                      </td>
+                    </tr>
+                  ) : (
+                    invoices.map((invoice) => {
                         const tenant = getInvoiceTenant(invoice);
                         const displayName = tenant?.company_name || 'Onbekende huurder';
                         const hasLease = invoice.lease && invoice.lease.lease_spaces;
@@ -2087,16 +2093,11 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                             </td>
                           </tr>
                         );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-                ) : (
-                  <div className="p-8 text-center">
-                    <CheckCircle size={48} className="text-green-500 mx-auto mb-4" />
-                    <p className="text-gray-400">Geen facturen in deze categorie</p>
-                  </div>
-                )}
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           );
 
