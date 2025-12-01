@@ -1321,7 +1321,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
 
   const showInvoicePreview = async (invoice: InvoiceWithDetails) => {
-    const { data: items } = await supabase
+    const { data: items, error } = await supabase
       .from('invoice_line_items')
       .select(`
         *,
@@ -1334,6 +1334,11 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
       `)
       .eq('invoice_id', invoice.id);
 
+    if (error) {
+      console.error('Error loading line items:', error);
+    }
+
+    console.log('Loaded line items:', items);
     setSelectedInvoice({ ...invoice, line_items: items } as any);
   };
 
@@ -1744,7 +1749,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
       {selectedInvoice && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-          <div className="bg-dark-900 rounded-lg p-8 w-full max-w-2xl my-8 mx-4">
+          <div className="bg-gray-800 rounded-lg p-8 w-full max-w-2xl my-8 mx-4 border-2 border-yellow-500">
             <div className="mb-6">
               <h3 className="text-2xl font-bold text-gray-100 mb-2">
                 Factuur {selectedInvoice.invoice_number}
@@ -1778,7 +1783,9 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                     <p key={ls.id} className="text-sm text-gray-100">{ls.space.space_number}</p>
                   ))
                 ) : (
-                  <p className="text-sm text-gray-300">Handmatig samengesteld</p>
+                  <p className="text-sm text-gray-300">
+                    {selectedInvoice.notes?.includes('Vergaderruimte') ? 'Vergaderruimte boekingen' : 'Handmatig samengesteld'}
+                  </p>
                 )}
               </div>
             </div>
@@ -1805,16 +1812,24 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                   </tr>
                 </thead>
                 <tbody>
-                  {(selectedInvoice as any).line_items?.map((item: InvoiceLineItem, index: number) => (
-                    <tr key={item.id} className={index % 2 === 0 ? 'bg-dark-800' : 'bg-dark-900'}>
-                      <td className="px-4 py-2 text-gray-100">{item.description}</td>
-                      <td className="text-right px-4 py-2 text-gray-100">€{item.amount.toFixed(2)}</td>
-                      <td className="text-right px-4 py-2 text-gray-100">{selectedInvoice.vat_rate.toFixed(0)}%</td>
+                  {(selectedInvoice as any).line_items && (selectedInvoice as any).line_items.length > 0 ? (
+                    (selectedInvoice as any).line_items.map((item: InvoiceLineItem, index: number) => (
+                      <tr key={item.id} className={index % 2 === 0 ? 'bg-gray-700' : 'bg-gray-750'}>
+                        <td className="px-4 py-2 text-gray-100">{item.description}</td>
+                        <td className="text-right px-4 py-2 text-gray-100">€{item.amount.toFixed(2)}</td>
+                        <td className="text-right px-4 py-2 text-gray-100">{selectedInvoice.vat_rate.toFixed(0)}%</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={3} className="px-4 py-4 text-center text-gray-400">
+                        Geen factuurregels beschikbaar
+                      </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
-              <div className="mt-4 bg-dark-800 rounded-lg p-4">
+              <div className="mt-4 bg-gray-700 rounded-lg p-4">
                 <div className="flex justify-between text-sm mb-2">
                   <span className="text-gray-300">Subtotaal (excl. BTW):</span>
                   <span className="font-medium text-gray-100">€{selectedInvoice.subtotal.toFixed(2)}</span>
@@ -1843,7 +1858,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             </div>
 
             {selectedInvoice.notes && (
-              <div className="mb-6 p-4 bg-dark-800 rounded-lg">
+              <div className="mb-6 p-4 bg-gray-700 rounded-lg">
                 <h4 className="text-sm font-semibold text-gray-300 mb-1">Notities</h4>
                 <p className="text-sm text-gray-200">{selectedInvoice.notes}</p>
               </div>
