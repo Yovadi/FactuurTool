@@ -149,7 +149,7 @@ function App() {
                         <button
                           onClick={() => setActiveTab(item.children![0].id)}
                           className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${
-                            isActive ? 'text-gold-500 hover:text-gold-400' : 'text-gray-400 hover:text-gray-300'
+                            isActive ? 'text-gold-500 hover:text-gold-400' : 'text-gray-100 hover:text-white'
                           }`}>
                           <Icon size={20} />
                           {item.label}
