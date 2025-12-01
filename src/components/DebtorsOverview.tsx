@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Euro, Calendar, AlertCircle, CheckCircle, FileText, Trash2 } from 'lucide-react';
+import { Euro, Calendar, AlertCircle, CheckCircle, FileText, Trash2, Eye } from 'lucide-react';
 
 type Debtor = {
   id: string;
@@ -30,6 +30,7 @@ export function DebtorsOverview() {
   const [totalOutstanding, setTotalOutstanding] = useState(0);
   const [activeTab, setActiveTab] = useState<'open' | 'log'>('open');
   const [paidInvoices, setPaidInvoices] = useState<any[]>([]);
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
 
   useEffect(() => {
     if (activeTab === 'open') {
@@ -150,8 +151,14 @@ export function DebtorsOverview() {
           invoice_date,
           due_date,
           amount,
+          subtotal,
+          vat_amount,
+          vat_rate,
+          vat_inclusive,
           status,
           invoice_month,
+          notes,
+          line_items,
           tenant_id,
           external_customer_id,
           tenants (id, name, company_name, email),
@@ -447,14 +454,24 @@ export function DebtorsOverview() {
                             </span>
                           </td>
                           <td className="px-4 py-3 text-center">
-                            <button
-                              onClick={() => handleDeleteInvoice(invoice.id)}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 bg-red-900 hover:bg-red-800 text-red-300 rounded-lg transition-colors text-sm font-medium"
-                              title="Factuur verwijderen"
-                            >
-                              <Trash2 size={14} />
-                              Verwijder
-                            </button>
+                            <div className="flex gap-2 justify-center">
+                              <button
+                                onClick={() => setSelectedInvoice(invoice)}
+                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-900 hover:bg-blue-800 text-blue-300 rounded-lg transition-colors text-sm font-medium"
+                                title="Factuur bekijken"
+                              >
+                                <Eye size={14} />
+                                Bekijk
+                              </button>
+                              <button
+                                onClick={() => handleDeleteInvoice(invoice.id)}
+                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-red-900 hover:bg-red-800 text-red-300 rounded-lg transition-colors text-sm font-medium"
+                                title="Factuur verwijderen"
+                              >
+                                <Trash2 size={14} />
+                                Verwijder
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -466,6 +483,123 @@ export function DebtorsOverview() {
           </div>
         )}
       </div>
+
+      {selectedInvoice && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-dark-900 rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto border-2 border-gold-500">
+            <div className="sticky top-0 bg-dark-800 px-6 py-4 border-b border-gold-500 flex justify-between items-center">
+              <h3 className="text-xl font-bold text-gray-100">
+                Factuur {selectedInvoice.invoice_number.replace(/^INV-/, '')}
+              </h3>
+              <button
+                onClick={() => setSelectedInvoice(null)}
+                className="text-gray-400 hover:text-gray-200 transition-colors"
+              >
+                <span className="text-2xl">&times;</span>
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm text-gray-400">Klant</label>
+                  <p className="text-gray-100 font-medium">
+                    {selectedInvoice.tenants?.company_name ||
+                     selectedInvoice.external_customers?.company_name ||
+                     'Onbekende klant'}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-400">Status</label>
+                  <p>
+                    <span className="inline-block px-2 py-1 rounded-full text-xs font-medium bg-green-900 text-green-400">
+                      BETAALD
+                    </span>
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-400">Factuur Datum</label>
+                  <p className="text-gray-100">{formatDate(selectedInvoice.invoice_date)}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-400">Vervaldatum</label>
+                  <p className="text-gray-100">{formatDate(selectedInvoice.due_date)}</p>
+                </div>
+                {selectedInvoice.invoice_month && (
+                  <div>
+                    <label className="text-sm text-gray-400">Factuurmaand</label>
+                    <p className="text-gray-100">
+                      {(() => {
+                        const [year, month] = selectedInvoice.invoice_month.split('-');
+                        const monthNames = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
+                        return `${monthNames[parseInt(month) - 1]} ${year}`;
+                      })()}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-dark-700 pt-4">
+                <h4 className="text-sm font-semibold text-gray-300 mb-3">Factuurregels</h4>
+                <div className="space-y-2">
+                  {selectedInvoice.line_items && selectedInvoice.line_items.length > 0 ? (
+                    selectedInvoice.line_items.map((item: any, idx: number) => (
+                      <div key={idx} className="flex justify-between items-start p-3 bg-dark-800 rounded-lg">
+                        <div className="flex-1">
+                          <p className="text-gray-100 font-medium">{item.description}</p>
+                          {item.quantity && (
+                            <p className="text-xs text-gray-400 mt-1">
+                              Aantal: {item.quantity} × €{item.unit_price?.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </p>
+                          )}
+                        </div>
+                        <div className="text-right ml-4">
+                          <p className="text-gray-100 font-semibold">
+                            €{item.amount?.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-gray-400 text-sm">Geen factuurregels beschikbaar</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="border-t border-dark-700 pt-4 space-y-2">
+                <div className="flex justify-between text-gray-300">
+                  <span>Subtotaal</span>
+                  <span>€{selectedInvoice.subtotal?.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+                <div className="flex justify-between text-gray-300">
+                  <span>BTW ({selectedInvoice.vat_rate}%)</span>
+                  <span>€{selectedInvoice.vat_amount?.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+                <div className="flex justify-between text-lg font-bold text-gray-100 pt-2 border-t border-dark-700">
+                  <span>Totaal</span>
+                  <span>€{selectedInvoice.amount?.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+              </div>
+
+              {selectedInvoice.notes && (
+                <div className="border-t border-dark-700 pt-4">
+                  <h4 className="text-sm font-semibold text-gray-300 mb-2">Notities</h4>
+                  <p className="text-gray-100 text-sm">{selectedInvoice.notes}</p>
+                </div>
+              )}
+
+              <div className="flex justify-end pt-4">
+                <button
+                  onClick={() => setSelectedInvoice(null)}
+                  className="px-4 py-2 bg-gray-700 text-gray-200 rounded-lg hover:bg-gray-600 transition-colors"
+                >
+                  Sluiten
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
