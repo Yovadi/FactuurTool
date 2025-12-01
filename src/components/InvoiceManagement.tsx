@@ -2006,20 +2006,21 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                         )}
                       </button>
                     </th>
-                    <th className="text-left px-4 py-3 font-semibold w-[19%]">Klant</th>
-                    <th className="text-left px-4 py-3 font-semibold w-[10%]">Factuur Nr.</th>
-                    <th className="text-left px-4 py-3 font-semibold w-[10%]">Maand</th>
-                    <th className="text-left px-4 py-3 font-semibold w-[12%]">Factuur Datum</th>
-                    <th className="text-left px-4 py-3 font-semibold w-[12%]">Vervaldatum</th>
-                    <th className="text-right px-4 py-3 font-semibold w-[10%]">Bedrag</th>
-                    <th className="text-center px-4 py-3 font-semibold w-[10%]">Status</th>
-                    <th className="text-right px-4 py-3 font-semibold w-[16%]">Acties</th>
+                    <th className="text-left px-4 py-3 font-semibold w-[15%]">Klant</th>
+                    <th className="text-left px-4 py-3 font-semibold w-[8%]">Factuur Nr.</th>
+                    <th className="text-left px-4 py-3 font-semibold w-[20%]">Omschrijving</th>
+                    <th className="text-left px-4 py-3 font-semibold w-[8%]">Maand</th>
+                    <th className="text-left px-4 py-3 font-semibold w-[10%]">Factuur Datum</th>
+                    <th className="text-left px-4 py-3 font-semibold w-[10%]">Vervaldatum</th>
+                    <th className="text-right px-4 py-3 font-semibold w-[8%]">Bedrag</th>
+                    <th className="text-center px-4 py-3 font-semibold w-[8%]">Status</th>
+                    <th className="text-right px-4 py-3 font-semibold w-[13%]">Acties</th>
                   </tr>
                 </thead>
                 <tbody>
                   {invoices.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="px-4 py-8 text-center text-gray-400">
+                      <td colSpan={10} className="px-4 py-8 text-center text-gray-400">
                         Geen facturen in deze categorie
                       </td>
                     </tr>
@@ -2055,6 +2056,17 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                             </td>
                             <td className="px-4 py-3 text-purple-600 font-medium text-sm">
                               {invoice.invoice_number.replace(/^INV-/, '')}
+                            </td>
+                            <td className="px-4 py-3 text-gray-300 text-sm">
+                              {invoice.line_items && invoice.line_items.length > 0 ? (
+                                <div className="space-y-1">
+                                  {invoice.line_items.map((item: any, idx: number) => (
+                                    <div key={idx} className="text-xs">
+                                      {item.description}
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : '-'}
                             </td>
                             <td className="px-4 py-3 text-gray-300 text-sm">
                               {invoice.invoice_month ?
