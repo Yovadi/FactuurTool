@@ -699,29 +699,31 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
         <>
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-gray-100 mb-4">Vergaderruimte Boekingen</h1>
-            <div className="flex gap-2 border-b border-dark-700">
-              <button
-                onClick={() => setSelectedView('calendar')}
-                className={`flex items-center gap-2 px-4 py-3 font-medium transition-all border-b-2 ${
-                  selectedView === 'calendar'
-                    ? 'text-gold-500 border-gold-500'
-                    : 'text-gray-400 border-transparent hover:text-gray-300'
-                }`}
-              >
-                <CalendarDays size={18} />
-                Kalender
-              </button>
-              <button
-                onClick={() => setSelectedView('list')}
-                className={`flex items-center gap-2 px-4 py-3 font-medium transition-all border-b-2 ${
-                  selectedView === 'list'
-                    ? 'text-gold-500 border-gold-500'
-                    : 'text-gray-400 border-transparent hover:text-gray-300'
-                }`}
-              >
-                <AlertCircle size={18} />
-                Lijst
-              </button>
+            <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setSelectedView('calendar')}
+                  className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
+                    selectedView === 'calendar'
+                      ? 'bg-gold-500 text-dark-950'
+                      : 'text-gray-300 hover:bg-dark-800'
+                  }`}
+                >
+                  <CalendarDays size={18} />
+                  Kalender
+                </button>
+                <button
+                  onClick={() => setSelectedView('list')}
+                  className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
+                    selectedView === 'list'
+                      ? 'bg-gold-500 text-dark-950'
+                      : 'text-gray-300 hover:bg-dark-800'
+                  }`}
+                >
+                  <AlertCircle size={18} />
+                  Lijst
+                </button>
+              </div>
             </div>
           </div>
         </>
