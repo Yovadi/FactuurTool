@@ -1877,6 +1877,18 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               </button>
               {selectedInvoice.status !== 'paid' && (
                 <button
+                  onClick={() => {
+                    setSelectedInvoice(null);
+                    startEditInvoice(selectedInvoice);
+                  }}
+                  className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Edit size={20} />
+                  Bewerken
+                </button>
+              )}
+              {selectedInvoice.status !== 'paid' && (
+                <button
                   onClick={async () => {
                     await sendInvoiceEmail(selectedInvoice.id);
                     setSelectedInvoice(null);
