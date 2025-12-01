@@ -18,7 +18,7 @@ export function Financial() {
   const [prefilledInvoiceData, setPrefilledInvoiceData] = useState<PrefilledInvoiceData | null>(null);
 
   const tabs = [
-    { id: 'invoices' as FinancialTab, label: 'Facturatie', icon: FileText },
+    { id: 'invoices' as FinancialTab, label: 'Facturen', icon: FileText },
     { id: 'debtors' as FinancialTab, label: 'Debiteuren', icon: AlertTriangle },
     { id: 'creditnotes' as FinancialTab, label: 'Credit Nota\'s', icon: Receipt },
     { id: 'creditoverview' as FinancialTab, label: 'Credit Overzicht', icon: DollarSign },
