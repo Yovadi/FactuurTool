@@ -147,29 +147,19 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
 
     console.log('Raw bookings found:', bookings?.length || 0, bookings);
 
-    const groupedBookings = (bookings || []).reduce((acc, booking) => {
+    return (bookings || []).map(booking => {
       const spaceName = booking.office_spaces?.space_number || 'Onbekende ruimte';
-      if (!acc[spaceName]) {
-        acc[spaceName] = {
-          totalHours: 0,
-          totalAmount: 0,
-          hourlyRate: booking.hourly_rate || 0,
-          bookingIds: []
-        };
-      }
-      acc[spaceName].totalHours += parseFloat(booking.total_hours?.toString() || '0');
-      acc[spaceName].totalAmount += parseFloat(booking.total_amount?.toString() || '0');
-      acc[spaceName].bookingIds.push(booking.id);
-      return acc;
-    }, {} as Record<string, { totalHours: number; totalAmount: number; hourlyRate: number; bookingIds: string[] }>);
+      const bookingDate = new Date(booking.booking_date).toLocaleDateString('nl-NL');
+      const totalHours = parseFloat(booking.total_hours?.toString() || '0');
 
-    return Object.entries(groupedBookings).map(([spaceName, data]) => ({
-      description: `${spaceName} - Vergaderruimte (${data.totalHours.toFixed(1)} uur)`,
-      unit_price: data.hourlyRate.toFixed(2),
-      quantity: data.totalHours.toFixed(1),
-      space_type: 'Meeting Room',
-      bookingIds: data.bookingIds
-    }));
+      return {
+        description: `${spaceName} - ${bookingDate} (${totalHours.toFixed(1)} uur)`,
+        unit_price: (booking.hourly_rate || 0).toFixed(2),
+        quantity: totalHours.toFixed(1),
+        space_type: 'Meeting Room',
+        bookingId: booking.id
+      };
+    });
   };
 
   const [formData, setFormData] = useState({
@@ -188,7 +178,7 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
     unit_price: string;
     quantity?: string;
     space_type?: string;
-    bookingIds?: string[];
+    bookingId?: string;
   }>>([]);
 
   useEffect(() => {
@@ -303,8 +293,9 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
     if (items) {
       setLineItems(items.map(item => ({
         description: item.description,
-        unit_price: item.amount.toString(),
-        quantity: undefined
+        unit_price: item.unit_price.toString(),
+        quantity: item.quantity.toString(),
+        bookingId: item.booking_id || undefined
       })));
     }
 
@@ -396,7 +387,8 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
           description: item.description,
           quantity: quantity,
           unit_price: unitPrice,
-          amount: quantity * unitPrice
+          amount: quantity * unitPrice,
+          booking_id: item.bookingId || null
         };
       });
 
@@ -472,7 +464,8 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
           description: item.description,
           quantity: quantity,
           unit_price: unitPrice,
-          amount: quantity * unitPrice
+          amount: quantity * unitPrice,
+          booking_id: item.bookingId || null
         };
       });
 
@@ -486,8 +479,8 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
       }
 
       const allBookingIds = lineItems
-        .filter(item => item.bookingIds && item.bookingIds.length > 0)
-        .flatMap(item => item.bookingIds || []);
+        .filter(item => item.bookingId)
+        .map(item => item.bookingId);
 
       if (allBookingIds.length > 0) {
         const { error: bookingUpdateError } = await supabase
@@ -1023,7 +1016,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             description: item.description,
             quantity: quantity,
             unit_price: unitPrice,
-            amount: quantity * unitPrice
+            amount: quantity * unitPrice,
+            booking_id: item.bookingId || null
           };
         });
 
@@ -1039,8 +1033,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
         }
 
         const allBookingIds = bookings
-          .filter(item => item.bookingIds && item.bookingIds.length > 0)
-          .flatMap(item => item.bookingIds || []);
+          .filter(item => item.bookingId)
+          .map(item => item.bookingId);
 
         if (allBookingIds.length > 0) {
           await supabase
@@ -1329,7 +1323,15 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
   const showInvoicePreview = async (invoice: InvoiceWithDetails) => {
     const { data: items } = await supabase
       .from('invoice_line_items')
-      .select('*')
+      .select(`
+        *,
+        booking:meeting_room_bookings(
+          booking_date,
+          start_time,
+          end_time,
+          total_hours
+        )
+      `)
       .eq('invoice_id', invoice.id);
 
     setSelectedInvoice({ ...invoice, line_items: items } as any);
@@ -1854,10 +1856,10 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                     await sendInvoiceEmail(selectedInvoice.id);
                     setSelectedInvoice(null);
                   }}
-                  className="flex-1 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors flex items-center justify-center gap-2"
+                  className="flex-1 bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition-colors flex items-center justify-center gap-2"
                 >
                   <Send size={24} />
-                  {selectedInvoice.status === 'draft' ? 'Verzenden via Email' : 'Opnieuw Verzenden'}
+                  Verzenden
                 </button>
               )}
               {selectedInvoice.status !== 'paid' && (
@@ -1868,7 +1870,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                   }}
                   className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
                 >
-                  Markeer als Betaald
+                  Betaald
                 </button>
               )}
               {selectedInvoice.status !== 'paid' && (
