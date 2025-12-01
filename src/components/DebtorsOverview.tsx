@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Euro, Calendar, AlertCircle, CheckCircle, FileText, Trash2, Eye, ArrowUpDown } from 'lucide-react';
+import { Euro, Calendar, AlertCircle, CheckCircle, FileText, Trash2, Eye, Filter } from 'lucide-react';
 
 type Debtor = {
   id: string;
@@ -31,8 +31,8 @@ export function DebtorsOverview() {
   const [activeTab, setActiveTab] = useState<'open' | 'log'>('open');
   const [paidInvoices, setPaidInvoices] = useState<any[]>([]);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
-  const [sortBy, setSortBy] = useState<'date' | 'customer' | 'period'>('date');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [filterCustomer, setFilterCustomer] = useState<string>('');
+  const [filterPeriod, setFilterPeriod] = useState<string>('');
 
   useEffect(() => {
     if (activeTab === 'open') {
@@ -267,37 +267,45 @@ export function DebtorsOverview() {
     return diffDays > 0 ? diffDays : 0;
   };
 
-  const getSortedPaidInvoices = () => {
-    const sorted = [...paidInvoices];
+  const getFilteredPaidInvoices = () => {
+    let filtered = [...paidInvoices];
 
-    sorted.sort((a, b) => {
-      let compareValue = 0;
+    if (filterCustomer) {
+      filtered = filtered.filter(invoice => {
+        const customerName = invoice.tenants?.company_name || invoice.external_customers?.company_name || '';
+        return customerName === filterCustomer;
+      });
+    }
 
-      if (sortBy === 'date') {
-        compareValue = new Date(a.invoice_date).getTime() - new Date(b.invoice_date).getTime();
-      } else if (sortBy === 'customer') {
-        const nameA = a.tenants?.company_name || a.external_customers?.company_name || '';
-        const nameB = b.tenants?.company_name || b.external_customers?.company_name || '';
-        compareValue = nameA.localeCompare(nameB);
-      } else if (sortBy === 'period') {
-        const periodA = a.invoice_month || '';
-        const periodB = b.invoice_month || '';
-        compareValue = periodA.localeCompare(periodB);
-      }
+    if (filterPeriod) {
+      filtered = filtered.filter(invoice => invoice.invoice_month === filterPeriod);
+    }
 
-      return sortOrder === 'asc' ? compareValue : -compareValue;
+    filtered.sort((a, b) => {
+      return new Date(b.invoice_date).getTime() - new Date(a.invoice_date).getTime();
     });
 
-    return sorted;
+    return filtered;
   };
 
-  const toggleSort = (newSortBy: 'date' | 'customer' | 'period') => {
-    if (sortBy === newSortBy) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(newSortBy);
-      setSortOrder('desc');
-    }
+  const getUniqueCustomers = () => {
+    const customers = paidInvoices.map(invoice => {
+      return invoice.tenants?.company_name || invoice.external_customers?.company_name || '';
+    }).filter(name => name !== '');
+    return [...new Set(customers)].sort();
+  };
+
+  const getUniquePeriods = () => {
+    const periods = paidInvoices
+      .filter(invoice => {
+        if (filterCustomer) {
+          const customerName = invoice.tenants?.company_name || invoice.external_customers?.company_name || '';
+          return customerName === filterCustomer && invoice.invoice_month;
+        }
+        return invoice.invoice_month;
+      })
+      .map(invoice => invoice.invoice_month);
+    return [...new Set(periods)].sort().reverse();
   };
 
   if (loading) {
@@ -476,38 +484,65 @@ export function DebtorsOverview() {
               </div>
             ) : (
               <div>
-                <div className="px-4 py-3 bg-dark-800 border-b border-dark-700 flex gap-2">
-                  <span className="text-sm text-gray-400">Sorteren op:</span>
-                  <button
-                    onClick={() => toggleSort('customer')}
-                    className={`flex items-center gap-1 text-sm px-2 py-1 rounded transition-colors ${
-                      sortBy === 'customer' ? 'bg-gold-500 text-white' : 'text-gray-400 hover:text-gray-200'
-                    }`}
-                  >
-                    Klant
-                    <ArrowUpDown size={14} />
-                  </button>
-                  <button
-                    onClick={() => toggleSort('period')}
-                    className={`flex items-center gap-1 text-sm px-2 py-1 rounded transition-colors ${
-                      sortBy === 'period' ? 'bg-gold-500 text-white' : 'text-gray-400 hover:text-gray-200'
-                    }`}
-                  >
-                    Periode
-                    <ArrowUpDown size={14} />
-                  </button>
-                  <button
-                    onClick={() => toggleSort('date')}
-                    className={`flex items-center gap-1 text-sm px-2 py-1 rounded transition-colors ${
-                      sortBy === 'date' ? 'bg-gold-500 text-white' : 'text-gray-400 hover:text-gray-200'
-                    }`}
-                  >
-                    Datum
-                    <ArrowUpDown size={14} />
-                  </button>
-                  <span className="text-sm text-gray-500 ml-2">
-                    ({sortOrder === 'asc' ? 'Oplopend' : 'Aflopend'})
-                  </span>
+                <div className="px-4 py-3 bg-dark-800 border-b border-dark-700">
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <Filter size={16} className="text-gray-400" />
+                      <span className="text-sm text-gray-400 font-medium">Filteren:</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm text-gray-400">Klant:</label>
+                      <select
+                        value={filterCustomer}
+                        onChange={(e) => {
+                          setFilterCustomer(e.target.value);
+                          setFilterPeriod('');
+                        }}
+                        className="bg-dark-700 border border-dark-600 text-gray-200 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500 min-w-[200px]"
+                      >
+                        <option value="">Alle klanten</option>
+                        {getUniqueCustomers().map((customer) => (
+                          <option key={customer} value={customer}>
+                            {customer}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm text-gray-400">Periode:</label>
+                      <select
+                        value={filterPeriod}
+                        onChange={(e) => setFilterPeriod(e.target.value)}
+                        className="bg-dark-700 border border-dark-600 text-gray-200 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500 min-w-[150px]"
+                        disabled={!filterCustomer && getUniquePeriods().length === 0}
+                      >
+                        <option value="">Alle periodes</option>
+                        {getUniquePeriods().map((period) => (
+                          <option key={period} value={period}>
+                            {period}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {(filterCustomer || filterPeriod) && (
+                      <button
+                        onClick={() => {
+                          setFilterCustomer('');
+                          setFilterPeriod('');
+                        }}
+                        className="text-sm text-gold-400 hover:text-gold-300 underline ml-auto"
+                      >
+                        Filters wissen
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="text-xs text-gray-500 mt-2">
+                    {getFilteredPaidInvoices().length} van {paidInvoices.length} facturen
+                  </div>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full table-fixed min-w-[1100px]">
@@ -524,7 +559,7 @@ export function DebtorsOverview() {
                       </tr>
                     </thead>
                     <tbody>
-                      {getSortedPaidInvoices().map((invoice: any) => {
+                      {getFilteredPaidInvoices().map((invoice: any) => {
                       const customer = invoice.tenant_id && invoice.tenants
                         ? invoice.tenants
                         : invoice.external_customer_id && invoice.external_customers
