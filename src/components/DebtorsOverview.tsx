@@ -610,19 +610,17 @@ export function DebtorsOverview() {
                             <div className="flex gap-2 justify-center">
                               <button
                                 onClick={() => setSelectedInvoice(invoice)}
-                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-900 hover:bg-blue-800 text-blue-300 rounded-lg transition-colors text-sm font-medium"
+                                className="inline-flex items-center justify-center p-2 bg-blue-900 hover:bg-blue-800 text-blue-300 rounded-lg transition-colors"
                                 title="Factuur bekijken"
                               >
-                                <Eye size={14} />
-                                Bekijk
+                                <Eye size={16} />
                               </button>
                               <button
                                 onClick={() => handleDeleteInvoice(invoice.id)}
-                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-red-900 hover:bg-red-800 text-red-300 rounded-lg transition-colors text-sm font-medium"
+                                className="inline-flex items-center justify-center p-2 bg-red-900 hover:bg-red-800 text-red-300 rounded-lg transition-colors"
                                 title="Factuur verwijderen"
                               >
-                                <Trash2 size={14} />
-                                Verwijder
+                                <Trash2 size={16} />
                               </button>
                             </div>
                           </td>
