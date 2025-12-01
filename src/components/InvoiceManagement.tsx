@@ -1848,7 +1848,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                       <span>Toegepast Credit:</span>
                       <span>- €{(selectedInvoice as any).applied_credit.toFixed(2)}</span>
                     </div>
-                    <div className="flex justify-between text-xl font-bold text-blue-400 pt-2 mt-2 border-t-2 border-blue-500">
+                    <div className="flex justify-between text-xl font-bold text-gray-100 pt-2 mt-2 border-t-2 border-gray-500">
                       <span>Openstaand Bedrag:</span>
                       <span>€{(selectedInvoice.amount - (selectedInvoice as any).applied_credit).toFixed(2)}</span>
                     </div>
