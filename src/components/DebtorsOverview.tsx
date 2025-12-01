@@ -781,53 +781,46 @@ export function DebtorsOverview() {
       )}
 
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-dark-900 rounded-lg max-w-md w-full border-2 border-red-500">
-            <div className="bg-dark-800 px-6 py-4 border-b border-red-500">
-              <h3 className="text-xl font-bold text-gray-100">Factuur verwijderen</h3>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 border-2 border-yellow-500">
+            <h3 className="text-xl font-bold text-gray-100 mb-4">Factuur Wissen</h3>
+            <p className="text-gray-300 mb-4">
+              Weet je zeker dat je deze betaalde factuur wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.
+            </p>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-200 mb-2">
+                Voer code in:
+              </label>
+              <input
+                type="password"
+                value={deleteCode}
+                onChange={(e) => setDeleteCode(e.target.value)}
+                placeholder="Voer verwijdercode in"
+                className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    confirmDeleteInvoice();
+                  }
+                }}
+              />
             </div>
-
-            <div className="p-6 space-y-4">
-              <p className="text-gray-300">
-                Weet je zeker dat je deze factuur wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.
-              </p>
-
-              <div>
-                <label className="block text-sm text-gray-400 mb-2">
-                  Verwijdercode
-                </label>
-                <input
-                  type="password"
-                  value={deleteCode}
-                  onChange={(e) => setDeleteCode(e.target.value)}
-                  placeholder="Voer verwijdercode in"
-                  className="w-full px-4 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-red-500"
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      confirmDeleteInvoice();
-                    }
-                  }}
-                />
-              </div>
-
-              <div className="flex gap-3 justify-end pt-4">
-                <button
-                  onClick={() => {
-                    setShowDeleteModal(false);
-                    setInvoiceToDelete(null);
-                    setDeleteCode('');
-                  }}
-                  className="px-4 py-2 bg-gray-700 text-gray-200 rounded-lg hover:bg-gray-600 transition-colors"
-                >
-                  Annuleren
-                </button>
-                <button
-                  onClick={confirmDeleteInvoice}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                >
-                  Verwijderen
-                </button>
-              </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setInvoiceToDelete(null);
+                  setDeleteCode('');
+                }}
+                className="flex-1 px-4 py-2 border border-dark-600 text-gray-200 rounded-lg hover:bg-dark-800 transition-colors"
+              >
+                Annuleren
+              </button>
+              <button
+                onClick={confirmDeleteInvoice}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Wissen
+              </button>
             </div>
           </div>
         </div>
