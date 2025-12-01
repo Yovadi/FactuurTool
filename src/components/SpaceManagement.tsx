@@ -351,7 +351,9 @@ export function SpaceManagement() {
                           </div>
                         </td>
                         <td className="px-4 py-3 text-gray-300 text-sm">
-                          {space.space_type === 'diversen'
+                          {space.space_type === 'Meeting Room'
+                            ? '-'
+                            : space.space_type === 'diversen'
                             ? `€ ${space.square_footage.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                             : `${space.square_footage.toLocaleString('nl-NL', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} m²`
                           }
