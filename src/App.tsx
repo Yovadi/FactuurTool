@@ -1,27 +1,20 @@
 import { useState, useEffect } from 'react';
 import { Dashboard } from './components/Dashboard';
-import { TenantManagement } from './components/TenantManagement';
-import { PartTimeAvailability } from './components/PartTimeAvailability';
-import { LeaseManagement } from './components/LeaseManagement';
-import { SpaceManagement } from './components/SpaceManagement';
-import { SpaceTypeRates } from './components/SpaceTypeRates';
 import { CompanySettings } from './components/CompanySettings';
 import { MeetingRoomBookings } from './components/MeetingRoomBookings';
 import { PinLogin } from './components/PinLogin';
-import { InvoiceManagement } from './components/InvoiceManagement';
-import { DebtorsOverview } from './components/DebtorsOverview';
-import { CreditNotes } from './components/CreditNotes';
-import { CreditOverview } from './components/CreditOverview';
 import { Analytics } from './components/Analytics';
+import { SpacesTabs } from './components/SpacesTabs';
+import { RentalTabs } from './components/RentalTabs';
+import { FinancialTabs } from './components/FinancialTabs';
 import { LayoutDashboard, Users, Building, Settings, CalendarClock, LogOut, Euro, TrendingUp, FileText, AlertTriangle, Receipt, DollarSign, Building2, Calculator, Calendar } from 'lucide-react';
 
-type Tab = 'dashboard' | 'rental-fulltime' | 'rental-parttime' | 'rental-contracts' | 'spaces-spaces' | 'spaces-rates' | 'bookings' | 'financial-invoices' | 'financial-debtors' | 'financial-creditnotes' | 'financial-creditoverview' | 'analytics' | 'settings';
+type Tab = 'dashboard' | 'spaces' | 'rental' | 'bookings' | 'financial' | 'analytics' | 'settings';
 
 type MenuSection = {
-  id: string;
+  id: Tab;
   label: string;
   icon: any;
-  children?: { id: Tab; label: string; icon: any }[];
 };
 
 function App() {
@@ -40,37 +33,10 @@ function App() {
 
   const navigation: MenuSection[] = [
     { id: 'dashboard', label: 'Overzicht', icon: LayoutDashboard },
-    {
-      id: 'spaces',
-      label: 'Ruimtes',
-      icon: Building,
-      children: [
-        { id: 'spaces-spaces' as Tab, label: 'Ruimtes', icon: Building2 },
-        { id: 'spaces-rates' as Tab, label: 'Tarieven', icon: Calculator },
-      ],
-    },
-    {
-      id: 'rental',
-      label: 'Huur',
-      icon: Users,
-      children: [
-        { id: 'rental-fulltime' as Tab, label: 'Voltijd', icon: Users },
-        { id: 'rental-parttime' as Tab, label: 'Deeltijd', icon: Calendar },
-        { id: 'rental-contracts' as Tab, label: 'Huur Contracten', icon: FileText },
-      ],
-    },
+    { id: 'spaces', label: 'Ruimtes', icon: Building },
+    { id: 'rental', label: 'Huur', icon: Users },
     { id: 'bookings', label: 'Vergaderruimte', icon: CalendarClock },
-    {
-      id: 'financial',
-      label: 'Facturatie',
-      icon: Euro,
-      children: [
-        { id: 'financial-invoices' as Tab, label: 'Facturen', icon: FileText },
-        { id: 'financial-debtors' as Tab, label: 'Debiteuren', icon: AlertTriangle },
-        { id: 'financial-creditnotes' as Tab, label: 'Credit Nota\'s', icon: Receipt },
-        { id: 'financial-creditoverview' as Tab, label: 'Credit Overzicht', icon: DollarSign },
-      ],
-    },
+    { id: 'financial', label: 'Facturatie', icon: Euro },
     { id: 'analytics', label: 'Analyses', icon: TrendingUp },
   ];
 
@@ -78,12 +44,6 @@ function App() {
     { id: 'settings', label: 'Verhuurder', icon: Settings },
   ];
 
-  const isActiveTab = (itemId: string, children?: { id: Tab }[]) => {
-    if (children) {
-      return children.some(child => child.id === activeTab);
-    }
-    return activeTab === itemId;
-  };
 
   const handleAuthenticated = (tenantId: string, tenantName: string) => {
     setLoggedInTenantId(tenantId);
@@ -141,47 +101,12 @@ function App() {
               <nav className="space-y-1">
                 {navigation.map((item) => {
                   const Icon = item.icon;
-                  const isActive = isActiveTab(item.id, item.children);
-
-                  if (item.children) {
-                    return (
-                      <div key={item.id}>
-                        <button
-                          onClick={() => setActiveTab(item.children![0].id)}
-                          className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${
-                            isActive ? 'text-gold-500 hover:text-gold-400' : 'text-gray-100 hover:text-white'
-                          }`}>
-                          <Icon size={20} />
-                          {item.label}
-                        </button>
-                        <div className="ml-4 mt-1 space-y-1">
-                          {item.children.map((child) => {
-                            const ChildIcon = child.icon;
-                            const isChildActive = activeTab === child.id;
-                            return (
-                              <button
-                                key={child.id}
-                                onClick={() => setActiveTab(child.id)}
-                                className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                                  isChildActive
-                                    ? 'bg-gold-500 text-dark-950'
-                                    : 'text-gray-400 hover:bg-dark-800 hover:text-gray-300'
-                                }`}
-                              >
-                                <ChildIcon size={18} />
-                                {child.label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  }
+                  const isActive = activeTab === item.id;
 
                   return (
                     <button
                       key={item.id}
-                      onClick={() => setActiveTab(item.id as Tab)}
+                      onClick={() => setActiveTab(item.id)}
                       className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
                         isActive
                           ? 'bg-gold-500 text-dark-950'
@@ -202,7 +127,7 @@ function App() {
                   return (
                     <button
                       key={item.id}
-                      onClick={() => setActiveTab(item.id as Tab)}
+                      onClick={() => setActiveTab(item.id)}
                       className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
                         isActive
                           ? 'bg-gold-500 text-dark-950'
@@ -221,16 +146,10 @@ function App() {
           <main className="flex-1 min-w-0">
             <div className="bg-dark-950">
               {activeTab === 'dashboard' && <Dashboard />}
-              {activeTab === 'spaces-spaces' && <SpaceManagement />}
-              {activeTab === 'spaces-rates' && <SpaceTypeRates />}
-              {activeTab === 'rental-fulltime' && <TenantManagement />}
-              {activeTab === 'rental-parttime' && <PartTimeAvailability />}
-              {activeTab === 'rental-contracts' && <LeaseManagement />}
+              {activeTab === 'spaces' && <SpacesTabs />}
+              {activeTab === 'rental' && <RentalTabs />}
               {activeTab === 'bookings' && <MeetingRoomBookings />}
-              {activeTab === 'financial-invoices' && <InvoiceManagement />}
-              {activeTab === 'financial-debtors' && <DebtorsOverview />}
-              {activeTab === 'financial-creditnotes' && <CreditNotes />}
-              {activeTab === 'financial-creditoverview' && <CreditOverview />}
+              {activeTab === 'financial' && <FinancialTabs />}
               {activeTab === 'analytics' && <Analytics />}
               {activeTab === 'settings' && <CompanySettings />}
             </div>
