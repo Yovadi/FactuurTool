@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, type Invoice, type Lease, type Tenant, type ExternalCustomer, type LeaseSpace, type OfficeSpace, type InvoiceLineItem } from '../lib/supabase';
-import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, Edit, Search, CreditCard as Edit2, AlertCircle, CheckSquare, Square } from 'lucide-react';
+import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, Edit, Search, CreditCard as Edit2, AlertCircle, CheckSquare, Square, Check, X } from 'lucide-react';
 import { generateInvoicePDF } from '../utils/pdfGenerator';
 import { InvoicePreview } from './InvoicePreview';
 import { checkAndRunScheduledJobs } from '../utils/scheduledJobs';
@@ -1864,73 +1864,86 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               </div>
             )}
 
-            <div className="space-y-2">
-              <div className="flex gap-2">
-                <button
-                  onClick={async () => {
-                    setPreviewInvoice(selectedInvoice);
-                    await handlePreviewDownload();
-                  }}
-                  className="flex-1 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors flex items-center justify-center gap-2"
-                >
-                  <Download size={20} />
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={async () => {
+                  setPreviewInvoice(selectedInvoice);
+                  await handlePreviewDownload();
+                }}
+                className="group relative p-3 bg-gold-500 text-white rounded-lg hover:bg-gold-600 transition-colors"
+                title="Download"
+              >
+                <Download size={22} />
+                <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
                   Download
-                </button>
-                {selectedInvoice.status !== 'paid' && (
+                </span>
+              </button>
+              {selectedInvoice.status !== 'paid' && (
+                <>
                   <button
                     onClick={() => {
                       setSelectedInvoice(null);
                       startEditInvoice(selectedInvoice);
                     }}
-                    className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+                    className="group relative p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                    title="Bewerken"
                   >
-                    <Edit size={20} />
-                    Bewerken
+                    <Edit size={22} />
+                    <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                      Bewerken
+                    </span>
                   </button>
-                )}
-                {selectedInvoice.status !== 'paid' && (
                   <button
                     onClick={async () => {
                       await sendInvoiceEmail(selectedInvoice.id);
                       setSelectedInvoice(null);
                     }}
-                    className="flex-1 bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition-colors flex items-center justify-center gap-2"
+                    className="group relative p-3 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors"
+                    title="Verzenden"
                   >
-                    <Send size={20} />
-                    Verzenden
+                    <Send size={22} />
+                    <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                      Verzenden
+                    </span>
                   </button>
-                )}
-              </div>
-              <div className="flex gap-2">
-                {selectedInvoice.status !== 'paid' && (
                   <button
                     onClick={async () => {
                       await markAsPaid(selectedInvoice.id);
                       setSelectedInvoice(null);
                     }}
-                    className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                    className="group relative p-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                    title="Betaald"
                   >
-                    Betaald
+                    <Check size={22} />
+                    <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                      Betaald
+                    </span>
                   </button>
-                )}
-                {selectedInvoice.status !== 'paid' && (
                   <button
                     onClick={() => {
                       setSelectedInvoice(null);
                       setShowDeleteConfirm(selectedInvoice.id);
                     }}
-                    className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                    className="group relative p-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                    title="Verwijderen"
                   >
-                    Verwijderen
+                    <Trash2 size={22} />
+                    <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                      Verwijderen
+                    </span>
                   </button>
-                )}
-                <button
-                  onClick={() => setSelectedInvoice(null)}
-                  className="flex-1 bg-gray-700 text-gray-200 px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
-                >
+                </>
+              )}
+              <button
+                onClick={() => setSelectedInvoice(null)}
+                className="group relative p-3 bg-gray-700 text-gray-200 rounded-lg hover:bg-gray-600 transition-colors"
+                title="Sluiten"
+              >
+                <X size={22} />
+                <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
                   Sluiten
-                </button>
-              </div>
+                </span>
+              </button>
             </div>
           </div>
         </div>
