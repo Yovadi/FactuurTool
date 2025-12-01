@@ -167,32 +167,48 @@ export function DebtorsOverview() {
         .eq('status', 'paid')
         .order('invoice_date', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error loading paid invoices:', error);
+        throw error;
+      }
+
+      console.log('Loaded paid invoices:', invoices?.length || 0);
 
       const invoicesWithCustomers = await Promise.all(
         (invoices || []).map(async (invoice) => {
-          let customer = null;
+          let customerData = null;
 
           if (invoice.tenant_id) {
-            const { data: tenant } = await supabase
+            const { data: tenant, error: tenantError } = await supabase
               .from('tenants')
               .select('id, name, company_name, email')
               .eq('id', invoice.tenant_id)
-              .single();
-            customer = tenant ? { tenants: tenant } : null;
+              .maybeSingle();
+
+            if (tenantError) {
+              console.error('Error loading tenant:', tenantError);
+            }
+
+            customerData = tenant ? { tenants: tenant } : null;
           } else if (invoice.external_customer_id) {
-            const { data: extCustomer } = await supabase
+            const { data: extCustomer, error: customerError } = await supabase
               .from('external_customers')
               .select('id, company_name, contact_name, email')
               .eq('id', invoice.external_customer_id)
-              .single();
-            customer = extCustomer ? { external_customers: extCustomer } : null;
+              .maybeSingle();
+
+            if (customerError) {
+              console.error('Error loading external customer:', customerError);
+            }
+
+            customerData = extCustomer ? { external_customers: extCustomer } : null;
           }
 
-          return { ...invoice, ...customer };
+          return { ...invoice, ...customerData };
         })
       );
 
+      console.log('Invoices with customers:', invoicesWithCustomers.length);
       setPaidInvoices(invoicesWithCustomers);
     } catch (error) {
       console.error('Error loading paid invoices:', error);
