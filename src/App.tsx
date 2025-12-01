@@ -146,12 +146,14 @@ function App() {
                   if (item.children) {
                     return (
                       <div key={item.id}>
-                        <div className={`flex items-center gap-3 px-4 py-3 text-sm font-medium ${
-                            isActive ? 'text-gold-500' : 'text-gray-400'
+                        <button
+                          onClick={() => setActiveTab(item.children![0].id)}
+                          className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${
+                            isActive ? 'text-gold-500 hover:text-gold-400' : 'text-gray-400 hover:text-gray-300'
                           }`}>
                           <Icon size={20} />
                           {item.label}
-                        </div>
+                        </button>
                         <div className="ml-4 mt-1 space-y-1">
                           {item.children.map((child) => {
                             const ChildIcon = child.icon;
