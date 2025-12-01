@@ -383,29 +383,31 @@ export function LeaseManagement() {
   return (
     <div>
 
-      <div className="flex gap-2 mb-6">
-        <button
-          onClick={() => setActiveTab('active')}
-          className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
-            activeTab === 'active'
-              ? 'bg-gold-500 text-dark-950'
-              : 'text-gray-300 hover:bg-dark-800'
-          }`}
-        >
-          <CheckCircle size={18} />
-          Actief ({activeLeases.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('expired')}
-          className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
-            activeTab === 'expired'
-              ? 'bg-gold-500 text-dark-950'
-              : 'text-gray-300 hover:bg-dark-800'
-          }`}
-        >
-          <XCircle size={18} />
-          Verlopen/Beëindigd ({expiredLeases.length})
-        </button>
+      <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2 mb-6">
+        <div className="flex gap-2">
+          <button
+            onClick={() => setActiveTab('active')}
+            className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
+              activeTab === 'active'
+                ? 'bg-gold-500 text-dark-950'
+                : 'text-gray-300 hover:bg-dark-800'
+            }`}
+          >
+            <CheckCircle size={18} />
+            Actief ({activeLeases.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('expired')}
+            className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
+              activeTab === 'expired'
+                ? 'bg-gold-500 text-dark-950'
+                : 'text-gray-300 hover:bg-dark-800'
+            }`}
+          >
+            <XCircle size={18} />
+            Verlopen/Beëindigd ({expiredLeases.length})
+          </button>
+        </div>
       </div>
 
       {(tenants.length === 0 || spaces.length === 0) && (

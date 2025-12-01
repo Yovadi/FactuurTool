@@ -294,40 +294,42 @@ export function TenantManagement() {
   return (
     <div>
 
-      <div className="flex gap-2 mb-6">
-        <button
-          onClick={() => setActiveTab('fulltime')}
-          className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
-            activeTab === 'fulltime'
-              ? 'bg-gold-500 text-dark-950'
-              : 'text-gray-300 hover:bg-dark-800'
-          }`}
-        >
-          <Building2 size={18} />
-          Voltijd Huurders
-        </button>
-        <button
-          onClick={() => setActiveTab('external')}
-          className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
-            activeTab === 'external'
-              ? 'bg-gold-500 text-dark-950'
-              : 'text-gray-300 hover:bg-dark-800'
-          }`}
-        >
-          <Users size={18} />
-          Externe Huurders
-        </button>
-        <button
-          onClick={() => setActiveTab('inactive')}
-          className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
-            activeTab === 'inactive'
-              ? 'bg-gold-500 text-dark-950'
-              : 'text-gray-300 hover:bg-dark-800'
-          }`}
-        >
-          <Building2 size={18} />
-          Afgelopen Huurders
-        </button>
+      <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2 mb-6">
+        <div className="flex gap-2">
+          <button
+            onClick={() => setActiveTab('fulltime')}
+            className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
+              activeTab === 'fulltime'
+                ? 'bg-gold-500 text-dark-950'
+                : 'text-gray-300 hover:bg-dark-800'
+            }`}
+          >
+            <Building2 size={18} />
+            Voltijd Huurders
+          </button>
+          <button
+            onClick={() => setActiveTab('external')}
+            className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
+              activeTab === 'external'
+                ? 'bg-gold-500 text-dark-950'
+                : 'text-gray-300 hover:bg-dark-800'
+            }`}
+          >
+            <Users size={18} />
+            Externe Huurders
+          </button>
+          <button
+            onClick={() => setActiveTab('inactive')}
+            className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
+              activeTab === 'inactive'
+                ? 'bg-gold-500 text-dark-950'
+                : 'text-gray-300 hover:bg-dark-800'
+            }`}
+          >
+            <Building2 size={18} />
+            Afgelopen Huurders
+          </button>
+        </div>
       </div>
 
       {showForm && (

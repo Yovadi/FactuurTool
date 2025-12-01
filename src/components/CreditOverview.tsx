@@ -143,29 +143,31 @@ export function CreditOverview() {
         <h2 className="text-2xl font-bold text-gray-100">Credit Overzicht</h2>
       </div>
 
-      <div className="mb-6 flex gap-2">
-        <button
-          onClick={() => setActiveTab('customers')}
-          className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
-            activeTab === 'customers'
-              ? 'bg-gold-500 text-dark-950'
-              : 'text-gray-300 hover:bg-dark-800'
-          }`}
-        >
-          <User size={18} />
-          Klanten met Credit ({customerCredits.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('unapplied')}
-          className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
-            activeTab === 'unapplied'
-              ? 'bg-gold-500 text-dark-950'
-              : 'text-gray-300 hover:bg-dark-800'
-          }`}
-        >
-          <FileText size={18} />
-          Niet Toegepaste Credit Nota's ({unappliedCreditNotes.length})
-        </button>
+      <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2 mb-6">
+        <div className="flex gap-2">
+          <button
+            onClick={() => setActiveTab('customers')}
+            className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
+              activeTab === 'customers'
+                ? 'bg-gold-500 text-dark-950'
+                : 'text-gray-300 hover:bg-dark-800'
+            }`}
+          >
+            <User size={18} />
+            Klanten met Credit ({customerCredits.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('unapplied')}
+            className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
+              activeTab === 'unapplied'
+                ? 'bg-gold-500 text-dark-950'
+                : 'text-gray-300 hover:bg-dark-800'
+            }`}
+          >
+            <FileText size={18} />
+            Niet Toegepaste Credit Nota's ({unappliedCreditNotes.length})
+          </button>
+        </div>
       </div>
 
       {activeTab === 'customers' && (

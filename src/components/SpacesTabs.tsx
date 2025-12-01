@@ -12,29 +12,31 @@ export function SpacesTabs() {
         <h2 className="text-2xl font-bold text-gray-100 mb-4">Kantoor Beheer</h2>
       </div>
 
-      <div className="flex gap-2 mb-6">
-        <button
-          onClick={() => setActiveTab('spaces')}
-          className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
-            activeTab === 'spaces'
-              ? 'bg-gold-500 text-dark-950'
-              : 'text-gray-300 hover:bg-dark-800'
-          }`}
-        >
-          <Building2 size={20} />
-          Ruimtes
-        </button>
-        <button
-          onClick={() => setActiveTab('rates')}
-          className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
-            activeTab === 'rates'
-              ? 'bg-gold-500 text-dark-950'
-              : 'text-gray-300 hover:bg-dark-800'
-          }`}
-        >
-          <Calculator size={20} />
-          Tarieven
-        </button>
+      <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2 mb-6">
+        <div className="flex gap-2">
+          <button
+            onClick={() => setActiveTab('spaces')}
+            className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
+              activeTab === 'spaces'
+                ? 'bg-gold-500 text-dark-950'
+                : 'text-gray-300 hover:bg-dark-800'
+            }`}
+          >
+            <Building2 size={20} />
+            Ruimtes
+          </button>
+          <button
+            onClick={() => setActiveTab('rates')}
+            className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
+              activeTab === 'rates'
+                ? 'bg-gold-500 text-dark-950'
+                : 'text-gray-300 hover:bg-dark-800'
+            }`}
+          >
+            <Calculator size={20} />
+            Tarieven
+          </button>
+        </div>
       </div>
 
       {activeTab === 'spaces' && <SpaceManagement />}

@@ -159,29 +159,31 @@ export function PartTimeAvailability() {
 
   return (
     <div>
-      <div className="flex gap-2 mb-6">
-        <button
-          onClick={() => setActiveTab('tenants')}
-          className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
-            activeTab === 'tenants'
-              ? 'bg-gold-500 text-dark-950'
-              : 'text-gray-300 hover:bg-dark-800'
-          }`}
-        >
-          <Users size={18} />
-          Deeltijd Huurders
-        </button>
-        <button
-          onClick={() => setActiveTab('availability')}
-          className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
-            activeTab === 'availability'
-              ? 'bg-gold-500 text-dark-950'
-              : 'text-gray-300 hover:bg-dark-800'
-          }`}
-        >
-          <Calendar size={18} />
-          Beschikbaarheid
-        </button>
+      <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2 mb-6">
+        <div className="flex gap-2">
+          <button
+            onClick={() => setActiveTab('tenants')}
+            className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
+              activeTab === 'tenants'
+                ? 'bg-gold-500 text-dark-950'
+                : 'text-gray-300 hover:bg-dark-800'
+            }`}
+          >
+            <Users size={18} />
+            Deeltijd Huurders
+          </button>
+          <button
+            onClick={() => setActiveTab('availability')}
+            className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
+              activeTab === 'availability'
+                ? 'bg-gold-500 text-dark-950'
+                : 'text-gray-300 hover:bg-dark-800'
+            }`}
+          >
+            <Calendar size={18} />
+            Beschikbaarheid
+          </button>
+        </div>
       </div>
 
       {activeTab === 'tenants' ? (
