@@ -12,13 +12,13 @@ export function SpacesTabs() {
         <h2 className="text-2xl font-bold text-gray-100 mb-4">Kantoor Beheer</h2>
       </div>
 
-      <div className="flex gap-2 mb-6 border-b border-dark-700">
+      <div className="flex gap-2 mb-6">
         <button
           onClick={() => setActiveTab('spaces')}
-          className={`flex items-center gap-2 px-4 py-3 font-medium transition-colors ${
+          className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
             activeTab === 'spaces'
-              ? 'text-gold-500 border-b-2 border-gold-500'
-              : 'text-gray-400 hover:text-gray-300'
+              ? 'bg-gold-500 text-dark-950'
+              : 'text-gray-300 hover:bg-dark-800'
           }`}
         >
           <Building2 size={20} />
@@ -26,10 +26,10 @@ export function SpacesTabs() {
         </button>
         <button
           onClick={() => setActiveTab('rates')}
-          className={`flex items-center gap-2 px-4 py-3 font-medium transition-colors ${
+          className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
             activeTab === 'rates'
-              ? 'text-gold-500 border-b-2 border-gold-500'
-              : 'text-gray-400 hover:text-gray-300'
+              ? 'bg-gold-500 text-dark-950'
+              : 'text-gray-300 hover:bg-dark-800'
           }`}
         >
           <Calculator size={20} />

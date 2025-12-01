@@ -143,13 +143,13 @@ export function CreditOverview() {
         <h2 className="text-2xl font-bold text-gray-100">Credit Overzicht</h2>
       </div>
 
-      <div className="mb-6 flex gap-2 border-b border-dark-700">
+      <div className="mb-6 flex gap-2">
         <button
           onClick={() => setActiveTab('customers')}
-          className={`flex items-center gap-2 px-4 py-3 font-medium transition-all border-b-2 ${
+          className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
             activeTab === 'customers'
-              ? 'text-gold-500 border-gold-500'
-              : 'text-gray-400 border-transparent hover:text-gray-300'
+              ? 'bg-gold-500 text-dark-950'
+              : 'text-gray-300 hover:bg-dark-800'
           }`}
         >
           <User size={18} />
@@ -157,10 +157,10 @@ export function CreditOverview() {
         </button>
         <button
           onClick={() => setActiveTab('unapplied')}
-          className={`flex items-center gap-2 px-4 py-3 font-medium transition-all border-b-2 ${
+          className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
             activeTab === 'unapplied'
-              ? 'text-gold-500 border-gold-500'
-              : 'text-gray-400 border-transparent hover:text-gray-300'
+              ? 'bg-gold-500 text-dark-950'
+              : 'text-gray-300 hover:bg-dark-800'
           }`}
         >
           <FileText size={18} />

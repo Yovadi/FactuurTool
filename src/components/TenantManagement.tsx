@@ -294,13 +294,13 @@ export function TenantManagement() {
   return (
     <div>
 
-      <div className="flex gap-2 mb-6 border-b border-dark-700">
+      <div className="flex gap-2 mb-6">
         <button
           onClick={() => setActiveTab('fulltime')}
-          className={`flex items-center gap-2 px-4 py-3 font-medium transition-all border-b-2 ${
+          className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
             activeTab === 'fulltime'
-              ? 'text-gold-500 border-gold-500'
-              : 'text-gray-400 border-transparent hover:text-gray-300'
+              ? 'bg-gold-500 text-dark-950'
+              : 'text-gray-300 hover:bg-dark-800'
           }`}
         >
           <Building2 size={18} />
@@ -308,10 +308,10 @@ export function TenantManagement() {
         </button>
         <button
           onClick={() => setActiveTab('external')}
-          className={`flex items-center gap-2 px-4 py-3 font-medium transition-all border-b-2 ${
+          className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
             activeTab === 'external'
-              ? 'text-gold-500 border-gold-500'
-              : 'text-gray-400 border-transparent hover:text-gray-300'
+              ? 'bg-gold-500 text-dark-950'
+              : 'text-gray-300 hover:bg-dark-800'
           }`}
         >
           <Users size={18} />
@@ -319,10 +319,10 @@ export function TenantManagement() {
         </button>
         <button
           onClick={() => setActiveTab('inactive')}
-          className={`flex items-center gap-2 px-4 py-3 font-medium transition-all border-b-2 ${
+          className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
             activeTab === 'inactive'
-              ? 'text-gold-500 border-gold-500'
-              : 'text-gray-400 border-transparent hover:text-gray-300'
+              ? 'bg-gold-500 text-dark-950'
+              : 'text-gray-300 hover:bg-dark-800'
           }`}
         >
           <Building2 size={18} />
