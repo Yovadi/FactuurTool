@@ -13,7 +13,7 @@ import { DebtorsOverview } from './components/DebtorsOverview';
 import { CreditNotes } from './components/CreditNotes';
 import { CreditOverview } from './components/CreditOverview';
 import { Analytics } from './components/Analytics';
-import { LayoutDashboard, Users, Building, Settings, CalendarClock, LogOut, Euro, TrendingUp, ChevronDown, ChevronRight, FileText, AlertTriangle, Receipt, DollarSign, Building2, Calculator, Calendar } from 'lucide-react';
+import { LayoutDashboard, Users, Building, Settings, CalendarClock, LogOut, Euro, TrendingUp, FileText, AlertTriangle, Receipt, DollarSign, Building2, Calculator, Calendar } from 'lucide-react';
 
 type Tab = 'dashboard' | 'rental-fulltime' | 'rental-parttime' | 'rental-contracts' | 'spaces-spaces' | 'spaces-rates' | 'bookings' | 'financial-invoices' | 'financial-debtors' | 'financial-creditnotes' | 'financial-creditoverview' | 'analytics' | 'settings';
 
@@ -29,7 +29,6 @@ function App() {
   const [isElectron, setIsElectron] = useState(false);
   const [loggedInTenantId, setLoggedInTenantId] = useState<string | null>(null);
   const [loggedInTenantName, setLoggedInTenantName] = useState<string>('');
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     // Detect if running in Electron or development mode
@@ -78,13 +77,6 @@ function App() {
   const bottomNavigation: MenuSection[] = [
     { id: 'settings', label: 'Verhuurder', icon: Settings },
   ];
-
-  const toggleSection = (sectionId: string) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [sectionId]: !prev[sectionId]
-    }));
-  };
 
   const isActiveTab = (itemId: string, children?: { id: Tab }[]) => {
     if (children) {
@@ -150,47 +142,36 @@ function App() {
                 {navigation.map((item) => {
                   const Icon = item.icon;
                   const isActive = isActiveTab(item.id, item.children);
-                  const isExpanded = expandedSections[item.id];
 
                   if (item.children) {
                     return (
                       <div key={item.id}>
-                        <button
-                          onClick={() => toggleSection(item.id)}
-                          className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
-                            isActive
-                              ? 'bg-gold-500/10 text-gold-500'
-                              : 'text-gray-300 hover:bg-dark-800'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <Icon size={20} />
-                            {item.label}
-                          </div>
-                          {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                        </button>
-                        {isExpanded && (
-                          <div className="ml-4 mt-1 space-y-1">
-                            {item.children.map((child) => {
-                              const ChildIcon = child.icon;
-                              const isChildActive = activeTab === child.id;
-                              return (
-                                <button
-                                  key={child.id}
-                                  onClick={() => setActiveTab(child.id)}
-                                  className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                                    isChildActive
-                                      ? 'bg-gold-500 text-dark-950'
-                                      : 'text-gray-400 hover:bg-dark-800 hover:text-gray-300'
-                                  }`}
-                                >
-                                  <ChildIcon size={18} />
-                                  {child.label}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
+                        <div className={`flex items-center gap-3 px-4 py-3 text-sm font-medium ${
+                            isActive ? 'text-gold-500' : 'text-gray-400'
+                          }`}>
+                          <Icon size={20} />
+                          {item.label}
+                        </div>
+                        <div className="ml-4 mt-1 space-y-1">
+                          {item.children.map((child) => {
+                            const ChildIcon = child.icon;
+                            const isChildActive = activeTab === child.id;
+                            return (
+                              <button
+                                key={child.id}
+                                onClick={() => setActiveTab(child.id)}
+                                className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                  isChildActive
+                                    ? 'bg-gold-500 text-dark-950'
+                                    : 'text-gray-400 hover:bg-dark-800 hover:text-gray-300'
+                                }`}
+                              >
+                                <ChildIcon size={18} />
+                                {child.label}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
                     );
                   }
