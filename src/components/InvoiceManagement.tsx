@@ -1463,7 +1463,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                   className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
                     invoiceMode === 'lease'
                       ? 'bg-gold-500 text-white'
-                      : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+                      : 'bg-dark-800 text-gray-200 hover:bg-dark-700'
                   }`}
                 >
                   Van Huurcontract
@@ -1477,7 +1477,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                   className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
                     invoiceMode === 'manual'
                       ? 'bg-gold-500 text-white'
-                      : 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+                      : 'bg-dark-800 text-gray-200 hover:bg-dark-700'
                   }`}
                 >
                   Handmatig Samenstellen
@@ -1496,7 +1496,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                     disabled={!!editingInvoiceId}
                     value={formData.lease_id}
                     onChange={(e) => handleLeaseSelect(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <option value="">Selecteer een huurcontract...</option>
                     {leases.map((lease) => {
@@ -1531,7 +1531,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                       disabled={!!editingInvoiceId}
                       value={formData.tenant_id}
                       onChange={(e) => setFormData({ ...formData, tenant_id: e.target.value })}
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <option value="">Selecteer een huurder...</option>
                       {tenants.map((tenant) => (
@@ -1549,7 +1549,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                       <select
                         value={formData.vat_rate}
                         onChange={(e) => setFormData({ ...formData, vat_rate: e.target.value })}
-                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                        className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                       >
                         <option value="0">0%</option>
                         <option value="9">9%</option>
@@ -1563,7 +1563,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                       <select
                         value={formData.vat_inclusive ? 'inclusive' : 'exclusive'}
                         onChange={(e) => setFormData({ ...formData, vat_inclusive: e.target.value === 'inclusive' })}
-                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                        className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                       >
                         <option value="exclusive">Exclusief</option>
                         <option value="inclusive">Inclusief</option>
@@ -1581,7 +1581,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                   type="month"
                   value={formData.invoice_month}
                   onChange={(e) => setFormData({ ...formData, invoice_month: e.target.value })}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                  className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                 />
                 <p className="text-xs text-gray-400 mt-1">De maand waarvoor deze factuur is (optioneel)</p>
               </div>
@@ -1596,7 +1596,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                     required
                     value={formData.invoice_date}
                     onChange={(e) => setFormData({ ...formData, invoice_date: e.target.value })}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                    className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                   />
                 </div>
                 <div>
@@ -1608,7 +1608,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                     required
                     value={formData.due_date}
                     onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                    className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                   />
                 </div>
               </div>
@@ -1642,7 +1642,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                             placeholder="Omschrijving"
                             value={item.description}
                             onChange={(e) => updateLineItem(index, 'description', e.target.value)}
-                            className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                            className="flex-1 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                             readOnly={item.space_type === 'Meeting Room'}
                           />
                         {invoiceMode === 'manual' && (
@@ -1657,7 +1657,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                                 updateLineItem(index, 'quantity', value);
                               }
                             }}
-                            className="w-32 px-3 py-2 bg-gray-700 border border-gray-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                            className="w-32 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                           />
                         )}
                         <input
@@ -1672,7 +1672,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                               updateLineItem(index, 'unit_price', value);
                             }
                           }}
-                          className="w-32 px-3 py-2 bg-gray-700 border border-gray-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                          className="w-32 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                           readOnly={item.space_type === 'Meeting Room'}
                         />
                         {lineItems.length > 1 && item.space_type !== 'Meeting Room' && (
@@ -1688,7 +1688,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                       </div>
                     ))}
                   </div>
-                  <div className="mt-3 p-3 bg-gray-700 rounded-lg space-y-1 text-sm">
+                  <div className="mt-3 p-3 bg-dark-800 rounded-lg space-y-1 text-sm">
                     <div className="flex justify-between">
                       <span className="text-gray-300">Subtotaal:</span>
                       <span className="font-medium text-gray-100">€{getTotalAmount().subtotal.toFixed(2)}</span>
@@ -1701,7 +1701,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                       </span>
                       <span className="font-medium text-gray-100">€{getTotalAmount().vatAmount.toFixed(2)}</span>
                     </div>
-                    <div className="flex justify-between pt-2 border-t border-gray-600">
+                    <div className="flex justify-between pt-2 border-t border-dark-600">
                       <span className="font-semibold text-gray-200">Total:</span>
                       <span className="font-bold text-lg text-gray-100">€{getTotalAmount().total.toFixed(2)}</span>
                     </div>
@@ -1716,7 +1716,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                 <textarea
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                  className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                   rows={3}
                   placeholder="Aanvullende opmerkingen of betalingsinstructies..."
                 />
@@ -1737,7 +1737,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="flex-1 bg-gray-700 text-gray-200 px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
+                  className="flex-1 bg-dark-800 text-gray-200 px-4 py-2 rounded-lg hover:bg-dark-700 transition-colors"
                 >
                   Annuleren
                 </button>
@@ -1844,7 +1844,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                 </div>
                 {(selectedInvoice as any).applied_credit > 0 && (
                   <>
-                    <div className="flex justify-between text-green-400 font-medium pt-2 mt-2 border-t border-gray-600">
+                    <div className="flex justify-between text-green-400 font-medium pt-2 mt-2 border-t border-dark-600">
                       <span>Toegepast Credit:</span>
                       <span>- €{(selectedInvoice as any).applied_credit.toFixed(2)}</span>
                     </div>
@@ -2009,8 +2009,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               });
 
           const renderInvoiceTable = (invoices: typeof draftLeaseInvoices, title: string, borderColor: string, buttonConfig?: { label: string; onClick: () => void; color: string; disabled?: boolean }) => (
-            <div className="bg-gray-800 rounded-lg shadow-sm border border-gray-600 overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 bg-gray-700 border-b" style={{ borderBottomColor: borderColor }}>
+            <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 bg-dark-800 border-b" style={{ borderBottomColor: borderColor }}>
                 <h2 className="text-lg font-bold text-gray-100">
                   {title}
                 </h2>
@@ -2028,7 +2028,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               <div className="overflow-x-auto">
                 <table className="w-full table-fixed min-w-[1000px]">
                   <thead>
-                    <tr className="border-b border-gray-600 text-gray-300 text-xs uppercase bg-gray-700">
+                    <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
                     <th className="text-center px-4 py-3 font-semibold w-[5%]">
                       <button
                         onClick={(e) => {
@@ -2072,7 +2072,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                           <tr
                             key={invoice.id}
                             onClick={() => showInvoicePreview(invoice)}
-                            className="border-b border-gray-600 hover:bg-gray-700 hover:border-gold-500 transition-colors cursor-pointer"
+                            className="border-b border-dark-600 hover:bg-dark-800 hover:border-gold-500 transition-colors cursor-pointer"
                           >
                             <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                               <button
@@ -2195,14 +2195,14 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                 )}
               </div>
 
-              <div className="mt-8 bg-gray-800 rounded-lg shadow-sm border border-gray-600 overflow-hidden">
+              <div className="mt-8 bg-gray-800 rounded-lg shadow-sm border border-dark-600 overflow-hidden">
                 <h2 className="text-lg font-bold text-gray-100 px-4 py-3 bg-dark-800 border-b border-amber-500">
                   Openstaande Facturen
                 </h2>
                   <div className="overflow-x-auto">
                     <table className="w-full table-fixed min-w-[1000px]">
                       <thead>
-                        <tr className="border-b border-gray-600 text-gray-300 text-xs uppercase bg-gray-700">
+                        <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
                           <th className="text-center px-4 py-3 font-semibold w-[5%]">
                             <button
                               onClick={(e) => {
@@ -2245,7 +2245,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                               <tr
                                 key={invoice.id}
                                 onClick={() => showInvoicePreview(invoice)}
-                                className="border-b border-gray-600 hover:bg-gray-700 hover:border-gold-500 transition-colors cursor-pointer"
+                                className="border-b border-dark-600 hover:bg-dark-800 hover:border-gold-500 transition-colors cursor-pointer"
                               >
                                 <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                                   <button
@@ -2339,7 +2339,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                 type="password"
                 value={deletePassword}
                 onChange={(e) => setDeletePassword(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-dark-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 placeholder="Code"
                 autoFocus
               />
@@ -2350,7 +2350,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                   setShowDeleteConfirm(null);
                   setDeletePassword('');
                 }}
-                className="flex-1 px-4 py-2 border border-gray-600 text-gray-200 rounded-lg hover:bg-gray-700 transition-colors"
+                className="flex-1 px-4 py-2 border border-dark-600 text-gray-200 rounded-lg hover:bg-dark-800 transition-colors"
               >
                 Annuleren
               </button>
