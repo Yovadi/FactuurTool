@@ -1865,6 +1865,16 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             )}
 
             <div className="flex gap-2">
+              <button
+                onClick={async () => {
+                  setPreviewInvoice(selectedInvoice);
+                  await handlePreviewDownload();
+                }}
+                className="flex-1 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors flex items-center justify-center gap-2"
+              >
+                <Download size={20} />
+                Download
+              </button>
               {selectedInvoice.status !== 'paid' && (
                 <button
                   onClick={async () => {
@@ -1873,7 +1883,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                   }}
                   className="flex-1 bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition-colors flex items-center justify-center gap-2"
                 >
-                  <Send size={24} />
+                  <Send size={20} />
                   Verzenden
                 </button>
               )}
@@ -1901,7 +1911,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               )}
               <button
                 onClick={() => setSelectedInvoice(null)}
-                className="flex-1 bg-dark-800 text-gray-200 px-4 py-2 rounded-lg hover:bg-dark-700 transition-colors"
+                className="flex-1 bg-gray-700 text-gray-200 px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
               >
                 Sluiten
               </button>
@@ -2149,7 +2159,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                 'Concept Huur Facturen',
                 '#10b981',
                 {
-                  label: generatingBulk ? 'Bezig...' : 'Genereer Huur Facturen',
+                  label: generatingBulk ? 'Bezig...' : 'Genereer factuur',
                   onClick: generateBulkInvoices,
                   color: 'bg-emerald-600',
                   disabled: generatingBulk
@@ -2163,7 +2173,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                   'Concept Vergaderruimte Facturen',
                   '#3b82f6',
                   {
-                    label: generatingBulk ? 'Bezig...' : 'Genereer Vergaderruimte Facturen',
+                    label: generatingBulk ? 'Bezig...' : 'Genereer factuur',
                     onClick: generateMeetingRoomInvoices,
                     color: 'bg-blue-600',
                     disabled: generatingBulk
