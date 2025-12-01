@@ -160,9 +160,15 @@ export function DebtorsOverview() {
           status,
           invoice_month,
           notes,
-          line_items,
           tenant_id,
-          external_customer_id
+          external_customer_id,
+          invoice_line_items (
+            id,
+            description,
+            quantity,
+            unit_price,
+            amount
+          )
         `)
         .eq('status', 'paid')
         .order('invoice_date', { ascending: false });
@@ -204,7 +210,11 @@ export function DebtorsOverview() {
             customerData = extCustomer ? { external_customers: extCustomer } : null;
           }
 
-          return { ...invoice, ...customerData };
+          return {
+            ...invoice,
+            ...customerData,
+            line_items: invoice.invoice_line_items || []
+          };
         })
       );
 
