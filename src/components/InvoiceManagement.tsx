@@ -1864,69 +1864,73 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               </div>
             )}
 
-            <div className="flex gap-2">
-              <button
-                onClick={async () => {
-                  setPreviewInvoice(selectedInvoice);
-                  await handlePreviewDownload();
-                }}
-                className="flex-1 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors flex items-center justify-center gap-2"
-              >
-                <Download size={20} />
-                Download
-              </button>
-              {selectedInvoice.status !== 'paid' && (
-                <button
-                  onClick={() => {
-                    setSelectedInvoice(null);
-                    startEditInvoice(selectedInvoice);
-                  }}
-                  className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
-                >
-                  <Edit size={20} />
-                  Bewerken
-                </button>
-              )}
-              {selectedInvoice.status !== 'paid' && (
+            <div className="space-y-2">
+              <div className="flex gap-2">
                 <button
                   onClick={async () => {
-                    await sendInvoiceEmail(selectedInvoice.id);
-                    setSelectedInvoice(null);
+                    setPreviewInvoice(selectedInvoice);
+                    await handlePreviewDownload();
                   }}
-                  className="flex-1 bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition-colors flex items-center justify-center gap-2"
+                  className="flex-1 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors flex items-center justify-center gap-2"
                 >
-                  <Send size={20} />
-                  Verzenden
+                  <Download size={20} />
+                  Download
                 </button>
-              )}
-              {selectedInvoice.status !== 'paid' && (
+                {selectedInvoice.status !== 'paid' && (
+                  <button
+                    onClick={() => {
+                      setSelectedInvoice(null);
+                      startEditInvoice(selectedInvoice);
+                    }}
+                    className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Edit size={20} />
+                    Bewerken
+                  </button>
+                )}
+                {selectedInvoice.status !== 'paid' && (
+                  <button
+                    onClick={async () => {
+                      await sendInvoiceEmail(selectedInvoice.id);
+                      setSelectedInvoice(null);
+                    }}
+                    className="flex-1 bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Send size={20} />
+                    Verzenden
+                  </button>
+                )}
+              </div>
+              <div className="flex gap-2">
+                {selectedInvoice.status !== 'paid' && (
+                  <button
+                    onClick={async () => {
+                      await markAsPaid(selectedInvoice.id);
+                      setSelectedInvoice(null);
+                    }}
+                    className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    Betaald
+                  </button>
+                )}
+                {selectedInvoice.status !== 'paid' && (
+                  <button
+                    onClick={() => {
+                      setSelectedInvoice(null);
+                      setShowDeleteConfirm(selectedInvoice.id);
+                    }}
+                    className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                  >
+                    Verwijderen
+                  </button>
+                )}
                 <button
-                  onClick={async () => {
-                    await markAsPaid(selectedInvoice.id);
-                    setSelectedInvoice(null);
-                  }}
-                  className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                  onClick={() => setSelectedInvoice(null)}
+                  className="flex-1 bg-gray-700 text-gray-200 px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
                 >
-                  Betaald
+                  Sluiten
                 </button>
-              )}
-              {selectedInvoice.status !== 'paid' && (
-                <button
-                  onClick={() => {
-                    setSelectedInvoice(null);
-                    setShowDeleteConfirm(selectedInvoice.id);
-                  }}
-                  className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
-                >
-                  Verwijderen
-                </button>
-              )}
-              <button
-                onClick={() => setSelectedInvoice(null)}
-                className="flex-1 bg-gray-700 text-gray-200 px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
-              >
-                Sluiten
-              </button>
+              </div>
             </div>
           </div>
         </div>
