@@ -120,6 +120,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
   const [showRecurringModal, setShowRecurringModal] = useState(false);
+  const [isProcessingTap, setIsProcessingTap] = useState(false);
 
   const showToast = (message: string, type: NotificationType = 'info') => {
     const id = notificationId;
@@ -333,6 +334,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
   };
 
   const handleCellTap = (dateStr: string, time: string) => {
+    if (isProcessingTap) return;
     if (hasBooking(dateStr, time)) return;
 
     const cellDate = new Date(dateStr + 'T00:00:00');
@@ -341,60 +343,68 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
 
     if (cellDate < today) return;
 
-    const cellIndex = selectedCells.findIndex(c => c.date === dateStr && c.time === time);
+    setIsProcessingTap(true);
 
-    if (cellIndex !== -1) {
-      setSelectedCells(selectedCells.filter((_, i) => i !== cellIndex));
-    } else {
+    requestAnimationFrame(() => {
+      const cellIndex = selectedCells.findIndex(c => c.date === dateStr && c.time === time);
+
+      if (cellIndex !== -1) {
+        const newCells = selectedCells.filter((_, i) => i !== cellIndex);
+        setSelectedCells(newCells);
+        setIsProcessingTap(false);
+        return;
+      }
+
       if (selectedCells.length === 0) {
         setSelectedCells([{ date: dateStr, time }]);
-      } else if (selectedCells[0].date !== dateStr) {
-        setSelectedCells([{ date: dateStr, time }]);
-      } else {
-        const currentTimeIndex = timeSlots.indexOf(time);
-        const sortedCells = [...selectedCells].sort((a, b) =>
-          timeSlots.indexOf(a.time) - timeSlots.indexOf(b.time)
-        );
-        const minIndex = timeSlots.indexOf(sortedCells[0].time);
-        const maxIndex = timeSlots.indexOf(sortedCells[sortedCells.length - 1].time);
-
-        if (currentTimeIndex === minIndex - 1 || currentTimeIndex === maxIndex + 1) {
-          const newCells = [...selectedCells, { date: dateStr, time }];
-          const sortedNewCells = newCells.sort((a, b) =>
-            timeSlots.indexOf(a.time) - timeSlots.indexOf(b.time)
-          );
-
-          const newMinIndex = timeSlots.indexOf(sortedNewCells[0].time);
-          const newMaxIndex = timeSlots.indexOf(sortedNewCells[sortedNewCells.length - 1].time);
-          const expectedLength = newMaxIndex - newMinIndex + 1;
-
-          let hasGaps = false;
-          for (let i = newMinIndex; i <= newMaxIndex; i++) {
-            const t = timeSlots[i];
-            const hasCell = newCells.some(c => c.time === t);
-            const hasBookingHere = hasBooking(dateStr, t);
-            if (!hasCell && !hasBookingHere) {
-              hasGaps = true;
-              break;
-            }
-            if (hasBookingHere) {
-              hasGaps = true;
-              break;
-            }
-          }
-
-          if (!hasGaps && sortedNewCells.length === expectedLength) {
-            setSelectedCells(newCells);
-          } else {
-            showToast('Selecteer alleen aaneengesloten tijdslots', 'error');
-          }
-        } else if (currentTimeIndex >= minIndex && currentTimeIndex <= maxIndex) {
-          setSelectedCells([...selectedCells, { date: dateStr, time }]);
-        } else {
-          showToast('Selecteer alleen aaneengesloten tijdslots', 'error');
-        }
+        setIsProcessingTap(false);
+        return;
       }
-    }
+
+      if (selectedCells[0].date !== dateStr) {
+        setSelectedCells([{ date: dateStr, time }]);
+        setIsProcessingTap(false);
+        return;
+      }
+
+      const currentTimeIndex = timeSlots.indexOf(time);
+
+      const timeIndices = selectedCells.map(c => timeSlots.indexOf(c.time));
+      const minIndex = Math.min(...timeIndices);
+      const maxIndex = Math.max(...timeIndices);
+
+      if (currentTimeIndex === minIndex - 1 || currentTimeIndex === maxIndex + 1) {
+        const newCells = [...selectedCells, { date: dateStr, time }];
+
+        const newTimeIndices = newCells.map(c => timeSlots.indexOf(c.time));
+        const newMinIndex = Math.min(...newTimeIndices);
+        const newMaxIndex = Math.max(...newTimeIndices);
+        const expectedLength = newMaxIndex - newMinIndex + 1;
+
+        if (newCells.length !== expectedLength) {
+          showToast('Selecteer alleen aaneengesloten tijdslots', 'error');
+          setIsProcessingTap(false);
+          return;
+        }
+
+        for (let i = newMinIndex; i <= newMaxIndex; i++) {
+          const t = timeSlots[i];
+          if (hasBooking(dateStr, t)) {
+            showToast('Selecteer alleen aaneengesloten tijdslots', 'error');
+            setIsProcessingTap(false);
+            return;
+          }
+        }
+
+        setSelectedCells(newCells);
+      } else if (currentTimeIndex >= minIndex && currentTimeIndex <= maxIndex) {
+        setSelectedCells([...selectedCells, { date: dateStr, time }]);
+      } else {
+        showToast('Selecteer alleen aaneengesloten tijdslots', 'error');
+      }
+
+      setIsProcessingTap(false);
+    });
   };
 
   const handleCellMouseEnter = (dateStr: string, time: string) => {
