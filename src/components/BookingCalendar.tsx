@@ -178,6 +178,21 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
     return () => document.removeEventListener('mouseup', handleMouseUp);
   }, [isDragging, selectedCells, isDraggingBooking]);
 
+  useEffect(() => {
+    if (showForm && meetingRooms.length > 0 && !formData.room_id) {
+      const spreekkamer1 = meetingRooms.find(r =>
+        r.space_number.toLowerCase().includes('spreekkamer 1') ||
+        r.space_number === '1'
+      );
+
+      if (spreekkamer1) {
+        setFormData(prev => ({ ...prev, room_id: spreekkamer1.id }));
+      } else if (meetingRooms.length === 1) {
+        setFormData(prev => ({ ...prev, room_id: meetingRooms[0].id }));
+      }
+    }
+  }, [showForm, meetingRooms, formData.room_id]);
+
   const getWeekStart = (date: Date) => {
     const d = new Date(date);
     d.setHours(0, 0, 0, 0);
@@ -517,7 +532,6 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
     }
 
     if (newBooking) {
-      // Update state with the new booking
       setWeekDays(prev => prev.map(day => {
         if (day.dateStr === newBooking.booking_date) {
           return {
@@ -529,6 +543,16 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
         }
         return day;
       }));
+
+      setAllBookings(prev => [...prev, {
+        id: newBooking.id,
+        booking_date: newBooking.booking_date,
+        start_time: newBooking.start_time,
+        end_time: newBooking.end_time,
+        tenant_id: newBooking.tenant_id,
+        external_customer_id: newBooking.external_customer_id,
+        status: newBooking.status
+      }]);
     }
 
     showToast('Boeking succesvol aangemaakt', 'success');
