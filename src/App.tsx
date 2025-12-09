@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Dashboard } from './components/Dashboard';
 import { TenantManagement } from './components/TenantManagement';
-import { PartTimeAvailability } from './components/PartTimeAvailability';
 import { LeaseManagement } from './components/LeaseManagement';
 import { SpaceManagement } from './components/SpaceManagement';
 import { SpaceTypeRates } from './components/SpaceTypeRates';
@@ -15,7 +14,7 @@ import { CreditOverview } from './components/CreditOverview';
 import { Analytics } from './components/Analytics';
 import { LayoutDashboard, Users, Building, Settings, CalendarClock, LogOut, Euro, TrendingUp, FileText, AlertTriangle, Receipt, DollarSign, Building2, Calculator, Calendar } from 'lucide-react';
 
-type Tab = 'dashboard' | 'rental-fulltime' | 'rental-parttime' | 'rental-contracts' | 'spaces-spaces' | 'spaces-rates' | 'bookings' | 'financial-invoices' | 'financial-debtors' | 'financial-creditnotes' | 'financial-creditoverview' | 'analytics' | 'settings';
+type Tab = 'dashboard' | 'rental-fulltime' | 'rental-contracts' | 'spaces-spaces' | 'spaces-rates' | 'bookings' | 'financial-invoices' | 'financial-debtors' | 'financial-creditnotes' | 'financial-creditoverview' | 'analytics' | 'settings';
 
 type MenuSection = {
   id: string;
@@ -55,7 +54,6 @@ function App() {
       icon: Users,
       children: [
         { id: 'rental-fulltime' as Tab, label: 'Voltijd', icon: Users },
-        { id: 'rental-parttime' as Tab, label: 'Deeltijd', icon: Calendar },
         { id: 'rental-contracts' as Tab, label: 'Huur Contracten', icon: FileText },
       ],
     },
@@ -225,7 +223,6 @@ function App() {
               {activeTab === 'spaces-spaces' && <SpaceManagement />}
               {activeTab === 'spaces-rates' && <SpaceTypeRates />}
               {activeTab === 'rental-fulltime' && <TenantManagement />}
-              {activeTab === 'rental-parttime' && <PartTimeAvailability />}
               {activeTab === 'rental-contracts' && <LeaseManagement />}
               {activeTab === 'bookings' && <MeetingRoomBookings />}
               {activeTab === 'financial-invoices' && <InvoiceManagement />}

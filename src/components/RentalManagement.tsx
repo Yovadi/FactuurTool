@@ -1,17 +1,15 @@
 import { useState } from 'react';
 import { TenantManagement } from './TenantManagement';
-import { PartTimeAvailability } from './PartTimeAvailability';
 import { LeaseManagement } from './LeaseManagement';
-import { Users, Calendar, FileText } from 'lucide-react';
+import { Users, FileText } from 'lucide-react';
 
-type RentalTab = 'fulltime' | 'parttime' | 'contracts';
+type RentalTab = 'fulltime' | 'contracts';
 
 export function RentalManagement() {
   const [activeTab, setActiveTab] = useState<RentalTab>('fulltime');
 
   const tabs = [
     { id: 'fulltime' as RentalTab, label: 'Voltijd', icon: Users },
-    { id: 'parttime' as RentalTab, label: 'Deeltijd', icon: Calendar },
     { id: 'contracts' as RentalTab, label: 'Huur Contracten', icon: FileText },
   ];
 
@@ -42,7 +40,6 @@ export function RentalManagement() {
 
       <div>
         {activeTab === 'fulltime' && <TenantManagement />}
-        {activeTab === 'parttime' && <PartTimeAvailability />}
         {activeTab === 'contracts' && <LeaseManagement />}
       </div>
     </div>

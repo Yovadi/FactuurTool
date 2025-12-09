@@ -61,10 +61,12 @@ export type Lease = {
   status: 'active' | 'expired' | 'terminated';
   vat_rate: number;
   vat_inclusive: boolean;
-  lease_type: 'full_time' | 'part_time';
-  daily_rate: number | null;
-  days_per_week: number | null;
-  selected_days: string[] | null;
+  lease_type: 'full_time' | 'flex';
+  flex_pricing_model: 'daily' | 'monthly_unlimited' | 'credit_based' | null;
+  flex_daily_rate: number | null;
+  flex_monthly_rate: number | null;
+  flex_credits_per_month: number | null;
+  flex_credit_rate: number | null;
   created_at: string;
 };
 

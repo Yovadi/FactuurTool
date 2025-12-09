@@ -25,7 +25,7 @@ export function LeaseManagement() {
     vat_rate: '21',
     vat_inclusive: false,
     status: 'active' as 'active' | 'expired' | 'terminated',
-    lease_type: 'full_time' as 'full_time' | 'part_time' | 'flex',
+    lease_type: 'full_time' as 'full_time' | 'flex',
     daily_rate: '',
     days_per_week: '5',
     selected_days: [] as string[],
@@ -106,11 +106,7 @@ export function LeaseManagement() {
       lease_type: formData.lease_type
     };
 
-    if (formData.lease_type === 'part_time') {
-      leaseData.daily_rate = parseFloat(formData.daily_rate);
-      leaseData.days_per_week = parseInt(formData.days_per_week);
-      leaseData.selected_days = formData.selected_days.length > 0 ? formData.selected_days : null;
-    } else if (formData.lease_type === 'flex') {
+    if (formData.lease_type === 'flex') {
       leaseData.flex_pricing_model = formData.flex_pricing_model;
       leaseData.flex_daily_rate = formData.flex_daily_rate ? parseFloat(formData.flex_daily_rate) : 0;
       leaseData.flex_monthly_rate = formData.flex_monthly_rate ? parseFloat(formData.flex_monthly_rate) : 0;
@@ -335,11 +331,7 @@ export function LeaseManagement() {
   const getTotalMonthlyRent = () => {
     let spacesTotal = 0;
 
-    if (formData.lease_type === 'part_time' && formData.daily_rate && formData.days_per_week) {
-      const dailyRate = parseFloat(formData.daily_rate);
-      const daysPerWeek = parseInt(formData.days_per_week);
-      spacesTotal = dailyRate * daysPerWeek * 4.33;
-    } else if (formData.lease_type === 'flex') {
+    if (formData.lease_type === 'flex') {
       if (formData.flex_pricing_model === 'daily' && formData.flex_daily_rate) {
         spacesTotal = parseFloat(formData.flex_daily_rate) * 20;
       } else if (formData.flex_pricing_model === 'monthly_unlimited' && formData.flex_monthly_rate) {
@@ -395,9 +387,7 @@ export function LeaseManagement() {
   };
 
   const calculateLeaseTotal = (lease: LeaseWithDetails) => {
-    if (lease.lease_type === 'part_time' && lease.daily_rate && lease.days_per_week) {
-      return Math.round(lease.daily_rate * lease.days_per_week * 4.33 * 100) / 100;
-    } else if (lease.lease_type === 'flex') {
+    if (lease.lease_type === 'flex') {
       const flexLease = lease as any;
       if (flexLease.flex_pricing_model === 'daily' && flexLease.flex_daily_rate) {
         return Math.round(flexLease.flex_daily_rate * 20 * 100) / 100;
@@ -490,11 +480,10 @@ export function LeaseManagement() {
                 </label>
                 <select
                   value={formData.lease_type}
-                  onChange={(e) => setFormData({ ...formData, lease_type: e.target.value as 'full_time' | 'part_time' | 'flex' })}
+                  onChange={(e) => setFormData({ ...formData, lease_type: e.target.value as 'full_time' | 'flex' })}
                   className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                 >
                   <option value="full_time">Voltijd (alle dagen)</option>
-                  <option value="part_time">Deeltijd (x dagen per week)</option>
                   <option value="flex">Flexplek</option>
                 </select>
               </div>
@@ -650,132 +639,6 @@ export function LeaseManagement() {
                           </div>
                         </div>
                       )}
-                    </div>
-                  )}
-                </div>
-                </>
-              )}
-
-              {formData.lease_type === 'part_time' && (
-                <>
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <label className="block text-sm font-medium text-gray-200">
-                    Kantoorruimte
-                  </label>
-                </div>
-                <select
-                  required
-                  value={selectedSpaces.length > 0 ? selectedSpaces[0].space_id : ''}
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      setSelectedSpaces([{ space_id: e.target.value, price_per_sqm: '0' }]);
-                    } else {
-                      setSelectedSpaces([]);
-                    }
-                  }}
-                  className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                >
-                  <option value="">Selecteer een kantoor...</option>
-                  {spaces
-                    .filter(s => {
-                      const occupiedSpaceIds = leases
-                        .filter(l => !editingLease || l.id !== editingLease.id)
-                        .flatMap(l => l.lease_spaces.map(ls => ls.space_id));
-                      return !occupiedSpaceIds.includes(s.id) && s.space_type === 'kantoor';
-                    })
-                    .map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.space_number} ({s.square_footage} m²)
-                      </option>
-                    ))}
-                </select>
-              </div>
-
-                <div className="bg-dark-950 p-4 rounded-lg space-y-3">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-200 mb-1">
-                        Prijs per dag
-                      </label>
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        required
-                        placeholder="Bijv. 50"
-                        value={formData.daily_rate}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                            setFormData({ ...formData, daily_rate: value });
-                          }
-                        }}
-                        className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-200 mb-1">
-                        Aantal dagen per week
-                      </label>
-                      <select
-                        value={formData.days_per_week}
-                        onChange={(e) => {
-                          setFormData({ ...formData, days_per_week: e.target.value, selected_days: [] });
-                        }}
-                        className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                      >
-                        <option value="1">1 dag</option>
-                        <option value="2">2 dagen</option>
-                        <option value="3">3 dagen</option>
-                        <option value="4">4 dagen</option>
-                        <option value="5">5 dagen</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-200 mb-2">
-                      Welke dagen? (optioneel)
-                    </label>
-                    <div className="flex gap-2">
-                      {['ma', 'di', 'wo', 'do', 'vr'].map((day) => {
-                        const maxDays = parseInt(formData.days_per_week);
-                        const isSelected = formData.selected_days.includes(day);
-                        const canSelect = isSelected || formData.selected_days.length < maxDays;
-
-                        return (
-                          <button
-                            key={day}
-                            type="button"
-                            onClick={() => {
-                              if (!canSelect && !isSelected) return;
-                              const newDays = isSelected
-                                ? formData.selected_days.filter(d => d !== day)
-                                : [...formData.selected_days, day];
-                              setFormData({ ...formData, selected_days: newDays });
-                            }}
-                            disabled={!canSelect && !isSelected}
-                            className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                              isSelected
-                                ? 'bg-gold-500 text-white'
-                                : canSelect
-                                ? 'bg-dark-800 text-gray-400 hover:bg-dark-700'
-                                : 'bg-dark-800 text-gray-600 opacity-50 cursor-not-allowed'
-                            }`}
-                          >
-                            {day}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  {formData.daily_rate && formData.days_per_week && (
-                    <div className="pt-2 border-t border-dark-700">
-                      <div className="text-sm text-gray-300">
-                        Berekening: €{parseFloat(formData.daily_rate).toFixed(2)} × {formData.days_per_week} dagen × 4,33 weken =
-                        <span className="font-bold text-gold-500 ml-1">
-                          €{(parseFloat(formData.daily_rate) * parseInt(formData.days_per_week) * 4.33).toFixed(2)}/mnd
-                        </span>
-                      </div>
                     </div>
                   )}
                 </div>
@@ -1069,24 +932,6 @@ export function LeaseManagement() {
                                 }
                                 return 'Flexplek';
                               })()}
-                            </div>
-                          </div>
-                        ) : lease.lease_type === 'part_time' ? (
-                          <div className="text-xs text-gray-300">
-                            <div className="flex items-center gap-2">
-                              {lease.lease_spaces.length > 0 && (
-                                <span className="font-medium">{lease.lease_spaces[0].space.space_number}</span>
-                              )}
-                              <span className="text-gold-500 font-medium">Deeltijd</span>
-                            </div>
-                            <div className="text-gray-400 mt-1">
-                              {lease.days_per_week}x per week
-                              {lease.selected_days && lease.selected_days.length > 0 && (
-                                <span className="ml-1">({lease.selected_days.join(', ')})</span>
-                              )}
-                            </div>
-                            <div className="text-gray-400">
-                              €{lease.daily_rate?.toFixed(2)}/dag × {lease.days_per_week} × 4,33
                             </div>
                           </div>
                         ) : (

@@ -525,19 +525,7 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
     if (lease) {
       const items = [];
 
-      if (lease.lease_type === 'part_time' && lease.daily_rate && lease.days_per_week) {
-        const monthlyRent = Math.round(lease.daily_rate * lease.days_per_week * 4.33 * 100) / 100;
-        const daysText = lease.selected_days && lease.selected_days.length > 0
-          ? ` (${lease.selected_days.join(', ')})`
-          : '';
-        items.push({
-          description: `Kantoorhuur ${lease.days_per_week}x per week${daysText}`,
-          unit_price: monthlyRent.toFixed(2),
-          quantity: 1,
-          space_type: 'kantoor'
-        });
-      } else {
-        items.push(...lease.lease_spaces.map(ls => {
+      items.push(...lease.lease_spaces.map(ls => {
           const spaceName = ls.space.space_number;
           const spaceType = ls.space.space_type;
           const squareFootage = ls.space.square_footage;
@@ -557,7 +545,6 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
             space_type: spaceType
           };
         }));
-      }
 
       if (lease.security_deposit > 0) {
         items.push({
@@ -1135,12 +1122,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
         console.log('Generated invoice number:', invoiceNumber);
 
-        let rentAmount = 0;
-        if (lease.lease_type === 'part_time' && lease.daily_rate && lease.days_per_week) {
-          rentAmount = Math.round(lease.daily_rate * lease.days_per_week * 4.33 * 100) / 100;
-        } else {
-          rentAmount = lease.lease_spaces.reduce((sum, ls) => sum + ls.monthly_rent, 0);
-        }
+        let rentAmount = lease.lease_spaces.reduce((sum, ls) => sum + ls.monthly_rent, 0);
         const baseAmount = Math.round((rentAmount + lease.security_deposit) * 100) / 100;
 
         const { subtotal, vatAmount, total } = calculateVAT(
@@ -1177,20 +1159,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
         const lineItemsToInsert = [];
 
-        if (lease.lease_type === 'part_time' && lease.daily_rate && lease.days_per_week) {
-          const monthlyRent = Math.round(lease.daily_rate * lease.days_per_week * 4.33 * 100) / 100;
-          const daysText = lease.selected_days && lease.selected_days.length > 0
-            ? ` (${lease.selected_days.join(', ')})`
-            : '';
-          lineItemsToInsert.push({
-            invoice_id: newInvoice.id,
-            description: `Kantoorhuur ${lease.days_per_week}x per week${daysText}`,
-            quantity: 1,
-            unit_price: monthlyRent,
-            amount: monthlyRent
-          });
-        } else {
-          for (const ls of lease.lease_spaces) {
+        for (const ls of lease.lease_spaces) {
             const spaceName = ls.space.space_number;
           const spaceType = ls.space.space_type;
           const squareFootage = ls.space.square_footage;
@@ -1210,7 +1179,6 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             unit_price: ls.monthly_rent,
             amount: ls.monthly_rent
           });
-          }
         }
 
         if (lease.security_deposit > 0) {
@@ -1500,12 +1468,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                   >
                     <option value="">Selecteer een huurcontract...</option>
                     {leases.map((lease) => {
-                      let rentAmount = 0;
-                      if (lease.lease_type === 'part_time' && lease.daily_rate && lease.days_per_week) {
-                        rentAmount = Math.round(lease.daily_rate * lease.days_per_week * 4.33 * 100) / 100;
-                      } else {
-                        rentAmount = lease.lease_spaces.reduce((sum, ls) => sum + ls.monthly_rent, 0);
-                      }
+                      const rentAmount = lease.lease_spaces.reduce((sum, ls) => sum + ls.monthly_rent, 0);
                       const totalMonthlyRent = Math.round((rentAmount + lease.security_deposit) * 100) / 100;
                       return (
                         <option key={lease.id} value={lease.id}>
