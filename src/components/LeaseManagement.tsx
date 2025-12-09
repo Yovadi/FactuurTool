@@ -504,7 +504,7 @@ export function LeaseManagement() {
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <label className="block text-sm font-medium text-gray-200">
-                    Flexplek
+                    Flexplek Ruimte
                   </label>
                 </div>
                 <select
@@ -525,11 +525,11 @@ export function LeaseManagement() {
                       const occupiedSpaceIds = leases
                         .filter(l => !editingLease || l.id !== editingLease.id)
                         .flatMap(l => l.lease_spaces.map(ls => ls.space_id));
-                      return !occupiedSpaceIds.includes(s.id) && s.space_type === 'Flexplek';
+                      return !occupiedSpaceIds.includes(s.id) && (s as any).is_flex_space === true;
                     })
                     .map((s) => (
                       <option key={s.id} value={s.id}>
-                        {s.space_number}
+                        {s.space_number} - {s.space_type === 'kantoor' ? 'Kantoor' : s.space_type === 'bedrijfsruimte' ? 'Bedrijfsruimte' : 'Overig'}
                       </option>
                     ))}
                 </select>
