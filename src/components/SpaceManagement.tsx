@@ -13,7 +13,7 @@ export function SpaceManagement() {
   const [loading, setLoading] = useState(true);
 
   const [formData, setFormData] = useState({
-    space_type: 'bedrijfsruimte' as 'bedrijfsruimte' | 'kantoor' | 'buitenterrein' | 'diversen' | 'Meeting Room',
+    space_type: 'bedrijfsruimte' as 'bedrijfsruimte' | 'kantoor' | 'buitenterrein' | 'diversen' | 'Meeting Room' | 'Flexplek',
     space_number: '',
     square_footage: '',
     is_available: true,
@@ -85,7 +85,7 @@ export function SpaceManagement() {
     const spaceData: any = {
       space_number: formData.space_number,
       floor: 0,
-      square_footage: formData.space_type === 'Meeting Room' ? 0 : (parseFloat(formData.square_footage) || 0),
+      square_footage: (formData.space_type === 'Meeting Room' || formData.space_type === 'Flexplek') ? 0 : (parseFloat(formData.square_footage) || 0),
       space_type: formData.space_type,
       base_rent: 0,
       is_available: formData.is_available,
@@ -205,11 +205,11 @@ export function SpaceManagement() {
                 <select
                   value={formData.space_type}
                   onChange={(e) => {
-                    const newType = e.target.value as 'bedrijfsruimte' | 'kantoor' | 'buitenterrein' | 'diversen' | 'Meeting Room';
+                    const newType = e.target.value as 'bedrijfsruimte' | 'kantoor' | 'buitenterrein' | 'diversen' | 'Meeting Room' | 'Flexplek';
                     setFormData({
                       ...formData,
                       space_type: newType,
-                      square_footage: newType === 'Meeting Room' ? '0' : formData.square_footage,
+                      square_footage: (newType === 'Meeting Room' || newType === 'Flexplek') ? '0' : formData.square_footage,
                       is_furnished: newType === 'kantoor' ? formData.is_furnished : false
                     });
                   }}
@@ -220,6 +220,7 @@ export function SpaceManagement() {
                   <option value="buitenterrein">Buitenterrein</option>
                   <option value="diversen">Diversen</option>
                   <option value="Meeting Room">Vergaderruimte</option>
+                  <option value="Flexplek">Flexplek</option>
                 </select>
               </div>
               <div>
@@ -235,7 +236,7 @@ export function SpaceManagement() {
                   placeholder="bijv. Suite 101"
                 />
               </div>
-              {formData.space_type !== 'Meeting Room' && (
+              {formData.space_type !== 'Meeting Room' && formData.space_type !== 'Flexplek' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-200 mb-1">
                     {formData.space_type === 'diversen' ? 'Bedrag *' : 'Oppervlakte (m²) *'}
@@ -303,7 +304,7 @@ export function SpaceManagement() {
       )}
 
       <div className="space-y-8">
-        {['bedrijfsruimte', 'kantoor', 'buitenterrein', 'diversen', 'Meeting Room'].map(type => {
+        {['bedrijfsruimte', 'kantoor', 'buitenterrein', 'diversen', 'Meeting Room', 'Flexplek'].map(type => {
           const typedSpaces = spaces.filter(s => s.space_type === type);
           if (typedSpaces.length === 0) return null;
 
@@ -312,7 +313,8 @@ export function SpaceManagement() {
             kantoor: 'Kantoren',
             buitenterrein: 'Buitenterreinen',
             diversen: 'Diversen',
-            'Meeting Room': 'Vergaderruimtes'
+            'Meeting Room': 'Vergaderruimtes',
+            'Flexplek': 'Flexplekken'
           };
 
           return (
@@ -351,7 +353,7 @@ export function SpaceManagement() {
                           </div>
                         </td>
                         <td className="px-4 py-3 text-gray-300 text-sm">
-                          {space.space_type === 'Meeting Room'
+                          {space.space_type === 'Meeting Room' || space.space_type === 'Flexplek'
                             ? '-'
                             : space.space_type === 'diversen'
                             ? `€ ${space.square_footage.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`

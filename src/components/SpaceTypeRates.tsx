@@ -7,7 +7,8 @@ const SPACE_TYPE_LABELS: Record<string, string> = {
   'kantoor': 'Kantoor',
   'buitenterrein': 'Buitenterrein',
   'diversen': 'Diversen',
-  'Meeting Room': 'Vergaderruimte'
+  'Meeting Room': 'Vergaderruimte',
+  'Flexplek': 'Flexplek'
 };
 
 const CALCULATION_METHOD_LABELS: Record<string, string> = {
