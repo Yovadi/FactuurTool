@@ -305,7 +305,7 @@ export function TenantManagement() {
             }`}
           >
             <Building2 size={18} />
-            Voltijd Huurders
+            Huurders
           </button>
           <button
             onClick={() => setActiveTab('external')}
@@ -486,7 +486,7 @@ export function TenantManagement() {
         <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
           <div className="flex justify-between items-center px-4 py-3 bg-dark-800 border-b border-amber-500">
             <h2 className="text-lg font-bold text-gray-100">
-              Voltijd Huurders
+              Huurders
             </h2>
             <button
               onClick={() => setShowForm(true)}

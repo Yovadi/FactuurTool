@@ -9,7 +9,7 @@ export function RentalManagement() {
   const [activeTab, setActiveTab] = useState<RentalTab>('fulltime');
 
   const tabs = [
-    { id: 'fulltime' as RentalTab, label: 'Voltijd', icon: Users },
+    { id: 'fulltime' as RentalTab, label: 'Huurders', icon: Users },
     { id: 'contracts' as RentalTab, label: 'Huur Contracten', icon: FileText },
   ];
 

@@ -53,7 +53,7 @@ function App() {
       label: 'Huur',
       icon: Users,
       children: [
-        { id: 'rental-fulltime' as Tab, label: 'Voltijd', icon: Users },
+        { id: 'rental-fulltime' as Tab, label: 'Huurders', icon: Users },
         { id: 'rental-contracts' as Tab, label: 'Huur Contracten', icon: FileText },
       ],
     },
