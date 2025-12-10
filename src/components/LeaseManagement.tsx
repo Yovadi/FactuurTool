@@ -517,11 +517,11 @@ export function LeaseManagement() {
                       const occupiedSpaceIds = leases
                         .filter(l => !editingLease || l.id !== editingLease.id)
                         .flatMap(l => l.lease_spaces.map(ls => ls.space_id));
-                      return !occupiedSpaceIds.includes(s.id) && (s as any).is_flex_space === true;
+                      return !occupiedSpaceIds.includes(s.id) && ((s as any).is_flex_space === true || s.space_type === 'Flexplek');
                     })
                     .map((s) => (
                       <option key={s.id} value={s.id}>
-                        {s.space_number} - {s.space_type === 'kantoor' ? 'Kantoor' : s.space_type === 'bedrijfsruimte' ? 'Bedrijfsruimte' : 'Overig'}
+                        {s.space_number} - {s.space_type === 'Flexplek' ? 'Flexplek' : s.space_type === 'kantoor' ? 'Kantoor' : s.space_type === 'bedrijfsruimte' ? 'Bedrijfsruimte' : 'Overig'}
                       </option>
                     ))}
                 </select>
