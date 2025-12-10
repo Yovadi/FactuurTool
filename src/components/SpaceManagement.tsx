@@ -323,7 +323,7 @@ export function SpaceManagement() {
       )}
 
       <div className="space-y-8">
-        {['bedrijfsruimte', 'kantoor', 'buitenterrein', 'diversen', 'Meeting Room', 'Flexplek'].map(type => {
+        {['bedrijfsruimte', 'buitenterrein', 'diversen', 'Flexplek', 'kantoor', 'Meeting Room'].map(type => {
           const typedSpaces = spaces.filter(s => s.space_type === type);
           if (typedSpaces.length === 0) return null;
 
