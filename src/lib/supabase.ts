@@ -47,8 +47,9 @@ export type OfficeSpace = {
   base_rent: number;
   is_available: boolean;
   is_furnished: boolean | null;
-  space_type: 'bedrijfsruimte' | 'kantoor' | 'buitenterrein' | 'diversen';
+  space_type: 'bedrijfsruimte' | 'kantoor' | 'buitenterrein' | 'diversen' | 'Meeting Room' | 'Flexplek';
   hourly_rate?: number | null;
+  is_flex_space?: boolean;
   created_at: string;
 };
 
