@@ -91,8 +91,23 @@ export function LeaseManagement() {
     e.preventDefault();
 
     if (selectedSpaces.length === 0) {
-      console.error('Selecteer minimaal één kantoorruimte');
+      alert('Selecteer minimaal één ruimte');
       return;
+    }
+
+    if (formData.lease_type === 'flex') {
+      if (formData.flex_pricing_model === 'daily' && !formData.flex_daily_rate) {
+        alert('Vul de prijs per dag in');
+        return;
+      }
+      if (formData.flex_pricing_model === 'monthly_unlimited' && !formData.flex_monthly_rate) {
+        alert('Vul het vaste maandbedrag in');
+        return;
+      }
+      if (formData.flex_pricing_model === 'credit_based' && (!formData.flex_credits_per_month || !formData.flex_credit_rate)) {
+        alert('Vul het aantal dagen en prijs per dag in');
+        return;
+      }
     }
 
     const leaseData: any = {
@@ -122,6 +137,7 @@ export function LeaseManagement() {
 
       if (error) {
         console.error('Error updating lease:', error);
+        alert('Fout bij het bijwerken van het huurcontract: ' + error.message);
         return;
       }
 
@@ -152,6 +168,7 @@ export function LeaseManagement() {
 
       if (spaceError) {
         console.error('Error updating lease spaces:', spaceError);
+        alert('Fout bij het bijwerken van ruimtes: ' + spaceError.message);
         return;
       }
 
@@ -173,6 +190,7 @@ export function LeaseManagement() {
 
       if (error) {
         console.error('Error creating lease:', error);
+        alert('Fout bij het aanmaken van het huurcontract: ' + error.message);
         return;
       }
 
@@ -198,6 +216,7 @@ export function LeaseManagement() {
 
       if (spaceError) {
         console.error('Error creating lease spaces:', spaceError);
+        alert('Fout bij het aanmaken van ruimtes: ' + spaceError.message);
         return;
       }
 
