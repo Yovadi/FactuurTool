@@ -406,7 +406,10 @@ export function LeaseManagement() {
 
   const activeLeases = leases.filter(l => l.status === 'active');
   const expiredLeases = leases.filter(l => l.status === 'expired' || l.status === 'terminated');
-  const displayedLeases = activeTab === 'active' ? activeLeases : expiredLeases;
+  const currentLeases = activeTab === 'active' ? activeLeases : expiredLeases;
+
+  const regularLeases = currentLeases.filter(l => (l as any).lease_type !== 'flex');
+  const flexLeases = currentLeases.filter(l => (l as any).lease_type === 'flex');
 
   return (
     <div>
@@ -874,139 +877,252 @@ export function LeaseManagement() {
         </div>
       )}
 
-      <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
-        <div className="flex justify-between items-center px-4 py-3 bg-dark-800 border-b border-amber-500">
-          <h2 className="text-lg font-bold text-gray-100">
-            Huurcontracten
-          </h2>
-          <button
-            onClick={() => setShowForm(true)}
-            className="flex items-center gap-2 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors"
-            disabled={tenants.length === 0 || spaces.length === 0}
-          >
-            <Plus size={20} />
-            Huurcontract Aanmaken
-          </button>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full table-fixed min-w-[1000px]">
-            <thead>
-              <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
-                <th className="text-left px-4 py-3 font-semibold w-[15%]">Huurder</th>
-                <th className="text-left px-4 py-3 font-semibold w-[20%]">Ruimtes</th>
-                <th className="text-right px-4 py-3 font-semibold w-[12%]">Maandhuur</th>
-                <th className="text-left px-4 py-3 font-semibold w-[10%]">BTW</th>
-                <th className="text-left px-4 py-3 font-semibold w-[18%]">Periode</th>
-                <th className="text-center px-4 py-3 font-semibold w-[12%]">Status</th>
-                <th className="text-right px-4 py-3 font-semibold w-[13%]">Acties</th>
-              </tr>
-            </thead>
-            <tbody>
-              {displayedLeases.map((lease) => {
-                const totalRent = calculateLeaseTotal(lease);
-                return (
-                  <tr
-                    key={lease.id}
-                    className="border-b border-dark-800 hover:bg-dark-800 transition-colors"
-                  >
-                    <td className="px-4 py-3 text-gray-100 font-medium">{lease.tenant.company_name}</td>
-                    <td className="px-4 py-3">
-                      <div className="space-y-1">
-                        {lease.lease_type === 'flex' ? (
-                          <div className="text-xs text-gray-300">
-                            <div className="flex items-center gap-2">
-                              {lease.lease_spaces.length > 0 && (
-                                <span className="font-medium">{lease.lease_spaces[0].space.space_number}</span>
-                              )}
-                              <span className="text-blue-500 font-medium">Flexplek</span>
-                            </div>
-                            <div className="text-gray-400 mt-1">
-                              {(() => {
-                                const flexLease = lease as any;
-                                if (flexLease.flex_pricing_model === 'daily') {
-                                  return `€${flexLease.flex_daily_rate?.toFixed(2)}/dag (ca. 20 dagen/mnd)`;
-                                } else if (flexLease.flex_pricing_model === 'monthly_unlimited') {
-                                  return `Onbeperkt - €${flexLease.flex_monthly_rate?.toFixed(2)}/mnd`;
-                                } else if (flexLease.flex_pricing_model === 'credit_based') {
-                                  return `${flexLease.flex_credits_per_month} dagen × €${flexLease.flex_credit_rate?.toFixed(2)}/dag`;
-                                }
-                                return 'Flexplek';
-                              })()}
-                            </div>
-                          </div>
-                        ) : (
-                          <>
+      <div className="space-y-6">
+        {regularLeases.length > 0 && (
+          <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
+            <div className="flex justify-between items-center px-4 py-3 bg-dark-800 border-b border-amber-500">
+              <h2 className="text-lg font-bold text-gray-100">
+                Huurcontracten
+              </h2>
+              <button
+                onClick={() => setShowForm(true)}
+                className="flex items-center gap-2 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors"
+                disabled={tenants.length === 0 || spaces.length === 0}
+              >
+                <Plus size={20} />
+                Huurcontract Aanmaken
+              </button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full table-fixed min-w-[1000px]">
+                <thead>
+                  <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
+                    <th className="text-left px-4 py-3 font-semibold w-[15%]">Huurder</th>
+                    <th className="text-left px-4 py-3 font-semibold w-[20%]">Ruimtes</th>
+                    <th className="text-right px-4 py-3 font-semibold w-[12%]">Maandhuur</th>
+                    <th className="text-left px-4 py-3 font-semibold w-[10%]">BTW</th>
+                    <th className="text-left px-4 py-3 font-semibold w-[18%]">Periode</th>
+                    <th className="text-center px-4 py-3 font-semibold w-[12%]">Status</th>
+                    <th className="text-right px-4 py-3 font-semibold w-[13%]">Acties</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {regularLeases.map((lease) => {
+                    const totalRent = calculateLeaseTotal(lease);
+                    return (
+                      <tr
+                        key={lease.id}
+                        className="border-b border-dark-800 hover:bg-dark-800 transition-colors"
+                      >
+                        <td className="px-4 py-3 text-gray-100 font-medium">{lease.tenant.company_name}</td>
+                        <td className="px-4 py-3">
+                          <div className="space-y-1">
                             {lease.lease_spaces.map((ls) => (
                               <div key={ls.id} className="text-xs text-gray-300 flex items-center gap-2">
                                 <span className="font-medium">{ls.space.space_number}</span>
                                 <span className="text-gray-400">({ls.space.square_footage} m² × €{ls.price_per_sqm}/m²)</span>
                               </div>
                             ))}
-                          </>
-                        )}
-                        {lease.security_deposit > 0 && (
-                          <div className="text-xs text-green-400">
-                            + Voorschot G/W/E
+                            {lease.security_deposit > 0 && (
+                              <div className="text-xs text-green-400">
+                                + Voorschot G/W/E
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="text-gray-100 font-medium">
-                        €{(totalRent + lease.security_deposit).toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </div>
-                      <div className="text-xs text-gray-400">
-                        (€{totalRent.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        {lease.security_deposit > 0 && ` + €${lease.security_deposit.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`})
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-gray-300 text-sm">
-                      {lease.vat_inclusive ? 'Inclusief' : 'Exclusief'} ({lease.vat_rate}%)
-                    </td>
-                    <td className="px-4 py-3 text-gray-300 text-xs">
-                      <div className="flex items-center gap-1">
-                        <Calendar size={14} className="text-gold-500" />
-                        <div>
-                          <div>{new Date(lease.start_date).toLocaleDateString('nl-NL')}</div>
-                          <div className="text-gray-400">t/m {new Date(lease.end_date).toLocaleDateString('nl-NL')}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {getStatusBadge(lease.status)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-1 justify-end">
-                        <button
-                          onClick={() => handleEdit(lease)}
-                          className="text-gold-500 hover:text-gold-400 transition-colors p-1.5 rounded hover:bg-dark-700"
-                          title="Bewerken"
-                        >
-                          <Edit2 size={18} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(lease)}
-                          className="text-red-500 hover:text-red-400 transition-colors p-1.5 rounded hover:bg-dark-700"
-                          title="Verwijderen"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="text-gray-100 font-medium">
+                            €{(totalRent + lease.security_deposit).toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            (€{totalRent.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {lease.security_deposit > 0 && ` + €${lease.security_deposit.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`})
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-gray-300 text-sm">
+                          {lease.vat_inclusive ? 'Inclusief' : 'Exclusief'} ({lease.vat_rate}%)
+                        </td>
+                        <td className="px-4 py-3 text-gray-300 text-xs">
+                          <div className="flex items-center gap-1">
+                            <Calendar size={14} className="text-gold-500" />
+                            <div>
+                              <div>{new Date(lease.start_date).toLocaleDateString('nl-NL')}</div>
+                              <div className="text-gray-400">t/m {new Date(lease.end_date).toLocaleDateString('nl-NL')}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {getStatusBadge(lease.status)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex gap-1 justify-end">
+                            <button
+                              onClick={() => handleEdit(lease)}
+                              className="text-gold-500 hover:text-gold-400 transition-colors p-1.5 rounded hover:bg-dark-700"
+                              title="Bewerken"
+                            >
+                              <Edit2 size={18} />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(lease)}
+                              className="text-red-500 hover:text-red-400 transition-colors p-1.5 rounded hover:bg-dark-700"
+                              title="Verwijderen"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
-      {leases.length === 0 && (
-        <div className="bg-dark-900 rounded-lg p-8 text-center">
-          <AlertCircle size={48} className="text-gray-500 mx-auto mb-4" />
-          <p className="text-gray-400">Nog geen huurcontracten. Klik op "Huurcontract Aanmaken" om je eerste contract aan te maken.</p>
-        </div>
-      )}
+        {flexLeases.length > 0 && (
+          <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
+            <div className="flex justify-between items-center px-4 py-3 bg-dark-800 border-b border-amber-500">
+              <h2 className="text-lg font-bold text-gray-100">
+                Flexcontracten
+              </h2>
+              {regularLeases.length === 0 && (
+                <button
+                  onClick={() => setShowForm(true)}
+                  className="flex items-center gap-2 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors"
+                  disabled={tenants.length === 0 || spaces.length === 0}
+                >
+                  <Plus size={20} />
+                  Huurcontract Aanmaken
+                </button>
+              )}
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full table-fixed min-w-[1000px]">
+                <thead>
+                  <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
+                    <th className="text-left px-4 py-3 font-semibold w-[15%]">Huurder</th>
+                    <th className="text-left px-4 py-3 font-semibold w-[20%]">Flexplek</th>
+                    <th className="text-right px-4 py-3 font-semibold w-[12%]">Maandhuur</th>
+                    <th className="text-left px-4 py-3 font-semibold w-[10%]">BTW</th>
+                    <th className="text-left px-4 py-3 font-semibold w-[18%]">Periode</th>
+                    <th className="text-center px-4 py-3 font-semibold w-[12%]">Status</th>
+                    <th className="text-right px-4 py-3 font-semibold w-[13%]">Acties</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {flexLeases.map((lease) => {
+                    const totalRent = calculateLeaseTotal(lease);
+                    return (
+                      <tr
+                        key={lease.id}
+                        className="border-b border-dark-800 hover:bg-dark-800 transition-colors"
+                      >
+                        <td className="px-4 py-3 text-gray-100 font-medium">{lease.tenant.company_name}</td>
+                        <td className="px-4 py-3">
+                          <div className="space-y-1">
+                            <div className="text-xs text-gray-300">
+                              <div className="flex items-center gap-2">
+                                {lease.lease_spaces.length > 0 && (
+                                  <span className="font-medium">{lease.lease_spaces[0].space.space_number}</span>
+                                )}
+                                <span className="text-blue-500 font-medium">Flexplek</span>
+                              </div>
+                              <div className="text-gray-400 mt-1">
+                                {(() => {
+                                  const flexLease = lease as any;
+                                  if (flexLease.flex_pricing_model === 'daily') {
+                                    return `€${flexLease.flex_daily_rate?.toFixed(2)}/dag (ca. 20 dagen/mnd)`;
+                                  } else if (flexLease.flex_pricing_model === 'monthly_unlimited') {
+                                    return `Onbeperkt - €${flexLease.flex_monthly_rate?.toFixed(2)}/mnd`;
+                                  } else if (flexLease.flex_pricing_model === 'credit_based') {
+                                    return `${flexLease.flex_credits_per_month} dagen × €${flexLease.flex_credit_rate?.toFixed(2)}/dag`;
+                                  }
+                                  return 'Flexplek';
+                                })()}
+                              </div>
+                            </div>
+                            {lease.security_deposit > 0 && (
+                              <div className="text-xs text-green-400">
+                                + Voorschot G/W/E
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="text-gray-100 font-medium">
+                            €{(totalRent + lease.security_deposit).toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            (€{totalRent.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {lease.security_deposit > 0 && ` + €${lease.security_deposit.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`})
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-gray-300 text-sm">
+                          {lease.vat_inclusive ? 'Inclusief' : 'Exclusief'} ({lease.vat_rate}%)
+                        </td>
+                        <td className="px-4 py-3 text-gray-300 text-xs">
+                          <div className="flex items-center gap-1">
+                            <Calendar size={14} className="text-gold-500" />
+                            <div>
+                              <div>{new Date(lease.start_date).toLocaleDateString('nl-NL')}</div>
+                              <div className="text-gray-400">t/m {new Date(lease.end_date).toLocaleDateString('nl-NL')}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {getStatusBadge(lease.status)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex gap-1 justify-end">
+                            <button
+                              onClick={() => handleEdit(lease)}
+                              className="text-gold-500 hover:text-gold-400 transition-colors p-1.5 rounded hover:bg-dark-700"
+                              title="Bewerken"
+                            >
+                              <Edit2 size={18} />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(lease)}
+                              className="text-red-500 hover:text-red-400 transition-colors p-1.5 rounded hover:bg-dark-700"
+                              title="Verwijderen"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {regularLeases.length === 0 && flexLeases.length === 0 && (
+          <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
+            <div className="flex justify-between items-center px-4 py-3 bg-dark-800 border-b border-amber-500">
+              <h2 className="text-lg font-bold text-gray-100">
+                Huurcontracten
+              </h2>
+              <button
+                onClick={() => setShowForm(true)}
+                className="flex items-center gap-2 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors"
+                disabled={tenants.length === 0 || spaces.length === 0}
+              >
+                <Plus size={20} />
+                Huurcontract Aanmaken
+              </button>
+            </div>
+            <div className="p-8 text-center">
+              <AlertCircle size={48} className="text-gray-500 mx-auto mb-4" />
+              <p className="text-gray-400">Nog geen huurcontracten. Klik op "Huurcontract Aanmaken" om je eerste contract aan te maken.</p>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
