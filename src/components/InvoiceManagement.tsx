@@ -1755,9 +1755,9 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
       {selectedInvoice && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-          <div className="bg-gray-800 rounded-lg p-8 w-[672px] my-8 mx-4 border-2 border-yellow-500">
+          <div className="bg-dark-800 rounded-lg p-8 w-[672px] my-8 mx-4 border border-dark-600 shadow-xl">
             <div className="mb-6">
-              <h3 className="text-2xl font-bold text-gray-100 mb-2">
+              <h3 className="text-2xl font-bold text-gray-100 mb-3">
                 Factuur {selectedInvoice.invoice_number}
               </h3>
               <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(selectedInvoice.status)}`}>
@@ -1809,7 +1809,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
             <div className="mb-6">
               <h4 className="text-sm font-semibold text-gray-300 mb-3">Factuurregels</h4>
-              <table className="w-full">
+              <table className="w-full border border-dark-600 rounded-lg overflow-hidden">
                 <thead className="bg-gold-500">
                   <tr>
                     <th className="text-left px-4 py-2 text-sm font-medium text-white">OMSCHRIJVING</th>
@@ -1820,7 +1820,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                 <tbody>
                   {(selectedInvoice as any).line_items && (selectedInvoice as any).line_items.length > 0 ? (
                     (selectedInvoice as any).line_items.map((item: InvoiceLineItem, index: number) => (
-                      <tr key={item.id} className={index % 2 === 0 ? 'bg-gray-700' : 'bg-gray-750'}>
+                      <tr key={item.id} className={index % 2 === 0 ? 'bg-dark-700' : 'bg-dark-750'}>
                         <td className="px-4 py-2 text-gray-100">{item.description}</td>
                         <td className="text-right px-4 py-2 text-gray-100">€{item.amount.toFixed(2)}</td>
                         <td className="text-right px-4 py-2 text-gray-100">{selectedInvoice.vat_rate.toFixed(0)}%</td>
@@ -1835,7 +1835,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                   )}
                 </tbody>
               </table>
-              <div className="mt-4 bg-gray-700 rounded-lg p-4">
+              <div className="mt-4 bg-dark-700 border border-dark-600 rounded-lg p-4">
                 <div className="flex justify-between text-sm mb-2">
                   <span className="text-gray-300">Subtotaal (excl. BTW):</span>
                   <span className="font-medium text-gray-100">€{selectedInvoice.subtotal.toFixed(2)}</span>
@@ -1864,92 +1864,80 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             </div>
 
             {selectedInvoice.notes && (
-              <div className="mb-6 p-4 bg-gray-700 rounded-lg">
+              <div className="mb-6 p-4 bg-dark-700 border border-dark-600 rounded-lg">
                 <h4 className="text-sm font-semibold text-gray-300 mb-1">Notities</h4>
                 <p className="text-sm text-gray-200">{selectedInvoice.notes}</p>
               </div>
             )}
 
-            <div className="flex gap-3 justify-center">
-              <button
-                onClick={async () => {
-                  const spaces = convertLineItemsToSpaces((selectedInvoice as any).line_items || []);
-                  setPreviewInvoice({ invoice: selectedInvoice, spaces });
-                  await handlePreviewDownload();
-                }}
-                className="group relative p-3 bg-gold-500 text-white rounded-lg hover:bg-gold-600 transition-colors"
-                title="Download"
-              >
-                <Download size={22} />
-                <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+            <div className="flex flex-col gap-3">
+              <div className="flex gap-2">
+                <button
+                  onClick={async () => {
+                    const spaces = convertLineItemsToSpaces((selectedInvoice as any).line_items || []);
+                    setPreviewInvoice({ invoice: selectedInvoice, spaces });
+                    await handlePreviewDownload();
+                  }}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-gold-500 text-white rounded-lg hover:bg-gold-600 transition-colors font-medium"
+                >
+                  <Download size={18} />
                   Download
-                </span>
-              </button>
-              {selectedInvoice.status !== 'paid' && (
-                <>
-                  <button
-                    onClick={() => {
-                      setSelectedInvoice(null);
-                      startEditInvoice(selectedInvoice);
-                    }}
-                    className="group relative p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                    title="Bewerken"
-                  >
-                    <Edit size={22} />
-                    <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                </button>
+                {selectedInvoice.status !== 'paid' && (
+                  <>
+                    <button
+                      onClick={() => {
+                        setSelectedInvoice(null);
+                        startEditInvoice(selectedInvoice);
+                      }}
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-dark-700 text-gray-200 border border-dark-600 rounded-lg hover:bg-dark-600 transition-colors font-medium"
+                    >
+                      <Edit size={18} />
                       Bewerken
-                    </span>
-                  </button>
+                    </button>
+                  </>
+                )}
+              </div>
+              {selectedInvoice.status !== 'paid' && (
+                <div className="flex gap-2">
                   <button
                     onClick={async () => {
                       await sendInvoiceEmail(selectedInvoice.id);
                       setSelectedInvoice(null);
                     }}
-                    className="group relative p-3 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors"
-                    title="Verzenden"
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-dark-700 text-gray-200 border border-dark-600 rounded-lg hover:bg-dark-600 transition-colors font-medium"
                   >
-                    <Send size={22} />
-                    <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                      Verzenden
-                    </span>
+                    <Send size={18} />
+                    Verzenden
                   </button>
                   <button
                     onClick={async () => {
                       await markAsPaid(selectedInvoice.id);
                       setSelectedInvoice(null);
                     }}
-                    className="group relative p-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                    title="Betaald"
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
                   >
-                    <Check size={22} />
-                    <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                      Betaald
-                    </span>
+                    <Check size={18} />
+                    Betaald
                   </button>
                   <button
                     onClick={() => {
                       setSelectedInvoice(null);
                       setShowDeleteConfirm(selectedInvoice.id);
                     }}
-                    className="group relative p-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                    title="Verwijderen"
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
                   >
-                    <Trash2 size={22} />
-                    <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                      Verwijderen
-                    </span>
+                    <Trash2 size={18} />
+                    Verwijderen
                   </button>
-                </>
+                </div>
               )}
               <button
                 onClick={() => setSelectedInvoice(null)}
-                className="group relative p-3 bg-gray-700 text-gray-200 rounded-lg hover:bg-gray-600 transition-colors"
-                title="Sluiten"
+                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-dark-700 text-gray-300 border border-dark-600 rounded-lg hover:bg-dark-600 transition-colors font-medium"
               >
-                <X size={22} />
-                <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                  Sluiten
-                </span>
+                <X size={18} />
+                Sluiten
               </button>
             </div>
           </div>
@@ -2362,20 +2350,20 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
       </div>
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 border-2 border-yellow-500">
+          <div className="bg-dark-800 rounded-lg p-6 max-w-md w-full mx-4 border border-dark-600 shadow-xl">
             <h3 className="text-xl font-bold text-gray-100 mb-4">Factuur Wissen</h3>
             <p className="text-gray-300 mb-4">
-              Weet je zeker dat je deze betaalde factuur wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.
+              Weet je zeker dat je deze factuur wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.
             </p>
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-200 mb-2">
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
                 Voer code in:
               </label>
               <input
                 type="password"
                 value={deletePassword}
                 onChange={(e) => setDeletePassword(e.target.value)}
-                className="w-full px-3 py-2 border border-dark-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-100 focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 placeholder="Code"
                 autoFocus
               />
@@ -2386,13 +2374,13 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                   setShowDeleteConfirm(null);
                   setDeletePassword('');
                 }}
-                className="flex-1 px-4 py-2 border border-dark-600 text-gray-200 rounded-lg hover:bg-dark-800 transition-colors"
+                className="flex-1 px-4 py-2.5 border border-dark-600 text-gray-200 rounded-lg hover:bg-dark-700 transition-colors font-medium"
               >
                 Annuleren
               </button>
               <button
                 onClick={() => deleteInvoice(showDeleteConfirm)}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
               >
                 Wissen
               </button>
