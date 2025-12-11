@@ -146,37 +146,39 @@ export function LeaseManagement() {
         .delete()
         .eq('lease_id', editingLease.id);
 
-      const leaseSpacesData = selectedSpaces.map(space => {
-        const officeSpace = spaces.find(s => s.id === space.space_id);
-        const effectivePrice = space.price_per_sqm || getDefaultRate(space.space_id);
-        let monthlyRent = 0;
-        if (officeSpace && effectivePrice) {
-          const yearlyRent = officeSpace.square_footage * parseFloat(effectivePrice);
-          monthlyRent = officeSpace.space_type === 'bedrijfsruimte' ? yearlyRent / 12 : yearlyRent;
+      if (formData.lease_type !== 'flex') {
+        const leaseSpacesData = selectedSpaces.map(space => {
+          const officeSpace = spaces.find(s => s.id === space.space_id);
+          const effectivePrice = space.price_per_sqm || getDefaultRate(space.space_id);
+          let monthlyRent = 0;
+          if (officeSpace && effectivePrice) {
+            const yearlyRent = officeSpace.square_footage * parseFloat(effectivePrice);
+            monthlyRent = officeSpace.space_type === 'bedrijfsruimte' ? yearlyRent / 12 : yearlyRent;
+          }
+          return {
+            lease_id: editingLease.id,
+            space_id: space.space_id,
+            price_per_sqm: parseFloat(effectivePrice),
+            monthly_rent: monthlyRent
+          };
+        });
+
+        const { error: spaceError } = await supabase
+          .from('lease_spaces')
+          .insert(leaseSpacesData);
+
+        if (spaceError) {
+          console.error('Error updating lease spaces:', spaceError);
+          alert('Fout bij het bijwerken van ruimtes: ' + spaceError.message);
+          return;
         }
-        return {
-          lease_id: editingLease.id,
-          space_id: space.space_id,
-          price_per_sqm: parseFloat(effectivePrice),
-          monthly_rent: monthlyRent
-        };
-      });
 
-      const { error: spaceError } = await supabase
-        .from('lease_spaces')
-        .insert(leaseSpacesData);
-
-      if (spaceError) {
-        console.error('Error updating lease spaces:', spaceError);
-        alert('Fout bij het bijwerken van ruimtes: ' + spaceError.message);
-        return;
+        const spaceIds = selectedSpaces.map(s => s.space_id);
+        await supabase
+          .from('office_spaces')
+          .update({ is_available: false })
+          .in('id', spaceIds);
       }
-
-      const spaceIds = selectedSpaces.map(s => s.space_id);
-      await supabase
-        .from('office_spaces')
-        .update({ is_available: false })
-        .in('id', spaceIds);
 
       resetForm();
       loadData();
@@ -194,37 +196,39 @@ export function LeaseManagement() {
         return;
       }
 
-      const leaseSpacesData = selectedSpaces.map(space => {
-        const officeSpace = spaces.find(s => s.id === space.space_id);
-        const effectivePrice = space.price_per_sqm || getDefaultRate(space.space_id);
-        let monthlyRent = 0;
-        if (officeSpace && effectivePrice) {
-          const yearlyRent = officeSpace.square_footage * parseFloat(effectivePrice);
-          monthlyRent = officeSpace.space_type === 'bedrijfsruimte' ? yearlyRent / 12 : yearlyRent;
+      if (formData.lease_type !== 'flex') {
+        const leaseSpacesData = selectedSpaces.map(space => {
+          const officeSpace = spaces.find(s => s.id === space.space_id);
+          const effectivePrice = space.price_per_sqm || getDefaultRate(space.space_id);
+          let monthlyRent = 0;
+          if (officeSpace && effectivePrice) {
+            const yearlyRent = officeSpace.square_footage * parseFloat(effectivePrice);
+            monthlyRent = officeSpace.space_type === 'bedrijfsruimte' ? yearlyRent / 12 : yearlyRent;
+          }
+          return {
+            lease_id: newLease.id,
+            space_id: space.space_id,
+            price_per_sqm: parseFloat(effectivePrice),
+            monthly_rent: monthlyRent
+          };
+        });
+
+        const { error: spaceError } = await supabase
+          .from('lease_spaces')
+          .insert(leaseSpacesData);
+
+        if (spaceError) {
+          console.error('Error creating lease spaces:', spaceError);
+          alert('Fout bij het aanmaken van ruimtes: ' + spaceError.message);
+          return;
         }
-        return {
-          lease_id: newLease.id,
-          space_id: space.space_id,
-          price_per_sqm: parseFloat(effectivePrice),
-          monthly_rent: monthlyRent
-        };
-      });
 
-      const { error: spaceError } = await supabase
-        .from('lease_spaces')
-        .insert(leaseSpacesData);
-
-      if (spaceError) {
-        console.error('Error creating lease spaces:', spaceError);
-        alert('Fout bij het aanmaken van ruimtes: ' + spaceError.message);
-        return;
+        const spaceIds = selectedSpaces.map(s => s.space_id);
+        await supabase
+          .from('office_spaces')
+          .update({ is_available: false })
+          .in('id', spaceIds);
       }
-
-      const spaceIds = selectedSpaces.map(s => s.space_id);
-      await supabase
-        .from('office_spaces')
-        .update({ is_available: false })
-        .in('id', spaceIds);
 
       resetForm();
       loadData();
