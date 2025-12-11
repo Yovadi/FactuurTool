@@ -132,15 +132,15 @@ export function InvoicePreview({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 overflow-y-auto p-4">
-      <div className="bg-dark-800 rounded-lg shadow-2xl my-8 relative max-w-5xl w-full mx-auto border border-dark-600">
-        <div className="sticky top-0 bg-dark-800 rounded-t-lg border-b border-dark-600 px-6 py-4 flex items-center justify-between">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
+      <div className="bg-dark-900 rounded-lg my-8 relative w-full max-w-5xl mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-dark-900 rounded-t-lg border-b border-dark-700 px-6 py-4 flex items-center justify-between">
           <h2 className="text-2xl font-bold text-gray-100">Factuur {invoiceNumberDisplay}</h2>
           <div className="flex items-center gap-2">
             {onCreateCreditNote && (
               <button
                 onClick={onCreateCreditNote}
-                className="flex items-center gap-1 text-gold-400 hover:text-gold-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-700"
+                className="flex items-center gap-1 text-gold-400 hover:text-gold-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
                 title="Maak Credit Nota"
               >
                 <FileText size={20} />
@@ -150,7 +150,7 @@ export function InvoicePreview({
             {onEdit && (
               <button
                 onClick={onEdit}
-                className="flex items-center gap-1 text-gray-300 hover:text-gray-100 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-700"
+                className="flex items-center gap-1 text-gray-300 hover:text-gray-100 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
                 title="Bewerken"
               >
                 <Edit size={20} />
@@ -160,7 +160,7 @@ export function InvoicePreview({
             {onDownload && (
               <button
                 onClick={onDownload}
-                className="flex items-center gap-1 text-gold-400 hover:text-gold-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-700"
+                className="flex items-center gap-1 text-gold-400 hover:text-gold-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
                 title="Download PDF"
               >
                 <Download size={20} />
@@ -170,7 +170,7 @@ export function InvoicePreview({
             {onSend && (
               <button
                 onClick={onSend}
-                className="flex items-center gap-1 text-gray-300 hover:text-gray-100 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-700"
+                className="flex items-center gap-1 text-gray-300 hover:text-gray-100 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
                 title="Versturen"
               >
                 <Send size={20} />
@@ -180,7 +180,7 @@ export function InvoicePreview({
             {onMarkAsPaid && invoice.status !== 'paid' && (
               <button
                 onClick={onMarkAsPaid}
-                className="flex items-center gap-1 text-green-400 hover:text-green-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-700"
+                className="flex items-center gap-1 text-green-400 hover:text-green-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
                 title="Markeer als betaald"
               >
                 <span className="text-sm font-medium">Betaald</span>
@@ -189,7 +189,7 @@ export function InvoicePreview({
             {onDelete && (
               <button
                 onClick={onDelete}
-                className="flex items-center gap-1 text-red-400 hover:text-red-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-700"
+                className="flex items-center gap-1 text-red-400 hover:text-red-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
                 title="Verwijderen"
               >
                 <Trash2 size={20} />
@@ -205,7 +205,7 @@ export function InvoicePreview({
         </div>
 
         <div className="p-6 space-y-6">
-          <div className="grid grid-cols-2 gap-6 pb-6 border-b border-dark-600">
+          <div className="grid grid-cols-2 gap-6 pb-6 border-b border-dark-700">
             <div>
               <h3 className="text-sm font-semibold text-gray-300 mb-2">Klant</h3>
               <p className="text-gray-100 font-medium">{tenant.name || tenant.contact_name}</p>
@@ -277,7 +277,7 @@ export function InvoicePreview({
                         if (line.includes(':') && !line.includes('(') && !line.startsWith('-')) {
                           return (
                             <tr key={lineIndex}>
-                              <td colSpan={3} className="px-4 py-2 font-semibold text-gray-100 bg-dark-700">
+                              <td colSpan={3} className="px-4 py-2 font-semibold text-gray-100 bg-dark-800">
                                 {line}
                               </td>
                             </tr>
@@ -299,7 +299,7 @@ export function InvoicePreview({
                         }
 
                         return (
-                          <tr key={`line-${lineIndex}`} className={lineIndex % 2 === 0 ? 'bg-dark-700' : 'bg-dark-750'}>
+                          <tr key={`line-${lineIndex}`} className={lineIndex % 2 === 0 ? 'bg-dark-800' : 'bg-dark-850'}>
                             <td className="px-4 py-3 text-left text-gray-100">{cleanLine}</td>
                             <td className="px-4 py-3 text-right text-gray-100">{amount ? `€ ${amount}` : ''}</td>
                             <td className="px-4 py-3 text-right text-gray-100">{invoice.vat_rate.toFixed(0)}%</td>
@@ -329,7 +329,7 @@ export function InvoicePreview({
                     }
 
                     return (
-                      <tr key={index} className={index % 2 === 0 ? 'bg-dark-700' : 'bg-dark-750'}>
+                      <tr key={index} className={index % 2 === 0 ? 'bg-dark-800' : 'bg-dark-850'}>
                         <td className="px-4 py-3 text-left text-gray-100">{displayName}</td>
                         <td className="px-4 py-3 text-right text-gray-100">€ {space.monthly_rent.toFixed(2)}</td>
                         <td className="px-4 py-3 text-right text-gray-100">{invoice.vat_rate.toFixed(0)}%</td>
@@ -341,7 +341,7 @@ export function InvoicePreview({
             )}
 
             {!loading && creditApplications.length > 0 && (
-              <div className="mt-6 p-4 bg-dark-700 border border-dark-600 rounded-lg">
+              <div className="mt-6 p-4 bg-dark-800 border border-dark-700 rounded-lg">
                 <div className="flex items-center gap-2 mb-3">
                   <Receipt size={20} className="text-green-400" />
                   <h4 className="font-semibold text-green-400">Toegepaste Credit Nota's</h4>
@@ -361,7 +361,7 @@ export function InvoicePreview({
               </div>
             )}
 
-            <div className="mt-6 pt-4 border-t-2 border-dark-600 space-y-2">
+            <div className="mt-6 pt-4 border-t-2 border-dark-700 space-y-2">
               <div className="flex justify-between text-gray-300">
                 <span>Subtotaal (excl. BTW):</span>
                 <span>€ {invoice.subtotal.toFixed(2)}</span>
@@ -370,7 +370,7 @@ export function InvoicePreview({
                 <span>BTW ({invoice.vat_rate.toFixed(0)}%):</span>
                 <span>€ {invoice.vat_amount.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between text-lg font-bold text-gray-100 pt-2 border-t border-dark-600">
+              <div className="flex justify-between text-lg font-bold text-gray-100 pt-2 border-t border-dark-700">
                 <span>Totaal te betalen:</span>
                 <span>€ {invoice.amount.toFixed(2)}</span>
               </div>
@@ -380,7 +380,7 @@ export function InvoicePreview({
                     <span>Toegepast Credit:</span>
                     <span>- € {invoice.applied_credit.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between text-xl font-bold text-gold-400 pt-2 border-t-2 border-dark-600">
+                  <div className="flex justify-between text-xl font-bold text-gold-400 pt-2 border-t-2 border-dark-700">
                     <span>Openstaand Bedrag:</span>
                     <span>€ {(invoice.amount - invoice.applied_credit).toFixed(2)}</span>
                   </div>

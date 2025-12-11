@@ -1755,7 +1755,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
       {selectedInvoice && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-          <div className="bg-dark-800 rounded-lg p-8 w-[672px] my-8 mx-4 border border-dark-600 shadow-xl">
+          <div className="bg-dark-900 rounded-lg p-6 w-full max-w-2xl my-8 mx-4 max-h-[90vh] overflow-y-auto">
             <div className="mb-6">
               <h3 className="text-2xl font-bold text-gray-100 mb-3">
                 Factuur {selectedInvoice.invoice_number}
@@ -1820,7 +1820,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                 <tbody>
                   {(selectedInvoice as any).line_items && (selectedInvoice as any).line_items.length > 0 ? (
                     (selectedInvoice as any).line_items.map((item: InvoiceLineItem, index: number) => (
-                      <tr key={item.id} className={index % 2 === 0 ? 'bg-dark-700' : 'bg-dark-750'}>
+                      <tr key={item.id} className={index % 2 === 0 ? 'bg-dark-800' : 'bg-dark-850'}>
                         <td className="px-4 py-2 text-gray-100">{item.description}</td>
                         <td className="text-right px-4 py-2 text-gray-100">€{item.amount.toFixed(2)}</td>
                         <td className="text-right px-4 py-2 text-gray-100">{selectedInvoice.vat_rate.toFixed(0)}%</td>
@@ -1835,7 +1835,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                   )}
                 </tbody>
               </table>
-              <div className="mt-4 bg-dark-700 border border-dark-600 rounded-lg p-4">
+              <div className="mt-4 bg-dark-800 border border-dark-700 rounded-lg p-4">
                 <div className="flex justify-between text-sm mb-2">
                   <span className="text-gray-300">Subtotaal (excl. BTW):</span>
                   <span className="font-medium text-gray-100">€{selectedInvoice.subtotal.toFixed(2)}</span>
@@ -1864,7 +1864,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             </div>
 
             {selectedInvoice.notes && (
-              <div className="mb-6 p-4 bg-dark-700 border border-dark-600 rounded-lg">
+              <div className="mb-6 p-4 bg-dark-800 border border-dark-700 rounded-lg">
                 <h4 className="text-sm font-semibold text-gray-300 mb-1">Notities</h4>
                 <p className="text-sm text-gray-200">{selectedInvoice.notes}</p>
               </div>
@@ -1890,7 +1890,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                         setSelectedInvoice(null);
                         startEditInvoice(selectedInvoice);
                       }}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-dark-700 text-gray-200 border border-dark-600 rounded-lg hover:bg-dark-600 transition-colors font-medium"
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
                     >
                       <Edit size={18} />
                       Bewerken
@@ -1905,7 +1905,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                       await sendInvoiceEmail(selectedInvoice.id);
                       setSelectedInvoice(null);
                     }}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-dark-700 text-gray-200 border border-dark-600 rounded-lg hover:bg-dark-600 transition-colors font-medium"
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors font-medium"
                   >
                     <Send size={18} />
                     Verzenden
@@ -2350,20 +2350,20 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
       </div>
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-dark-800 rounded-lg p-6 max-w-md w-full mx-4 border border-dark-600 shadow-xl">
+          <div className="bg-dark-900 rounded-lg p-6 max-w-md w-full mx-4">
             <h3 className="text-xl font-bold text-gray-100 mb-4">Factuur Wissen</h3>
             <p className="text-gray-300 mb-4">
               Weet je zeker dat je deze factuur wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.
             </p>
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-gray-200 mb-2">
                 Voer code in:
               </label>
               <input
                 type="password"
                 value={deletePassword}
                 onChange={(e) => setDeletePassword(e.target.value)}
-                className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-100 focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                className="w-full px-3 py-2 bg-dark-800 border border-dark-600 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-red-500"
                 placeholder="Code"
                 autoFocus
               />
