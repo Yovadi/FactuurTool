@@ -13,6 +13,7 @@ interface InvoiceData {
   tenant_city?: string;
   tenant_country?: string;
   invoice_month?: string;
+  contract_type?: string;
   notes?: string;
   spaces: Array<{
     space_name: string;
@@ -227,6 +228,17 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
     yPosition += 8;
   } else {
     yPosition += 3;
+  }
+
+  if (invoice.contract_type) {
+    pdf.setFontSize(9);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(80, 80, 80);
+    pdf.text('Contract type:', margin, yPosition);
+    pdf.setFont('helvetica', 'normal');
+    const contractTypeLabel = invoice.contract_type === 'flex' ? 'Flex contract' : invoice.contract_type === 'regular' ? 'Vast contract' : invoice.contract_type;
+    pdf.text(contractTypeLabel, margin + 30, yPosition);
+    yPosition += 8;
   }
 
   const tableTop = yPosition;

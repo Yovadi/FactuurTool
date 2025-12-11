@@ -48,6 +48,7 @@ interface InvoicePreviewProps {
     country?: string;
   };
   spaces: InvoiceSpace[];
+  contractType?: string;
   company?: {
     name: string;
     address: string;
@@ -73,6 +74,7 @@ export function InvoicePreview({
   invoice,
   tenant,
   spaces,
+  contractType,
   company,
   onClose,
   onDownload,
@@ -242,6 +244,14 @@ export function InvoicePreview({
                   <div>
                     <span className="text-gray-600">Factuurmaand: </span>
                     <span className="text-gray-900">{getMonthName(invoice.invoice_month)}</span>
+                  </div>
+                )}
+                {contractType && (
+                  <div>
+                    <span className="text-gray-600">Contract type: </span>
+                    <span className="text-gray-900">
+                      {contractType === 'flex' ? 'Flex contract' : contractType === 'regular' ? 'Vast contract' : contractType}
+                    </span>
                   </div>
                 )}
               </div>

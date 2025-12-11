@@ -1122,7 +1122,45 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
         console.log('Generated invoice number:', invoiceNumber);
 
-        let rentAmount = lease.lease_spaces.reduce((sum, ls) => sum + ls.monthly_rent, 0);
+        let rentAmount = 0;
+        const lineItemsToInsert = [];
+
+        if (lease.lease_type === 'flex') {
+          if (lease.flex_pricing_model === 'monthly') {
+            rentAmount = lease.flex_monthly_rate || 0;
+            lineItemsToInsert.push({
+              invoice_id: '',
+              description: 'Flexplek - Maandelijks tarief',
+              quantity: 1,
+              unit_price: rentAmount,
+              amount: rentAmount
+            });
+          } else if (lease.flex_pricing_model === 'daily') {
+            const [year, month] = nextMonth.split('-').map(Number);
+            const daysInMonth = new Date(year, month, 0).getDate();
+            const workingDays = Math.round(daysInMonth * (5/7));
+            rentAmount = (lease.flex_daily_rate || 0) * workingDays;
+            lineItemsToInsert.push({
+              invoice_id: '',
+              description: `Flexplek - Dagelijks tarief (${workingDays} werkdagen)`,
+              quantity: workingDays,
+              unit_price: lease.flex_daily_rate || 0,
+              amount: rentAmount
+            });
+          } else if (lease.flex_pricing_model === 'credits') {
+            rentAmount = (lease.flex_credits_per_month || 0) * (lease.flex_credit_rate || 0);
+            lineItemsToInsert.push({
+              invoice_id: '',
+              description: `Flexplek - Credits (${lease.flex_credits_per_month} credits)`,
+              quantity: lease.flex_credits_per_month || 0,
+              unit_price: lease.flex_credit_rate || 0,
+              amount: rentAmount
+            });
+          }
+        } else {
+          rentAmount = lease.lease_spaces.reduce((sum, ls) => sum + ls.monthly_rent, 0);
+        }
+
         const baseAmount = Math.round((rentAmount + lease.security_deposit) * 100) / 100;
 
         const { subtotal, vatAmount, total } = calculateVAT(
@@ -1157,27 +1195,31 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
           continue;
         }
 
-        const lineItemsToInsert = [];
-
-        for (const ls of lease.lease_spaces) {
+        if (lease.lease_type !== 'flex') {
+          for (const ls of lease.lease_spaces) {
             const spaceName = ls.space.space_number;
-          const spaceType = ls.space.space_type;
-          const squareFootage = ls.space.square_footage;
+            const spaceType = ls.space.space_type;
+            const squareFootage = ls.space.square_footage;
 
-          let displayName = spaceName;
-          if (spaceType === 'bedrijfsruimte') {
-            const numOnly = spaceName.replace(/^(Bedrijfsruimte|Hal)\s*/i, '').trim();
-            if (/^\d+/.test(numOnly)) {
-              displayName = `Hal ${numOnly}`;
+            let displayName = spaceName;
+            if (spaceType === 'bedrijfsruimte') {
+              const numOnly = spaceName.replace(/^(Bedrijfsruimte|Hal)\s*/i, '').trim();
+              if (/^\d+/.test(numOnly)) {
+                displayName = `Hal ${numOnly}`;
+              }
             }
-          }
 
-          lineItemsToInsert.push({
-            invoice_id: newInvoice.id,
-            description: displayName,
-            quantity: squareFootage || 1,
-            unit_price: ls.monthly_rent,
-            amount: ls.monthly_rent
+            lineItemsToInsert.push({
+              invoice_id: newInvoice.id,
+              description: displayName,
+              quantity: squareFootage || 1,
+              unit_price: ls.monthly_rent,
+              amount: ls.monthly_rent
+            });
+          }
+        } else {
+          lineItemsToInsert.forEach(item => {
+            item.invoice_id = newInvoice.id;
           });
         }
 
@@ -1323,6 +1365,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
       tenant_phone: tenant?.phone || undefined,
       tenant_billing_address: tenant?.billing_address || undefined,
       invoice_month: previewInvoice.invoice.invoice_month || undefined,
+      contract_type: previewInvoice.invoice.lease?.lease_type || undefined,
       notes: previewInvoice.invoice.notes || undefined,
       spaces: previewInvoice.spaces,
       security_deposit: 0,
@@ -1830,7 +1873,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             <div className="flex gap-3 justify-center">
               <button
                 onClick={async () => {
-                  setPreviewInvoice(selectedInvoice);
+                  const spaces = convertLineItemsToSpaces((selectedInvoice as any).line_items || []);
+                  setPreviewInvoice({ invoice: selectedInvoice, spaces });
                   await handlePreviewDownload();
                 }}
                 className="group relative p-3 bg-gold-500 text-white rounded-lg hover:bg-gold-600 transition-colors"
@@ -2366,6 +2410,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             email: ''
           }}
           spaces={previewInvoice.spaces}
+          contractType={previewInvoice.invoice.lease?.lease_type}
           company={companySettings ? {
             name: companySettings.company_name,
             address: companySettings.address,
