@@ -32,11 +32,14 @@ function convertLineItemsToSpaces(items: InvoiceLineItem[]) {
       spaceType = 'buitenterrein';
     } else if (item.description.toLowerCase().includes('vergader') || item.description.toLowerCase().includes('meeting')) {
       isMeetingRoom = true;
+    } else if (item.description.toLowerCase().includes('flexplek') || item.description.toLowerCase().includes('flex')) {
+      spaceType = 'flex';
     }
 
     let squareFootage: number | undefined = undefined;
     let hours: number | undefined = undefined;
     let hourlyRate: number | undefined = undefined;
+    let pricePerSqm: number | undefined = undefined;
 
     if (isMeetingRoom) {
       if (item.quantity !== null && item.quantity !== undefined) {
@@ -46,11 +49,12 @@ function convertLineItemsToSpaces(items: InvoiceLineItem[]) {
           hourlyRate = item.unit_price;
         }
       }
-    } else if (spaceType !== 'voorschot' && spaceType !== 'diversen') {
+    } else if (spaceType !== 'voorschot') {
       if (item.quantity !== null && item.quantity !== undefined) {
         const parsed = typeof item.quantity === 'string' ? parseFloat(item.quantity) : item.quantity;
         if (!isNaN(parsed) && parsed > 0) {
           squareFootage = parsed;
+          pricePerSqm = item.unit_price;
         }
       }
     }
@@ -60,7 +64,7 @@ function convertLineItemsToSpaces(items: InvoiceLineItem[]) {
       monthly_rent: item.amount,
       space_type: spaceType as any,
       square_footage: squareFootage,
-      price_per_sqm: isMeetingRoom ? undefined : item.unit_price,
+      price_per_sqm: pricePerSqm,
       hours: hours,
       hourly_rate: hourlyRate
     };

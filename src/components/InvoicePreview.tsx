@@ -135,8 +135,8 @@ export function InvoicePreview({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-      <div className="bg-dark-900 rounded-lg my-8 relative w-full max-w-5xl mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-dark-900 rounded-t-lg border-b border-dark-700 px-6 py-4 flex items-center justify-between">
+      <div className="bg-dark-900 rounded-lg my-8 relative w-full max-w-5xl mx-4 max-h-[90vh] overflow-y-auto border-2 border-amber-500">
+        <div className="sticky top-0 bg-dark-900 rounded-t-lg border-b border-amber-500 px-6 py-4 flex items-center justify-between">
           <h2 className="text-2xl font-bold text-gray-100">Factuur {invoiceNumberDisplay}</h2>
           <div className="flex items-center gap-2">
             {onCreateCreditNote && (
@@ -328,18 +328,25 @@ export function InvoicePreview({
                     let quantity = '';
                     let rate = '';
 
-                    if (space.square_footage && space.space_type !== 'voorschot' && space.space_type !== 'diversen') {
-                      const sqm = typeof space.square_footage === 'string' ? parseFloat(space.square_footage as string) : space.square_footage;
-                      if (!isNaN(sqm) && sqm > 0) {
-                        quantity = `${sqm.toFixed(0)} m²`;
-                        if (space.price_per_sqm && space.price_per_sqm > 0) {
-                          rate = `€ ${space.price_per_sqm.toFixed(2)} / m²`;
-                        }
-                      }
-                    } else if (space.hours && space.hours > 0) {
+                    if (space.hours && space.hours > 0) {
                       quantity = `${space.hours.toFixed(1)} uur`;
                       if (space.hourly_rate && space.hourly_rate > 0) {
                         rate = `€ ${space.hourly_rate.toFixed(2)} / uur`;
+                      }
+                    } else if (space.square_footage && space.space_type !== 'voorschot') {
+                      const sqm = typeof space.square_footage === 'string' ? parseFloat(space.square_footage as string) : space.square_footage;
+                      if (!isNaN(sqm) && sqm > 0) {
+                        if (space.space_type === 'flex') {
+                          quantity = `${sqm.toFixed(0)} dagen`;
+                          if (space.price_per_sqm && space.price_per_sqm > 0) {
+                            rate = `€ ${space.price_per_sqm.toFixed(2)} / dag`;
+                          }
+                        } else {
+                          quantity = `${sqm.toFixed(0)} m²`;
+                          if (space.price_per_sqm && space.price_per_sqm > 0) {
+                            rate = `€ ${space.price_per_sqm.toFixed(2)} / m²`;
+                          }
+                        }
                       }
                     }
 
