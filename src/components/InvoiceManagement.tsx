@@ -1349,7 +1349,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
     }
 
     console.log('Loaded line items:', items);
-    setSelectedInvoice({ ...invoice, line_items: items } as any);
+    const spaces = convertLineItemsToSpaces(items || []);
+    setPreviewInvoice({ invoice: { ...invoice, line_items: items } as any, spaces });
   };
 
   const handlePreviewDownload = async () => {
