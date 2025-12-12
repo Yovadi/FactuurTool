@@ -61,7 +61,6 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
-  const [selectedInvoice, setSelectedInvoice] = useState<InvoiceWithDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [companySettings, setCompanySettings] = useState<any>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
@@ -829,7 +828,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
       .select('*')
       .eq('invoice_id', invoice.id);
 
-    setSelectedInvoice({ ...invoice, line_items: items } as any);
+    const spaces = convertLineItemsToSpaces(items || []);
+    setPreviewInvoice({ invoice: { ...invoice, line_items: items } as any, spaces });
   };
 
   const resetForm = () => {
@@ -1749,197 +1749,6 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {selectedInvoice && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-          <div className="bg-dark-900 rounded-lg p-6 w-full max-w-2xl my-8 mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="mb-6">
-              <h3 className="text-2xl font-bold text-gray-100 mb-3">
-                Factuur {selectedInvoice.invoice_number}
-              </h3>
-              <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(selectedInvoice.status)}`}>
-                {getStatusLabel(selectedInvoice.status)}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-6 mb-6">
-              <div>
-                <h4 className="text-sm font-semibold text-gray-300 mb-2">Huurder</h4>
-                {(() => {
-                  const tenant = getInvoiceTenant(selectedInvoice);
-                  return tenant ? (
-                    <>
-                      <p className="font-medium text-gray-100">{tenant.company_name}</p>
-                      <p className="text-sm text-gray-300">{tenant.email}</p>
-                    </>
-                  ) : (
-                    <p className="text-sm text-gray-400">Geen huurder gekoppeld</p>
-                  );
-                })()}
-              </div>
-              <div>
-                <h4 className="text-sm font-semibold text-gray-300 mb-2">
-                  {selectedInvoice.lease ? 'Kantoorruimtes' : 'Type'}
-                </h4>
-                {selectedInvoice.lease ? (
-                  selectedInvoice.lease.lease_spaces.map((ls) => (
-                    <p key={ls.id} className="text-sm text-gray-100">{ls.space.space_number}</p>
-                  ))
-                ) : (
-                  <p className="text-sm text-gray-300">
-                    {selectedInvoice.notes?.includes('Vergaderruimte') ? 'Vergaderruimte boekingen' : 'Handmatig samengesteld'}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-6 mb-6">
-              <div>
-                <h4 className="text-sm font-semibold text-gray-300 mb-1">Factuurdatum</h4>
-                <p className="text-gray-100">{new Date(selectedInvoice.invoice_date).toLocaleDateString()}</p>
-              </div>
-              <div>
-                <h4 className="text-sm font-semibold text-gray-300 mb-1">Vervaldatum</h4>
-                <p className="text-gray-100">{new Date(selectedInvoice.due_date).toLocaleDateString()}</p>
-              </div>
-            </div>
-
-            <div className="mb-6">
-              <h4 className="text-sm font-semibold text-gray-300 mb-3">Factuurregels</h4>
-              <table className="w-full border border-dark-600 rounded-lg overflow-hidden">
-                <thead className="bg-gold-500">
-                  <tr>
-                    <th className="text-left px-4 py-2 text-sm font-medium text-white">OMSCHRIJVING</th>
-                    <th className="text-right px-4 py-2 text-sm font-medium text-white">BEDRAG</th>
-                    <th className="text-right px-4 py-2 text-sm font-medium text-white">BTW</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(selectedInvoice as any).line_items && (selectedInvoice as any).line_items.length > 0 ? (
-                    (selectedInvoice as any).line_items.map((item: InvoiceLineItem, index: number) => (
-                      <tr key={item.id} className={index % 2 === 0 ? 'bg-dark-800' : 'bg-dark-850'}>
-                        <td className="px-4 py-2 text-gray-100">{item.description}</td>
-                        <td className="text-right px-4 py-2 text-gray-100">€{item.amount.toFixed(2)}</td>
-                        <td className="text-right px-4 py-2 text-gray-100">{selectedInvoice.vat_rate.toFixed(0)}%</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={3} className="px-4 py-4 text-center text-gray-400">
-                        Geen factuurregels beschikbaar
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-              <div className="mt-4 bg-dark-800 border border-dark-700 rounded-lg p-4">
-                <div className="flex justify-between text-sm mb-2">
-                  <span className="text-gray-300">Subtotaal (excl. BTW):</span>
-                  <span className="font-medium text-gray-100">€{selectedInvoice.subtotal.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-sm mb-3">
-                  <span className="text-gray-300">BTW ({selectedInvoice.vat_rate.toFixed(0)}%):</span>
-                  <span className="font-medium text-gray-100">€{selectedInvoice.vat_amount.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between pt-3 border-t-2 border-gold-500">
-                  <span className="font-bold text-lg text-gray-100">Totaal te betalen:</span>
-                  <span className="font-bold text-lg text-gray-100">€{selectedInvoice.amount.toFixed(2)}</span>
-                </div>
-                {(selectedInvoice as any).applied_credit > 0 && (
-                  <>
-                    <div className="flex justify-between text-green-400 font-medium pt-2 mt-2 border-t border-dark-600">
-                      <span>Toegepast Credit:</span>
-                      <span>- €{(selectedInvoice as any).applied_credit.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between text-xl font-bold text-gold-400 pt-2 mt-2 border-t-2 border-gold-500">
-                      <span>Openstaand Bedrag:</span>
-                      <span>€{(selectedInvoice.amount - (selectedInvoice as any).applied_credit).toFixed(2)}</span>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {selectedInvoice.notes && (
-              <div className="mb-6 p-4 bg-dark-800 border border-dark-700 rounded-lg">
-                <h4 className="text-sm font-semibold text-gray-300 mb-1">Notities</h4>
-                <p className="text-sm text-gray-200">{selectedInvoice.notes}</p>
-              </div>
-            )}
-
-            <div className="flex flex-col gap-3">
-              <div className="flex gap-2">
-                <button
-                  onClick={async () => {
-                    const spaces = convertLineItemsToSpaces((selectedInvoice as any).line_items || []);
-                    setPreviewInvoice({ invoice: selectedInvoice, spaces });
-                    await handlePreviewDownload();
-                  }}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-gold-500 text-white rounded-lg hover:bg-gold-600 transition-colors font-medium"
-                >
-                  <Download size={18} />
-                  Download
-                </button>
-                {selectedInvoice.status !== 'paid' && (
-                  <>
-                    <button
-                      onClick={() => {
-                        setSelectedInvoice(null);
-                        startEditInvoice(selectedInvoice);
-                      }}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors font-medium"
-                    >
-                      <Edit size={18} />
-                      Bewerken
-                    </button>
-                  </>
-                )}
-              </div>
-              {selectedInvoice.status !== 'paid' && (
-                <div className="flex gap-2">
-                  <button
-                    onClick={async () => {
-                      await sendInvoiceEmail(selectedInvoice.id);
-                      setSelectedInvoice(null);
-                    }}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-700 text-white rounded-lg hover:bg-amber-800 transition-colors font-medium"
-                  >
-                    <Send size={18} />
-                    Verzenden
-                  </button>
-                  <button
-                    onClick={async () => {
-                      await markAsPaid(selectedInvoice.id);
-                      setSelectedInvoice(null);
-                    }}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-700 text-white rounded-lg hover:bg-emerald-800 transition-colors font-medium"
-                  >
-                    <Check size={18} />
-                    Betaald
-                  </button>
-                  <button
-                    onClick={() => {
-                      setSelectedInvoice(null);
-                      setShowDeleteConfirm(selectedInvoice.id);
-                    }}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-700 text-white rounded-lg hover:bg-red-800 transition-colors font-medium"
-                  >
-                    <Trash2 size={18} />
-                    Verwijderen
-                  </button>
-                </div>
-              )}
-              <button
-                onClick={() => setSelectedInvoice(null)}
-                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-dark-700 text-gray-300 border border-dark-600 rounded-lg hover:bg-dark-600 transition-colors font-medium"
-              >
-                <X size={18} />
-                Sluiten
-              </button>
-            </div>
           </div>
         </div>
       )}
