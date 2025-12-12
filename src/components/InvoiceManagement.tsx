@@ -1890,7 +1890,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                         setSelectedInvoice(null);
                         startEditInvoice(selectedInvoice);
                       }}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors font-medium"
                     >
                       <Edit size={18} />
                       Bewerken
@@ -1905,7 +1905,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                       await sendInvoiceEmail(selectedInvoice.id);
                       setSelectedInvoice(null);
                     }}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors font-medium"
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-700 text-white rounded-lg hover:bg-amber-800 transition-colors font-medium"
                   >
                     <Send size={18} />
                     Verzenden
@@ -1915,7 +1915,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                       await markAsPaid(selectedInvoice.id);
                       setSelectedInvoice(null);
                     }}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-700 text-white rounded-lg hover:bg-emerald-800 transition-colors font-medium"
                   >
                     <Check size={18} />
                     Betaald
@@ -1925,7 +1925,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                       setSelectedInvoice(null);
                       setShowDeleteConfirm(selectedInvoice.id);
                     }}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-700 text-white rounded-lg hover:bg-red-800 transition-colors font-medium"
                   >
                     <Trash2 size={18} />
                     Verwijderen
@@ -2380,7 +2380,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               </button>
               <button
                 onClick={() => deleteInvoice(showDeleteConfirm)}
-                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+                className="flex-1 px-4 py-2.5 bg-red-700 text-white rounded-lg hover:bg-red-800 transition-colors font-medium"
               >
                 Wissen
               </button>
