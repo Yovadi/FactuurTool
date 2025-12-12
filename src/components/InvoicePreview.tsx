@@ -8,6 +8,8 @@ interface InvoiceSpace {
   space_type?: string;
   square_footage?: number;
   price_per_sqm?: number;
+  hourly_rate?: number;
+  hours?: number;
 }
 
 interface CreditApplication {
@@ -314,6 +316,8 @@ export function InvoicePreview({
                 <thead>
                   <tr className="bg-amber-500 text-white">
                     <th className="px-4 py-2 text-left font-semibold">Omschrijving</th>
+                    <th className="px-4 py-2 text-center font-semibold">Hoeveelheid</th>
+                    <th className="px-4 py-2 text-right font-semibold">Tarief</th>
                     <th className="px-4 py-2 text-right font-semibold">Bedrag</th>
                     <th className="px-4 py-2 text-right font-semibold">BTW</th>
                   </tr>
@@ -321,16 +325,29 @@ export function InvoicePreview({
                 <tbody>
                   {spaces.map((space, index) => {
                     let displayName = space.space_name;
+                    let quantity = '';
+                    let rate = '';
+
                     if (space.square_footage && space.space_type !== 'voorschot' && space.space_type !== 'diversen') {
                       const sqm = typeof space.square_footage === 'string' ? parseFloat(space.square_footage as string) : space.square_footage;
                       if (!isNaN(sqm) && sqm > 0) {
-                        displayName = `${space.space_name} - ${sqm.toFixed(0)} m²`;
+                        quantity = `${sqm.toFixed(0)} m²`;
+                        if (space.price_per_sqm && space.price_per_sqm > 0) {
+                          rate = `€ ${space.price_per_sqm.toFixed(2)} / m²`;
+                        }
+                      }
+                    } else if (space.hours && space.hours > 0) {
+                      quantity = `${space.hours.toFixed(1)} uur`;
+                      if (space.hourly_rate && space.hourly_rate > 0) {
+                        rate = `€ ${space.hourly_rate.toFixed(2)} / uur`;
                       }
                     }
 
                     return (
                       <tr key={index} className={index % 2 === 0 ? 'bg-dark-800' : 'bg-dark-850'}>
                         <td className="px-4 py-3 text-left text-gray-100">{displayName}</td>
+                        <td className="px-4 py-3 text-center text-gray-100">{quantity}</td>
+                        <td className="px-4 py-3 text-right text-gray-100">{rate}</td>
                         <td className="px-4 py-3 text-right text-gray-100">€ {space.monthly_rent.toFixed(2)}</td>
                         <td className="px-4 py-3 text-right text-gray-100">{invoice.vat_rate.toFixed(0)}%</td>
                       </tr>
