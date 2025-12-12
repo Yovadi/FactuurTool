@@ -115,11 +115,14 @@ const generateMonthlyInvoices = async (job: ScheduledJob) => {
           }
         }
 
+        const sqm = ls.space.square_footage || 1;
+        const pricePerSqm = sqm > 0 ? Math.round((ls.monthly_rent / sqm) * 100) / 100 : ls.monthly_rent;
+
         lineItemsToInsert.push({
           invoice_id: newInvoice.id,
           description: displayName,
-          quantity: ls.space.square_footage || 1,
-          unit_price: ls.monthly_rent,
+          quantity: sqm,
+          unit_price: pricePerSqm,
           amount: ls.monthly_rent
         });
       }
