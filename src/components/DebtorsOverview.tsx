@@ -782,7 +782,7 @@ export function DebtorsOverview() {
 
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 border-2 border-yellow-500">
+          <div className="bg-dark-900 rounded-lg p-6 max-w-md w-full mx-4 border-2 border-amber-500">
             <h3 className="text-xl font-bold text-gray-100 mb-4">Factuur Wissen</h3>
             <p className="text-gray-300 mb-4">
               Weet je zeker dat je deze betaalde factuur wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.
@@ -796,7 +796,7 @@ export function DebtorsOverview() {
                 value={deleteCode}
                 onChange={(e) => setDeleteCode(e.target.value)}
                 placeholder="Voer verwijdercode in"
-                className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                className="w-full px-3 py-2 bg-dark-800 border border-amber-500 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
                 onKeyPress={(e) => {
                   if (e.key === 'Enter') {
                     confirmDeleteInvoice();
