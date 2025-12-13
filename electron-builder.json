@@ -11,8 +11,7 @@
   ],
   "win": {
     "target": "nsis",
-    "artifactName": "${productName}-Setup-${version}.${ext}",
-    "publisherName": "HAL5 Overloon"
+    "artifactName": "${productName}-Setup-${version}.${ext}"
   },
   "asar": false,
   "extraMetadata": {
