@@ -559,7 +559,7 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
 
           return {
             description: displayName,
-            unit_price: ls.monthly_rent.toFixed(2),
+            unit_price: ls.price_per_sqm.toFixed(2),
             quantity: squareFootage || 1,
             space_type: spaceType
           };
@@ -1233,7 +1233,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               invoice_id: newInvoice.id,
               description: displayName,
               quantity: squareFootage || 1,
-              unit_price: ls.monthly_rent,
+              unit_price: ls.price_per_sqm,
               amount: ls.monthly_rent
             });
           }
