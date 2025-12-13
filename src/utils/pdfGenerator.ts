@@ -347,7 +347,14 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
         } else {
           quantity = `${sqm.toFixed(0)} m²`;
           if (space.price_per_sqm && space.price_per_sqm > 0) {
-            rate = `€ ${space.price_per_sqm.toFixed(2)} / m²`;
+            const isBedrijfsruimte = space.space_type === 'bedrijfsruimte' ||
+                                      displayName.toLowerCase().includes('hal ') ||
+                                      displayName.toLowerCase().includes('bedrijfsruimte');
+            if (isBedrijfsruimte) {
+              rate = `€ ${(space.price_per_sqm * 12).toFixed(2)} / m² / jaar`;
+            } else {
+              rate = `€ ${space.price_per_sqm.toFixed(2)} / m²`;
+            }
           }
         }
       }
