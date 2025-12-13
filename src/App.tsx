@@ -128,11 +128,10 @@ function App() {
 
   // On Electron/Development, show full admin interface
   return (
-    <div className="min-h-screen bg-dark-950">
-      <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex gap-6">
-          <aside className="w-64 flex-shrink-0">
-            <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2">
+    <div className="h-screen bg-dark-950 flex flex-col overflow-hidden">
+      <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 flex gap-6 overflow-hidden">
+        <aside className="w-64 flex-shrink-0 overflow-y-auto">
+          <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2 sticky top-0">
               <div className="px-4 py-3 mb-2">
                 <h2 className="text-xl font-bold text-gold-500">HAL5 Facturatie</h2>
                 <p className="text-sm text-gray-400 mt-1">Beheer systeem</p>
@@ -217,8 +216,8 @@ function App() {
             </div>
           </aside>
 
-          <main className="flex-1 min-w-0">
-            <div className="bg-dark-950">
+          <main className="flex-1 min-w-0 overflow-y-auto">
+            <div className="bg-dark-950 pb-6">
               {activeTab === 'dashboard' && <Dashboard />}
               {activeTab === 'spaces-spaces' && <SpaceManagement />}
               {activeTab === 'spaces-rates' && <SpaceTypeRates />}
@@ -233,7 +232,6 @@ function App() {
               {activeTab === 'settings' && <CompanySettings />}
             </div>
           </main>
-        </div>
       </div>
     </div>
   );
