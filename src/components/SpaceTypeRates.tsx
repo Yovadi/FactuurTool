@@ -280,7 +280,7 @@ export function SpaceTypeRates() {
 
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-dark-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-dark-900 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-dark-700">
             <div className="flex justify-between items-center px-6 py-4 border-b border-dark-700">
               <h3 className="text-xl font-bold text-gray-100">
                 {editingRate ? 'Tarief Bewerken' : 'Nieuw Tarief'}

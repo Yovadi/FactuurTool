@@ -334,7 +334,7 @@ export function TenantManagement() {
 
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-dark-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-dark-900 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-dark-700">
             <h3 className="text-xl font-bold text-gray-100 mb-4">
               {activeTab === 'external'
                 ? (editingCustomer ? 'Externe Huurder Bewerken' : 'Nieuwe Externe Huurder')

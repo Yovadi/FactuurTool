@@ -234,7 +234,7 @@ export function ExternalCustomers() {
 
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-dark-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-dark-900 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-dark-700">
             <h3 className="text-xl font-bold text-gray-100 mb-4">
               {editingCustomer ? 'Klant Bewerken' : 'Nieuwe Klant'}
             </h3>
@@ -475,7 +475,7 @@ export function ExternalCustomers() {
       {/* Delete Warning Modal */}
       {showDeleteWarning && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-dark-800 rounded-lg shadow-xl max-w-md w-full border border-yellow-900">
+          <div className="bg-dark-900 rounded-lg shadow-xl max-w-md w-full border border-dark-700">
             <div className="p-6">
               <div className="flex items-start gap-4">
                 <div className="flex-shrink-0">

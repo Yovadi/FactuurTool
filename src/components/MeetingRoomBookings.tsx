@@ -731,7 +731,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
 
       {!isProduction && showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-          <div className="bg-dark-900 rounded-lg p-6 w-full max-w-2xl my-8 mx-4">
+          <div className="bg-dark-900 rounded-lg p-6 w-full max-w-2xl my-8 mx-4 border border-dark-700">
             <h3 className="text-xl font-bold text-gray-100 mb-4">Nieuwe Boeking</h3>
 
             <div className="flex gap-2 mb-4">

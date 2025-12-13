@@ -1479,10 +1479,19 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-          <div className="bg-gray-800 rounded-lg p-6 w-full max-w-2xl my-8 mx-4 border-2 border-yellow-500">
-            <h3 className="text-xl font-bold text-gray-100 mb-4">
-              {editingInvoiceId ? 'Factuur Bewerken' : 'Nieuwe Factuur Aanmaken'}
-            </h3>
+          <div className="bg-dark-900 rounded-lg w-full max-w-2xl my-8 mx-4 border border-dark-700">
+            <div className="sticky top-0 bg-dark-800 rounded-t-lg border-b border-dark-700 px-6 py-4 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-gray-100">
+                {editingInvoiceId ? 'Factuur Bewerken' : 'Nieuwe Factuur Aanmaken'}
+              </h3>
+              <button
+                onClick={resetForm}
+                className="text-gray-400 hover:text-gray-200 transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-6">
 
             {!editingInvoiceId && (
               <div className="flex gap-2 mb-4">
@@ -1770,6 +1779,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                 </button>
               </div>
             </form>
+            </div>
           </div>
         </div>
       )}
