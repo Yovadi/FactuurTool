@@ -665,8 +665,8 @@ export function DebtorsOverview() {
 
       {selectedInvoice && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-dark-900 rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto border-2 border-gold-500">
-            <div className="sticky top-0 bg-dark-800 px-6 py-4 border-b border-gold-500 flex justify-between items-center">
+          <div className="bg-dark-900 rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto border border-dark-700">
+            <div className="sticky top-0 bg-dark-800 px-6 py-4 border-b border-dark-700 flex justify-between items-center">
               <h3 className="text-xl font-bold text-gray-100">
                 Factuur {selectedInvoice.invoice_number.replace(/^INV-/, '')}
               </h3>
@@ -782,7 +782,7 @@ export function DebtorsOverview() {
 
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-dark-900 rounded-lg p-6 max-w-md w-full mx-4 border-2 border-amber-500">
+          <div className="bg-dark-900 rounded-lg p-6 max-w-md w-full mx-4 border border-dark-700">
             <h3 className="text-xl font-bold text-gray-100 mb-4">Factuur Wissen</h3>
             <p className="text-gray-300 mb-4">
               Weet je zeker dat je deze betaalde factuur wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.

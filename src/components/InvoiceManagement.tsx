@@ -2210,7 +2210,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
       </div>
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-dark-900 rounded-lg p-6 max-w-md w-full mx-4 border-2 border-amber-500">
+          <div className="bg-dark-900 rounded-lg p-6 max-w-md w-full mx-4 border border-dark-700">
             <h3 className="text-xl font-bold text-gray-100 mb-4">Factuur Wissen</h3>
             <p className="text-gray-300 mb-4">
               Weet je zeker dat je deze factuur wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.

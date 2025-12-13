@@ -1517,7 +1517,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
 
       {showDeleteConfirm && selectedBooking && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-dark-900 rounded-lg p-6 max-w-md w-full border-2 border-amber-500">
+          <div className="bg-dark-900 rounded-lg p-6 max-w-md w-full border border-dark-700">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold text-gray-100">Boeking Beheren</h3>
               <button
