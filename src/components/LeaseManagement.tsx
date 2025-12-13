@@ -153,7 +153,8 @@ export function LeaseManagement() {
           let monthlyRent = 0;
           if (officeSpace && effectivePrice) {
             const yearlyRent = officeSpace.square_footage * parseFloat(effectivePrice);
-            monthlyRent = officeSpace.space_type === 'bedrijfsruimte' ? yearlyRent / 12 : yearlyRent;
+            const isAnnualRate = officeSpace.space_type === 'bedrijfsruimte' || officeSpace.space_type === 'buitenterrein';
+            monthlyRent = isAnnualRate ? yearlyRent / 12 : yearlyRent;
           }
           return {
             lease_id: editingLease.id,
@@ -203,7 +204,8 @@ export function LeaseManagement() {
           let monthlyRent = 0;
           if (officeSpace && effectivePrice) {
             const yearlyRent = officeSpace.square_footage * parseFloat(effectivePrice);
-            monthlyRent = officeSpace.space_type === 'bedrijfsruimte' ? yearlyRent / 12 : yearlyRent;
+            const isAnnualRate = officeSpace.space_type === 'bedrijfsruimte' || officeSpace.space_type === 'buitenterrein';
+            monthlyRent = isAnnualRate ? yearlyRent / 12 : yearlyRent;
           }
           return {
             lease_id: newLease.id,
