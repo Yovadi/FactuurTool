@@ -12,8 +12,9 @@ export function SpacesTabs() {
         <h2 className="text-2xl font-bold text-gray-100 mb-4">Kantoor Beheer</h2>
       </div>
 
-      <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2 mb-6">
-        <div className="flex gap-2">
+      <div className="sticky top-0 z-10 bg-dark-950 pb-2 mb-4">
+        <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2">
+          <div className="flex gap-2">
           <button
             onClick={() => setActiveTab('spaces')}
             className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
@@ -36,6 +37,7 @@ export function SpacesTabs() {
             <Calculator size={20} />
             Tarieven
           </button>
+        </div>
         </div>
       </div>
 
