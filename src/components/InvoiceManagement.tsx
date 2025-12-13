@@ -1774,28 +1774,6 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
         </div>
       )}
 
-      {selectedInvoices.size > 0 && (
-        <div className="mb-6 flex gap-2">
-          <div className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg">
-            <CheckSquare size={18} />
-            {selectedInvoices.size} Geselecteerd
-          </div>
-          <button
-            onClick={() => handleBatchStatusChange('sent')}
-            className="flex items-center gap-2 bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 transition-colors"
-          >
-            <Send size={18} />
-            Markeer Verzonden
-          </button>
-          <button
-            onClick={handleBatchDelete}
-            className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
-          >
-            <Trash2 size={18} />
-            Verwijder
-          </button>
-        </div>
-      )}
 
       <div className="space-y-8">
         {(() => {
@@ -1862,22 +1840,48 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                 return new Date(b.invoice_date).getTime() - new Date(a.invoice_date).getTime();
               });
 
-          const renderInvoiceTable = (invoices: typeof draftLeaseInvoices, title: string, borderColor: string, buttonConfig?: { label: string; onClick: () => void; color: string; disabled?: boolean }) => (
+          const renderInvoiceTable = (invoices: typeof draftLeaseInvoices, title: string, borderColor: string, buttonConfig?: { label: string; onClick: () => void; color: string; disabled?: boolean }) => {
+            const selectedInThisTable = invoices.filter(inv => selectedInvoices.has(inv.id)).length;
+            return (
             <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
               <div className="flex items-center justify-between px-4 py-3 bg-dark-800 border-b" style={{ borderBottomColor: borderColor }}>
                 <h2 className="text-lg font-bold text-gray-100">
                   {title}
                 </h2>
-                {buttonConfig && (
-                  <button
-                    onClick={buttonConfig.onClick}
-                    disabled={buttonConfig.disabled}
-                    className={`flex items-center gap-2 ${buttonConfig.color} text-white px-4 py-2 rounded-lg hover:opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
-                  >
-                    <Calendar size={18} />
-                    {buttonConfig.label}
-                  </button>
-                )}
+                <div className="flex items-center gap-2">
+                  {selectedInThisTable > 0 && (
+                    <>
+                      <div className="flex items-center gap-2 bg-purple-600 text-white px-3 py-1.5 rounded-lg text-sm">
+                        <CheckSquare size={16} />
+                        {selectedInThisTable} Geselecteerd
+                      </div>
+                      <button
+                        onClick={() => handleBatchStatusChange('sent')}
+                        className="flex items-center gap-2 bg-amber-600 text-white px-3 py-1.5 rounded-lg hover:bg-amber-700 transition-colors text-sm"
+                      >
+                        <Send size={16} />
+                        Markeer Verzonden
+                      </button>
+                      <button
+                        onClick={handleBatchDelete}
+                        className="flex items-center gap-2 bg-red-600 text-white px-3 py-1.5 rounded-lg hover:bg-red-700 transition-colors text-sm"
+                      >
+                        <Trash2 size={16} />
+                        Verwijder
+                      </button>
+                    </>
+                  )}
+                  {buttonConfig && (
+                    <button
+                      onClick={buttonConfig.onClick}
+                      disabled={buttonConfig.disabled}
+                      className={`flex items-center gap-2 ${buttonConfig.color} text-white px-4 py-2 rounded-lg hover:opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+                    >
+                      <Calendar size={18} />
+                      {buttonConfig.label}
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full table-fixed min-w-[1000px]">
@@ -2003,7 +2007,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                 </table>
               </div>
             </div>
-          );
+          ); };
 
           return (
             <div>
@@ -2050,9 +2054,35 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               </div>
 
               <div className="mt-8 bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
-                <h2 className="text-lg font-bold text-gray-100 px-4 py-3 bg-dark-800 border-b border-amber-500">
-                  Openstaande Facturen
-                </h2>
+                <div className="flex items-center justify-between px-4 py-3 bg-dark-800 border-b border-amber-500">
+                  <h2 className="text-lg font-bold text-gray-100">
+                    Openstaande Facturen
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    {openInvoices.filter(inv => selectedInvoices.has(inv.id)).length > 0 && (
+                      <>
+                        <div className="flex items-center gap-2 bg-purple-600 text-white px-3 py-1.5 rounded-lg text-sm">
+                          <CheckSquare size={16} />
+                          {openInvoices.filter(inv => selectedInvoices.has(inv.id)).length} Geselecteerd
+                        </div>
+                        <button
+                          onClick={() => handleBatchStatusChange('sent')}
+                          className="flex items-center gap-2 bg-amber-600 text-white px-3 py-1.5 rounded-lg hover:bg-amber-700 transition-colors text-sm"
+                        >
+                          <Send size={16} />
+                          Markeer Verzonden
+                        </button>
+                        <button
+                          onClick={handleBatchDelete}
+                          className="flex items-center gap-2 bg-red-600 text-white px-3 py-1.5 rounded-lg hover:bg-red-700 transition-colors text-sm"
+                        >
+                          <Trash2 size={16} />
+                          Verwijder
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
                   <div className="overflow-x-auto">
                     <table className="w-full table-fixed min-w-[1000px]">
                       <thead>
