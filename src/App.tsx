@@ -130,8 +130,8 @@ function App() {
   return (
     <div className="h-screen bg-dark-950 flex flex-col overflow-hidden">
       <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 flex gap-6 overflow-hidden">
-        <aside className="w-64 flex-shrink-0 overflow-y-auto">
-          <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2 sticky top-0">
+        <aside className="w-64 flex-shrink-0">
+          <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2">
               <div className="px-4 py-3 mb-2">
                 <h2 className="text-xl font-bold text-gold-500">HAL5 Facturatie</h2>
                 <p className="text-sm text-gray-400 mt-1">Beheer systeem</p>
@@ -145,7 +145,11 @@ function App() {
                     return (
                       <div key={item.id}>
                         <button
-                          onClick={() => setActiveTab(item.children![0].id)}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setActiveTab(item.children![0].id);
+                          }}
+                          onMouseDown={(e) => e.preventDefault()}
                           className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${
                             isActive ? 'text-gold-500 hover:text-gold-400' : 'text-gray-100 hover:text-white'
                           }`}>
@@ -159,7 +163,11 @@ function App() {
                             return (
                               <button
                                 key={child.id}
-                                onClick={() => setActiveTab(child.id)}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setActiveTab(child.id);
+                                }}
+                                onMouseDown={(e) => e.preventDefault()}
                                 className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                                   isChildActive
                                     ? 'bg-gold-500 text-dark-950'
@@ -179,7 +187,11 @@ function App() {
                   return (
                     <button
                       key={item.id}
-                      onClick={() => setActiveTab(item.id as Tab)}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setActiveTab(item.id as Tab);
+                      }}
+                      onMouseDown={(e) => e.preventDefault()}
                       className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
                         isActive
                           ? 'bg-gold-500 text-dark-950'
@@ -200,7 +212,11 @@ function App() {
                   return (
                     <button
                       key={item.id}
-                      onClick={() => setActiveTab(item.id as Tab)}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setActiveTab(item.id as Tab);
+                      }}
+                      onMouseDown={(e) => e.preventDefault()}
                       className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
                         isActive
                           ? 'bg-gold-500 text-dark-950'
