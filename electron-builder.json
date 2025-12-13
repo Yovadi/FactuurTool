@@ -11,7 +11,8 @@
   ],
   "win": {
     "target": "nsis",
-    "artifactName": "${productName}-Setup-${version}.${ext}"
+    "artifactName": "${productName}-Setup-${version}.${ext}",
+    "publisherName": "HAL5 Overloon"
   },
   "asar": false,
   "extraMetadata": {
@@ -25,5 +26,10 @@
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
     "shortcutName": "HAL5 Facturatie Manager"
+  },
+  "publish": {
+    "provider": "github",
+    "owner": "JOUW-GITHUB-USERNAME",
+    "repo": "JOUW-REPO-NAAM"
   }
 }

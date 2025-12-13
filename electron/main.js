@@ -1,7 +1,11 @@
 const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const path = require('path');
 
 let mainWindow;
+
+autoUpdater.autoDownload = false;
+autoUpdater.autoInstallOnAppQuit = true;
 
 function createWindow() {
   const { screen } = require('electron');
@@ -192,7 +196,70 @@ ipcMain.handle('save-pdf', async (event, pdfBuffer, folderPath, fileName) => {
   }
 });
 
-app.whenReady().then(createWindow);
+autoUpdater.on('update-available', (info) => {
+  dialog.showMessageBox(mainWindow, {
+    type: 'info',
+    title: 'Update Beschikbaar',
+    message: `Nieuwe versie ${info.version} is beschikbaar!`,
+    detail: 'Wilt u de update nu downloaden? De update wordt geïnstalleerd wanneer u de applicatie afsluit.',
+    buttons: ['Download Update', 'Later'],
+    defaultId: 0,
+    cancelId: 1
+  }).then(result => {
+    if (result.response === 0) {
+      autoUpdater.downloadUpdate();
+
+      dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'Downloaden',
+        message: 'Update wordt gedownload op de achtergrond...',
+        buttons: ['OK']
+      });
+    }
+  });
+});
+
+autoUpdater.on('update-not-available', () => {
+  console.log('No updates available');
+});
+
+autoUpdater.on('error', (err) => {
+  console.error('Update error:', err);
+});
+
+autoUpdater.on('download-progress', (progressObj) => {
+  console.log(`Download progress: ${Math.round(progressObj.percent)}%`);
+});
+
+autoUpdater.on('update-downloaded', () => {
+  dialog.showMessageBox(mainWindow, {
+    type: 'info',
+    title: 'Update Klaar',
+    message: 'Update is gedownload en wordt geïnstalleerd bij het afsluiten van de applicatie.',
+    detail: 'Wilt u nu herstarten om de update te installeren?',
+    buttons: ['Nu Herstarten', 'Later'],
+    defaultId: 0,
+    cancelId: 1
+  }).then(result => {
+    if (result.response === 0) {
+      autoUpdater.quitAndInstall(false, true);
+    }
+  });
+});
+
+function checkForUpdates() {
+  if (process.env.NODE_ENV !== 'development') {
+    autoUpdater.checkForUpdates();
+  }
+}
+
+app.whenReady().then(() => {
+  createWindow();
+
+  setTimeout(() => {
+    checkForUpdates();
+  }, 3000);
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
