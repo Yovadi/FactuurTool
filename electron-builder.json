@@ -29,6 +29,7 @@
   "publish": {
     "provider": "github",
     "owner": "JOUW-GITHUB-USERNAME",
-    "repo": "JOUW-REPO-NAAM"
+    "repo": "JOUW-REPO-NAAM",
+    "releaseType": "release"
   }
 }
