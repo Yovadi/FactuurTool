@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import { Dashboard } from './components/Dashboard';
 import { TenantManagement } from './components/TenantManagement';
 import { LeaseManagement } from './components/LeaseManagement';
-import { SpaceManagement } from './components/SpaceManagement';
-import { SpaceTypeRates } from './components/SpaceTypeRates';
+import { SpacesTabs } from './components/SpacesTabs';
 import { CompanySettings } from './components/CompanySettings';
 import { MeetingRoomBookings } from './components/MeetingRoomBookings';
 import { PinLogin } from './components/PinLogin';
@@ -12,9 +11,9 @@ import { DebtorsOverview } from './components/DebtorsOverview';
 import { CreditNotes } from './components/CreditNotes';
 import { CreditOverview } from './components/CreditOverview';
 import { Analytics } from './components/Analytics';
-import { LayoutDashboard, Users, Building, Settings, CalendarClock, LogOut, Euro, TrendingUp, FileText, AlertTriangle, Receipt, DollarSign, Building2, Calculator, Calendar } from 'lucide-react';
+import { LayoutDashboard, Users, Building, Settings, CalendarClock, LogOut, Euro, TrendingUp, FileText, AlertTriangle, Receipt, DollarSign } from 'lucide-react';
 
-type Tab = 'dashboard' | 'rental-fulltime' | 'rental-contracts' | 'spaces-spaces' | 'spaces-rates' | 'bookings' | 'financial-invoices' | 'financial-debtors' | 'financial-creditnotes' | 'financial-creditoverview' | 'analytics' | 'settings';
+type Tab = 'dashboard' | 'rental-fulltime' | 'rental-contracts' | 'spaces' | 'bookings' | 'financial-invoices' | 'financial-debtors' | 'financial-creditnotes' | 'financial-creditoverview' | 'analytics' | 'settings';
 
 type MenuSection = {
   id: string;
@@ -39,15 +38,7 @@ function App() {
 
   const navigation: MenuSection[] = [
     { id: 'dashboard', label: 'Overzicht', icon: LayoutDashboard },
-    {
-      id: 'spaces',
-      label: 'Ruimtes',
-      icon: Building,
-      children: [
-        { id: 'spaces-spaces' as Tab, label: 'Ruimtes', icon: Building2 },
-        { id: 'spaces-rates' as Tab, label: 'Tarieven', icon: Calculator },
-      ],
-    },
+    { id: 'spaces', label: 'Ruimtes', icon: Building },
     {
       id: 'rental',
       label: 'Huur',
@@ -220,8 +211,7 @@ function App() {
           <main className="flex-1 min-w-0">
             <div className="bg-dark-950">
               {activeTab === 'dashboard' && <Dashboard />}
-              {activeTab === 'spaces-spaces' && <SpaceManagement />}
-              {activeTab === 'spaces-rates' && <SpaceTypeRates />}
+              {activeTab === 'spaces' && <SpacesTabs />}
               {activeTab === 'rental-fulltime' && <TenantManagement />}
               {activeTab === 'rental-contracts' && <LeaseManagement />}
               {activeTab === 'bookings' && <MeetingRoomBookings />}
