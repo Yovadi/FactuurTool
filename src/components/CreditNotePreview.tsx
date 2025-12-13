@@ -61,15 +61,15 @@ export function CreditNotePreview({ creditNote, companySettings, onClose, onDown
     : `${creditNote.external_customer?.street}\n${creditNote.external_customer?.postal_code} ${creditNote.external_customer?.city}`;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 overflow-y-auto p-4">
-      <div className="bg-white rounded-lg shadow-2xl my-8 relative max-w-5xl w-full mx-auto">
-        <div className="sticky top-0 bg-gray-50 border-b border-gray-200 px-6 py-4 flex justify-between items-center rounded-t-lg">
-          <h3 className="text-xl font-bold text-gray-800">Credit Nota Preview</h3>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto p-4">
+      <div className="bg-dark-900 rounded-lg my-8 relative max-w-5xl w-full mx-auto border border-dark-700">
+        <div className="sticky top-0 bg-dark-800 border-b border-dark-700 px-6 py-4 flex justify-between items-center rounded-t-lg">
+          <h3 className="text-xl font-bold text-gray-100">Credit Nota Preview</h3>
           <div className="flex items-center gap-2">
             {onApply && (
               <button
                 onClick={onApply}
-                className="flex items-center gap-1 text-yellow-600 hover:text-yellow-700 transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-100"
+                className="flex items-center gap-1 text-gold-400 hover:text-gold-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
                 title="Toepassen"
               >
                 <Link size={20} />
@@ -79,7 +79,7 @@ export function CreditNotePreview({ creditNote, companySettings, onClose, onDown
             {onSend && (
               <button
                 onClick={onSend}
-                className="flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-100"
+                className="flex items-center gap-1 text-gray-300 hover:text-gray-100 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
                 title="Versturen"
               >
                 <Send size={20} />
@@ -89,7 +89,7 @@ export function CreditNotePreview({ creditNote, companySettings, onClose, onDown
             {onEdit && (
               <button
                 onClick={onEdit}
-                className="flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-100"
+                className="flex items-center gap-1 text-gray-300 hover:text-gray-100 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
                 title="Bewerken"
               >
                 <Edit size={20} />
@@ -99,7 +99,7 @@ export function CreditNotePreview({ creditNote, companySettings, onClose, onDown
             {onDownload && (
               <button
                 onClick={onDownload}
-                className="flex items-center gap-1 text-green-600 hover:text-green-700 transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-100"
+                className="flex items-center gap-1 text-gold-400 hover:text-gold-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
                 title="Download PDF"
               >
                 <Download size={20} />
@@ -109,7 +109,7 @@ export function CreditNotePreview({ creditNote, companySettings, onClose, onDown
             {onDelete && (
               <button
                 onClick={onDelete}
-                className="flex items-center gap-1 text-red-600 hover:text-red-700 transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-100"
+                className="flex items-center gap-1 text-red-400 hover:text-red-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
                 title="Verwijderen"
               >
                 <Trash2 size={20} />
@@ -117,37 +117,37 @@ export function CreditNotePreview({ creditNote, companySettings, onClose, onDown
             )}
             <button
               onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-dark-700 rounded-lg transition-colors"
             >
-              <X size={20} className="text-gray-600" />
+              <X size={20} className="text-gray-400 hover:text-gray-200" />
             </button>
           </div>
         </div>
 
         <div className="p-6 space-y-6">
-          <div className="grid grid-cols-2 gap-6 pb-6 border-b border-gray-200">
+          <div className="grid grid-cols-2 gap-6 pb-6 border-b border-dark-700">
             <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">Klant</h3>
-              <p className="text-gray-900 font-medium">{customerName}</p>
-              <div className="mt-2 text-sm text-gray-600">
+              <h3 className="text-sm font-semibold text-gray-200 mb-2">Klant</h3>
+              <p className="text-gray-100 font-medium">{customerName}</p>
+              <div className="mt-2 text-sm text-gray-400">
                 <p className="whitespace-pre-line">{customerAddress}</p>
               </div>
             </div>
             <div className="text-right">
               <div className="space-y-1 text-sm">
                 <div>
-                  <span className="text-gray-600">Credit Nota Nummer: </span>
-                  <span className="font-semibold text-red-600">{creditNote.credit_note_number.replace(/^CN-/, '')}</span>
+                  <span className="text-gray-400">Credit Nota Nummer: </span>
+                  <span className="font-semibold text-red-400">{creditNote.credit_note_number.replace(/^CN-/, '')}</span>
                 </div>
                 <div>
-                  <span className="text-gray-600">Creditdatum: </span>
-                  <span className="text-gray-900">{formatDate(creditNote.credit_date)}</span>
+                  <span className="text-gray-400">Creditdatum: </span>
+                  <span className="text-gray-100">{formatDate(creditNote.credit_date)}</span>
                 </div>
                 <div className="mt-3 inline-block">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    creditNote.status === 'draft' ? 'bg-gray-200 text-gray-700' :
-                    creditNote.status === 'issued' ? 'bg-blue-100 text-blue-700' :
-                    'bg-green-100 text-green-700'
+                    creditNote.status === 'draft' ? 'bg-gray-700 text-gray-300' :
+                    creditNote.status === 'issued' ? 'bg-blue-900 text-blue-300' :
+                    'bg-green-900 text-green-300'
                   }`}>
                     {creditNote.status === 'draft' ? 'Concept' :
                      creditNote.status === 'issued' ? 'Uitgegeven' : 'Toegepast'}
@@ -157,29 +157,29 @@ export function CreditNotePreview({ creditNote, companySettings, onClose, onDown
             </div>
           </div>
 
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <p className="text-sm font-semibold text-red-800 mb-1">Credit Nota - {creditNote.reason}</p>
-            <p className="text-xs text-gray-700">Deze creditfactuur corrigeert een eerder verzonden factuur.</p>
+          <div className="bg-red-900 bg-opacity-20 border border-red-700 rounded-lg p-4">
+            <p className="text-sm font-semibold text-red-300 mb-1">Credit Nota - {creditNote.reason}</p>
+            <p className="text-xs text-gray-400">Deze creditfactuur corrigeert een eerder verzonden factuur.</p>
           </div>
 
           <div>
-            <h4 className="text-sm font-semibold text-gray-700 mb-3">Regels</h4>
-            <table className="w-full border border-gray-200">
+            <h4 className="text-sm font-semibold text-gray-200 mb-3">Regels</h4>
+            <table className="w-full border border-dark-700">
               <thead>
-                <tr className="bg-red-50 border-b border-gray-200">
-                  <th className="text-left py-2 px-3 text-xs font-semibold text-gray-700">Omschrijving</th>
-                  <th className="text-right py-2 px-3 text-xs font-semibold text-gray-700">Aantal</th>
-                  <th className="text-right py-2 px-3 text-xs font-semibold text-gray-700">Prijs</th>
-                  <th className="text-right py-2 px-3 text-xs font-semibold text-gray-700">Bedrag</th>
+                <tr className="bg-dark-800 border-b border-dark-700">
+                  <th className="text-left py-2 px-3 text-xs font-semibold text-gray-200">Omschrijving</th>
+                  <th className="text-right py-2 px-3 text-xs font-semibold text-gray-200">Aantal</th>
+                  <th className="text-right py-2 px-3 text-xs font-semibold text-gray-200">Prijs</th>
+                  <th className="text-right py-2 px-3 text-xs font-semibold text-gray-200">Bedrag</th>
                 </tr>
               </thead>
               <tbody>
                 {creditNote.credit_note_line_items?.map((item, index) => (
-                  <tr key={index} className="border-b border-gray-100">
-                    <td className="py-2 px-3 text-sm text-gray-900">{item.description}</td>
-                    <td className="py-2 px-3 text-sm text-right text-gray-700">{item.quantity}</td>
-                    <td className="py-2 px-3 text-sm text-right text-gray-700">{formatCurrency(item.unit_price)}</td>
-                    <td className="py-2 px-3 text-sm text-right font-medium text-red-600">{formatCurrency(-item.amount)}</td>
+                  <tr key={index} className="border-b border-dark-700">
+                    <td className="py-2 px-3 text-sm text-gray-100">{item.description}</td>
+                    <td className="py-2 px-3 text-sm text-right text-gray-300">{item.quantity}</td>
+                    <td className="py-2 px-3 text-sm text-right text-gray-300">{formatCurrency(item.unit_price)}</td>
+                    <td className="py-2 px-3 text-sm text-right font-medium text-red-400">{formatCurrency(-item.amount)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -187,24 +187,24 @@ export function CreditNotePreview({ creditNote, companySettings, onClose, onDown
           </div>
 
           {creditNote.notes && (
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-              <p className="text-sm font-semibold text-gray-700 mb-2">Opmerkingen</p>
-              <p className="text-sm text-gray-600">{creditNote.notes}</p>
+            <div className="bg-dark-800 border border-dark-700 rounded-lg p-4">
+              <p className="text-sm font-semibold text-gray-200 mb-2">Opmerkingen</p>
+              <p className="text-sm text-gray-400">{creditNote.notes}</p>
             </div>
           )}
 
-          <div className="mt-6 pt-4 border-t-2 border-gray-200 space-y-2">
-            <div className="flex justify-between text-gray-700">
+          <div className="mt-6 pt-4 border-t-2 border-dark-700 space-y-2">
+            <div className="flex justify-between text-gray-300">
               <span>Subtotaal (excl. BTW):</span>
-              <span className="text-red-600">{formatCurrency(-creditNote.subtotal)}</span>
+              <span className="text-red-400">{formatCurrency(-creditNote.subtotal)}</span>
             </div>
-            <div className="flex justify-between text-gray-700">
+            <div className="flex justify-between text-gray-300">
               <span>BTW ({creditNote.vat_rate.toFixed(0)}%):</span>
-              <span className="text-red-600">{formatCurrency(-creditNote.vat_amount)}</span>
+              <span className="text-red-400">{formatCurrency(-creditNote.vat_amount)}</span>
             </div>
-            <div className="flex justify-between text-lg font-bold text-gray-900 pt-2 border-t border-gray-300">
+            <div className="flex justify-between text-lg font-bold text-gray-100 pt-2 border-t border-dark-600">
               <span>Totaal Credit:</span>
-              <span className="text-red-600">{formatCurrency(-creditNote.total_amount)}</span>
+              <span className="text-red-400">{formatCurrency(-creditNote.total_amount)}</span>
             </div>
           </div>
         </div>
