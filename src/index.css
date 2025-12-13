@@ -3,10 +3,16 @@
 @tailwind utilities;
 
 @layer base {
+  /* Prevent scroll behavior on buttons */
+  html {
+    scroll-behavior: auto;
+  }
+
   /* Custom Scrollbar Styling */
   * {
     scrollbar-width: thin;
     scrollbar-color: #4b5563 #1f2937;
+    scroll-behavior: auto !important;
   }
 
   *::-webkit-scrollbar {
@@ -72,5 +78,15 @@
 
   .animate-slide-in {
     animation: slide-in 0.3s ease-out;
+  }
+
+  /* Prevent button focus scroll behavior */
+  button {
+    scroll-margin: 0;
+  }
+
+  button:focus {
+    scroll-margin: 0;
+    outline: none;
   }
 }
