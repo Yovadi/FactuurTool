@@ -994,7 +994,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
           vat_rate: 21,
           vat_inclusive: false,
           status: 'draft',
-          notes: 'Vergaderruimte gebruik'
+          notes: 'Vergaderruimte boekingen'
         };
 
         if (customerType === 'tenant') {
@@ -1806,7 +1806,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               });
 
           const draftMeetingRoomInvoices = allDraftInvoices
-            .filter(inv => inv.lease_id === null && inv.notes?.includes('Vergaderruimte gebruik'))
+            .filter(inv => inv.lease_id === null && (inv.notes?.includes('Vergaderruimte gebruik') || inv.notes?.includes('Vergaderruimte boekingen')))
             .sort((a, b) => {
                 const tenantA = getInvoiceTenant(a);
                 const tenantB = getInvoiceTenant(b);
@@ -1821,7 +1821,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               });
 
           const draftManualInvoices = allDraftInvoices
-            .filter(inv => inv.lease_id === null && !inv.notes?.includes('Vergaderruimte gebruik'))
+            .filter(inv => inv.lease_id === null && !inv.notes?.includes('Vergaderruimte gebruik') && !inv.notes?.includes('Vergaderruimte boekingen'))
             .sort((a, b) => {
                 const tenantA = getInvoiceTenant(a);
                 const tenantB = getInvoiceTenant(b);
