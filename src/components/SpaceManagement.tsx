@@ -371,7 +371,7 @@ export function SpaceManagement() {
                             )}
                             {(space as any).is_flex_space && space.space_type !== 'Flexplek' && (
                               <span className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded-full font-medium">
-                                Ook als Flexplek
+                                Ook beschikbaar als Flexplek
                               </span>
                             )}
                           </div>

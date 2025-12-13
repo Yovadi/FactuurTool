@@ -2230,7 +2230,9 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                 Voer code in:
               </label>
               <input
-                type="password"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 value={deletePassword}
                 onChange={(e) => setDeletePassword(e.target.value)}
                 className="w-full px-3 py-2 bg-dark-800 border border-amber-500 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
