@@ -297,16 +297,34 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
       }
 
       // Format: - 04-11-2025 04:00-06:30 (2.5u) = €62.50
-      const amountMatch = line.match(/=\s*€([\d.]+)\s*$/);
       let description = line.replace(/^-\s*/, '').trim();
+      let quantity = '';
+      let rate = '';
       let amount = '';
 
+      // Extract hours from pattern like (2.5u)
+      const hoursMatch = description.match(/\((\d+(?:\.\d+)?)u\)/);
+      if (hoursMatch) {
+        quantity = `${parseFloat(hoursMatch[1]).toFixed(1)} uur`;
+      }
+
+      // Extract amount from pattern like = €62.50
+      const amountMatch = description.match(/=\s*€([\d.]+)\s*$/);
       if (amountMatch) {
         amount = amountMatch[1];
+        // Calculate hourly rate if we have both hours and amount
+        if (hoursMatch) {
+          const hours = parseFloat(hoursMatch[1]);
+          const totalAmount = parseFloat(amount);
+          const hourlyRate = totalAmount / hours;
+          rate = `€ ${hourlyRate.toFixed(2)} / uur`;
+        }
         description = description.substring(0, description.lastIndexOf('=')).trim();
       }
 
       pdf.text(description, col1X + 2, yPosition);
+      pdf.text(quantity, col2X, yPosition, { align: 'center' });
+      pdf.text(rate, col3X - 2, yPosition, { align: 'right' });
       if (amount) {
         pdf.text(`€ ${amount}`, col4X - 2, yPosition, { align: 'right' });
       }
