@@ -131,13 +131,13 @@ function App() {
     <div className="h-screen bg-dark-950 flex flex-col">
       <div className="flex-1 max-w-[1920px] w-full mx-auto p-6 overflow-hidden">
         <div className="flex gap-6 h-full">
-          <aside className="w-64 flex-shrink-0">
-            <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2 h-full flex flex-col">
-              <div className="px-4 py-3 mb-2 flex-shrink-0">
+          <aside className="w-64 flex-shrink-0 h-full flex flex-col overflow-hidden">
+            <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2 flex flex-col flex-shrink-0">
+              <div className="px-4 py-3 mb-2">
                 <h2 className="text-xl font-bold text-gold-500">HAL5 Facturatie</h2>
                 <p className="text-sm text-gray-400 mt-1">Beheer systeem</p>
               </div>
-              <nav className="space-y-1 overflow-y-auto pb-2">
+              <nav className="space-y-1 pb-2">
                 {navigation.map((item) => {
                   const Icon = item.icon;
                   const isActive = isActiveTab(item.id, item.children);
