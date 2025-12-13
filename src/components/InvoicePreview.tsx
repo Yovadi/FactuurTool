@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Download, Send, Edit, Trash2, Receipt, FileText } from 'lucide-react';
+import { X, Download, Send, Edit, Receipt, FileText } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface InvoiceSpace {
@@ -67,7 +67,6 @@ interface InvoicePreviewProps {
   onDownload?: () => void;
   onSend?: () => void;
   onEdit?: () => void;
-  onDelete?: () => void;
   onMarkAsPaid?: () => void;
   onCreateCreditNote?: () => void;
 }
@@ -82,7 +81,6 @@ export function InvoicePreview({
   onDownload,
   onSend,
   onEdit,
-  onDelete,
   onMarkAsPaid,
   onCreateCreditNote,
 }: InvoicePreviewProps) {
@@ -186,15 +184,6 @@ export function InvoicePreview({
                 title="Markeer als betaald"
               >
                 <span className="text-sm font-medium">Betaald</span>
-              </button>
-            )}
-            {onDelete && (
-              <button
-                onClick={onDelete}
-                className="flex items-center gap-1 text-red-400 hover:text-red-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
-                title="Verwijderen"
-              >
-                <Trash2 size={20} />
               </button>
             )}
             <button

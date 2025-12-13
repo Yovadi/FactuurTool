@@ -2248,9 +2248,6 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             setPreviewInvoice(null);
             startEditInvoice(previewInvoice.invoice);
           }}
-          onDelete={() => {
-            setShowDeleteConfirm(previewInvoice.invoice.id);
-          }}
           onMarkAsPaid={previewInvoice.invoice.status === 'sent' ? () => {
             markAsPaid(previewInvoice.invoice.id);
             setPreviewInvoice(null);
