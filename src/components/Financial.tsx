@@ -3,11 +3,11 @@ import { InvoiceManagement } from './InvoiceManagement';
 import { DebtorsOverview } from './DebtorsOverview';
 import { CreditNotes } from './CreditNotes';
 import { CreditOverview } from './CreditOverview';
-import { FileText, AlertTriangle, Receipt, DollarSign } from 'lucide-react';
+import { FileText, AlertTriangle, Receipt, DollarSign, UserCheck, UserMinus } from 'lucide-react';
 
-type MainTab = 'invoices' | 'creditnotes';
-type InvoiceSubTab = 'list' | 'outstanding' | 'log';
-type CreditSubTab = 'list' | 'overview';
+type MainTab = 'debtors' | 'creditors';
+type DebtorSubTab = 'invoices' | 'outstanding' | 'log';
+type CreditorSubTab = 'creditnotes' | 'overview';
 
 type PrefilledInvoiceData = {
   invoice: any;
@@ -16,25 +16,25 @@ type PrefilledInvoiceData = {
 };
 
 export function Financial() {
-  const [activeMainTab, setActiveMainTab] = useState<MainTab>('invoices');
-  const [activeInvoiceSubTab, setActiveInvoiceSubTab] = useState<InvoiceSubTab>('list');
-  const [activeCreditSubTab, setActiveCreditSubTab] = useState<CreditSubTab>('list');
+  const [activeMainTab, setActiveMainTab] = useState<MainTab>('debtors');
+  const [activeDebtorSubTab, setActiveDebtorSubTab] = useState<DebtorSubTab>('invoices');
+  const [activeCreditorSubTab, setActiveCreditorSubTab] = useState<CreditorSubTab>('creditnotes');
   const [prefilledInvoiceData, setPrefilledInvoiceData] = useState<PrefilledInvoiceData | null>(null);
 
   const mainTabs = [
-    { id: 'invoices' as MainTab, label: 'Facturen', icon: FileText },
-    { id: 'creditnotes' as MainTab, label: 'Credit Nota\'s', icon: Receipt },
+    { id: 'debtors' as MainTab, label: 'Debiteuren', icon: UserCheck },
+    { id: 'creditors' as MainTab, label: 'Crediteuren', icon: UserMinus },
   ];
 
-  const invoiceSubTabs = [
-    { id: 'list' as InvoiceSubTab, label: 'Facturen', icon: FileText },
-    { id: 'outstanding' as InvoiceSubTab, label: 'Openstaand', icon: AlertTriangle },
-    { id: 'log' as InvoiceSubTab, label: 'Logboek', icon: FileText },
+  const debtorSubTabs = [
+    { id: 'invoices' as DebtorSubTab, label: 'Facturen', icon: FileText },
+    { id: 'outstanding' as DebtorSubTab, label: 'Openstaand', icon: AlertTriangle },
+    { id: 'log' as DebtorSubTab, label: 'Logboek', icon: FileText },
   ];
 
-  const creditSubTabs = [
-    { id: 'list' as CreditSubTab, label: 'Credit Nota\'s', icon: Receipt },
-    { id: 'overview' as CreditSubTab, label: 'Credit Overzicht', icon: DollarSign },
+  const creditorSubTabs = [
+    { id: 'creditnotes' as CreditorSubTab, label: 'Credit Nota\'s', icon: Receipt },
+    { id: 'overview' as CreditorSubTab, label: 'Credit Overzicht', icon: DollarSign },
   ];
 
   return (
@@ -62,17 +62,17 @@ export function Financial() {
         </div>
       </div>
 
-      {activeMainTab === 'invoices' && (
+      {activeMainTab === 'debtors' && (
         <div className="mb-6">
           <div className="flex gap-2 border-b border-dark-700">
-            {invoiceSubTabs.map((tab) => {
+            {debtorSubTabs.map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveInvoiceSubTab(tab.id)}
+                  onClick={() => setActiveDebtorSubTab(tab.id)}
                   className={`flex items-center gap-2 px-3 py-2 text-sm font-medium transition-all border-b-2 ${
-                    activeInvoiceSubTab === tab.id
+                    activeDebtorSubTab === tab.id
                       ? 'text-gold-500 border-gold-500'
                       : 'text-gray-400 border-transparent hover:text-gray-300'
                   }`}
@@ -86,17 +86,17 @@ export function Financial() {
         </div>
       )}
 
-      {activeMainTab === 'creditnotes' && (
+      {activeMainTab === 'creditors' && (
         <div className="mb-6">
           <div className="flex gap-2 border-b border-dark-700">
-            {creditSubTabs.map((tab) => {
+            {creditorSubTabs.map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveCreditSubTab(tab.id)}
+                  onClick={() => setActiveCreditorSubTab(tab.id)}
                   className={`flex items-center gap-2 px-3 py-2 text-sm font-medium transition-all border-b-2 ${
-                    activeCreditSubTab === tab.id
+                    activeCreditorSubTab === tab.id
                       ? 'text-gold-500 border-gold-500'
                       : 'text-gray-400 border-transparent hover:text-gray-300'
                   }`}
@@ -111,28 +111,28 @@ export function Financial() {
       )}
 
       <div>
-        {activeMainTab === 'invoices' && activeInvoiceSubTab === 'list' && (
+        {activeMainTab === 'debtors' && activeDebtorSubTab === 'invoices' && (
           <InvoiceManagement
             onCreateCreditNote={(invoice, tenant, spaces) => {
               setPrefilledInvoiceData({ invoice, tenant, spaces });
-              setActiveMainTab('creditnotes');
-              setActiveCreditSubTab('list');
+              setActiveMainTab('creditors');
+              setActiveCreditorSubTab('creditnotes');
             }}
           />
         )}
-        {activeMainTab === 'invoices' && activeInvoiceSubTab === 'outstanding' && (
+        {activeMainTab === 'debtors' && activeDebtorSubTab === 'outstanding' && (
           <DebtorsOverview initialTab="open" />
         )}
-        {activeMainTab === 'invoices' && activeInvoiceSubTab === 'log' && (
+        {activeMainTab === 'debtors' && activeDebtorSubTab === 'log' && (
           <DebtorsOverview initialTab="log" />
         )}
-        {activeMainTab === 'creditnotes' && activeCreditSubTab === 'list' && (
+        {activeMainTab === 'creditors' && activeCreditorSubTab === 'creditnotes' && (
           <CreditNotes
             prefilledInvoiceData={prefilledInvoiceData}
             onClearPrefilled={() => setPrefilledInvoiceData(null)}
           />
         )}
-        {activeMainTab === 'creditnotes' && activeCreditSubTab === 'overview' && (
+        {activeMainTab === 'creditors' && activeCreditorSubTab === 'overview' && (
           <CreditOverview />
         )}
       </div>
