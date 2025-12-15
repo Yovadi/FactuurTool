@@ -90,7 +90,8 @@ export function LeaseManagement() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (selectedSpaces.length === 0) {
+    // Voor full_time leases is een ruimte verplicht, voor flex niet
+    if (formData.lease_type === 'full_time' && selectedSpaces.length === 0) {
       alert('Selecteer minimaal één ruimte');
       return;
     }
@@ -518,38 +519,17 @@ export function LeaseManagement() {
 
               {formData.lease_type === 'flex' && (
                 <>
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <label className="block text-sm font-medium text-gray-200">
-                    Flexplek Ruimte
-                  </label>
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <h4 className="text-sm font-medium text-blue-300 mb-1">Flexplek Huurcontract</h4>
+                    <p className="text-sm text-gray-300">
+                      Flexplek huurders krijgen geen vaste ruimte toegewezen. Ze kunnen gebruik maken van beschikbare werkplekken.
+                      In Ruimtebeheer kun je aangeven welke ruimtes beschikbaar zijn voor flex gebruik.
+                    </p>
+                  </div>
                 </div>
-                <select
-                  required
-                  value={selectedSpaces.length > 0 ? selectedSpaces[0].space_id : ''}
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      setSelectedSpaces([{ space_id: e.target.value, price_per_sqm: '0' }]);
-                    } else {
-                      setSelectedSpaces([]);
-                    }
-                  }}
-                  className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                >
-                  <option value="">Selecteer een flexplek...</option>
-                  {spaces
-                    .filter(s => {
-                      const occupiedSpaceIds = leases
-                        .filter(l => !editingLease || l.id !== editingLease.id)
-                        .flatMap(l => l.lease_spaces.map(ls => ls.space_id));
-                      return !occupiedSpaceIds.includes(s.id) && ((s as any).is_flex_space === true || s.space_type === 'Flexplek');
-                    })
-                    .map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.space_number} - {s.space_type === 'Flexplek' ? 'Flexplek' : s.space_type === 'kantoor' ? 'Kantoor' : s.space_type === 'bedrijfsruimte' ? 'Bedrijfsruimte' : 'Overig'}
-                      </option>
-                    ))}
-                </select>
               </div>
 
                 <div className="bg-dark-950 p-4 rounded-lg space-y-3">
