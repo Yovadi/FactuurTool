@@ -4,15 +4,16 @@ import { TenantManagement } from './components/TenantManagement';
 import { LeaseManagement } from './components/LeaseManagement';
 import { SpaceManagement } from './components/SpaceManagement';
 import { SpaceTypeRates } from './components/SpaceTypeRates';
+import { FlexOccupancy } from './components/FlexOccupancy';
 import { CompanySettings } from './components/CompanySettings';
 import { MeetingRoomBookings } from './components/MeetingRoomBookings';
 import { PinLogin } from './components/PinLogin';
 import { Analytics } from './components/Analytics';
 import { DebiteurenTabs } from './components/DebiteurenTabs';
 import { CrediteurenTabs } from './components/CrediteurenTabs';
-import { LayoutDashboard, Users, Building, Settings, CalendarClock, LogOut, TrendingUp, FileText, Building2, Calculator, Euro, UserCheck, UserMinus } from 'lucide-react';
+import { LayoutDashboard, Users, Building, Settings, CalendarClock, LogOut, TrendingUp, FileText, Building2, Calculator, Euro, UserCheck, UserMinus, BarChart3 } from 'lucide-react';
 
-type Tab = 'dashboard' | 'rental-fulltime' | 'rental-contracts' | 'spaces-spaces' | 'spaces-rates' | 'bookings' | 'financial-debtors' | 'financial-creditors' | 'analytics' | 'settings';
+type Tab = 'dashboard' | 'rental-fulltime' | 'rental-contracts' | 'spaces-spaces' | 'spaces-rates' | 'spaces-flex' | 'bookings' | 'financial-debtors' | 'financial-creditors' | 'analytics' | 'settings';
 
 type MenuSection = {
   id: string;
@@ -51,6 +52,7 @@ function App() {
       children: [
         { id: 'spaces-spaces' as Tab, label: 'Ruimtes', icon: Building2 },
         { id: 'spaces-rates' as Tab, label: 'Tarieven', icon: Calculator },
+        { id: 'spaces-flex' as Tab, label: 'Flex Bezetting', icon: BarChart3 },
       ],
     },
     {
@@ -236,6 +238,7 @@ function App() {
             {activeTab === 'dashboard' && <Dashboard />}
             {activeTab === 'spaces-spaces' && <SpaceManagement />}
             {activeTab === 'spaces-rates' && <SpaceTypeRates />}
+            {activeTab === 'spaces-flex' && <FlexOccupancy />}
             {activeTab === 'rental-fulltime' && <TenantManagement />}
             {activeTab === 'rental-contracts' && <LeaseManagement />}
             {activeTab === 'bookings' && <MeetingRoomBookings />}
