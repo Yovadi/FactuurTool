@@ -245,8 +245,8 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
 
   const tableTop = yPosition;
   const col1X = margin;
-  const col2X = pageWidth - margin - 100;
-  const col3X = pageWidth - margin - 65;
+  const col2X = pageWidth - margin - 115;
+  const col3X = pageWidth - margin - 75;
   const col4X = pageWidth - margin - 30;
   const col5X = pageWidth - margin - 10;
 
@@ -593,8 +593,8 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
 
   const tableTop = yPosition;
   const col1X = margin;
-  const col2X = pageWidth - margin - 100;
-  const col3X = pageWidth - margin - 65;
+  const col2X = pageWidth - margin - 115;
+  const col3X = pageWidth - margin - 75;
   const col4X = pageWidth - margin - 30;
   const col5X = pageWidth - margin - 10;
 
