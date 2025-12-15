@@ -359,19 +359,23 @@ export function SpaceManagement() {
                         className="border-b border-dark-800 hover:bg-dark-800 transition-colors"
                       >
                         <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <Home className="text-gold-500" size={18} />
-                            <span className="text-gray-100 font-medium">{space.space_number}</span>
-                            {space.space_type === 'kantoor' && space.is_furnished && (
-                              <span className="text-xs bg-gold-500 text-dark-950 px-2 py-0.5 rounded-full font-medium">
-                                Gemeubileerd
-                              </span>
-                            )}
-                            {(space as any).is_flex_space && (
-                              <span className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded-full font-medium">
-                                Beschikbaar voor Flex
-                              </span>
-                            )}
+                          <div className="flex items-start gap-2">
+                            <Home className="text-gold-500 mt-0.5" size={18} />
+                            <div className="flex-1">
+                              <div className="text-gray-100 font-medium mb-1">{space.space_number}</div>
+                              <div className="flex flex-wrap gap-1.5">
+                                {space.space_type === 'kantoor' && space.is_furnished && (
+                                  <span className="text-xs bg-gold-500 text-dark-950 px-2 py-0.5 rounded-full font-medium">
+                                    Gemeubileerd
+                                  </span>
+                                )}
+                                {(space as any).is_flex_space && (
+                                  <span className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded-full font-medium">
+                                    Beschikbaar voor Flex
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         </td>
                         <td className="px-4 py-3 text-gray-300 text-sm">
