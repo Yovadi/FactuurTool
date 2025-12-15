@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Calendar, Clock, Plus, X, Check, AlertCircle, Trash2, CalendarDays, FileText, CheckCircle, XCircle, Info } from 'lucide-react';
+import { Calendar, Clock, Plus, X, Check, AlertCircle, Trash2, CalendarDays, FileText, CheckCircle, XCircle, Info, RotateCcw } from 'lucide-react';
 import { BookingCalendar } from './BookingCalendar';
 import { InlineDatePicker } from './InlineDatePicker';
 
@@ -1212,6 +1212,15 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                             title="Markeer als voltooid"
                           >
                             <Check size={18} />
+                          </button>
+                        )}
+                        {!loggedInTenantId && booking.status === 'completed' && !booking.invoice_id && (
+                          <button
+                            onClick={() => handleStatusChange(booking.id, 'confirmed')}
+                            className="text-blue-400 hover:text-blue-300"
+                            title="Zet terug naar bevestigd"
+                          >
+                            <RotateCcw size={18} />
                           </button>
                         )}
                         {booking.status === 'confirmed' && (
