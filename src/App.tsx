@@ -12,7 +12,7 @@ import { InvoiceManagement } from './components/InvoiceManagement';
 import { DebtorsOverview } from './components/DebtorsOverview';
 import { CreditNotes } from './components/CreditNotes';
 import { CreditOverview } from './components/CreditOverview';
-import { LayoutDashboard, Users, Building, Settings, CalendarClock, LogOut, TrendingUp, FileText, Building2, Calculator, UserCheck, UserMinus, AlertTriangle, Receipt, DollarSign } from 'lucide-react';
+import { LayoutDashboard, Users, Building, Settings, CalendarClock, LogOut, TrendingUp, FileText, Building2, Calculator, Euro, AlertTriangle, Receipt, DollarSign } from 'lucide-react';
 
 type Tab = 'dashboard' | 'rental-fulltime' | 'rental-contracts' | 'spaces-spaces' | 'spaces-rates' | 'bookings' | 'debtors-invoices' | 'debtors-outstanding' | 'debtors-log' | 'creditors-creditnotes' | 'creditors-overview' | 'analytics' | 'settings';
 
@@ -66,20 +66,13 @@ function App() {
     },
     { id: 'bookings', label: 'Vergaderruimte', icon: CalendarClock },
     {
-      id: 'debtors',
-      label: 'Debiteuren',
-      icon: UserCheck,
+      id: 'financial',
+      label: 'Facturatie',
+      icon: Euro,
       children: [
         { id: 'debtors-invoices' as Tab, label: 'Facturen', icon: FileText },
         { id: 'debtors-outstanding' as Tab, label: 'Openstaand', icon: AlertTriangle },
         { id: 'debtors-log' as Tab, label: 'Logboek', icon: FileText },
-      ],
-    },
-    {
-      id: 'creditors',
-      label: 'Crediteuren',
-      icon: UserMinus,
-      children: [
         { id: 'creditors-creditnotes' as Tab, label: 'Credit Nota\'s', icon: Receipt },
         { id: 'creditors-overview' as Tab, label: 'Credit Overzicht', icon: DollarSign },
       ],
