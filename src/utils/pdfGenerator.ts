@@ -234,10 +234,10 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
 
   const tableTop = yPosition;
   const col1X = margin;
-  const col2X = pageWidth - margin - 105;
-  const col3X = pageWidth - margin - 60;
-  const col4X = pageWidth - margin - 30;
-  const col5X = pageWidth - margin - 10;
+  const col2X = pageWidth - margin - 125;
+  const col3X = pageWidth - margin - 80;
+  const col4X = pageWidth - margin - 38;
+  const col5X = pageWidth - margin - 12;
 
   pdf.setFillColor(234, 179, 8);
   pdf.rect(margin, tableTop, pageWidth - 2 * margin, 8, 'F');
@@ -582,10 +582,10 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
 
   const tableTop = yPosition;
   const col1X = margin;
-  const col2X = pageWidth - margin - 105;
-  const col3X = pageWidth - margin - 60;
-  const col4X = pageWidth - margin - 30;
-  const col5X = pageWidth - margin - 10;
+  const col2X = pageWidth - margin - 125;
+  const col3X = pageWidth - margin - 80;
+  const col4X = pageWidth - margin - 38;
+  const col5X = pageWidth - margin - 12;
 
   pdf.setFillColor(220, 38, 38);
   pdf.rect(margin, tableTop, pageWidth - 2 * margin, 8, 'F');

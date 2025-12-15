@@ -304,11 +304,11 @@ export function InvoicePreview({
               <table className="w-full">
                 <thead>
                   <tr className="bg-amber-500 text-white">
-                    <th className="px-4 py-2 text-left font-semibold">Omschrijving</th>
-                    <th className="px-4 py-2 text-center font-semibold">Hoeveelheid</th>
-                    <th className="px-4 py-2 text-right font-semibold">Tarief</th>
-                    <th className="px-4 py-2 text-right font-semibold">Bedrag</th>
-                    <th className="px-4 py-2 text-right font-semibold">BTW</th>
+                    <th className="px-4 py-2 text-left font-semibold w-[35%]">Omschrijving</th>
+                    <th className="px-4 py-2 text-center font-semibold w-[18%]">Hoeveelheid</th>
+                    <th className="px-4 py-2 text-right font-semibold w-[22%]">Tarief</th>
+                    <th className="px-4 py-2 text-right font-semibold w-[15%]">Bedrag</th>
+                    <th className="px-4 py-2 text-right font-semibold w-[10%]">BTW</th>
                   </tr>
                 </thead>
                 <tbody>
