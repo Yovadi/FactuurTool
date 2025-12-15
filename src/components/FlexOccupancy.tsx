@@ -278,7 +278,7 @@ export function FlexOccupancy() {
   }
 
   return (
-    <div>
+    <div className="h-full overflow-y-auto">
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-gray-100 mb-2">Flex Plekken Bezetting</h2>
         <p className="text-gray-300">Overzicht van flex werkplekken en gebruik</p>
