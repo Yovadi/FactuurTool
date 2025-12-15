@@ -323,11 +323,10 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     }
 
     if (data) {
-      await createOrUpdateInvoiceForBooking(data);
       setBookings([data, ...bookings]);
     }
 
-    showNotification('Boeking succesvol aangemaakt en factuur bijgewerkt!', 'success');
+    showNotification('Boeking succesvol aangemaakt!', 'success');
     setShowForm(false);
     setFormData({
       space_id: '',
