@@ -68,7 +68,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
   const [meetingRooms, setMeetingRooms] = useState<Space[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [selectedView, setSelectedView] = useState<'list' | 'calendar'>('calendar');
+  const [selectedView, setSelectedView] = useState<'list' | 'calendar'>('list');
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'internal' | 'external' | 'upcoming' | 'invoiced'>('all');
   const [selectedTab, setSelectedTab] = useState<'tenant' | 'external'>('tenant');
   const [bookingType, setBookingType] = useState<'tenant' | 'external'>('tenant');
@@ -701,17 +701,6 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
             <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2">
               <div className="flex gap-2">
                 <button
-                  onClick={() => setSelectedView('calendar')}
-                  className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
-                    selectedView === 'calendar'
-                      ? 'bg-gold-500 text-dark-950'
-                      : 'text-gray-300 hover:bg-dark-800'
-                  }`}
-                >
-                  <CalendarDays size={18} />
-                  Kalender
-                </button>
-                <button
                   onClick={() => setSelectedView('list')}
                   className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
                     selectedView === 'list'
@@ -721,6 +710,17 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                 >
                   <AlertCircle size={18} />
                   Lijst
+                </button>
+                <button
+                  onClick={() => setSelectedView('calendar')}
+                  className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
+                    selectedView === 'calendar'
+                      ? 'bg-gold-500 text-dark-950'
+                      : 'text-gray-300 hover:bg-dark-800'
+                  }`}
+                >
+                  <CalendarDays size={18} />
+                  Kalender
                 </button>
               </div>
             </div>
