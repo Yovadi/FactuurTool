@@ -13,7 +13,7 @@ import { DebiteurenTabs } from './components/DebiteurenTabs';
 import { CrediteurenTabs } from './components/CrediteurenTabs';
 import { LayoutDashboard, Users, Building, Settings, CalendarClock, LogOut, TrendingUp, FileText, Building2, Calculator, Euro, UserCheck, UserMinus, BarChart3 } from 'lucide-react';
 
-type Tab = 'dashboard' | 'tenants' | 'spaces-spaces' | 'spaces-rates' | 'contracts-leases' | 'occupancy' | 'bookings' | 'financial-debtors' | 'financial-creditors' | 'analytics' | 'settings';
+type Tab = 'dashboard' | 'tenants' | 'spaces-spaces' | 'spaces-rates' | 'contracts' | 'occupancy' | 'bookings' | 'financial-debtors' | 'financial-creditors' | 'analytics' | 'settings';
 
 type MenuSection = {
   id: string;
@@ -55,14 +55,7 @@ function App() {
         { id: 'spaces-rates' as Tab, label: 'Tarieven', icon: Calculator },
       ],
     },
-    {
-      id: 'contracts',
-      label: 'Contracten',
-      icon: FileText,
-      children: [
-        { id: 'contracts-leases' as Tab, label: 'Huur Contracten', icon: FileText },
-      ],
-    },
+    { id: 'contracts', label: 'Contracten', icon: FileText },
     { id: 'occupancy', label: 'Bezetting', icon: BarChart3 },
     { id: 'bookings', label: 'Vergaderruimte', icon: CalendarClock },
     {
@@ -239,7 +232,7 @@ function App() {
             {activeTab === 'tenants' && <TenantManagement />}
             {activeTab === 'spaces-spaces' && <SpaceManagement />}
             {activeTab === 'spaces-rates' && <SpaceTypeRates />}
-            {activeTab === 'contracts-leases' && <LeaseManagement />}
+            {activeTab === 'contracts' && <LeaseManagement />}
             {activeTab === 'occupancy' && <FlexOccupancy />}
             {activeTab === 'bookings' && <MeetingRoomBookings />}
             {activeTab === 'financial-debtors' && (
