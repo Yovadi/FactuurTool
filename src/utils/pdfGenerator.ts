@@ -245,8 +245,8 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
 
   const tableTop = yPosition;
   const col1X = margin;
-  const col2X = pageWidth - margin - 85;
-  const col3X = pageWidth - margin - 60;
+  const col2X = pageWidth - margin - 100;
+  const col3X = pageWidth - margin - 65;
   const col4X = pageWidth - margin - 30;
   const col5X = pageWidth - margin - 10;
 
@@ -402,8 +402,8 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
     }
 
     pdf.text('Voorschot Gas, Water & Electra', col1X + 2, yPosition);
-    pdf.text(`€ ${invoice.security_deposit.toFixed(2)}`, col2X - 2, yPosition, { align: 'right' });
-    pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col3X - 2, yPosition, { align: 'right' });
+    pdf.text(`€ ${invoice.security_deposit.toFixed(2)}`, col4X - 2, yPosition, { align: 'right' });
+    pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col5X - 2, yPosition, { align: 'right' });
     yPosition += 7;
   }
 
@@ -593,8 +593,8 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
 
   const tableTop = yPosition;
   const col1X = margin;
-  const col2X = pageWidth - margin - 85;
-  const col3X = pageWidth - margin - 60;
+  const col2X = pageWidth - margin - 100;
+  const col3X = pageWidth - margin - 65;
   const col4X = pageWidth - margin - 30;
   const col5X = pageWidth - margin - 10;
 
