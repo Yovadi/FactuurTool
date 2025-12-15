@@ -12,7 +12,6 @@ type FlexSpace = {
 type FlexLease = {
   id: string;
   tenant_id: string;
-  flex_hours_per_month: number | null;
   flex_pricing_model: 'daily' | 'monthly_unlimited' | 'credit_based';
   flex_daily_rate: number | null;
   flex_monthly_rate: number | null;
@@ -112,7 +111,6 @@ export function FlexOccupancy() {
       .select(`
         id,
         tenant_id,
-        flex_hours_per_month,
         flex_pricing_model,
         flex_daily_rate,
         flex_monthly_rate,
@@ -211,8 +209,10 @@ export function FlexOccupancy() {
           hoursAllocated = lease.flex_credits_per_month || 0;
         } else if (lease.flex_pricing_model === 'monthly_unlimited') {
           hoursAllocated = 160;
+        } else if (lease.flex_pricing_model === 'daily') {
+          hoursAllocated = 160;
         } else {
-          hoursAllocated = lease.flex_hours_per_month || 0;
+          hoursAllocated = 0;
         }
 
         const percentage = hoursAllocated > 0 ? (hoursUsed / hoursAllocated) * 100 : 0;
@@ -307,10 +307,12 @@ export function FlexOccupancy() {
       return l.status === 'active' && l.start_date <= currentDate && l.end_date >= currentDate;
     })
     .reduce((sum, l) => {
-      if (l.flex_pricing_model === 'credit_based' && l.flex_credits_per_month) {
+      if (l.flex_pricing_model === 'credit_based') {
         return sum + (l.flex_credits_per_month || 0);
+      } else if (l.flex_pricing_model === 'monthly_unlimited' || l.flex_pricing_model === 'daily') {
+        return sum + 160;
       }
-      return sum + (l.flex_hours_per_month || 0);
+      return sum;
     }, 0);
 
   const totalUsedHours = tenantUsage.reduce((sum, t) => sum + t.hours_used, 0);
