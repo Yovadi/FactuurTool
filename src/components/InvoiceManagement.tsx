@@ -437,7 +437,8 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
             )
           ),
           tenant:tenants(*),
-          external_customer:external_customers(*)
+          external_customer:external_customers(*),
+          line_items:invoice_line_items(*)
         `)
         .eq('id', editingInvoiceId)
         .single();
@@ -529,7 +530,8 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
             )
           ),
           tenant:tenants(*),
-          external_customer:external_customers(*)
+          external_customer:external_customers(*),
+          line_items:invoice_line_items(*)
         `)
         .eq('id', newInvoice.id)
         .single();
@@ -1070,7 +1072,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               )
             ),
             tenant:tenants(*),
-            external_customer:external_customers(*)
+            external_customer:external_customers(*),
+            line_items:invoice_line_items(*)
           `)
           .eq('id', newInvoice.id)
           .single();
@@ -1282,7 +1285,9 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                   space:office_spaces(*)
                 )
               ),
-              tenant:tenants(*)
+              tenant:tenants(*),
+              external_customer:external_customers(*),
+              line_items:invoice_line_items(*)
             `)
             .eq('id', newInvoice.id)
             .single();
