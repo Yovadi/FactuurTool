@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { TrendingUp, Euro, FileText, DollarSign, Calendar, Download, Users, BarChart3 } from 'lucide-react';
+import { TrendingUp, Euro, FileText, DollarSign, Calendar, Download, Users, BarChart3, Table, LineChart as LineChartIcon } from 'lucide-react';
 import { BookingOverview } from './BookingOverview';
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 type AnalyticsStats = {
   totalRevenue: number;
@@ -72,6 +73,9 @@ export function Analytics() {
   const [externalCustomers, setExternalCustomers] = useState<any[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<{id: string; type: 'tenant' | 'external'; name: string} | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'bookings' | 'vat'>('overview');
+  const [yearlyView, setYearlyView] = useState<'table' | 'chart'>('table');
+  const [quarterlyView, setQuarterlyView] = useState<'table' | 'chart'>('table');
+  const [vatView, setVatView] = useState<'table' | 'chart'>('table');
 
   useEffect(() => {
     loadAllData();
@@ -504,19 +508,39 @@ export function Analytics() {
               </div>
               <h3 className="text-lg font-semibold text-gray-100">Jaaroverzicht</h3>
             </div>
-            <button
-              onClick={() => exportToExcel('yearly')}
-              className="flex items-center gap-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg transition-colors text-sm"
-            >
-              <Download size={16} />
-              Export
-            </button>
+            <div className="flex gap-2">
+              <div className="flex bg-dark-800 rounded-lg p-1">
+                <button
+                  onClick={() => setYearlyView('table')}
+                  className={`flex items-center gap-1 px-3 py-1 rounded transition-colors ${
+                    yearlyView === 'table' ? 'bg-gold-500 text-dark-950' : 'text-gray-400 hover:text-gray-200'
+                  }`}
+                >
+                  <Table size={16} />
+                </button>
+                <button
+                  onClick={() => setYearlyView('chart')}
+                  className={`flex items-center gap-1 px-3 py-1 rounded transition-colors ${
+                    yearlyView === 'chart' ? 'bg-gold-500 text-dark-950' : 'text-gray-400 hover:text-gray-200'
+                  }`}
+                >
+                  <BarChart3 size={16} />
+                </button>
+              </div>
+              <button
+                onClick={() => exportToExcel('yearly')}
+                className="flex items-center gap-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg transition-colors text-sm"
+              >
+                <Download size={16} />
+                Export
+              </button>
+            </div>
           </div>
-          <div className="space-y-3">
-            {yearlyData.length === 0 ? (
-              <p className="text-gray-400 text-center py-4">Geen data beschikbaar</p>
-            ) : (
-              yearlyData.map((year) => (
+          {yearlyData.length === 0 ? (
+            <p className="text-gray-400 text-center py-4">Geen data beschikbaar</p>
+          ) : yearlyView === 'table' ? (
+            <div className="space-y-3">
+              {yearlyData.map((year) => (
                 <div key={year.year} className="p-4 bg-dark-800 rounded-lg">
                   <div className="flex justify-between items-center mb-2">
                     <span className="font-bold text-gray-100 text-lg">{year.year}</span>
@@ -539,9 +563,26 @@ export function Analytics() {
                     </div>
                   </div>
                 </div>
-              ))
-            )}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={yearlyData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <XAxis dataKey="year" stroke="#9CA3AF" />
+                <YAxis stroke="#9CA3AF" tickFormatter={(value) => `€${(value / 1000).toFixed(0)}k`} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #374151', borderRadius: '8px' }}
+                  labelStyle={{ color: '#F3F4F6' }}
+                  formatter={(value: number) => formatCurrency(value)}
+                />
+                <Legend wrapperStyle={{ color: '#9CA3AF' }} />
+                <Bar dataKey="revenue" name="Totale Omzet" fill="#10B981" />
+                <Bar dataKey="paid" name="Betaald" fill="#34D399" />
+                <Bar dataKey="pending" name="Openstaand" fill="#FBBF24" />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
         <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
@@ -552,19 +593,39 @@ export function Analytics() {
               </div>
               <h3 className="text-lg font-semibold text-gray-100">Kwartaaloverzicht {selectedYear}</h3>
             </div>
-            <button
-              onClick={() => exportToExcel('quarterly')}
-              className="flex items-center gap-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg transition-colors text-sm"
-            >
-              <Download size={16} />
-              Export
-            </button>
+            <div className="flex gap-2">
+              <div className="flex bg-dark-800 rounded-lg p-1">
+                <button
+                  onClick={() => setQuarterlyView('table')}
+                  className={`flex items-center gap-1 px-3 py-1 rounded transition-colors ${
+                    quarterlyView === 'table' ? 'bg-gold-500 text-dark-950' : 'text-gray-400 hover:text-gray-200'
+                  }`}
+                >
+                  <Table size={16} />
+                </button>
+                <button
+                  onClick={() => setQuarterlyView('chart')}
+                  className={`flex items-center gap-1 px-3 py-1 rounded transition-colors ${
+                    quarterlyView === 'chart' ? 'bg-gold-500 text-dark-950' : 'text-gray-400 hover:text-gray-200'
+                  }`}
+                >
+                  <LineChartIcon size={16} />
+                </button>
+              </div>
+              <button
+                onClick={() => exportToExcel('quarterly')}
+                className="flex items-center gap-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg transition-colors text-sm"
+              >
+                <Download size={16} />
+                Export
+              </button>
+            </div>
           </div>
-          <div className="space-y-3">
-            {quarterlyData.length === 0 ? (
-              <p className="text-gray-400 text-center py-4">Geen data beschikbaar voor {selectedYear}</p>
-            ) : (
-              quarterlyData.map((quarter) => (
+          {quarterlyData.length === 0 ? (
+            <p className="text-gray-400 text-center py-4">Geen data beschikbaar voor {selectedYear}</p>
+          ) : quarterlyView === 'table' ? (
+            <div className="space-y-3">
+              {quarterlyData.map((quarter) => (
                 <div key={`${quarter.year}-Q${quarter.quarter}`} className="p-4 bg-dark-800 rounded-lg">
                   <div className="flex justify-between items-center mb-2">
                     <span className="font-bold text-gray-100">Q{quarter.quarter} {quarter.year}</span>
@@ -587,9 +648,31 @@ export function Analytics() {
                     </div>
                   </div>
                 </div>
-              ))
-            )}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={quarterlyData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <XAxis
+                  dataKey="quarter"
+                  stroke="#9CA3AF"
+                  tickFormatter={(value) => `Q${value}`}
+                />
+                <YAxis stroke="#9CA3AF" tickFormatter={(value) => `€${(value / 1000).toFixed(0)}k`} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #374151', borderRadius: '8px' }}
+                  labelStyle={{ color: '#F3F4F6' }}
+                  labelFormatter={(value) => `Q${value} ${selectedYear}`}
+                  formatter={(value: number) => formatCurrency(value)}
+                />
+                <Legend wrapperStyle={{ color: '#9CA3AF' }} />
+                <Line type="monotone" dataKey="revenue" name="Totale Omzet" stroke="#3B82F6" strokeWidth={2} dot={{ fill: '#3B82F6', r: 4 }} />
+                <Line type="monotone" dataKey="paid" name="Betaald" stroke="#10B981" strokeWidth={2} dot={{ fill: '#10B981', r: 4 }} />
+                <Line type="monotone" dataKey="pending" name="Openstaand" stroke="#FBBF24" strokeWidth={2} dot={{ fill: '#FBBF24', r: 4 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
         </div>
       </div>
 
@@ -696,21 +779,41 @@ export function Analytics() {
             <div className="flex justify-between items-center mb-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-dark-700 rounded-lg">
-                  <FileText className="text-purple-400" size={20} />
+                  <FileText className="text-emerald-400" size={20} />
                 </div>
                 <h3 className="text-lg font-semibold text-gray-100">BTW Overzicht {selectedYear}</h3>
               </div>
-              <button
-                onClick={() => exportToExcel('vat')}
-                className="flex items-center gap-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg transition-colors text-sm"
-              >
-                <Download size={16} />
-                Export
-              </button>
+              <div className="flex gap-2">
+                <div className="flex bg-dark-800 rounded-lg p-1">
+                  <button
+                    onClick={() => setVatView('table')}
+                    className={`flex items-center gap-1 px-3 py-1 rounded transition-colors ${
+                      vatView === 'table' ? 'bg-gold-500 text-dark-950' : 'text-gray-400 hover:text-gray-200'
+                    }`}
+                  >
+                    <Table size={16} />
+                  </button>
+                  <button
+                    onClick={() => setVatView('chart')}
+                    className={`flex items-center gap-1 px-3 py-1 rounded transition-colors ${
+                      vatView === 'chart' ? 'bg-gold-500 text-dark-950' : 'text-gray-400 hover:text-gray-200'
+                    }`}
+                  >
+                    <LineChartIcon size={16} />
+                  </button>
+                </div>
+                <button
+                  onClick={() => exportToExcel('vat')}
+                  className="flex items-center gap-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg transition-colors text-sm"
+                >
+                  <Download size={16} />
+                  Export
+                </button>
+              </div>
             </div>
             {vatData.length === 0 ? (
               <p className="text-gray-400 text-center py-4">Geen BTW data beschikbaar voor {selectedYear}</p>
-            ) : (
+            ) : vatView === 'table' ? (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-dark-800">
@@ -758,6 +861,28 @@ export function Analytics() {
                   </tbody>
                 </table>
               </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={400}>
+                <LineChart data={vatData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis
+                    dataKey="period"
+                    stroke="#9CA3AF"
+                    tickFormatter={(value) => value.split('-')[1]}
+                  />
+                  <YAxis stroke="#9CA3AF" tickFormatter={(value) => `€${(value / 1000).toFixed(0)}k`} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #374151', borderRadius: '8px' }}
+                    labelStyle={{ color: '#F3F4F6' }}
+                    formatter={(value: number) => formatCurrency(value)}
+                  />
+                  <Legend wrapperStyle={{ color: '#9CA3AF' }} />
+                  <Line type="monotone" dataKey="revenue" name="Omzet (excl. BTW)" stroke="#6B7280" strokeWidth={2} dot={{ fill: '#6B7280', r: 4 }} />
+                  <Line type="monotone" dataKey="vatCollected" name="BTW Geïnd" stroke="#10B981" strokeWidth={2} dot={{ fill: '#10B981', r: 4 }} />
+                  <Line type="monotone" dataKey="vatPaid" name="BTW Betaald" stroke="#EF4444" strokeWidth={2} dot={{ fill: '#EF4444', r: 4 }} />
+                  <Line type="monotone" dataKey="netVAT" name="Netto BTW" stroke="#3B82F6" strokeWidth={3} dot={{ fill: '#3B82F6', r: 5 }} />
+                </LineChart>
+              </ResponsiveContainer>
             )}
           </div>
         </div>
