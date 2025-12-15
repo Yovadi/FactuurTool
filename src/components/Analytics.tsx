@@ -524,7 +524,7 @@ export function Analytics() {
                     yearlyView === 'chart' ? 'bg-gold-500 text-dark-950' : 'text-gray-400 hover:text-gray-200'
                   }`}
                 >
-                  <BarChart3 size={16} />
+                  <LineChartIcon size={16} />
                 </button>
               </div>
               <button
@@ -567,7 +567,7 @@ export function Analytics() {
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={yearlyData}>
+              <LineChart data={yearlyData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                 <XAxis dataKey="year" stroke="#9CA3AF" />
                 <YAxis stroke="#9CA3AF" tickFormatter={(value) => `€${(value / 1000).toFixed(0)}k`} />
@@ -577,10 +577,10 @@ export function Analytics() {
                   formatter={(value: number) => formatCurrency(value)}
                 />
                 <Legend wrapperStyle={{ color: '#9CA3AF' }} />
-                <Bar dataKey="revenue" name="Totale Omzet" fill="#10B981" />
-                <Bar dataKey="paid" name="Betaald" fill="#34D399" />
-                <Bar dataKey="pending" name="Openstaand" fill="#FBBF24" />
-              </BarChart>
+                <Line type="monotone" dataKey="revenue" name="Totale Omzet" stroke="#10B981" strokeWidth={3} dot={{ fill: '#10B981', r: 5 }} />
+                <Line type="monotone" dataKey="paid" name="Betaald" stroke="#34D399" strokeWidth={2} dot={{ fill: '#34D399', r: 4 }} />
+                <Line type="monotone" dataKey="pending" name="Openstaand" stroke="#FBBF24" strokeWidth={2} dot={{ fill: '#FBBF24', r: 4 }} />
+              </LineChart>
             </ResponsiveContainer>
           )}
         </div>
