@@ -7,14 +7,11 @@ import { SpaceTypeRates } from './components/SpaceTypeRates';
 import { CompanySettings } from './components/CompanySettings';
 import { MeetingRoomBookings } from './components/MeetingRoomBookings';
 import { PinLogin } from './components/PinLogin';
-import { InvoiceManagement } from './components/InvoiceManagement';
-import { DebtorsOverview } from './components/DebtorsOverview';
-import { CreditNotes } from './components/CreditNotes';
-import { CreditOverview } from './components/CreditOverview';
 import { Analytics } from './components/Analytics';
-import { LayoutDashboard, Users, Building, Settings, CalendarClock, LogOut, Euro, TrendingUp, FileText, AlertTriangle, Receipt, DollarSign, Building2, Calculator } from 'lucide-react';
+import { Financial } from './components/Financial';
+import { LayoutDashboard, Users, Building, Settings, CalendarClock, LogOut, Euro, TrendingUp, FileText, Building2, Calculator } from 'lucide-react';
 
-type Tab = 'dashboard' | 'rental-fulltime' | 'rental-contracts' | 'spaces-spaces' | 'spaces-rates' | 'bookings' | 'financial-invoices' | 'financial-debtors' | 'financial-creditnotes' | 'financial-creditoverview' | 'analytics' | 'settings';
+type Tab = 'dashboard' | 'rental-fulltime' | 'rental-contracts' | 'spaces-spaces' | 'spaces-rates' | 'bookings' | 'financial' | 'analytics' | 'settings';
 
 type MenuSection = {
   id: string;
@@ -58,17 +55,7 @@ function App() {
       ],
     },
     { id: 'bookings', label: 'Vergaderruimte', icon: CalendarClock },
-    {
-      id: 'financial',
-      label: 'Facturatie',
-      icon: Euro,
-      children: [
-        { id: 'financial-invoices' as Tab, label: 'Facturen', icon: FileText },
-        { id: 'financial-debtors' as Tab, label: 'Debiteuren', icon: AlertTriangle },
-        { id: 'financial-creditnotes' as Tab, label: 'Credit Nota\'s', icon: Receipt },
-        { id: 'financial-creditoverview' as Tab, label: 'Credit Overzicht', icon: DollarSign },
-      ],
-    },
+    { id: 'financial', label: 'Facturatie', icon: Euro },
     { id: 'analytics', label: 'Analyses', icon: TrendingUp },
   ];
 
@@ -236,10 +223,7 @@ function App() {
             {activeTab === 'rental-fulltime' && <TenantManagement />}
             {activeTab === 'rental-contracts' && <LeaseManagement />}
             {activeTab === 'bookings' && <MeetingRoomBookings />}
-            {activeTab === 'financial-invoices' && <InvoiceManagement />}
-            {activeTab === 'financial-debtors' && <DebtorsOverview />}
-            {activeTab === 'financial-creditnotes' && <CreditNotes />}
-            {activeTab === 'financial-creditoverview' && <CreditOverview />}
+            {activeTab === 'financial' && <Financial />}
             {activeTab === 'analytics' && <Analytics />}
             {activeTab === 'settings' && <CompanySettings />}
           </main>

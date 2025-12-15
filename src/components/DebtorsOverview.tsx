@@ -22,13 +22,17 @@ type Invoice = {
   status: string;
 };
 
-export function DebtorsOverview() {
+type DebtorsOverviewProps = {
+  initialTab?: 'open' | 'log';
+};
+
+export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
   const [debtors, setDebtors] = useState<Debtor[]>([]);
   const [selectedDebtor, setSelectedDebtor] = useState<Debtor | null>(null);
   const [debtorInvoices, setDebtorInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalOutstanding, setTotalOutstanding] = useState(0);
-  const [activeTab, setActiveTab] = useState<'open' | 'log'>('open');
+  const [activeTab, setActiveTab] = useState<'open' | 'log'>(initialTab);
   const [paidInvoices, setPaidInvoices] = useState<any[]>([]);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [filterCustomer, setFilterCustomer] = useState<string>('');
@@ -37,6 +41,10 @@ export function DebtorsOverview() {
   const [invoiceToDelete, setInvoiceToDelete] = useState<string | null>(null);
   const [deleteCode, setDeleteCode] = useState('');
   const [companySettings, setCompanySettings] = useState<any>(null);
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
 
   useEffect(() => {
     loadCompanySettings();
@@ -347,33 +355,6 @@ export function DebtorsOverview() {
     <div className="h-full bg-dark-950">
       <div>
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-100 mb-4">Debiteuren Overzicht</h1>
-          <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2 mb-4">
-            <div className="flex gap-2">
-              <button
-                onClick={() => setActiveTab('open')}
-                className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
-                  activeTab === 'open'
-                    ? 'bg-gold-500 text-dark-950'
-                    : 'text-gray-300 hover:bg-dark-800'
-                }`}
-              >
-                <AlertCircle size={18} />
-                Openstaand
-              </button>
-              <button
-                onClick={() => setActiveTab('log')}
-                className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
-                  activeTab === 'log'
-                    ? 'bg-gold-500 text-dark-950'
-                    : 'text-gray-300 hover:bg-dark-800'
-                }`}
-              >
-                <CheckCircle size={18} />
-                Logboek
-              </button>
-            </div>
-          </div>
           {activeTab === 'open' && (
             <div className="flex items-center gap-4">
               <div className="bg-dark-900 px-4 py-2 rounded-lg">
