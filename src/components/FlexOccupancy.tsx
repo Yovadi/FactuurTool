@@ -12,7 +12,12 @@ type FlexSpace = {
 type FlexLease = {
   id: string;
   tenant_id: string;
-  flex_hours_per_month: number;
+  flex_hours_per_month: number | null;
+  flex_pricing_model: 'daily' | 'monthly_unlimited' | 'credit_based';
+  flex_daily_rate: number | null;
+  flex_monthly_rate: number | null;
+  flex_credits_per_month: number | null;
+  flex_credit_rate: number | null;
   start_date: string;
   end_date: string;
   status: string;
@@ -57,6 +62,12 @@ export function FlexOccupancy() {
 
   useEffect(() => {
     loadFlexData();
+  }, []);
+
+  useEffect(() => {
+    if (flexSpaces.length > 0 && flexLeases.length > 0) {
+      loadWeekData(flexSpaces, flexLeases);
+    }
   }, [selectedWeek]);
 
   const getWeekDates = (weekOffset: number) => {
@@ -88,18 +99,25 @@ export function FlexOccupancy() {
   const loadFlexData = async () => {
     setLoading(true);
 
-    const { data: spaces } = await supabase
+    const { data: spaces, error: spacesError } = await supabase
       .from('office_spaces')
       .select('id, space_number, size')
       .eq('is_flex_space', true)
       .order('space_number');
 
-    const { data: leases } = await supabase
+    console.log('Flex spaces:', spaces, spacesError);
+
+    const { data: leases, error: leasesError } = await supabase
       .from('leases')
       .select(`
         id,
         tenant_id,
         flex_hours_per_month,
+        flex_pricing_model,
+        flex_daily_rate,
+        flex_monthly_rate,
+        flex_credits_per_month,
+        flex_credit_rate,
         start_date,
         end_date,
         status,
@@ -109,12 +127,14 @@ export function FlexOccupancy() {
       `)
       .eq('lease_type', 'flex');
 
+    console.log('Flex leases:', leases, leasesError);
+
     setFlexSpaces(spaces || []);
     setFlexLeases(leases || []);
 
     await loadWeekData(spaces || [], leases || []);
     await loadTenantUsage(leases || []);
-    await loadWeeklyTrends();
+    await loadWeeklyTrends(spaces || []);
 
     setLoading(false);
   };
@@ -164,16 +184,20 @@ export function FlexOccupancy() {
       l.end_date >= currentDate
     );
 
+    console.log('Active flex leases:', activeLeases);
+
     const currentMonth = new Date().toISOString().slice(0, 7);
 
     const usageData: TenantUsage[] = await Promise.all(
       activeLeases.map(async (lease) => {
-        const { data: bookings } = await supabase
+        const { data: bookings, error: bookingsError } = await supabase
           .from('meeting_room_bookings')
-          .select('start_time, end_time')
+          .select('start_time, end_time, booking_date')
           .eq('tenant_id', lease.tenant_id)
           .gte('booking_date', `${currentMonth}-01`)
           .lte('booking_date', `${currentMonth}-31`);
+
+        console.log(`Bookings for tenant ${lease.tenants?.company_name}:`, bookings, bookingsError);
 
         const hoursUsed = bookings?.reduce((sum, booking) => {
           const start = new Date(`2000-01-01T${booking.start_time}`);
@@ -182,8 +206,18 @@ export function FlexOccupancy() {
           return sum + hours;
         }, 0) || 0;
 
-        const hoursAllocated = lease.flex_hours_per_month || 0;
+        let hoursAllocated = 0;
+        if (lease.flex_pricing_model === 'credit_based') {
+          hoursAllocated = lease.flex_credits_per_month || 0;
+        } else if (lease.flex_pricing_model === 'monthly_unlimited') {
+          hoursAllocated = 160;
+        } else {
+          hoursAllocated = lease.flex_hours_per_month || 0;
+        }
+
         const percentage = hoursAllocated > 0 ? (hoursUsed / hoursAllocated) * 100 : 0;
+
+        console.log(`Tenant ${lease.tenants?.company_name}: ${hoursUsed}/${hoursAllocated} hours (${percentage}%) - Model: ${lease.flex_pricing_model}`);
 
         return {
           tenant_name: lease.tenants?.company_name || 'Onbekend',
@@ -194,10 +228,28 @@ export function FlexOccupancy() {
       })
     );
 
+    console.log('Final tenant usage:', usageData);
     setTenantUsage(usageData);
   };
 
-  const loadWeeklyTrends = async () => {
+  const loadWeeklyTrends = async (spaces: FlexSpace[]) => {
+    if (spaces.length === 0) {
+      setWeeklyTrends([]);
+      return;
+    }
+
+    const oldestWeekDates = getWeekDates(-7);
+    const newestWeekDates = getWeekDates(0);
+    const startDate = formatDate(oldestWeekDates[0]);
+    const endDate = formatDate(newestWeekDates[4]);
+
+    const { data: allBookings } = await supabase
+      .from('meeting_room_bookings')
+      .select('start_time, end_time, booking_date')
+      .gte('booking_date', startDate)
+      .lte('booking_date', endDate)
+      .in('space_id', spaces.map(s => s.id));
+
     const trends: WeeklyTrend[] = [];
 
     for (let i = 7; i >= 0; i--) {
@@ -205,26 +257,18 @@ export function FlexOccupancy() {
       const weekStart = formatDate(weekDates[0]);
       const weekEnd = formatDate(weekDates[4]);
 
-      const { data: spaces } = await supabase
-        .from('office_spaces')
-        .select('id')
-        .eq('is_flex_space', true);
+      const weekBookings = allBookings?.filter(b =>
+        b.booking_date >= weekStart && b.booking_date <= weekEnd
+      ) || [];
 
-      const { data: bookings } = await supabase
-        .from('meeting_room_bookings')
-        .select('start_time, end_time')
-        .gte('booking_date', weekStart)
-        .lte('booking_date', weekEnd)
-        .in('space_id', spaces?.map(s => s.id) || []);
-
-      const totalHours = bookings?.reduce((sum, booking) => {
+      const totalHours = weekBookings.reduce((sum, booking) => {
         const start = new Date(`2000-01-01T${booking.start_time}`);
         const end = new Date(`2000-01-01T${booking.end_time}`);
         const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
         return sum + hours;
-      }, 0) || 0;
+      }, 0);
 
-      const totalAvailableHours = (spaces?.length || 0) * totalFlexHoursPerDay * 5;
+      const totalAvailableHours = spaces.length * totalFlexHoursPerDay * 5;
       const utilization = totalAvailableHours > 0 ? (totalHours / totalAvailableHours) * 100 : 0;
 
       const weekLabel = `${formatDisplayDate(weekDates[0])} - ${formatDisplayDate(weekDates[4])}`;
@@ -262,7 +306,12 @@ export function FlexOccupancy() {
       const currentDate = new Date().toISOString().split('T')[0];
       return l.status === 'active' && l.start_date <= currentDate && l.end_date >= currentDate;
     })
-    .reduce((sum, l) => sum + (l.flex_hours_per_month || 0), 0);
+    .reduce((sum, l) => {
+      if (l.flex_pricing_model === 'credit_based' && l.flex_credits_per_month) {
+        return sum + (l.flex_credits_per_month || 0);
+      }
+      return sum + (l.flex_hours_per_month || 0);
+    }, 0);
 
   const totalUsedHours = tenantUsage.reduce((sum, t) => sum + t.hours_used, 0);
   const averageUtilization = totalAllocatedHours > 0
