@@ -6,7 +6,7 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, L
 type FlexSpace = {
   id: string;
   space_number: string;
-  size: number;
+  square_footage: number;
 };
 
 type FlexLease = {
@@ -129,7 +129,7 @@ export function FlexOccupancy() {
 
     const { data: spaces, error: spacesError } = await supabase
       .from('office_spaces')
-      .select('id, space_number, size')
+      .select('id, space_number, square_footage')
       .eq('is_flex_space', true)
       .order('space_number');
 
