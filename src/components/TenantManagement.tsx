@@ -511,14 +511,16 @@ export function TenantManagement() {
               </thead>
               <tbody>
                 {tenants
-                  .filter(tenant =>
-                    !tenant.leases ||
-                    tenant.leases.length === 0 ||
-                    tenant.leases.some(lease =>
+                  .filter(tenant => {
+                    if (!tenant.leases || tenant.leases.length === 0) {
+                      return true;
+                    }
+
+                    return tenant.leases.some(lease =>
                       lease.status === 'active' &&
                       (lease.lease_type === 'full_time' || lease.lease_type === 'fulltime' || !lease.lease_type)
-                    )
-                  )
+                    );
+                  })
                   .map((tenant) => (
                     <tr
                       key={tenant.id}
@@ -935,11 +937,12 @@ export function TenantManagement() {
         </div>
       )}
 
-      {activeTab === 'fulltime' && tenants.filter(t =>
-        !t.leases ||
-        t.leases.length === 0 ||
-        t.leases.some(l => l.status === 'active' && (l.lease_type === 'fulltime' || l.lease_type === 'full_time' || !l.lease_type))
-      ).length === 0 && (
+      {activeTab === 'fulltime' && tenants.filter(t => {
+        if (!t.leases || t.leases.length === 0) {
+          return true;
+        }
+        return t.leases.some(l => l.status === 'active' && (l.lease_type === 'fulltime' || l.lease_type === 'full_time' || !l.lease_type));
+      }).length === 0 && (
         <div className="bg-dark-900 rounded-lg p-8 text-center">
           <AlertCircle size={48} className="text-gray-500 mx-auto mb-4" />
           <p className="text-gray-400">Geen voltijd huurders gevonden</p>
