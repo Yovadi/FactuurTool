@@ -246,7 +246,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(255, 255, 255);
   pdf.text('Omschrijving', col1X + 2, tableTop + 5.5);
-  pdf.text('Hoeveelheid', col2X, tableTop + 5.5, { align: 'center' });
+  pdf.text('Hoeveelheid', col2X - 2, tableTop + 5.5, { align: 'right' });
   pdf.text('Tarief', col3X - 2, tableTop + 5.5, { align: 'right' });
   pdf.text('Bedrag', col4X - 2, tableTop + 5.5, { align: 'right' });
   pdf.text('BTW', col5X - 2, tableTop + 5.5, { align: 'right' });
@@ -316,7 +316,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
       }
 
       pdf.text(descLines, col1X + 2, yPosition);
-      pdf.text(quantity, col2X, yPosition, { align: 'center' });
+      pdf.text(quantity, col2X - 2, yPosition, { align: 'right' });
       pdf.text(rate, col3X - 2, yPosition, { align: 'right' });
       if (amount) {
         pdf.text(`€ ${amount}`, col4X - 2, yPosition, { align: 'right' });
@@ -378,7 +378,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
     }
 
     pdf.text(descLines, col1X + 2, yPosition);
-    pdf.text(quantity, col2X, yPosition, { align: 'center' });
+    pdf.text(quantity, col2X - 2, yPosition, { align: 'right' });
     pdf.text(rate, col3X - 2, yPosition, { align: 'right' });
     pdf.text(`€ ${space.monthly_rent.toFixed(2)}`, col4X - 2, yPosition, { align: 'right' });
     pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col5X - 2, yPosition, { align: 'right' });
@@ -602,7 +602,7 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(255, 255, 255);
   pdf.text('Omschrijving', col1X + 2, tableTop + 5.5);
-  pdf.text('Hoeveelheid', col2X, tableTop + 5.5, { align: 'center' });
+  pdf.text('Hoeveelheid', col2X - 2, tableTop + 5.5, { align: 'right' });
   pdf.text('Tarief', col3X - 2, tableTop + 5.5, { align: 'right' });
   pdf.text('Bedrag', col4X - 2, tableTop + 5.5, { align: 'right' });
   pdf.text('BTW', col5X - 2, tableTop + 5.5, { align: 'right' });
@@ -632,7 +632,7 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
     }
 
     pdf.text(descLines, col1X + 2, yPosition);
-    pdf.text(quantity, col2X, yPosition, { align: 'center' });
+    pdf.text(quantity, col2X - 2, yPosition, { align: 'right' });
     pdf.text(rate, col3X - 2, yPosition, { align: 'right' });
     const amount = -item.amount;
     pdf.text(`€ ${amount.toFixed(2)}`, col4X - 2, yPosition, { align: 'right' });
