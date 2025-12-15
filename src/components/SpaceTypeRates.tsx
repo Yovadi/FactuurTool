@@ -7,13 +7,16 @@ const SPACE_TYPE_LABELS: Record<string, string> = {
   'kantoor': 'Kantoor',
   'buitenterrein': 'Buitenterrein',
   'diversen': 'Diversen',
-  'Meeting Room': 'Vergaderruimte'
+  'Meeting Room': 'Vergaderruimte',
+  'flexplek': 'Flexplek'
 };
 
 const CALCULATION_METHOD_LABELS: Record<string, string> = {
   'per_sqm': 'Per vierkante meter',
   'fixed_monthly': 'Vast maandbedrag',
   'hourly': 'Per uur',
+  'daily': 'Per dag (x dagen per maand)',
+  'punch_card': 'Strippenkaart (x dagen per maand)',
   'custom': 'Aangepast'
 };
 
@@ -27,10 +30,13 @@ export function SpaceTypeRates() {
     space_type: '',
     rate_per_sqm: '',
     rate_per_sqm_furnished: '',
-    calculation_method: 'per_sqm' as 'per_sqm' | 'fixed_monthly' | 'hourly' | 'custom',
+    calculation_method: 'per_sqm' as 'per_sqm' | 'fixed_monthly' | 'hourly' | 'custom' | 'daily' | 'punch_card',
     fixed_rate: '',
     fixed_rate_furnished: '',
     hourly_rate: '',
+    daily_rate: '',
+    punch_card_rate: '',
+    punch_card_days: '',
     is_annual: false,
     description: '',
     description_furnished: ''
@@ -80,6 +86,9 @@ export function SpaceTypeRates() {
       fixed_rate: fixedRate,
       fixed_rate_furnished: fixedRateFurnished,
       hourly_rate: parseFloat(formData.hourly_rate) || 0,
+      daily_rate: parseFloat(formData.daily_rate) || 0,
+      punch_card_rate: parseFloat(formData.punch_card_rate) || 0,
+      punch_card_days: parseInt(formData.punch_card_days) || 0,
       is_annual: formData.is_annual,
       description: formData.description,
       description_furnished: formData.description_furnished
@@ -123,6 +132,9 @@ export function SpaceTypeRates() {
       fixed_rate: (rate.fixed_rate * multiplier).toString(),
       fixed_rate_furnished: (rate.fixed_rate_furnished * multiplier).toString(),
       hourly_rate: rate.hourly_rate.toString(),
+      daily_rate: rate.daily_rate.toString(),
+      punch_card_rate: rate.punch_card_rate.toString(),
+      punch_card_days: rate.punch_card_days.toString(),
       is_annual: rate.is_annual,
       description: rate.description || '',
       description_furnished: rate.description_furnished || ''
@@ -139,6 +151,9 @@ export function SpaceTypeRates() {
       fixed_rate: '',
       fixed_rate_furnished: '',
       hourly_rate: '',
+      daily_rate: '',
+      punch_card_rate: '',
+      punch_card_days: '',
       is_annual: false,
       description: '',
       description_furnished: ''
@@ -254,6 +269,33 @@ export function SpaceTypeRates() {
                       <Clock size={14} className="text-gold-500" />
                       <span className="text-gray-100 font-bold">€{rate.hourly_rate.toFixed(2)}</span>
                       <span className="text-gray-400">/uur</span>
+                    </div>
+                  </div>
+                )}
+
+                {rate.calculation_method === 'daily' && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-400">Dagprijs:</span>
+                    <div className="flex items-center gap-1">
+                      <Euro size={14} className="text-gold-500" />
+                      <span className="text-gray-100 font-bold">€{rate.daily_rate.toFixed(2)}</span>
+                      <span className="text-gray-400">/dag</span>
+                    </div>
+                  </div>
+                )}
+
+                {rate.calculation_method === 'punch_card' && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-400">Strippenkaart:</span>
+                      <div className="flex items-center gap-1">
+                        <Euro size={14} className="text-gold-500" />
+                        <span className="text-gray-100 font-bold">€{rate.punch_card_rate.toFixed(2)}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-400">Aantal dagen:</span>
+                      <span className="text-gray-100 font-bold">{rate.punch_card_days} dagen</span>
                     </div>
                   </div>
                 )}
@@ -451,6 +493,83 @@ export function SpaceTypeRates() {
                 </div>
               )}
 
+              {formData.calculation_method === 'daily' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-200 mb-1">
+                    Prijs per Dag
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      required
+                      value={formData.daily_rate}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                          setFormData({ ...formData, daily_rate: value });
+                        }
+                      }}
+                      className="flex-1 px-3 py-2 bg-dark-700 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                      placeholder="0.00"
+                    />
+                    <span className="text-gray-400">€/dag</span>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-2">
+                    Dit tarief wordt vermenigvuldigd met het aantal dagen per maand
+                  </p>
+                </div>
+              )}
+
+              {formData.calculation_method === 'punch_card' && (
+                <div className="space-y-3 p-4 bg-dark-900 rounded-lg">
+                  <h4 className="text-sm font-bold text-gray-200">Strippenkaart Details</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Prijs</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          required
+                          value={formData.punch_card_rate}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                              setFormData({ ...formData, punch_card_rate: value });
+                            }
+                          }}
+                          className="flex-1 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                          placeholder="0.00"
+                        />
+                        <span className="text-gray-400">€</span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Aantal dagen</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        required
+                        value={formData.punch_card_days}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === '' || /^\d+$/.test(value)) {
+                            setFormData({ ...formData, punch_card_days: value });
+                          }
+                        }}
+                        className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                        placeholder="10"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-400">
+                    De strippenkaart geeft recht op een vast aantal dagen gebruik per maand
+                  </p>
+                </div>
+              )}
+
               <div className="flex items-center gap-3 p-4 bg-dark-900 rounded-lg">
                 <input
                   type="checkbox"
@@ -522,6 +641,8 @@ export function SpaceTypeRates() {
           <p><strong className="text-gold-500">Per vierkante meter:</strong> De huurprijs wordt berekend op basis van het aantal m² × prijs per m²</p>
           <p><strong className="text-gold-500">Vast maandbedrag:</strong> Een vast bedrag per maand, onafhankelijk van grootte</p>
           <p><strong className="text-gold-500">Per uur:</strong> Prijs wordt berekend per uur gebruik (voor vergaderruimtes)</p>
+          <p><strong className="text-gold-500">Per dag (x dagen per maand):</strong> Dagprijs × aantal gebruikte dagen per maand (voor flexplekken)</p>
+          <p><strong className="text-gold-500">Strippenkaart (x dagen per maand):</strong> Vast bedrag voor een strippenkaart met een bepaald aantal dagen gebruik per maand</p>
           <p><strong className="text-gold-500">Aangepast:</strong> Combinatie van m²-prijs en vast bedrag mogelijk</p>
           <p className="pt-2 border-t border-dark-700"><strong className="text-gold-500">Jaarlijks tarief:</strong> Wanneer aangevinkt wordt het opgegeven tarief automatisch gedeeld door 12 voor maandelijkse facturering</p>
           <p><strong className="text-gold-500">Gemeubileerd:</strong> Voor kantoren kun je aparte tarieven instellen voor gemeubileerde en niet-gemeubileerde ruimtes</p>
