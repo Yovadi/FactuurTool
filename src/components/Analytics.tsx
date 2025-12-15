@@ -71,7 +71,7 @@ export function Analytics() {
   const [tenants, setTenants] = useState<any[]>([]);
   const [externalCustomers, setExternalCustomers] = useState<any[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<{id: string; type: 'tenant' | 'external'; name: string} | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'bookings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'bookings' | 'vat'>('overview');
 
   useEffect(() => {
     loadAllData();
@@ -385,6 +385,17 @@ export function Analytics() {
               <Calendar size={20} />
               Boekingen
             </button>
+            <button
+              onClick={() => setActiveTab('vat')}
+              className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
+                activeTab === 'vat'
+                  ? 'bg-gold-500 text-dark-950'
+                  : 'text-gray-300 hover:bg-dark-800'
+              }`}
+            >
+              <FileText size={20} />
+              BTW Overzicht
+            </button>
           </div>
         </div>
       </div>
@@ -582,75 +593,6 @@ export function Analytics() {
         </div>
       </div>
 
-      <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6 mb-8">
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-dark-700 rounded-lg">
-              <FileText className="text-purple-400" size={20} />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-100">BTW Overzicht {selectedYear}</h3>
-          </div>
-          <button
-            onClick={() => exportToExcel('vat')}
-            className="flex items-center gap-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg transition-colors text-sm"
-          >
-            <Download size={16} />
-            Export
-          </button>
-        </div>
-        {vatData.length === 0 ? (
-          <p className="text-gray-400 text-center py-4">Geen BTW data beschikbaar voor {selectedYear}</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-dark-800">
-                <tr>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">Periode</th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-300">Omzet (excl. BTW)</th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-300">BTW Geïnd</th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-300">BTW Betaald</th>
-                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-300">Netto BTW</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-700">
-                {vatData.map((row) => (
-                  <tr key={row.period} className="hover:bg-dark-800/50">
-                    <td className="px-4 py-3 text-sm text-gray-300">{row.period}</td>
-                    <td className="px-4 py-3 text-sm text-gray-200 text-right font-semibold">
-                      {formatCurrency(row.revenue)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-green-400 text-right font-semibold">
-                      {formatCurrency(row.vatCollected)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-red-400 text-right font-semibold">
-                      {formatCurrency(row.vatPaid)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-blue-400 text-right font-bold">
-                      {formatCurrency(row.netVAT)}
-                    </td>
-                  </tr>
-                ))}
-                <tr className="bg-dark-800 font-bold">
-                  <td className="px-4 py-3 text-sm text-gray-100">Totaal</td>
-                  <td className="px-4 py-3 text-sm text-gray-100 text-right">
-                    {formatCurrency(vatData.reduce((sum, row) => sum + row.revenue, 0))}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-green-400 text-right">
-                    {formatCurrency(vatData.reduce((sum, row) => sum + row.vatCollected, 0))}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-red-400 text-right">
-                    {formatCurrency(vatData.reduce((sum, row) => sum + row.vatPaid, 0))}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-blue-400 text-right">
-                    {formatCurrency(vatData.reduce((sum, row) => sum + row.netVAT, 0))}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
           {stats.overdueInvoices > 0 && (
             <div className="bg-red-900/20 border border-red-800 rounded-lg p-6">
               <div className="flex items-center gap-3 mb-2">
@@ -730,6 +672,94 @@ export function Analytics() {
               onClose={() => setSelectedCustomer(null)}
             />
           )}
+        </div>
+      )}
+
+      {activeTab === 'vat' && (
+        <div>
+          <div className="mb-6 flex justify-end">
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Selecteer Jaar</label>
+              <select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(Number(e.target.value))}
+                className="px-4 py-2 bg-gray-800 text-gray-200 rounded-lg border border-gray-700"
+              >
+                {availableYears.map(year => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-dark-700 rounded-lg">
+                  <FileText className="text-purple-400" size={20} />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-100">BTW Overzicht {selectedYear}</h3>
+              </div>
+              <button
+                onClick={() => exportToExcel('vat')}
+                className="flex items-center gap-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg transition-colors text-sm"
+              >
+                <Download size={16} />
+                Export
+              </button>
+            </div>
+            {vatData.length === 0 ? (
+              <p className="text-gray-400 text-center py-4">Geen BTW data beschikbaar voor {selectedYear}</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-dark-800">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">Periode</th>
+                      <th className="px-4 py-3 text-right text-sm font-semibold text-gray-300">Omzet (excl. BTW)</th>
+                      <th className="px-4 py-3 text-right text-sm font-semibold text-gray-300">BTW Geïnd</th>
+                      <th className="px-4 py-3 text-right text-sm font-semibold text-gray-300">BTW Betaald</th>
+                      <th className="px-4 py-3 text-right text-sm font-semibold text-gray-300">Netto BTW</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-700">
+                    {vatData.map((row) => (
+                      <tr key={row.period} className="hover:bg-dark-800/50">
+                        <td className="px-4 py-3 text-sm text-gray-300">{row.period}</td>
+                        <td className="px-4 py-3 text-sm text-gray-200 text-right font-semibold">
+                          {formatCurrency(row.revenue)}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-green-400 text-right font-semibold">
+                          {formatCurrency(row.vatCollected)}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-red-400 text-right font-semibold">
+                          {formatCurrency(row.vatPaid)}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-blue-400 text-right font-bold">
+                          {formatCurrency(row.netVAT)}
+                        </td>
+                      </tr>
+                    ))}
+                    <tr className="bg-dark-800 font-bold">
+                      <td className="px-4 py-3 text-sm text-gray-100">Totaal</td>
+                      <td className="px-4 py-3 text-sm text-gray-100 text-right">
+                        {formatCurrency(vatData.reduce((sum, row) => sum + row.revenue, 0))}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-green-400 text-right">
+                        {formatCurrency(vatData.reduce((sum, row) => sum + row.vatCollected, 0))}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-red-400 text-right">
+                        {formatCurrency(vatData.reduce((sum, row) => sum + row.vatPaid, 0))}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-blue-400 text-right">
+                        {formatCurrency(vatData.reduce((sum, row) => sum + row.netVAT, 0))}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
