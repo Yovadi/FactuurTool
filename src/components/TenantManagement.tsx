@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, type Tenant, type CompanySettings } from '../lib/supabase';
-import { Plus, Edit2, Trash2, Mail, Phone, MapPin, Key, Users, Building2, AlertCircle, CheckCircle, Calendar, Eye } from 'lucide-react';
+import { Plus, Edit2, Trash2, Mail, Phone, MapPin, Key, Users, Building2, AlertCircle, CheckCircle, Calendar } from 'lucide-react';
 import { BookingOverview } from './BookingOverview';
 
 type TenantWithLeases = Tenant & {
@@ -510,18 +510,7 @@ export function TenantManagement() {
                 </tr>
               </thead>
               <tbody>
-                {tenants
-                  .filter(tenant => {
-                    if (!tenant.leases || tenant.leases.length === 0) {
-                      return true;
-                    }
-
-                    return tenant.leases.some(lease =>
-                      lease.status === 'active' &&
-                      (lease.lease_type === 'full_time' || lease.lease_type === 'fulltime' || !lease.lease_type)
-                    );
-                  })
-                  .map((tenant) => (
+                {tenants.map((tenant) => (
                     <tr
                       key={tenant.id}
                       className="border-b border-dark-800 hover:bg-dark-800 transition-colors"
@@ -577,17 +566,6 @@ export function TenantManagement() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex gap-1 justify-end">
-                          <button
-                            onClick={() => setShowBookingOverview({
-                              customerId: tenant.id,
-                              customerType: 'tenant',
-                              customerName: tenant.company_name
-                            })}
-                            className="text-purple-400 hover:text-purple-300 transition-colors p-1.5 rounded hover:bg-dark-700"
-                            title="Bekijk Boekingen"
-                          >
-                            <Calendar size={18} />
-                          </button>
                           <button
                             onClick={() => handleEdit(tenant)}
                             className="text-blue-400 hover:text-blue-300 transition-colors p-1.5 rounded hover:bg-dark-700"
@@ -937,15 +915,10 @@ export function TenantManagement() {
         </div>
       )}
 
-      {activeTab === 'fulltime' && tenants.filter(t => {
-        if (!t.leases || t.leases.length === 0) {
-          return true;
-        }
-        return t.leases.some(l => l.status === 'active' && (l.lease_type === 'fulltime' || l.lease_type === 'full_time' || !l.lease_type));
-      }).length === 0 && (
+      {activeTab === 'fulltime' && tenants.length === 0 && (
         <div className="bg-dark-900 rounded-lg p-8 text-center">
           <AlertCircle size={48} className="text-gray-500 mx-auto mb-4" />
-          <p className="text-gray-400">Geen voltijd huurders gevonden</p>
+          <p className="text-gray-400">Geen huurders gevonden</p>
         </div>
       )}
 
