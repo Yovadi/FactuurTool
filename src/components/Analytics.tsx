@@ -372,18 +372,7 @@ export function Analytics() {
               }`}
             >
               <BarChart3 size={20} />
-              Overzicht
-            </button>
-            <button
-              onClick={() => setActiveTab('bookings')}
-              className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
-                activeTab === 'bookings'
-                  ? 'bg-gold-500 text-dark-950'
-                  : 'text-gray-300 hover:bg-dark-800'
-              }`}
-            >
-              <Calendar size={20} />
-              Boekingen
+              Omzet
             </button>
             <button
               onClick={() => setActiveTab('vat')}
@@ -395,6 +384,17 @@ export function Analytics() {
             >
               <FileText size={20} />
               BTW Overzicht
+            </button>
+            <button
+              onClick={() => setActiveTab('bookings')}
+              className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
+                activeTab === 'bookings'
+                  ? 'bg-gold-500 text-dark-950'
+                  : 'text-gray-300 hover:bg-dark-800'
+              }`}
+            >
+              <Calendar size={20} />
+              Boekingen
             </button>
           </div>
         </div>
