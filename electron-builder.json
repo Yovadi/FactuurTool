@@ -28,8 +28,8 @@
   },
   "publish": {
     "provider": "github",
-    "owner": "JOUW-GITHUB-USERNAME",
-    "repo": "JOUW-REPO-NAAM",
+    "owner": "Yovadi",
+    "repo": "FactuurTool",
     "releaseType": "release"
   }
 }
