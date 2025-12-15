@@ -280,11 +280,6 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
         return;
       }
 
-      if (lineIndex % 2 === 0) {
-        pdf.setFillColor(250, 250, 250);
-        pdf.rect(margin, yPosition - 4, pageWidth - 2 * margin, 7, 'F');
-      }
-
       // Format: - 04-11-2025 04:00-06:30 (2.5u) = €62.50
       let description = line.replace(/^-\s*/, '').trim();
       let quantity = '';
@@ -311,7 +306,16 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
         description = description.substring(0, description.lastIndexOf('=')).trim();
       }
 
-      pdf.text(description, col1X + 2, yPosition);
+      const maxDescWidth = col2X - col1X - 10;
+      const descLines = pdf.splitTextToSize(description, maxDescWidth);
+      const numLines = Math.max(1, descLines.length);
+
+      if (lineIndex % 2 === 0) {
+        pdf.setFillColor(250, 250, 250);
+        pdf.rect(margin, yPosition - 4, pageWidth - 2 * margin, 7 * numLines, 'F');
+      }
+
+      pdf.text(descLines, col1X + 2, yPosition);
       pdf.text(quantity, col2X, yPosition, { align: 'center' });
       pdf.text(rate, col3X - 2, yPosition, { align: 'right' });
       if (amount) {
@@ -320,18 +324,13 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
       pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col5X - 2, yPosition, { align: 'right' });
 
       lineIndex++;
-      yPosition += 7;
+      yPosition += 7 * numLines;
     });
   } else {
     invoice.spaces.forEach((space, index) => {
     if (yPosition > pageHeight - 70) {
       pdf.addPage();
       yPosition = 20;
-    }
-
-    if (index % 2 === 0) {
-      pdf.setFillColor(250, 250, 250);
-      pdf.rect(margin, yPosition - 4, pageWidth - 2 * margin, 7, 'F');
     }
 
     let displayName = space.space_name;
@@ -369,13 +368,22 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
       }
     }
 
-    pdf.text(displayName, col1X + 2, yPosition);
+    const maxDescWidth = col2X - col1X - 10;
+    const descLines = pdf.splitTextToSize(displayName, maxDescWidth);
+    const numLines = Math.max(1, descLines.length);
+
+    if (index % 2 === 0) {
+      pdf.setFillColor(250, 250, 250);
+      pdf.rect(margin, yPosition - 4, pageWidth - 2 * margin, 7 * numLines, 'F');
+    }
+
+    pdf.text(descLines, col1X + 2, yPosition);
     pdf.text(quantity, col2X, yPosition, { align: 'center' });
     pdf.text(rate, col3X - 2, yPosition, { align: 'right' });
     pdf.text(`€ ${space.monthly_rent.toFixed(2)}`, col4X - 2, yPosition, { align: 'right' });
     pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col5X - 2, yPosition, { align: 'right' });
 
-    yPosition += 7;
+    yPosition += 7 * numLines;
     });
   }
 
@@ -610,23 +618,27 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
       yPosition = 20;
     }
 
-    if (index % 2 === 0) {
-      pdf.setFillColor(250, 250, 250);
-      pdf.rect(margin, yPosition - 3.5, pageWidth - 2 * margin, 7, 'F');
-    }
-
     const description = item.description;
     const quantity = item.quantity > 0 ? item.quantity.toFixed(0) : '';
     const rate = item.unit_price > 0 ? `€ -${item.unit_price.toFixed(2)}` : '';
 
-    pdf.text(description, col1X + 2, yPosition);
+    const maxDescWidth = col2X - col1X - 10;
+    const descLines = pdf.splitTextToSize(description, maxDescWidth);
+    const numLines = Math.max(1, descLines.length);
+
+    if (index % 2 === 0) {
+      pdf.setFillColor(250, 250, 250);
+      pdf.rect(margin, yPosition - 3.5, pageWidth - 2 * margin, 7 * numLines, 'F');
+    }
+
+    pdf.text(descLines, col1X + 2, yPosition);
     pdf.text(quantity, col2X, yPosition, { align: 'center' });
     pdf.text(rate, col3X - 2, yPosition, { align: 'right' });
     const amount = -item.amount;
     pdf.text(`€ ${amount.toFixed(2)}`, col4X - 2, yPosition, { align: 'right' });
     pdf.text(`${creditNote.vat_rate.toFixed(0)}%`, col5X - 2, yPosition, { align: 'right' });
 
-    yPosition += 7;
+    yPosition += 7 * numLines;
   });
 
   if (creditNote.notes) {
