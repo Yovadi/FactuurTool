@@ -21,19 +21,24 @@ function convertLineItemsToSpaces(items: InvoiceLineItem[]) {
   return items.map(item => {
     let spaceType: string = 'diversen';
     let isMeetingRoom = false;
+    let isKnownSpaceType = false;
 
     if (item.description.toLowerCase().includes('voorschot')) {
       spaceType = 'voorschot';
     } else if (item.description.startsWith('Hal ')) {
       spaceType = 'bedrijfsruimte';
+      isKnownSpaceType = true;
     } else if (item.description.startsWith('Kantoor ')) {
       spaceType = 'kantoor';
+      isKnownSpaceType = true;
     } else if (item.description.startsWith('Buitenterrein ')) {
       spaceType = 'buitenterrein';
+      isKnownSpaceType = true;
     } else if (item.description.toLowerCase().includes('vergader') || item.description.toLowerCase().includes('meeting')) {
       isMeetingRoom = true;
     } else if (item.description.toLowerCase().includes('flexplek') || item.description.toLowerCase().includes('flex')) {
       spaceType = 'flex';
+      isKnownSpaceType = true;
     }
 
     let squareFootage: number | undefined = undefined;
@@ -49,13 +54,11 @@ function convertLineItemsToSpaces(items: InvoiceLineItem[]) {
           hourlyRate = item.unit_price;
         }
       }
-    } else if (spaceType !== 'voorschot') {
-      if (item.quantity !== null && item.quantity !== undefined) {
-        const parsed = typeof item.quantity === 'string' ? parseFloat(item.quantity) : item.quantity;
-        if (!isNaN(parsed) && parsed > 0) {
-          squareFootage = parsed;
-          pricePerSqm = item.unit_price;
-        }
+    } else if (isKnownSpaceType && item.quantity !== null && item.quantity !== undefined) {
+      const parsed = typeof item.quantity === 'string' ? parseFloat(item.quantity) : item.quantity;
+      if (!isNaN(parsed) && parsed > 0) {
+        squareFootage = parsed;
+        pricePerSqm = item.unit_price;
       }
     }
 
