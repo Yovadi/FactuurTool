@@ -234,10 +234,10 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
 
   const tableTop = yPosition;
   const col1X = margin;
-  const col2X = pageWidth - margin - 125;
-  const col3X = pageWidth - margin - 80;
-  const col4X = pageWidth - margin - 38;
-  const col5X = pageWidth - margin - 12;
+  const col2X = 120;
+  const col3X = 155;
+  const col4X = 180;
+  const col5X = pageWidth - margin;
 
   pdf.setFillColor(234, 179, 8);
   pdf.rect(margin, tableTop, pageWidth - 2 * margin, 8, 'F');
@@ -246,9 +246,9 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(255, 255, 255);
   pdf.text('Omschrijving', col1X + 2, tableTop + 5.5);
-  pdf.text('Hoeveelheid', col2X - 2, tableTop + 5.5, { align: 'right' });
-  pdf.text('Tarief', col3X - 2, tableTop + 5.5, { align: 'right' });
-  pdf.text('Bedrag', col4X - 2, tableTop + 5.5, { align: 'right' });
+  pdf.text('Hoeveelheid', col2X, tableTop + 5.5, { align: 'right' });
+  pdf.text('Tarief', col3X, tableTop + 5.5, { align: 'right' });
+  pdf.text('Bedrag', col4X, tableTop + 5.5, { align: 'right' });
   pdf.text('BTW', col5X - 2, tableTop + 5.5, { align: 'right' });
 
   yPosition = tableTop + 12;
@@ -316,10 +316,10 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
       }
 
       pdf.text(descLines, col1X + 2, yPosition);
-      pdf.text(quantity, col2X - 2, yPosition, { align: 'right' });
-      pdf.text(rate, col3X - 2, yPosition, { align: 'right' });
+      pdf.text(quantity, col2X, yPosition, { align: 'right' });
+      pdf.text(rate, col3X, yPosition, { align: 'right' });
       if (amount) {
-        pdf.text(`€ ${amount}`, col4X - 2, yPosition, { align: 'right' });
+        pdf.text(`€ ${amount}`, col4X, yPosition, { align: 'right' });
       }
       pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col5X - 2, yPosition, { align: 'right' });
 
@@ -378,9 +378,9 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
     }
 
     pdf.text(descLines, col1X + 2, yPosition);
-    pdf.text(quantity, col2X - 2, yPosition, { align: 'right' });
-    pdf.text(rate, col3X - 2, yPosition, { align: 'right' });
-    pdf.text(`€ ${space.monthly_rent.toFixed(2)}`, col4X - 2, yPosition, { align: 'right' });
+    pdf.text(quantity, col2X, yPosition, { align: 'right' });
+    pdf.text(rate, col3X, yPosition, { align: 'right' });
+    pdf.text(`€ ${space.monthly_rent.toFixed(2)}`, col4X, yPosition, { align: 'right' });
     pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col5X - 2, yPosition, { align: 'right' });
 
     yPosition += 7 * numLines;
@@ -399,7 +399,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
     }
 
     pdf.text('Voorschot Gas, Water & Electra', col1X + 2, yPosition);
-    pdf.text(`€ ${invoice.security_deposit.toFixed(2)}`, col4X - 2, yPosition, { align: 'right' });
+    pdf.text(`€ ${invoice.security_deposit.toFixed(2)}`, col4X, yPosition, { align: 'right' });
     pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col5X - 2, yPosition, { align: 'right' });
     yPosition += 7;
   }
@@ -590,10 +590,10 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
 
   const tableTop = yPosition;
   const col1X = margin;
-  const col2X = pageWidth - margin - 125;
-  const col3X = pageWidth - margin - 80;
-  const col4X = pageWidth - margin - 38;
-  const col5X = pageWidth - margin - 12;
+  const col2X = 120;
+  const col3X = 155;
+  const col4X = 180;
+  const col5X = pageWidth - margin;
 
   pdf.setFillColor(220, 38, 38);
   pdf.rect(margin, tableTop, pageWidth - 2 * margin, 8, 'F');
@@ -602,9 +602,9 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(255, 255, 255);
   pdf.text('Omschrijving', col1X + 2, tableTop + 5.5);
-  pdf.text('Hoeveelheid', col2X - 2, tableTop + 5.5, { align: 'right' });
-  pdf.text('Tarief', col3X - 2, tableTop + 5.5, { align: 'right' });
-  pdf.text('Bedrag', col4X - 2, tableTop + 5.5, { align: 'right' });
+  pdf.text('Hoeveelheid', col2X, tableTop + 5.5, { align: 'right' });
+  pdf.text('Tarief', col3X, tableTop + 5.5, { align: 'right' });
+  pdf.text('Bedrag', col4X, tableTop + 5.5, { align: 'right' });
   pdf.text('BTW', col5X - 2, tableTop + 5.5, { align: 'right' });
 
   yPosition = tableTop + 12;
@@ -632,10 +632,10 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
     }
 
     pdf.text(descLines, col1X + 2, yPosition);
-    pdf.text(quantity, col2X - 2, yPosition, { align: 'right' });
-    pdf.text(rate, col3X - 2, yPosition, { align: 'right' });
+    pdf.text(quantity, col2X, yPosition, { align: 'right' });
+    pdf.text(rate, col3X, yPosition, { align: 'right' });
     const amount = -item.amount;
-    pdf.text(`€ ${amount.toFixed(2)}`, col4X - 2, yPosition, { align: 'right' });
+    pdf.text(`€ ${amount.toFixed(2)}`, col4X, yPosition, { align: 'right' });
     pdf.text(`${creditNote.vat_rate.toFixed(0)}%`, col5X - 2, yPosition, { align: 'right' });
 
     yPosition += 7 * numLines;
