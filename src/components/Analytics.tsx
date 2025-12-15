@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { TrendingUp, Euro, FileText, DollarSign, Calendar, Download, Users } from 'lucide-react';
+import { TrendingUp, Euro, FileText, DollarSign, Calendar, Download, Users, BarChart3 } from 'lucide-react';
 import { BookingOverview } from './BookingOverview';
 
 type AnalyticsStats = {
@@ -71,6 +71,7 @@ export function Analytics() {
   const [tenants, setTenants] = useState<any[]>([]);
   const [externalCustomers, setExternalCustomers] = useState<any[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<{id: string; type: 'tenant' | 'external'; name: string} | null>(null);
+  const [activeTab, setActiveTab] = useState<'overview' | 'bookings'>('overview');
 
   useEffect(() => {
     loadAllData();
@@ -354,24 +355,56 @@ export function Analytics() {
 
   return (
     <div>
-      <div className="mb-8 flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-100 mb-2">Financiële Analyses</h1>
-          <p className="text-gray-300">Overzicht van omzet en financiële prestaties</p>
-        </div>
-        <div>
-          <label className="block text-sm text-gray-400 mb-1">Selecteer Jaar</label>
-          <select
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(Number(e.target.value))}
-            className="px-4 py-2 bg-gray-800 text-gray-200 rounded-lg border border-gray-700"
-          >
-            {availableYears.map(year => (
-              <option key={year} value={year}>{year}</option>
-            ))}
-          </select>
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-gray-100 mb-2">Financiële Analyses</h1>
+        <p className="text-gray-300">Overzicht van omzet en financiële prestaties</p>
+      </div>
+
+      <div className="sticky top-0 z-10 bg-dark-950 pb-2 mb-6">
+        <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2">
+          <div className="flex gap-2">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
+                activeTab === 'overview'
+                  ? 'bg-gold-500 text-dark-950'
+                  : 'text-gray-300 hover:bg-dark-800'
+              }`}
+            >
+              <BarChart3 size={20} />
+              Overzicht
+            </button>
+            <button
+              onClick={() => setActiveTab('bookings')}
+              className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
+                activeTab === 'bookings'
+                  ? 'bg-gold-500 text-dark-950'
+                  : 'text-gray-300 hover:bg-dark-800'
+              }`}
+            >
+              <Calendar size={20} />
+              Boekingen
+            </button>
+          </div>
         </div>
       </div>
+
+      {activeTab === 'overview' && (
+        <div>
+          <div className="mb-6 flex justify-end">
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Selecteer Jaar</label>
+              <select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(Number(e.target.value))}
+                className="px-4 py-2 bg-gray-800 text-gray-200 rounded-lg border border-gray-700"
+              >
+                {availableYears.map(year => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
+            </div>
+          </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
@@ -618,80 +651,86 @@ export function Analytics() {
         )}
       </div>
 
-      <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6 mb-8">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-2 bg-dark-700 rounded-lg">
-            <Users className="text-gold-500" size={20} />
-          </div>
-          <h3 className="text-lg font-semibold text-gray-100">Boekingsoverzicht per Klant</h3>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <h4 className="text-sm font-semibold text-gray-300 mb-3">Huurders</h4>
-            <div className="space-y-2">
-              {tenants.length === 0 ? (
-                <p className="text-gray-400 text-sm">Geen huurders gevonden</p>
-              ) : (
-                tenants.map(tenant => (
-                  <button
-                    key={tenant.id}
-                    onClick={() => setSelectedCustomer({ id: tenant.id, type: 'tenant', name: tenant.company_name })}
-                    className="w-full text-left px-4 py-3 bg-dark-800 hover:bg-dark-700 text-gray-200 rounded-lg transition-colors border border-dark-700"
-                  >
-                    {tenant.company_name}
-                  </button>
-                ))
-              )}
+          {stats.overdueInvoices > 0 && (
+            <div className="bg-red-900/20 border border-red-800 rounded-lg p-6">
+              <div className="flex items-center gap-3 mb-2">
+                <DollarSign className="text-red-400" size={24} />
+                <h3 className="text-lg font-semibold text-red-400">Achterstallige Betalingen</h3>
+              </div>
+              <p className="text-gray-300 mb-4">
+                Er zijn momenteel {stats.overdueInvoices} achterstallige factu{stats.overdueInvoices !== 1 ? 'ren' : 'ur'} met een totaalbedrag van{' '}
+                <span className="font-bold text-red-400">
+                  {formatCurrency(stats.overdueAmount)}
+                </span>
+              </p>
+              <p className="text-sm text-gray-400">
+                Bekijk de facturen sectie voor meer details en neem contact op met huurders indien nodig.
+              </p>
             </div>
-          </div>
-
-          <div>
-            <h4 className="text-sm font-semibold text-gray-300 mb-3">Externe Klanten</h4>
-            <div className="space-y-2">
-              {externalCustomers.length === 0 ? (
-                <p className="text-gray-400 text-sm">Geen externe klanten gevonden</p>
-              ) : (
-                externalCustomers.map(customer => (
-                  <button
-                    key={customer.id}
-                    onClick={() => setSelectedCustomer({ id: customer.id, type: 'external', name: customer.company_name })}
-                    className="w-full text-left px-4 py-3 bg-dark-800 hover:bg-dark-700 text-gray-200 rounded-lg transition-colors border border-dark-700"
-                  >
-                    {customer.company_name}
-                  </button>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {stats.overdueInvoices > 0 && (
-        <div className="bg-red-900/20 border border-red-800 rounded-lg p-6">
-          <div className="flex items-center gap-3 mb-2">
-            <DollarSign className="text-red-400" size={24} />
-            <h3 className="text-lg font-semibold text-red-400">Achterstallige Betalingen</h3>
-          </div>
-          <p className="text-gray-300 mb-4">
-            Er zijn momenteel {stats.overdueInvoices} achterstallige factu{stats.overdueInvoices !== 1 ? 'ren' : 'ur'} met een totaalbedrag van{' '}
-            <span className="font-bold text-red-400">
-              {formatCurrency(stats.overdueAmount)}
-            </span>
-          </p>
-          <p className="text-sm text-gray-400">
-            Bekijk de facturen sectie voor meer details en neem contact op met huurders indien nodig.
-          </p>
+          )}
         </div>
       )}
 
-      {selectedCustomer && (
-        <BookingOverview
-          customerId={selectedCustomer.id}
-          customerType={selectedCustomer.type}
-          customerName={selectedCustomer.name}
-          onClose={() => setSelectedCustomer(null)}
-        />
+      {activeTab === 'bookings' && (
+        <div>
+          <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6 mb-8">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-dark-700 rounded-lg">
+                <Users className="text-gold-500" size={20} />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-100">Boekingsoverzicht per Klant</h3>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-300 mb-3">Huurders</h4>
+                <div className="space-y-2">
+                  {tenants.length === 0 ? (
+                    <p className="text-gray-400 text-sm">Geen huurders gevonden</p>
+                  ) : (
+                    tenants.map(tenant => (
+                      <button
+                        key={tenant.id}
+                        onClick={() => setSelectedCustomer({ id: tenant.id, type: 'tenant', name: tenant.company_name })}
+                        className="w-full text-left px-4 py-3 bg-dark-800 hover:bg-dark-700 text-gray-200 rounded-lg transition-colors border border-dark-700"
+                      >
+                        {tenant.company_name}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-sm font-semibold text-gray-300 mb-3">Externe Klanten</h4>
+                <div className="space-y-2">
+                  {externalCustomers.length === 0 ? (
+                    <p className="text-gray-400 text-sm">Geen externe klanten gevonden</p>
+                  ) : (
+                    externalCustomers.map(customer => (
+                      <button
+                        key={customer.id}
+                        onClick={() => setSelectedCustomer({ id: customer.id, type: 'external', name: customer.company_name })}
+                        className="w-full text-left px-4 py-3 bg-dark-800 hover:bg-dark-700 text-gray-200 rounded-lg transition-colors border border-dark-700"
+                      >
+                        {customer.company_name}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {selectedCustomer && (
+            <BookingOverview
+              customerId={selectedCustomer.id}
+              customerType={selectedCustomer.type}
+              customerName={selectedCustomer.name}
+              onClose={() => setSelectedCustomer(null)}
+            />
+          )}
+        </div>
       )}
     </div>
   );
