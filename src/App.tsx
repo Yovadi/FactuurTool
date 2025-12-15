@@ -8,10 +8,13 @@ import { CompanySettings } from './components/CompanySettings';
 import { MeetingRoomBookings } from './components/MeetingRoomBookings';
 import { PinLogin } from './components/PinLogin';
 import { Analytics } from './components/Analytics';
-import { Financial } from './components/Financial';
-import { LayoutDashboard, Users, Building, Settings, CalendarClock, LogOut, Euro, TrendingUp, FileText, Building2, Calculator } from 'lucide-react';
+import { InvoiceManagement } from './components/InvoiceManagement';
+import { DebtorsOverview } from './components/DebtorsOverview';
+import { CreditNotes } from './components/CreditNotes';
+import { CreditOverview } from './components/CreditOverview';
+import { LayoutDashboard, Users, Building, Settings, CalendarClock, LogOut, TrendingUp, FileText, Building2, Calculator, UserCheck, UserMinus, AlertTriangle, Receipt, DollarSign } from 'lucide-react';
 
-type Tab = 'dashboard' | 'rental-fulltime' | 'rental-contracts' | 'spaces-spaces' | 'spaces-rates' | 'bookings' | 'financial' | 'analytics' | 'settings';
+type Tab = 'dashboard' | 'rental-fulltime' | 'rental-contracts' | 'spaces-spaces' | 'spaces-rates' | 'bookings' | 'debtors-invoices' | 'debtors-outstanding' | 'debtors-log' | 'creditors-creditnotes' | 'creditors-overview' | 'analytics' | 'settings';
 
 type MenuSection = {
   id: string;
@@ -20,11 +23,18 @@ type MenuSection = {
   children?: { id: Tab; label: string; icon: any }[];
 };
 
+type PrefilledInvoiceData = {
+  invoice: any;
+  tenant: any;
+  spaces: any[];
+};
+
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [isElectron, setIsElectron] = useState(false);
   const [loggedInTenantId, setLoggedInTenantId] = useState<string | null>(null);
   const [loggedInTenantName, setLoggedInTenantName] = useState<string>('');
+  const [prefilledInvoiceData, setPrefilledInvoiceData] = useState<PrefilledInvoiceData | null>(null);
 
   useEffect(() => {
     // Detect if running in Electron or development mode
@@ -55,7 +65,25 @@ function App() {
       ],
     },
     { id: 'bookings', label: 'Vergaderruimte', icon: CalendarClock },
-    { id: 'financial', label: 'Facturatie', icon: Euro },
+    {
+      id: 'debtors',
+      label: 'Debiteuren',
+      icon: UserCheck,
+      children: [
+        { id: 'debtors-invoices' as Tab, label: 'Facturen', icon: FileText },
+        { id: 'debtors-outstanding' as Tab, label: 'Openstaand', icon: AlertTriangle },
+        { id: 'debtors-log' as Tab, label: 'Logboek', icon: FileText },
+      ],
+    },
+    {
+      id: 'creditors',
+      label: 'Crediteuren',
+      icon: UserMinus,
+      children: [
+        { id: 'creditors-creditnotes' as Tab, label: 'Credit Nota\'s', icon: Receipt },
+        { id: 'creditors-overview' as Tab, label: 'Credit Overzicht', icon: DollarSign },
+      ],
+    },
     { id: 'analytics', label: 'Analyses', icon: TrendingUp },
   ];
 
@@ -223,7 +251,23 @@ function App() {
             {activeTab === 'rental-fulltime' && <TenantManagement />}
             {activeTab === 'rental-contracts' && <LeaseManagement />}
             {activeTab === 'bookings' && <MeetingRoomBookings />}
-            {activeTab === 'financial' && <Financial />}
+            {activeTab === 'debtors-invoices' && (
+              <InvoiceManagement
+                onCreateCreditNote={(invoice, tenant, spaces) => {
+                  setPrefilledInvoiceData({ invoice, tenant, spaces });
+                  setActiveTab('creditors-creditnotes');
+                }}
+              />
+            )}
+            {activeTab === 'debtors-outstanding' && <DebtorsOverview initialTab="open" />}
+            {activeTab === 'debtors-log' && <DebtorsOverview initialTab="log" />}
+            {activeTab === 'creditors-creditnotes' && (
+              <CreditNotes
+                prefilledInvoiceData={prefilledInvoiceData}
+                onClearPrefilled={() => setPrefilledInvoiceData(null)}
+              />
+            )}
+            {activeTab === 'creditors-overview' && <CreditOverview />}
             {activeTab === 'analytics' && <Analytics />}
             {activeTab === 'settings' && <CompanySettings />}
           </main>
