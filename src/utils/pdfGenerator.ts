@@ -232,21 +232,10 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
     yPosition += 3;
   }
 
-  if (invoice.contract_type) {
-    pdf.setFontSize(9);
-    pdf.setFont('helvetica', 'bold');
-    pdf.setTextColor(80, 80, 80);
-    pdf.text('Contract type:', margin, yPosition);
-    pdf.setFont('helvetica', 'normal');
-    const contractTypeLabel = invoice.contract_type === 'flex' ? 'Flex contract' : invoice.contract_type === 'regular' ? 'Vast contract' : invoice.contract_type;
-    pdf.text(contractTypeLabel, margin + 30, yPosition);
-    yPosition += 8;
-  }
-
   const tableTop = yPosition;
   const col1X = margin;
-  const col2X = pageWidth - margin - 130;
-  const col3X = pageWidth - margin - 85;
+  const col2X = pageWidth - margin - 85;
+  const col3X = pageWidth - margin - 55;
   const col4X = pageWidth - margin - 30;
   const col5X = pageWidth - margin - 10;
 
@@ -593,8 +582,8 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
 
   const tableTop = yPosition;
   const col1X = margin;
-  const col2X = pageWidth - margin - 130;
-  const col3X = pageWidth - margin - 85;
+  const col2X = pageWidth - margin - 85;
+  const col3X = pageWidth - margin - 55;
   const col4X = pageWidth - margin - 30;
   const col5X = pageWidth - margin - 10;
 
