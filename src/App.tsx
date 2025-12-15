@@ -8,13 +8,11 @@ import { CompanySettings } from './components/CompanySettings';
 import { MeetingRoomBookings } from './components/MeetingRoomBookings';
 import { PinLogin } from './components/PinLogin';
 import { Analytics } from './components/Analytics';
-import { InvoiceManagement } from './components/InvoiceManagement';
-import { DebtorsOverview } from './components/DebtorsOverview';
-import { CreditNotes } from './components/CreditNotes';
-import { CreditOverview } from './components/CreditOverview';
-import { LayoutDashboard, Users, Building, Settings, CalendarClock, LogOut, TrendingUp, FileText, Building2, Calculator, Euro, AlertTriangle, Receipt, DollarSign } from 'lucide-react';
+import { DebiteurenTabs } from './components/DebiteurenTabs';
+import { CrediteurenTabs } from './components/CrediteurenTabs';
+import { LayoutDashboard, Users, Building, Settings, CalendarClock, LogOut, TrendingUp, FileText, Building2, Calculator, Euro, UserCheck, UserMinus } from 'lucide-react';
 
-type Tab = 'dashboard' | 'rental-fulltime' | 'rental-contracts' | 'spaces-spaces' | 'spaces-rates' | 'bookings' | 'debtors-invoices' | 'debtors-outstanding' | 'debtors-log' | 'creditors-creditnotes' | 'creditors-overview' | 'analytics' | 'settings';
+type Tab = 'dashboard' | 'rental-fulltime' | 'rental-contracts' | 'spaces-spaces' | 'spaces-rates' | 'bookings' | 'financial-debtors' | 'financial-creditors' | 'analytics' | 'settings';
 
 type MenuSection = {
   id: string;
@@ -70,11 +68,8 @@ function App() {
       label: 'Facturatie',
       icon: Euro,
       children: [
-        { id: 'debtors-invoices' as Tab, label: 'Facturen', icon: FileText },
-        { id: 'debtors-outstanding' as Tab, label: 'Openstaand', icon: AlertTriangle },
-        { id: 'debtors-log' as Tab, label: 'Logboek', icon: FileText },
-        { id: 'creditors-creditnotes' as Tab, label: 'Credit Nota\'s', icon: Receipt },
-        { id: 'creditors-overview' as Tab, label: 'Credit Overzicht', icon: DollarSign },
+        { id: 'financial-debtors' as Tab, label: 'Debiteuren', icon: UserCheck },
+        { id: 'financial-creditors' as Tab, label: 'Crediteuren', icon: UserMinus },
       ],
     },
     { id: 'analytics', label: 'Analyses', icon: TrendingUp },
@@ -244,23 +239,20 @@ function App() {
             {activeTab === 'rental-fulltime' && <TenantManagement />}
             {activeTab === 'rental-contracts' && <LeaseManagement />}
             {activeTab === 'bookings' && <MeetingRoomBookings />}
-            {activeTab === 'debtors-invoices' && (
-              <InvoiceManagement
+            {activeTab === 'financial-debtors' && (
+              <DebiteurenTabs
                 onCreateCreditNote={(invoice, tenant, spaces) => {
                   setPrefilledInvoiceData({ invoice, tenant, spaces });
-                  setActiveTab('creditors-creditnotes');
+                  setActiveTab('financial-creditors');
                 }}
               />
             )}
-            {activeTab === 'debtors-outstanding' && <DebtorsOverview initialTab="open" />}
-            {activeTab === 'debtors-log' && <DebtorsOverview initialTab="log" />}
-            {activeTab === 'creditors-creditnotes' && (
-              <CreditNotes
+            {activeTab === 'financial-creditors' && (
+              <CrediteurenTabs
                 prefilledInvoiceData={prefilledInvoiceData}
                 onClearPrefilled={() => setPrefilledInvoiceData(null)}
               />
             )}
-            {activeTab === 'creditors-overview' && <CreditOverview />}
             {activeTab === 'analytics' && <Analytics />}
             {activeTab === 'settings' && <CompanySettings />}
           </main>
