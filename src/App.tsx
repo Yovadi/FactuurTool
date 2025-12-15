@@ -13,7 +13,7 @@ import { DebiteurenTabs } from './components/DebiteurenTabs';
 import { CrediteurenTabs } from './components/CrediteurenTabs';
 import { LayoutDashboard, Users, Building, Settings, CalendarClock, LogOut, TrendingUp, FileText, Building2, Calculator, Euro, UserCheck, UserMinus, BarChart3 } from 'lucide-react';
 
-type Tab = 'dashboard' | 'rental-fulltime' | 'rental-contracts' | 'spaces-spaces' | 'spaces-rates' | 'spaces-flex' | 'bookings' | 'financial-debtors' | 'financial-creditors' | 'analytics' | 'settings';
+type Tab = 'dashboard' | 'tenants' | 'spaces-spaces' | 'spaces-rates' | 'contracts-leases' | 'occupancy' | 'bookings' | 'financial-debtors' | 'financial-creditors' | 'analytics' | 'settings';
 
 type MenuSection = {
   id: string;
@@ -45,6 +45,7 @@ function App() {
 
   const navigation: MenuSection[] = [
     { id: 'dashboard', label: 'Overzicht', icon: LayoutDashboard },
+    { id: 'tenants', label: 'Huurders', icon: Users },
     {
       id: 'spaces',
       label: 'Ruimtes',
@@ -52,18 +53,17 @@ function App() {
       children: [
         { id: 'spaces-spaces' as Tab, label: 'Ruimtes', icon: Building2 },
         { id: 'spaces-rates' as Tab, label: 'Tarieven', icon: Calculator },
-        { id: 'spaces-flex' as Tab, label: 'Flex Bezetting', icon: BarChart3 },
       ],
     },
     {
-      id: 'rental',
-      label: 'Huur',
-      icon: Users,
+      id: 'contracts',
+      label: 'Contracten',
+      icon: FileText,
       children: [
-        { id: 'rental-fulltime' as Tab, label: 'Huurders', icon: Users },
-        { id: 'rental-contracts' as Tab, label: 'Huur Contracten', icon: FileText },
+        { id: 'contracts-leases' as Tab, label: 'Huur Contracten', icon: FileText },
       ],
     },
+    { id: 'occupancy', label: 'Bezetting', icon: BarChart3 },
     { id: 'bookings', label: 'Vergaderruimte', icon: CalendarClock },
     {
       id: 'financial',
@@ -236,11 +236,11 @@ function App() {
 
           <main className="flex-1 min-w-0 h-full overflow-hidden bg-dark-950">
             {activeTab === 'dashboard' && <Dashboard />}
+            {activeTab === 'tenants' && <TenantManagement />}
             {activeTab === 'spaces-spaces' && <SpaceManagement />}
             {activeTab === 'spaces-rates' && <SpaceTypeRates />}
-            {activeTab === 'spaces-flex' && <FlexOccupancy />}
-            {activeTab === 'rental-fulltime' && <TenantManagement />}
-            {activeTab === 'rental-contracts' && <LeaseManagement />}
+            {activeTab === 'contracts-leases' && <LeaseManagement />}
+            {activeTab === 'occupancy' && <FlexOccupancy />}
             {activeTab === 'bookings' && <MeetingRoomBookings />}
             {activeTab === 'financial-debtors' && (
               <DebiteurenTabs
