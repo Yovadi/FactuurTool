@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { SpaceManagement } from './SpaceManagement';
 import { SpaceTypeRates } from './SpaceTypeRates';
-import { Building2, Calculator } from 'lucide-react';
+import { FlexOccupancy } from './FlexOccupancy';
+import { Building2, Calculator, TrendingUp } from 'lucide-react';
 
 export function SpacesTabs() {
-  const [activeTab, setActiveTab] = useState<'spaces' | 'rates'>('spaces');
+  const [activeTab, setActiveTab] = useState<'spaces' | 'rates' | 'flex'>('spaces');
 
   return (
     <div>
@@ -37,12 +38,24 @@ export function SpacesTabs() {
             <Calculator size={20} />
             Tarieven
           </button>
+          <button
+            onClick={() => setActiveTab('flex')}
+            className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
+              activeTab === 'flex'
+                ? 'bg-gold-500 text-dark-950'
+                : 'text-gray-300 hover:bg-dark-800'
+            }`}
+          >
+            <TrendingUp size={20} />
+            Flex Bezetting
+          </button>
         </div>
         </div>
       </div>
 
       {activeTab === 'spaces' && <SpaceManagement />}
       {activeTab === 'rates' && <SpaceTypeRates />}
+      {activeTab === 'flex' && <FlexOccupancy />}
     </div>
   );
 }
