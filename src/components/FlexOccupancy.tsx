@@ -463,7 +463,7 @@ export function FlexOccupancy() {
           className="flex items-center gap-2 px-4 py-2 bg-gold-500 hover:bg-gold-600 text-dark-950 rounded-lg font-semibold transition-colors"
         >
           <Calendar size={20} />
-          {showPlanning ? 'Sluit Planning' : 'Open Planning'}
+          Planning
         </button>
       </div>
 
@@ -765,138 +765,152 @@ export function FlexOccupancy() {
       </div>
 
       {showPlanning && (
-        <div className="mt-8 bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-dark-700 rounded-lg">
-              <Calendar className="text-gold-500" size={20} />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-100">Flex Planning</h3>
-          </div>
-
-          <div className="flex justify-center gap-2 mb-6">
-            <button
-              onClick={() => setPlanningWeek(planningWeek - 1)}
-              className="px-3 py-1 bg-dark-700 hover:bg-dark-600 text-gray-200 rounded transition-colors"
-            >
-              ←
-            </button>
-            <span className="px-4 py-1 text-gray-200">
-              {planningWeek === 0 ? 'Deze week' : planningWeek === -1 ? 'Vorige week' : planningWeek === 1 ? 'Volgende week' : `Week ${planningWeek > 0 ? '+' : ''}${planningWeek}`}
-            </span>
-            <button
-              onClick={() => setPlanningWeek(planningWeek + 1)}
-              className="px-3 py-1 bg-dark-700 hover:bg-dark-600 text-gray-200 rounded transition-colors"
-            >
-              →
-            </button>
-          </div>
-
-          <div className="bg-dark-800 rounded-lg p-4 mb-6">
-            <h4 className="text-sm font-semibold text-gray-200 mb-4">Nieuwe Flex-Boeking</h4>
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-              <select
-                value={newBooking.tenant_id}
-                onChange={(e) => setNewBooking({ ...newBooking, tenant_id: e.target.value })}
-                className="px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-200 focus:outline-none focus:border-gold-500"
-              >
-                <option value="">Selecteer huurder</option>
-                {activeFlexTenants.map(lease => (
-                  <option key={lease.tenant_id} value={lease.tenant_id}>
-                    {lease.tenants?.company_name}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={newBooking.space_id}
-                onChange={(e) => setNewBooking({ ...newBooking, space_id: e.target.value })}
-                className="px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-200 focus:outline-none focus:border-gold-500"
-              >
-                <option value="">Selecteer flex plek</option>
-                {flexSpaces.map(space => (
-                  <option key={space.id} value={space.id}>
-                    Plek {space.space_number}
-                  </option>
-                ))}
-              </select>
-
-              <input
-                type="date"
-                value={newBooking.date}
-                onChange={(e) => setNewBooking({ ...newBooking, date: e.target.value })}
-                className="px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-200 focus:outline-none focus:border-gold-500"
-              />
-
-              <div className="flex gap-2">
-                <input
-                  type="time"
-                  value={newBooking.start_time}
-                  onChange={(e) => setNewBooking({ ...newBooking, start_time: e.target.value })}
-                  className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-200 focus:outline-none focus:border-gold-500"
-                />
-                <span className="flex items-center text-gray-400">-</span>
-                <input
-                  type="time"
-                  value={newBooking.end_time}
-                  onChange={(e) => setNewBooking({ ...newBooking, end_time: e.target.value })}
-                  className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-200 focus:outline-none focus:border-gold-500"
-                />
+        <>
+          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowPlanning(false)} />
+          <div className="fixed inset-4 md:inset-8 lg:inset-16 bg-dark-900 rounded-lg shadow-2xl border border-dark-700 z-50 flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b border-dark-700">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-dark-700 rounded-lg">
+                  <Calendar className="text-gold-500" size={20} />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-100">Flex Planning</h3>
               </div>
-
               <button
-                onClick={handleAddFlexBooking}
-                className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-colors"
+                onClick={() => setShowPlanning(false)}
+                className="p-2 hover:bg-dark-700 rounded-lg transition-colors text-gray-400 hover:text-gray-200"
               >
-                <Plus size={18} />
-                Toevoegen
+                <X size={24} />
               </button>
             </div>
-          </div>
 
-          <div className="space-y-3">
-            {getWeekDates(planningWeek).map((date, index) => {
-              const dateStr = formatDate(date);
-              const dayBookings = flexBookings.filter(b => b.booking_date === dateStr);
+            <div className="flex-1 overflow-y-auto p-6">
 
-              return (
-                <div key={dateStr} className="bg-dark-800 rounded-lg p-4">
-                  <div className="flex justify-between items-center mb-3">
-                    <div>
-                      <span className="font-semibold text-gray-100">{workDays[index]}</span>
-                      <span className="text-sm text-gray-400 ml-2">{formatDisplayDate(date)}</span>
-                    </div>
-                    <span className="text-sm text-gray-400">{dayBookings.length} boeking(en)</span>
+              <div className="flex justify-center gap-2 mb-6">
+                <button
+                  onClick={() => setPlanningWeek(planningWeek - 1)}
+                  className="px-3 py-1 bg-dark-700 hover:bg-dark-600 text-gray-200 rounded transition-colors"
+                >
+                  ←
+                </button>
+                <span className="px-4 py-1 text-gray-200">
+                  {planningWeek === 0 ? 'Deze week' : planningWeek === -1 ? 'Vorige week' : planningWeek === 1 ? 'Volgende week' : `Week ${planningWeek > 0 ? '+' : ''}${planningWeek}`}
+                </span>
+                <button
+                  onClick={() => setPlanningWeek(planningWeek + 1)}
+                  className="px-3 py-1 bg-dark-700 hover:bg-dark-600 text-gray-200 rounded transition-colors"
+                >
+                  →
+                </button>
+              </div>
+
+              <div className="bg-dark-800 rounded-lg p-4 mb-6">
+                <h4 className="text-sm font-semibold text-gray-200 mb-4">Nieuwe Flex-Boeking</h4>
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                  <select
+                    value={newBooking.tenant_id}
+                    onChange={(e) => setNewBooking({ ...newBooking, tenant_id: e.target.value })}
+                    className="px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-200 focus:outline-none focus:border-gold-500"
+                  >
+                    <option value="">Selecteer huurder</option>
+                    {activeFlexTenants.map(lease => (
+                      <option key={lease.tenant_id} value={lease.tenant_id}>
+                        {lease.tenants?.company_name}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={newBooking.space_id}
+                    onChange={(e) => setNewBooking({ ...newBooking, space_id: e.target.value })}
+                    className="px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-200 focus:outline-none focus:border-gold-500"
+                  >
+                    <option value="">Selecteer flex plek</option>
+                    {flexSpaces.map(space => (
+                      <option key={space.id} value={space.id}>
+                        Plek {space.space_number}
+                      </option>
+                    ))}
+                  </select>
+
+                  <input
+                    type="date"
+                    value={newBooking.date}
+                    onChange={(e) => setNewBooking({ ...newBooking, date: e.target.value })}
+                    className="px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-200 focus:outline-none focus:border-gold-500"
+                  />
+
+                  <div className="flex gap-2">
+                    <input
+                      type="time"
+                      value={newBooking.start_time}
+                      onChange={(e) => setNewBooking({ ...newBooking, start_time: e.target.value })}
+                      className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-200 focus:outline-none focus:border-gold-500"
+                    />
+                    <span className="flex items-center text-gray-400">-</span>
+                    <input
+                      type="time"
+                      value={newBooking.end_time}
+                      onChange={(e) => setNewBooking({ ...newBooking, end_time: e.target.value })}
+                      className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-200 focus:outline-none focus:border-gold-500"
+                    />
                   </div>
 
-                  {dayBookings.length === 0 ? (
-                    <p className="text-sm text-gray-500 italic">Geen boekingen</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {dayBookings.map(booking => (
-                        <div key={booking.id} className="flex justify-between items-center bg-dark-700 rounded p-3">
-                          <div className="flex-1">
-                            <p className="text-sm font-semibold text-gray-200">
-                              {booking.tenants?.company_name}
-                            </p>
-                            <p className="text-xs text-gray-400">
-                              {booking.start_time.slice(0, 5)} - {booking.end_time.slice(0, 5)}
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => handleDeleteFlexBooking(booking.id)}
-                            className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  <button
+                    onClick={handleAddFlexBooking}
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-colors"
+                  >
+                    <Plus size={18} />
+                    Toevoegen
+                  </button>
                 </div>
-              );
-            })}
+              </div>
+
+              <div className="space-y-3">
+                {getWeekDates(planningWeek).map((date, index) => {
+                  const dateStr = formatDate(date);
+                  const dayBookings = flexBookings.filter(b => b.booking_date === dateStr);
+
+                  return (
+                    <div key={dateStr} className="bg-dark-800 rounded-lg p-4">
+                      <div className="flex justify-between items-center mb-3">
+                        <div>
+                          <span className="font-semibold text-gray-100">{workDays[index]}</span>
+                          <span className="text-sm text-gray-400 ml-2">{formatDisplayDate(date)}</span>
+                        </div>
+                        <span className="text-sm text-gray-400">{dayBookings.length} boeking(en)</span>
+                      </div>
+
+                      {dayBookings.length === 0 ? (
+                        <p className="text-sm text-gray-500 italic">Geen boekingen</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {dayBookings.map(booking => (
+                            <div key={booking.id} className="flex justify-between items-center bg-dark-700 rounded p-3">
+                              <div className="flex-1">
+                                <p className="text-sm font-semibold text-gray-200">
+                                  {booking.tenants?.company_name}
+                                </p>
+                                <p className="text-xs text-gray-400">
+                                  {booking.start_time.slice(0, 5)} - {booking.end_time.slice(0, 5)}
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => handleDeleteFlexBooking(booking.id)}
+                                className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
