@@ -85,6 +85,7 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
   const [companySettings, setCompanySettings] = useState<any>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState('');
   const [invoiceMode, setInvoiceMode] = useState<'lease' | 'manual'>('lease');
   const [generatingBulk, setGeneratingBulk] = useState(false);
   const [previewInvoice, setPreviewInvoice] = useState<{
@@ -812,7 +813,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
   const deleteInvoice = async (invoiceId: string) => {
     const correctCode = companySettings?.delete_code || '1234';
     if (deletePassword !== correctCode) {
-      console.error('Onjuiste code');
+      setDeleteError('Onjuiste code. Probeer opnieuw.');
+      setDeletePassword('');
       return;
     }
 
@@ -823,6 +825,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
     if (itemsError) {
       console.error('Error deleting line items:', itemsError);
+      setDeleteError('Fout bij verwijderen van factuurregels');
       return;
     }
 
@@ -833,10 +836,12 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
     if (error) {
       console.error('Error deleting invoice:', error);
+      setDeleteError('Fout bij verwijderen van factuur');
       return;
     }
     setShowDeleteConfirm(null);
     setDeletePassword('');
+    setDeleteError('');
 
     // Update local state without full reload
     setInvoices(prev => prev.filter(inv => inv.id !== invoiceId));
@@ -2001,7 +2006,11 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                             <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                               <div className="flex gap-1 justify-end">
                                 <button
-                                  onClick={() => setShowDeleteConfirm(invoice.id)}
+                                  onClick={() => {
+                                    setShowDeleteConfirm(invoice.id);
+                                    setDeleteError('');
+                                    setDeletePassword('');
+                                  }}
                                   className="text-red-500 hover:text-red-400 transition-colors p-1.5 rounded hover:bg-dark-700"
                                   title="Verwijderen"
                                 >
@@ -2198,7 +2207,11 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                                 <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                                   <div className="flex gap-1 justify-end">
                                     <button
-                                      onClick={() => setShowDeleteConfirm(invoice.id)}
+                                      onClick={() => {
+                                        setShowDeleteConfirm(invoice.id);
+                                        setDeleteError('');
+                                        setDeletePassword('');
+                                      }}
                                       className="text-red-500 hover:text-red-400 transition-colors p-1.5 rounded hover:bg-dark-700"
                                       title="Verwijderen"
                                     >
@@ -2225,6 +2238,11 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             <p className="text-gray-300 mb-4">
               Weet je zeker dat je deze factuur wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.
             </p>
+            {deleteError && (
+              <div className="mb-4 p-3 bg-red-900/30 border border-red-500/50 rounded-lg text-red-200 text-sm">
+                {deleteError}
+              </div>
+            )}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-200 mb-2">
                 Voer code in:
@@ -2245,6 +2263,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                 onClick={() => {
                   setShowDeleteConfirm(null);
                   setDeletePassword('');
+                  setDeleteError('');
                 }}
                 className="flex-1 px-4 py-2.5 border border-dark-600 text-gray-200 rounded-lg hover:bg-dark-700 transition-colors font-medium"
               >
