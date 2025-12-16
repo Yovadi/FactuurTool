@@ -41,7 +41,6 @@ export function LeaseManagement() {
   }>>([]);
 
   const [flexDefaultSchedule, setFlexDefaultSchedule] = useState({
-    enabled: false,
     space_id: '',
     monday: false,
     tuesday: false,
@@ -111,20 +110,18 @@ export function LeaseManagement() {
         return;
       }
 
-      if (flexDefaultSchedule.enabled) {
-        if (!flexDefaultSchedule.space_id) {
-          alert('Selecteer een flex-ruimte voor de vaste weekindeling');
-          return;
-        }
+      if (!flexDefaultSchedule.space_id) {
+        alert('Selecteer een flex-ruimte voor de vaste weekindeling');
+        return;
+      }
 
-        const hasAtLeastOneDay = flexDefaultSchedule.monday || flexDefaultSchedule.tuesday ||
-                                  flexDefaultSchedule.wednesday || flexDefaultSchedule.thursday ||
-                                  flexDefaultSchedule.friday;
+      const hasAtLeastOneDay = flexDefaultSchedule.monday || flexDefaultSchedule.tuesday ||
+                                flexDefaultSchedule.wednesday || flexDefaultSchedule.thursday ||
+                                flexDefaultSchedule.friday;
 
-        if (!hasAtLeastOneDay) {
-          alert('Selecteer minimaal één dag voor de vaste weekindeling');
-          return;
-        }
+      if (!hasAtLeastOneDay) {
+        alert('Selecteer minimaal één dag voor de vaste weekindeling');
+        return;
       }
     }
 
@@ -165,7 +162,30 @@ export function LeaseManagement() {
         .delete()
         .eq('lease_id', editingLease.id);
 
-      if (formData.lease_type !== 'flex') {
+      await supabase
+        .from('flex_schedules')
+        .delete()
+        .eq('lease_id', editingLease.id);
+
+      if (formData.lease_type === 'flex' && flexDefaultSchedule.space_id) {
+        const { error: scheduleError } = await supabase
+          .from('flex_schedules')
+          .insert([{
+            lease_id: editingLease.id,
+            space_id: flexDefaultSchedule.space_id,
+            monday: flexDefaultSchedule.monday,
+            tuesday: flexDefaultSchedule.tuesday,
+            wednesday: flexDefaultSchedule.wednesday,
+            thursday: flexDefaultSchedule.thursday,
+            friday: flexDefaultSchedule.friday
+          }]);
+
+        if (scheduleError) {
+          console.error('Error updating flex schedule:', scheduleError);
+          alert('Fout bij het bijwerken van de vaste weekindeling: ' + scheduleError.message);
+          return;
+        }
+      } else if (formData.lease_type !== 'flex') {
         const leaseSpacesData = selectedSpaces.map(space => {
           const officeSpace = spaces.find(s => s.id === space.space_id);
           const effectivePrice = space.price_per_sqm || getDefaultRate(space.space_id);
@@ -249,27 +269,23 @@ export function LeaseManagement() {
           .from('office_spaces')
           .update({ is_available: false })
           .in('id', spaceIds);
-      } else if (formData.lease_type === 'flex' && flexDefaultSchedule.enabled && flexDefaultSchedule.space_id) {
-        const hasAtLeastOneDay = flexDefaultSchedule.monday || flexDefaultSchedule.tuesday ||
-                                  flexDefaultSchedule.wednesday || flexDefaultSchedule.thursday ||
-                                  flexDefaultSchedule.friday;
+      } else if (formData.lease_type === 'flex' && flexDefaultSchedule.space_id) {
+        const { error: scheduleError } = await supabase
+          .from('flex_schedules')
+          .insert([{
+            lease_id: newLease.id,
+            space_id: flexDefaultSchedule.space_id,
+            monday: flexDefaultSchedule.monday,
+            tuesday: flexDefaultSchedule.tuesday,
+            wednesday: flexDefaultSchedule.wednesday,
+            thursday: flexDefaultSchedule.thursday,
+            friday: flexDefaultSchedule.friday
+          }]);
 
-        if (hasAtLeastOneDay) {
-          const { error: scheduleError } = await supabase
-            .from('flex_schedules')
-            .insert([{
-              lease_id: newLease.id,
-              space_id: flexDefaultSchedule.space_id,
-              monday: flexDefaultSchedule.monday,
-              tuesday: flexDefaultSchedule.tuesday,
-              wednesday: flexDefaultSchedule.wednesday,
-              thursday: flexDefaultSchedule.thursday,
-              friday: flexDefaultSchedule.friday
-            }]);
-
-          if (scheduleError) {
-            console.error('Error creating flex schedule:', scheduleError);
-          }
+        if (scheduleError) {
+          console.error('Error creating flex schedule:', scheduleError);
+          alert('Fout bij het aanmaken van de vaste weekindeling: ' + scheduleError.message);
+          return;
         }
       }
 
@@ -278,7 +294,7 @@ export function LeaseManagement() {
     }
   };
 
-  const handleEdit = (lease: LeaseWithDetails) => {
+  const handleEdit = async (lease: LeaseWithDetails) => {
     setEditingLease(lease);
     setFormData({
       tenant_id: lease.tenant_id,
@@ -301,6 +317,26 @@ export function LeaseManagement() {
       space_id: ls.space_id,
       price_per_sqm: ls.price_per_sqm.toString()
     })));
+
+    if ((lease as any).lease_type === 'flex') {
+      const { data: schedule } = await supabase
+        .from('flex_schedules')
+        .select('*')
+        .eq('lease_id', lease.id)
+        .maybeSingle();
+
+      if (schedule) {
+        setFlexDefaultSchedule({
+          space_id: schedule.space_id,
+          monday: schedule.monday,
+          tuesday: schedule.tuesday,
+          wednesday: schedule.wednesday,
+          thursday: schedule.thursday,
+          friday: schedule.friday
+        });
+      }
+    }
+
     setShowForm(true);
   };
 
@@ -430,7 +466,6 @@ export function LeaseManagement() {
     });
     setSelectedSpaces([]);
     setFlexDefaultSchedule({
-      enabled: false,
       space_id: '',
       monday: false,
       tuesday: false,
@@ -662,74 +697,64 @@ export function LeaseManagement() {
                   </div>
 
                   <div className="border-t border-dark-700 pt-4 mt-4">
-                    <label className="flex items-center gap-2 cursor-pointer mb-3">
-                      <input
-                        type="checkbox"
-                        checked={flexDefaultSchedule.enabled}
-                        onChange={(e) => setFlexDefaultSchedule({ ...flexDefaultSchedule, enabled: e.target.checked })}
-                        className="w-4 h-4 text-gold-500 focus:ring-gold-500 rounded"
-                      />
-                      <span className="text-sm font-medium text-gray-200">
-                        Vaste weekindeling instellen
-                      </span>
-                    </label>
+                    <h4 className="text-sm font-medium text-gray-200 mb-3">
+                      Vaste weekindeling *
+                    </h4>
 
-                    {flexDefaultSchedule.enabled && (
-                      <div className="space-y-3 pl-6">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-200 mb-2">
-                            Flex-ruimte
-                          </label>
-                          <select
-                            value={flexDefaultSchedule.space_id}
-                            onChange={(e) => setFlexDefaultSchedule({ ...flexDefaultSchedule, space_id: e.target.value })}
-                            className="w-full px-3 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-200 focus:outline-none focus:border-gold-500"
-                            required={flexDefaultSchedule.enabled}
-                          >
-                            <option value="">Selecteer een flex-ruimte</option>
-                            {spaces.filter(s => s.is_flex_space).map(space => (
-                              <option key={space.id} value={space.id}>
-                                {space.space_number}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium text-gray-200 mb-2">
-                            Vaste dagen
-                          </label>
-                          <div className="flex gap-2">
-                            {[
-                              { key: 'monday', label: 'Ma' },
-                              { key: 'tuesday', label: 'Di' },
-                              { key: 'wednesday', label: 'Wo' },
-                              { key: 'thursday', label: 'Do' },
-                              { key: 'friday', label: 'Vr' }
-                            ].map(({ key, label }) => (
-                              <button
-                                key={key}
-                                type="button"
-                                onClick={() => setFlexDefaultSchedule({
-                                  ...flexDefaultSchedule,
-                                  [key]: !(flexDefaultSchedule as any)[key]
-                                })}
-                                className={`flex-1 py-2 rounded-lg font-medium transition-colors ${
-                                  (flexDefaultSchedule as any)[key]
-                                    ? 'bg-gold-500 text-white'
-                                    : 'bg-dark-800 text-gray-400 hover:bg-dark-700'
-                                }`}
-                              >
-                                {label}
-                              </button>
-                            ))}
-                          </div>
-                          <p className="text-xs text-gray-400 mt-2">
-                            Deze dagen worden automatisch ingepland voor deze flexer
-                          </p>
-                        </div>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-200 mb-2">
+                          Flex-ruimte *
+                        </label>
+                        <select
+                          value={flexDefaultSchedule.space_id}
+                          onChange={(e) => setFlexDefaultSchedule({ ...flexDefaultSchedule, space_id: e.target.value })}
+                          className="w-full px-3 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-200 focus:outline-none focus:border-gold-500"
+                          required
+                        >
+                          <option value="">Selecteer een flex-ruimte</option>
+                          {spaces.filter(s => s.is_flex_space).map(space => (
+                            <option key={space.id} value={space.id}>
+                              {space.space_number}
+                            </option>
+                          ))}
+                        </select>
                       </div>
-                    )}
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-200 mb-2">
+                          Vaste dagen *
+                        </label>
+                        <div className="flex gap-2">
+                          {[
+                            { key: 'monday', label: 'Ma' },
+                            { key: 'tuesday', label: 'Di' },
+                            { key: 'wednesday', label: 'Wo' },
+                            { key: 'thursday', label: 'Do' },
+                            { key: 'friday', label: 'Vr' }
+                          ].map(({ key, label }) => (
+                            <button
+                              key={key}
+                              type="button"
+                              onClick={() => setFlexDefaultSchedule({
+                                ...flexDefaultSchedule,
+                                [key]: !(flexDefaultSchedule as any)[key]
+                              })}
+                              className={`flex-1 py-2 rounded-lg font-medium transition-colors ${
+                                (flexDefaultSchedule as any)[key]
+                                  ? 'bg-gold-500 text-white'
+                                  : 'bg-dark-800 text-gray-400 hover:bg-dark-700'
+                              }`}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                        <p className="text-xs text-gray-400 mt-2">
+                          Selecteer de dagen waarop deze flexer standaard de ruimte gebruikt
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 </>
