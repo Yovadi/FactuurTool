@@ -78,6 +78,7 @@ export function FlexOccupancy() {
     start_time: '09:00',
     end_time: '17:00'
   });
+  const [quickBookView, setQuickBookView] = useState<'simple' | 'advanced'>('simple');
 
   const totalFlexHoursPerDay = 8;
   const workDays = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag'];
@@ -343,10 +344,88 @@ export function FlexOccupancy() {
     }
   };
 
-  const handleAddFlexBooking = async () => {
-    if (!newBooking.tenant_id || !newBooking.space_id || !newBooking.date) {
-      alert('Vul alle velden in');
+  const findAvailableFlexSpace = async (date: string, startTime: string, endTime: string) => {
+    const { data: existingBookings } = await supabase
+      .from('meeting_room_bookings')
+      .select('space_id, start_time, end_time')
+      .eq('booking_date', date)
+      .in('space_id', flexSpaces.map(s => s.id));
+
+    for (const space of flexSpaces) {
+      const spaceBookings = existingBookings?.filter(b => b.space_id === space.id) || [];
+
+      const hasConflict = spaceBookings.some(booking => {
+        return !(endTime <= booking.start_time || startTime >= booking.end_time);
+      });
+
+      if (!hasConflict) {
+        return space.id;
+      }
+    }
+
+    return null;
+  };
+
+  const handleQuickBook = async (tenantId: string, date: string, period: 'full' | 'morning' | 'afternoon') => {
+    let startTime = '09:00';
+    let endTime = '17:00';
+
+    if (period === 'morning') {
+      startTime = '09:00';
+      endTime = '13:00';
+    } else if (period === 'afternoon') {
+      startTime = '13:00';
+      endTime = '17:00';
+    }
+
+    const availableSpace = await findAvailableFlexSpace(date, startTime, endTime);
+
+    if (!availableSpace) {
+      alert('Geen beschikbare flex-ruimte voor deze tijd');
       return;
+    }
+
+    const start = new Date(`2000-01-01T${startTime}`);
+    const end = new Date(`2000-01-01T${endTime}`);
+    const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+
+    const { error } = await supabase
+      .from('meeting_room_bookings')
+      .insert({
+        space_id: availableSpace,
+        tenant_id: tenantId,
+        booking_date: date,
+        start_time: startTime,
+        end_time: endTime,
+        booking_type: 'flex',
+        total_hours: hours,
+        total_amount: 0,
+        hourly_rate: 0,
+        status: 'confirmed'
+      });
+
+    if (!error) {
+      await loadFlexBookings();
+      await loadFlexData();
+    } else {
+      alert('Fout bij het boeken: ' + error.message);
+    }
+  };
+
+  const handleAddFlexBooking = async () => {
+    if (!newBooking.tenant_id || !newBooking.date) {
+      alert('Selecteer minimaal een huurder en datum');
+      return;
+    }
+
+    let spaceId = newBooking.space_id;
+
+    if (!spaceId) {
+      spaceId = await findAvailableFlexSpace(newBooking.date, newBooking.start_time, newBooking.end_time);
+      if (!spaceId) {
+        alert('Geen beschikbare flex-ruimte voor deze tijd');
+        return;
+      }
     }
 
     const start = new Date(`2000-01-01T${newBooking.start_time}`);
@@ -356,7 +435,7 @@ export function FlexOccupancy() {
     const { error } = await supabase
       .from('meeting_room_bookings')
       .insert({
-        space_id: newBooking.space_id,
+        space_id: spaceId,
         tenant_id: newBooking.tenant_id,
         booking_date: newBooking.date,
         start_time: newBooking.start_time,
@@ -804,65 +883,146 @@ export function FlexOccupancy() {
               </div>
 
               <div className="bg-dark-800 rounded-lg p-4 mb-6">
-                <h4 className="text-sm font-semibold text-gray-200 mb-4">Nieuwe Flex-Boeking</h4>
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                  <select
-                    value={newBooking.tenant_id}
-                    onChange={(e) => setNewBooking({ ...newBooking, tenant_id: e.target.value })}
-                    className="px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-200 focus:outline-none focus:border-gold-500"
-                  >
-                    <option value="">Selecteer huurder</option>
-                    {activeFlexTenants.map(lease => (
-                      <option key={lease.tenant_id} value={lease.tenant_id}>
-                        {lease.tenants?.company_name}
-                      </option>
-                    ))}
-                  </select>
-
-                  <select
-                    value={newBooking.space_id}
-                    onChange={(e) => setNewBooking({ ...newBooking, space_id: e.target.value })}
-                    className="px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-200 focus:outline-none focus:border-gold-500"
-                  >
-                    <option value="">Selecteer flex plek</option>
-                    {flexSpaces.map(space => (
-                      <option key={space.id} value={space.id}>
-                        Plek {space.space_number}
-                      </option>
-                    ))}
-                  </select>
-
-                  <input
-                    type="date"
-                    value={newBooking.date}
-                    onChange={(e) => setNewBooking({ ...newBooking, date: e.target.value })}
-                    className="px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-200 focus:outline-none focus:border-gold-500"
-                  />
-
-                  <div className="flex gap-2">
-                    <input
-                      type="time"
-                      value={newBooking.start_time}
-                      onChange={(e) => setNewBooking({ ...newBooking, start_time: e.target.value })}
-                      className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-200 focus:outline-none focus:border-gold-500"
-                    />
-                    <span className="flex items-center text-gray-400">-</span>
-                    <input
-                      type="time"
-                      value={newBooking.end_time}
-                      onChange={(e) => setNewBooking({ ...newBooking, end_time: e.target.value })}
-                      className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-200 focus:outline-none focus:border-gold-500"
-                    />
+                <div className="flex justify-between items-center mb-4">
+                  <h4 className="text-sm font-semibold text-gray-200">Nieuwe Flex-Boeking</h4>
+                  <div className="flex gap-2 text-xs">
+                    <button
+                      onClick={() => setQuickBookView('simple')}
+                      className={`px-3 py-1 rounded transition-colors ${
+                        quickBookView === 'simple'
+                          ? 'bg-gold-500 text-dark-950'
+                          : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
+                      }`}
+                    >
+                      Snel Boeken
+                    </button>
+                    <button
+                      onClick={() => setQuickBookView('advanced')}
+                      className={`px-3 py-1 rounded transition-colors ${
+                        quickBookView === 'advanced'
+                          ? 'bg-gold-500 text-dark-950'
+                          : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
+                      }`}
+                    >
+                      Uitgebreid
+                    </button>
                   </div>
-
-                  <button
-                    onClick={handleAddFlexBooking}
-                    className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-colors"
-                  >
-                    <Plus size={18} />
-                    Toevoegen
-                  </button>
                 </div>
+
+                {quickBookView === 'simple' ? (
+                  <div className="space-y-4">
+                    {activeFlexTenants.map(lease => {
+                      const today = new Date().toISOString().split('T')[0];
+                      return (
+                        <div key={lease.tenant_id} className="p-3 bg-dark-700 rounded-lg">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-medium text-gray-200">{lease.tenants?.company_name}</span>
+                            <input
+                              type="date"
+                              defaultValue={today}
+                              id={`date-${lease.tenant_id}`}
+                              className="px-2 py-1 text-sm bg-dark-600 border border-dark-500 rounded text-gray-200 focus:outline-none focus:border-gold-500"
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                const dateInput = document.getElementById(`date-${lease.tenant_id}`) as HTMLInputElement;
+                                handleQuickBook(lease.tenant_id, dateInput.value, 'full');
+                              }}
+                              className="flex-1 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-sm font-medium transition-colors"
+                            >
+                              Hele dag
+                              <span className="block text-xs opacity-80">9:00-17:00</span>
+                            </button>
+                            <button
+                              onClick={() => {
+                                const dateInput = document.getElementById(`date-${lease.tenant_id}`) as HTMLInputElement;
+                                handleQuickBook(lease.tenant_id, dateInput.value, 'morning');
+                              }}
+                              className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition-colors"
+                            >
+                              Ochtend
+                              <span className="block text-xs opacity-80">9:00-13:00</span>
+                            </button>
+                            <button
+                              onClick={() => {
+                                const dateInput = document.getElementById(`date-${lease.tenant_id}`) as HTMLInputElement;
+                                handleQuickBook(lease.tenant_id, dateInput.value, 'afternoon');
+                              }}
+                              className="flex-1 px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded text-sm font-medium transition-colors"
+                            >
+                              Middag
+                              <span className="block text-xs opacity-80">13:00-17:00</span>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {activeFlexTenants.length === 0 && (
+                      <p className="text-center text-gray-400 py-4">Geen actieve flex-huurders</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                    <select
+                      value={newBooking.tenant_id}
+                      onChange={(e) => setNewBooking({ ...newBooking, tenant_id: e.target.value })}
+                      className="px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-200 focus:outline-none focus:border-gold-500"
+                    >
+                      <option value="">Selecteer huurder</option>
+                      {activeFlexTenants.map(lease => (
+                        <option key={lease.tenant_id} value={lease.tenant_id}>
+                          {lease.tenants?.company_name}
+                        </option>
+                      ))}
+                    </select>
+
+                    <select
+                      value={newBooking.space_id}
+                      onChange={(e) => setNewBooking({ ...newBooking, space_id: e.target.value })}
+                      className="px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-200 focus:outline-none focus:border-gold-500"
+                    >
+                      <option value="">Auto (eerste beschikbaar)</option>
+                      {flexSpaces.map(space => (
+                        <option key={space.id} value={space.id}>
+                          Plek {space.space_number}
+                        </option>
+                      ))}
+                    </select>
+
+                    <input
+                      type="date"
+                      value={newBooking.date}
+                      onChange={(e) => setNewBooking({ ...newBooking, date: e.target.value })}
+                      className="px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-200 focus:outline-none focus:border-gold-500"
+                    />
+
+                    <div className="flex gap-2">
+                      <input
+                        type="time"
+                        value={newBooking.start_time}
+                        onChange={(e) => setNewBooking({ ...newBooking, start_time: e.target.value })}
+                        className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-200 focus:outline-none focus:border-gold-500"
+                      />
+                      <span className="flex items-center text-gray-400">-</span>
+                      <input
+                        type="time"
+                        value={newBooking.end_time}
+                        onChange={(e) => setNewBooking({ ...newBooking, end_time: e.target.value })}
+                        className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-200 focus:outline-none focus:border-gold-500"
+                      />
+                    </div>
+
+                    <button
+                      onClick={handleAddFlexBooking}
+                      className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition-colors"
+                    >
+                      <Plus size={18} />
+                      Toevoegen
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-3">
