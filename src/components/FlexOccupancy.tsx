@@ -73,6 +73,7 @@ export function FlexOccupancy() {
   const [selectedSpaceId, setSelectedSpaceId] = useState('');
   const [availableFlexLeases, setAvailableFlexLeases] = useState<Lease[]>([]);
   const [filterType, setFilterType] = useState<'all' | 'occupied' | 'available'>('all');
+  const [spaceTypeFilter, setSpaceTypeFilter] = useState<'all' | 'full_time' | 'flex'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [newSchedule, setNewSchedule] = useState({
     monday: false,
@@ -235,6 +236,9 @@ export function FlexOccupancy() {
     if (filterType === 'occupied' && !hasOccupants) return false;
     if (filterType === 'available' && hasOccupants) return false;
 
+    if (spaceTypeFilter === 'flex' && !occ.space.is_flex_space) return false;
+    if (spaceTypeFilter === 'full_time' && occ.space.is_flex_space) return false;
+
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       const matchesSpace = occ.space.space_number.toLowerCase().includes(query);
@@ -248,6 +252,9 @@ export function FlexOccupancy() {
 
     return true;
   });
+
+  const fullTimeSpaces = filteredOccupancies.filter(occ => !occ.space.is_flex_space);
+  const flexSpaces = filteredOccupancies.filter(occ => occ.space.is_flex_space);
 
   if (loading) {
     return <div className="flex items-center justify-center h-full"><p className="text-gray-400">Laden...</p></div>;
@@ -270,47 +277,87 @@ export function FlexOccupancy() {
           </button>
         </div>
 
-        <div className="mb-6 flex gap-4">
-          <div className="flex-1">
-            <input
-              type="text"
-              placeholder="Zoek op ruimte of huurder..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full px-4 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:border-gold-500"
-            />
+        <div className="mb-6 space-y-4">
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <input
+                type="text"
+                placeholder="Zoek op ruimte of huurder..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full px-4 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:border-gold-500"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setFilterType('all')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  filterType === 'all'
+                    ? 'bg-gold-500 text-white'
+                    : 'bg-dark-800 text-gray-400 hover:bg-dark-700'
+                }`}
+              >
+                Alle
+              </button>
+              <button
+                onClick={() => setFilterType('occupied')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  filterType === 'occupied'
+                    ? 'bg-gold-500 text-white'
+                    : 'bg-dark-800 text-gray-400 hover:bg-dark-700'
+                }`}
+              >
+                Bezet
+              </button>
+              <button
+                onClick={() => setFilterType('available')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  filterType === 'available'
+                    ? 'bg-gold-500 text-white'
+                    : 'bg-dark-800 text-gray-400 hover:bg-dark-700'
+                }`}
+              >
+                Beschikbaar
+              </button>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setFilterType('all')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                filterType === 'all'
-                  ? 'bg-gold-500 text-white'
-                  : 'bg-dark-800 text-gray-400 hover:bg-dark-700'
-              }`}
-            >
-              Alle
-            </button>
-            <button
-              onClick={() => setFilterType('occupied')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                filterType === 'occupied'
-                  ? 'bg-gold-500 text-white'
-                  : 'bg-dark-800 text-gray-400 hover:bg-dark-700'
-              }`}
-            >
-              Bezet
-            </button>
-            <button
-              onClick={() => setFilterType('available')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                filterType === 'available'
-                  ? 'bg-gold-500 text-white'
-                  : 'bg-dark-800 text-gray-400 hover:bg-dark-700'
-              }`}
-            >
-              Beschikbaar
-            </button>
+
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-400 font-medium">Ruimte Type:</span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setSpaceTypeFilter('all')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  spaceTypeFilter === 'all'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-dark-800 text-gray-400 hover:bg-dark-700'
+                }`}
+              >
+                Alles
+              </button>
+              <button
+                onClick={() => setSpaceTypeFilter('full_time')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+                  spaceTypeFilter === 'full_time'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-dark-800 text-gray-400 hover:bg-dark-700'
+                }`}
+              >
+                <Building2 size={16} />
+                Vaste Verhuur
+              </button>
+              <button
+                onClick={() => setSpaceTypeFilter('flex')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+                  spaceTypeFilter === 'flex'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-dark-800 text-gray-400 hover:bg-dark-700'
+                }`}
+              >
+                <Users size={16} />
+                Flexplekken
+              </button>
+            </div>
           </div>
         </div>
 
@@ -396,7 +443,116 @@ export function FlexOccupancy() {
           </div>
         )}
 
-        {filteredOccupancies.map(occupancy => {
+        {spaceTypeFilter !== 'flex' && fullTimeSpaces.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-4">
+              <Building2 size={24} className="text-gold-500" />
+              <h2 className="text-xl font-bold text-gray-100">Vaste Verhuur</h2>
+              <span className="text-sm text-gray-400">({fullTimeSpaces.length} ruimte{fullTimeSpaces.length !== 1 ? 's' : ''})</span>
+            </div>
+            {fullTimeSpaces.map(occupancy => {
+              const hasOccupants = occupancy.fullTimeLeases.length > 0 || occupancy.flexSchedules.length > 0;
+
+              return (
+                <div key={occupancy.space.id} className="bg-dark-900 rounded-lg p-6 mb-6 border border-dark-700">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="text-xl font-bold text-gray-100">{occupancy.space.space_number}</h3>
+                        <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                          hasOccupants
+                            ? 'bg-emerald-500/20 text-emerald-400'
+                            : 'bg-gray-500/20 text-gray-400'
+                        }`}>
+                          {hasOccupants ? 'Bezet' : 'Beschikbaar'}
+                        </span>
+                        {occupancy.space.furnished && (
+                          <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-purple-500/20 text-purple-400">
+                            Gemeubileerd
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-4 text-sm text-gray-400">
+                        <span className="capitalize">{occupancy.space.space_type}</span>
+                        {occupancy.space.square_footage && (
+                          <span>{occupancy.space.square_footage} m²</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {!hasOccupants ? (
+                    <div className="bg-dark-800 rounded-lg p-4 text-center">
+                      <p className="text-sm text-gray-500 italic">Deze ruimte is momenteel niet verhuurd</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {occupancy.fullTimeLeases.map(lease => (
+                        <div key={lease.id} className="bg-dark-800 rounded-lg p-4 border border-dark-700">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Building2 size={18} className="text-gold-500" />
+                                <h4 className="font-semibold text-gray-100 text-lg">{lease.tenants.company_name}</h4>
+                                <span className="text-xs px-2 py-0.5 rounded bg-gold-500/20 text-gold-400 font-medium">
+                                  Vaste Huurder
+                                </span>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm mt-3">
+                                <div className="flex items-center gap-2 text-gray-400">
+                                  <Users size={14} />
+                                  <span>{lease.tenants.contact_name || 'Geen contactpersoon'}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-gray-400">
+                                  <Calendar size={14} />
+                                  <span>{formatDate(lease.start_date)} - {formatDate(lease.end_date)}</span>
+                                </div>
+                                {lease.tenants.email && (
+                                  <div className="flex items-center gap-2 text-gray-400">
+                                    <Mail size={14} />
+                                    <a href={`mailto:${lease.tenants.email}`} className="hover:text-gold-500 transition-colors">
+                                      {lease.tenants.email}
+                                    </a>
+                                  </div>
+                                )}
+                                {lease.tenants.phone && (
+                                  <div className="flex items-center gap-2 text-gray-400">
+                                    <Phone size={14} />
+                                    <a href={`tel:${lease.tenants.phone}`} className="hover:text-gold-500 transition-colors">
+                                      {lease.tenants.phone}
+                                    </a>
+                                  </div>
+                                )}
+                                {lease.lease_spaces && lease.lease_spaces.length > 0 && (
+                                  <div className="flex items-center gap-2 text-gray-400">
+                                    <Euro size={14} />
+                                    <span>
+                                      {formatCurrency(lease.lease_spaces.find(ls => ls.space_id === occupancy.space.id)?.monthly_rent || 0)} /mnd
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {spaceTypeFilter !== 'full_time' && flexSpaces.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-4">
+              <Users size={24} className="text-blue-400" />
+              <h2 className="text-xl font-bold text-gray-100">Flexplekken</h2>
+              <span className="text-sm text-gray-400">({flexSpaces.length} ruimte{flexSpaces.length !== 1 ? 's' : ''})</span>
+            </div>
+            {flexSpaces.map(occupancy => {
           const hasOccupants = occupancy.fullTimeLeases.length > 0 || occupancy.flexSchedules.length > 0;
 
           return (
@@ -412,11 +568,6 @@ export function FlexOccupancy() {
                     }`}>
                       {hasOccupants ? 'Bezet' : 'Beschikbaar'}
                     </span>
-                    {occupancy.space.is_flex_space && (
-                      <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-blue-500/20 text-blue-400">
-                        Flex Ruimte
-                      </span>
-                    )}
                     {occupancy.space.furnished && (
                       <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-purple-500/20 text-purple-400">
                         Gemeubileerd
@@ -607,9 +758,11 @@ export function FlexOccupancy() {
                   ))}
                 </div>
               )}
-            </div>
-          );
-        })}
+              </div>
+            );
+          })}
+          </div>
+        )}
       </div>
     </div>
   );
