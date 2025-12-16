@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Users, Calendar, Save, X, Plus, Trash2, Check, Building2, Mail, Phone, Euro, CreditCard } from 'lucide-react';
+import { Users, Calendar, Save, X, Plus, Trash2, Check, Building2, Mail, Phone, Euro, CreditCard, CalendarDays } from 'lucide-react';
+import FlexDayBooking from './FlexDayBooking';
 
 type Space = {
   id: string;
@@ -75,6 +76,15 @@ export function FlexOccupancy() {
   const [filterType, setFilterType] = useState<'all' | 'occupied' | 'available'>('all');
   const [spaceTypeFilter, setSpaceTypeFilter] = useState<'all' | 'full_time' | 'flex'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [bookingModalOpen, setBookingModalOpen] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<{
+    leaseId: string;
+    spaceId: string;
+    spaceName: string;
+    tenantName: string;
+    creditsPerMonth: number;
+    dayType: 'full_day' | 'half_day';
+  } | null>(null);
   const [newSchedule, setNewSchedule] = useState({
     monday: false,
     tuesday: false,
@@ -722,27 +732,51 @@ export function FlexOccupancy() {
                             )}
                           </div>
 
-                          <div>
-                            <label className="text-xs text-gray-400 mb-1 block">Vaste dagen in deze ruimte:</label>
-                            <div className="flex gap-1">
-                              {workDays.map(({ key, label }) => {
-                                const isActive = (schedule as any)[key];
-                                return (
-                                  <button
-                                    key={key}
-                                    onClick={() => handleToggleDay(schedule.id, key, isActive)}
-                                    className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
-                                      isActive
-                                        ? 'bg-gold-500 text-white'
-                                        : 'bg-dark-700 text-gray-500 hover:bg-dark-600'
-                                    }`}
-                                    title={`${label} ${isActive ? 'uitschakelen' : 'inschakelen'}`}
-                                  >
-                                    {label}
-                                  </button>
-                                );
-                              })}
+                          <div className="space-y-3">
+                            <div>
+                              <label className="text-xs text-gray-400 mb-1 block">Vaste dagen in deze ruimte:</label>
+                              <div className="flex gap-1">
+                                {workDays.map(({ key, label }) => {
+                                  const isActive = (schedule as any)[key];
+                                  return (
+                                    <button
+                                      key={key}
+                                      onClick={() => handleToggleDay(schedule.id, key, isActive)}
+                                      className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+                                        isActive
+                                          ? 'bg-gold-500 text-white'
+                                          : 'bg-dark-700 text-gray-500 hover:bg-dark-600'
+                                      }`}
+                                      title={`${label} ${isActive ? 'uitschakelen' : 'inschakelen'}`}
+                                    >
+                                      {label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
                             </div>
+
+                            {lease.flex_credits_per_month && (
+                              <div className="pt-3 border-t border-dark-600">
+                                <button
+                                  onClick={() => {
+                                    setSelectedBooking({
+                                      leaseId: lease.id,
+                                      spaceId: occupancy.space.id,
+                                      spaceName: occupancy.space.space_number,
+                                      tenantName: lease.tenants.company_name,
+                                      creditsPerMonth: lease.flex_credits_per_month,
+                                      dayType: lease.flex_day_type || 'full_day'
+                                    });
+                                    setBookingModalOpen(true);
+                                  }}
+                                  className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                                >
+                                  <CalendarDays size={16} />
+                                  Dagen Beheren ({lease.flex_credits_per_month} per maand)
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </div>
 
@@ -764,6 +798,22 @@ export function FlexOccupancy() {
           </div>
         )}
       </div>
+
+      {bookingModalOpen && selectedBooking && (
+        <FlexDayBooking
+          leaseId={selectedBooking.leaseId}
+          spaceId={selectedBooking.spaceId}
+          spaceName={selectedBooking.spaceName}
+          tenantName={selectedBooking.tenantName}
+          creditsPerMonth={selectedBooking.creditsPerMonth}
+          dayType={selectedBooking.dayType}
+          onClose={() => {
+            setBookingModalOpen(false);
+            setSelectedBooking(null);
+            loadOccupancies();
+          }}
+        />
+      )}
     </div>
   );
 }
