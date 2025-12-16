@@ -31,13 +31,24 @@ export function LeaseManagement() {
     selected_days: [] as string[],
     flex_pricing_model: 'credit_based' as 'credit_based',
     flex_credits_per_month: '',
-    flex_credit_rate: ''
+    flex_credit_rate: '',
+    flex_day_type: 'full_day' as 'full_day' | 'half_day'
   });
 
   const [selectedSpaces, setSelectedSpaces] = useState<Array<{
     space_id: string;
     price_per_sqm: string;
   }>>([]);
+
+  const [flexDefaultSchedule, setFlexDefaultSchedule] = useState({
+    enabled: false,
+    space_id: '',
+    monday: false,
+    tuesday: false,
+    wednesday: false,
+    thursday: false,
+    friday: false
+  });
 
   useEffect(() => {
     loadData();
@@ -99,6 +110,22 @@ export function LeaseManagement() {
         alert('Vul het aantal dagen en prijs per dag in voor de strippenkaart');
         return;
       }
+
+      if (flexDefaultSchedule.enabled) {
+        if (!flexDefaultSchedule.space_id) {
+          alert('Selecteer een flex-ruimte voor de vaste weekindeling');
+          return;
+        }
+
+        const hasAtLeastOneDay = flexDefaultSchedule.monday || flexDefaultSchedule.tuesday ||
+                                  flexDefaultSchedule.wednesday || flexDefaultSchedule.thursday ||
+                                  flexDefaultSchedule.friday;
+
+        if (!hasAtLeastOneDay) {
+          alert('Selecteer minimaal één dag voor de vaste weekindeling');
+          return;
+        }
+      }
     }
 
     const leaseData: any = {
@@ -118,6 +145,7 @@ export function LeaseManagement() {
       leaseData.flex_monthly_rate = null;
       leaseData.flex_credits_per_month = parseInt(formData.flex_credits_per_month);
       leaseData.flex_credit_rate = parseFloat(formData.flex_credit_rate);
+      leaseData.flex_day_type = formData.flex_day_type;
     }
 
     if (editingLease) {
@@ -221,6 +249,28 @@ export function LeaseManagement() {
           .from('office_spaces')
           .update({ is_available: false })
           .in('id', spaceIds);
+      } else if (formData.lease_type === 'flex' && flexDefaultSchedule.enabled && flexDefaultSchedule.space_id) {
+        const hasAtLeastOneDay = flexDefaultSchedule.monday || flexDefaultSchedule.tuesday ||
+                                  flexDefaultSchedule.wednesday || flexDefaultSchedule.thursday ||
+                                  flexDefaultSchedule.friday;
+
+        if (hasAtLeastOneDay) {
+          const { error: scheduleError } = await supabase
+            .from('flex_schedules')
+            .insert([{
+              lease_id: newLease.id,
+              space_id: flexDefaultSchedule.space_id,
+              monday: flexDefaultSchedule.monday,
+              tuesday: flexDefaultSchedule.tuesday,
+              wednesday: flexDefaultSchedule.wednesday,
+              thursday: flexDefaultSchedule.thursday,
+              friday: flexDefaultSchedule.friday
+            }]);
+
+          if (scheduleError) {
+            console.error('Error creating flex schedule:', scheduleError);
+          }
+        }
       }
 
       resetForm();
@@ -244,7 +294,8 @@ export function LeaseManagement() {
       selected_days: (lease as any).selected_days || [],
       flex_pricing_model: 'credit_based' as 'credit_based',
       flex_credits_per_month: (lease as any).flex_credits_per_month?.toString() || '',
-      flex_credit_rate: (lease as any).flex_credit_rate?.toString() || ''
+      flex_credit_rate: (lease as any).flex_credit_rate?.toString() || '',
+      flex_day_type: (lease as any).flex_day_type || 'full_day'
     });
     setSelectedSpaces(lease.lease_spaces.map(ls => ({
       space_id: ls.space_id,
@@ -374,9 +425,19 @@ export function LeaseManagement() {
       selected_days: [],
       flex_pricing_model: 'credit_based',
       flex_credits_per_month: '',
-      flex_credit_rate: ''
+      flex_credit_rate: '',
+      flex_day_type: 'full_day'
     });
     setSelectedSpaces([]);
+    setFlexDefaultSchedule({
+      enabled: false,
+      space_id: '',
+      monday: false,
+      tuesday: false,
+      wednesday: false,
+      thursday: false,
+      friday: false
+    });
     setEditingLease(null);
     setShowForm(false);
   };
@@ -518,10 +579,45 @@ export function LeaseManagement() {
                   </div>
 
                   <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-200 mb-2">
+                        Type dag
+                      </label>
+                      <div className="flex gap-4">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="flex_day_type"
+                            value="full_day"
+                            checked={formData.flex_day_type === 'full_day'}
+                            onChange={(e) => setFormData({ ...formData, flex_day_type: e.target.value as 'full_day' | 'half_day' })}
+                            className="w-4 h-4 text-gold-500 focus:ring-gold-500"
+                          />
+                          <span className="text-gray-300">Hele dag</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="flex_day_type"
+                            value="half_day"
+                            checked={formData.flex_day_type === 'half_day'}
+                            onChange={(e) => setFormData({ ...formData, flex_day_type: e.target.value as 'full_day' | 'half_day' })}
+                            className="w-4 h-4 text-gold-500 focus:ring-gold-500"
+                          />
+                          <span className="text-gray-300">Halve dag</span>
+                        </label>
+                      </div>
+                      {formData.flex_day_type === 'half_day' && (
+                        <p className="text-xs text-gray-400 mt-1">
+                          Bij halve dagen betaalt de flexer per halve dag. 1 dag = 2 halve dagen.
+                        </p>
+                      )}
+                    </div>
+
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-200 mb-1">
-                          Aantal dagen per maand
+                          Aantal {formData.flex_day_type === 'half_day' ? 'halve' : 'hele'} dagen per maand
                         </label>
                         <input
                           type="number"
@@ -535,7 +631,7 @@ export function LeaseManagement() {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-200 mb-1">
-                          Prijs per dag
+                          Prijs per {formData.flex_day_type === 'half_day' ? 'halve' : 'hele'} dag
                         </label>
                         <input
                           type="text"
@@ -556,10 +652,81 @@ export function LeaseManagement() {
                     {formData.flex_credits_per_month && formData.flex_credit_rate && (
                       <div className="pt-2 border-t border-dark-700">
                         <div className="text-sm text-gray-300">
-                          Maandhuur: €{parseFloat(formData.flex_credit_rate).toFixed(2)} × {formData.flex_credits_per_month} dagen =
+                          Maandhuur: €{parseFloat(formData.flex_credit_rate).toFixed(2)} × {formData.flex_credits_per_month} {formData.flex_day_type === 'half_day' ? 'halve dagen' : 'dagen'} =
                           <span className="font-bold text-gold-500 ml-1">
                             €{(parseFloat(formData.flex_credit_rate) * parseInt(formData.flex_credits_per_month)).toFixed(2)}/mnd
                           </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="border-t border-dark-700 pt-4 mt-4">
+                    <label className="flex items-center gap-2 cursor-pointer mb-3">
+                      <input
+                        type="checkbox"
+                        checked={flexDefaultSchedule.enabled}
+                        onChange={(e) => setFlexDefaultSchedule({ ...flexDefaultSchedule, enabled: e.target.checked })}
+                        className="w-4 h-4 text-gold-500 focus:ring-gold-500 rounded"
+                      />
+                      <span className="text-sm font-medium text-gray-200">
+                        Vaste weekindeling instellen
+                      </span>
+                    </label>
+
+                    {flexDefaultSchedule.enabled && (
+                      <div className="space-y-3 pl-6">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-200 mb-2">
+                            Flex-ruimte
+                          </label>
+                          <select
+                            value={flexDefaultSchedule.space_id}
+                            onChange={(e) => setFlexDefaultSchedule({ ...flexDefaultSchedule, space_id: e.target.value })}
+                            className="w-full px-3 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-200 focus:outline-none focus:border-gold-500"
+                            required={flexDefaultSchedule.enabled}
+                          >
+                            <option value="">Selecteer een flex-ruimte</option>
+                            {spaces.filter(s => s.is_flex_space).map(space => (
+                              <option key={space.id} value={space.id}>
+                                {space.space_number}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-200 mb-2">
+                            Vaste dagen
+                          </label>
+                          <div className="flex gap-2">
+                            {[
+                              { key: 'monday', label: 'Ma' },
+                              { key: 'tuesday', label: 'Di' },
+                              { key: 'wednesday', label: 'Wo' },
+                              { key: 'thursday', label: 'Do' },
+                              { key: 'friday', label: 'Vr' }
+                            ].map(({ key, label }) => (
+                              <button
+                                key={key}
+                                type="button"
+                                onClick={() => setFlexDefaultSchedule({
+                                  ...flexDefaultSchedule,
+                                  [key]: !(flexDefaultSchedule as any)[key]
+                                })}
+                                className={`flex-1 py-2 rounded-lg font-medium transition-colors ${
+                                  (flexDefaultSchedule as any)[key]
+                                    ? 'bg-gold-500 text-white'
+                                    : 'bg-dark-800 text-gray-400 hover:bg-dark-700'
+                                }`}
+                              >
+                                {label}
+                              </button>
+                            ))}
+                          </div>
+                          <p className="text-xs text-gray-400 mt-2">
+                            Deze dagen worden automatisch ingepland voor deze flexer
+                          </p>
                         </div>
                       </div>
                     )}
@@ -952,7 +1119,9 @@ export function LeaseManagement() {
                               <div className="text-gray-400 mt-1">
                                 {(() => {
                                   const flexLease = lease as any;
-                                  return `Strippenkaart: ${flexLease.flex_credits_per_month} dagen × €${flexLease.flex_credit_rate?.toFixed(2)}/dag`;
+                                  const dayType = flexLease.flex_day_type === 'half_day' ? 'halve dagen' : 'dagen';
+                                  const perType = flexLease.flex_day_type === 'half_day' ? 'halve dag' : 'dag';
+                                  return `Strippenkaart: ${flexLease.flex_credits_per_month} ${dayType} × €${flexLease.flex_credit_rate?.toFixed(2)}/${perType}`;
                                 })()}
                               </div>
                             </div>

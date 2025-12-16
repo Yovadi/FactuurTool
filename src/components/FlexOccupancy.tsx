@@ -13,6 +13,7 @@ type FlexLease = {
   tenant_id: string;
   flex_credits_per_month: number | null;
   flex_credit_rate: number | null;
+  flex_day_type: 'full_day' | 'half_day';
   start_date: string;
   end_date: string;
   status: string;
@@ -81,6 +82,7 @@ export function FlexOccupancy() {
         tenant_id,
         flex_credits_per_month,
         flex_credit_rate,
+        flex_day_type,
         start_date,
         end_date,
         status,
@@ -330,7 +332,16 @@ export function FlexOccupancy() {
                     <div key={schedule.id} className="bg-dark-800 rounded-lg p-4">
                       <div className="flex justify-between items-center">
                         <div className="flex-1">
-                          <p className="font-medium text-gray-200">{lease.tenants.company_name}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-gray-200">{lease.tenants.company_name}</p>
+                            <span className={`text-xs px-2 py-0.5 rounded ${
+                              lease.flex_day_type === 'half_day'
+                                ? 'bg-blue-500/20 text-blue-400'
+                                : 'bg-emerald-500/20 text-emerald-400'
+                            }`}>
+                              {lease.flex_day_type === 'half_day' ? 'Halve dagen' : 'Hele dagen'}
+                            </span>
+                          </div>
                           <div className="flex gap-1 mt-2">
                             {workDays.map(({ key, label }) => {
                               const isActive = (schedule as any)[key];
