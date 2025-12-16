@@ -7,6 +7,7 @@ type FlexSpace = {
   id: string;
   space_number: string;
   square_footage: number;
+  flex_capacity: number;
 };
 
 type FlexLease = {
@@ -130,7 +131,7 @@ export function FlexOccupancy() {
 
     const { data: spaces, error: spacesError } = await supabase
       .from('office_spaces')
-      .select('id, space_number, square_footage')
+      .select('id, space_number, square_footage, flex_capacity')
       .eq('is_flex_space', true)
       .order('space_number');
 
@@ -354,11 +355,12 @@ export function FlexOccupancy() {
     for (const space of flexSpaces) {
       const spaceBookings = existingBookings?.filter(b => b.space_id === space.id) || [];
 
-      const hasConflict = spaceBookings.some(booking => {
+      const overlappingBookings = spaceBookings.filter(booking => {
         return !(endTime <= booking.start_time || startTime >= booking.end_time);
       });
 
-      if (!hasConflict) {
+      const capacity = space.flex_capacity || 1;
+      if (overlappingBookings.length < capacity) {
         return space.id;
       }
     }
@@ -1030,6 +1032,16 @@ export function FlexOccupancy() {
                   const dateStr = formatDate(date);
                   const dayBookings = flexBookings.filter(b => b.booking_date === dateStr);
 
+                  const spaceOccupancy = flexSpaces.map(space => {
+                    const spaceBookings = dayBookings.filter(b => b.space_id === space.id);
+                    return {
+                      space,
+                      bookings: spaceBookings,
+                      capacity: space.flex_capacity || 1,
+                      used: spaceBookings.length
+                    };
+                  });
+
                   return (
                     <div key={dateStr} className="bg-dark-800 rounded-lg p-4">
                       <div className="flex justify-between items-center mb-3">
@@ -1043,23 +1055,41 @@ export function FlexOccupancy() {
                       {dayBookings.length === 0 ? (
                         <p className="text-sm text-gray-500 italic">Geen boekingen</p>
                       ) : (
-                        <div className="space-y-2">
-                          {dayBookings.map(booking => (
-                            <div key={booking.id} className="flex justify-between items-center bg-dark-700 rounded p-3">
-                              <div className="flex-1">
-                                <p className="text-sm font-semibold text-gray-200">
-                                  {booking.tenants?.company_name}
-                                </p>
-                                <p className="text-xs text-gray-400">
-                                  {booking.start_time.slice(0, 5)} - {booking.end_time.slice(0, 5)}
-                                </p>
+                        <div className="space-y-3">
+                          {spaceOccupancy.filter(so => so.used > 0).map(({ space, bookings, capacity, used }) => (
+                            <div key={space.id} className="bg-dark-700 rounded-lg p-3">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-xs font-semibold text-gray-300">
+                                  Plek {space.space_number}
+                                </span>
+                                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                  used >= capacity
+                                    ? 'bg-red-500/20 text-red-400'
+                                    : 'bg-emerald-500/20 text-emerald-400'
+                                }`}>
+                                  {used}/{capacity} bezet
+                                </span>
                               </div>
-                              <button
-                                onClick={() => handleDeleteFlexBooking(booking.id)}
-                                className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors"
-                              >
-                                <Trash2 size={16} />
-                              </button>
+                              <div className="space-y-1.5">
+                                {bookings.map(booking => (
+                                  <div key={booking.id} className="flex justify-between items-center bg-dark-800 rounded p-2">
+                                    <div className="flex-1">
+                                      <p className="text-sm font-semibold text-gray-200">
+                                        {booking.tenants?.company_name}
+                                      </p>
+                                      <p className="text-xs text-gray-400">
+                                        {booking.start_time.slice(0, 5)} - {booking.end_time.slice(0, 5)}
+                                      </p>
+                                    </div>
+                                    <button
+                                      onClick={() => handleDeleteFlexBooking(booking.id)}
+                                      className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors"
+                                    >
+                                      <Trash2 size={16} />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           ))}
                         </div>

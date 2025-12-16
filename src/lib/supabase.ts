@@ -50,6 +50,7 @@ export type OfficeSpace = {
   space_type: 'bedrijfsruimte' | 'kantoor' | 'buitenterrein' | 'diversen' | 'Meeting Room' | 'Flexplek';
   hourly_rate?: number | null;
   is_flex_space?: boolean;
+  flex_capacity?: number;
   created_at: string;
 };
 

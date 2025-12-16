@@ -18,7 +18,8 @@ export function SpaceManagement() {
     square_footage: '',
     is_available: true,
     is_furnished: false,
-    is_flex_space: false
+    is_flex_space: false,
+    flex_capacity: 1
   });
 
   useEffect(() => {
@@ -91,7 +92,8 @@ export function SpaceManagement() {
       base_rent: 0,
       is_available: formData.is_available,
       is_furnished: formData.space_type === 'kantoor' ? formData.is_furnished : null,
-      is_flex_space: formData.is_flex_space
+      is_flex_space: formData.is_flex_space,
+      flex_capacity: formData.is_flex_space ? formData.flex_capacity : 1
     };
 
     spaceData.hourly_rate = null;
@@ -146,7 +148,8 @@ export function SpaceManagement() {
       square_footage: space.square_footage.toString(),
       is_available: space.is_available,
       is_furnished: space.is_furnished || false,
-      is_flex_space: (space as any).is_flex_space || false
+      is_flex_space: (space as any).is_flex_space || false,
+      flex_capacity: (space as any).flex_capacity || 1
     });
     setShowForm(true);
   };
@@ -172,7 +175,8 @@ export function SpaceManagement() {
       square_footage: '',
       is_available: true,
       is_furnished: false,
-      is_flex_space: false
+      is_flex_space: false,
+      flex_capacity: 1
     });
     setEditingSpace(null);
     setShowForm(false);
@@ -276,18 +280,36 @@ export function SpaceManagement() {
                 </div>
               )}
               {formData.space_type !== 'Meeting Room' && (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="is_flex_space"
-                    checked={formData.is_flex_space}
-                    onChange={(e) => setFormData({ ...formData, is_flex_space: e.target.checked })}
-                    className="w-4 h-4 text-gold-500 border-dark-600 rounded focus:ring-2 focus:ring-gold-500"
-                  />
-                  <label htmlFor="is_flex_space" className="text-sm font-medium text-gray-200">
-                    Ook beschikbaar als Flexplek
-                  </label>
-                </div>
+                <>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="is_flex_space"
+                      checked={formData.is_flex_space}
+                      onChange={(e) => setFormData({ ...formData, is_flex_space: e.target.checked })}
+                      className="w-4 h-4 text-gold-500 border-dark-600 rounded focus:ring-2 focus:ring-gold-500"
+                    />
+                    <label htmlFor="is_flex_space" className="text-sm font-medium text-gray-200">
+                      Ook beschikbaar als Flexplek
+                    </label>
+                  </div>
+                  {formData.is_flex_space && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-200 mb-2">
+                        Capaciteit (aantal personen tegelijkertijd)
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={formData.flex_capacity}
+                        onChange={(e) => setFormData({ ...formData, flex_capacity: parseInt(e.target.value) || 1 })}
+                        className="w-full px-4 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-200 focus:outline-none focus:border-gold-500"
+                        placeholder="Bijv. 4"
+                      />
+                      <p className="text-xs text-gray-400 mt-1">Hoeveel personen kunnen deze ruimte tegelijk gebruiken?</p>
+                    </div>
+                  )}
+                </>
               )}
               <div className="flex items-center gap-2">
                 <input
@@ -371,7 +393,7 @@ export function SpaceManagement() {
                                 )}
                                 {(space as any).is_flex_space && (
                                   <span className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded-full font-medium">
-                                    Beschikbaar voor Flex
+                                    Flex (max {(space as any).flex_capacity || 1} pers.)
                                   </span>
                                 )}
                               </div>
