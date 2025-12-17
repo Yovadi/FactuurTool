@@ -11,7 +11,9 @@
   ],
   "win": {
     "target": "nsis",
-    "artifactName": "${productName}-Setup-${version}.${ext}"
+    "artifactName": "${productName}-Setup-${version}.${ext}",
+    "sign": null,
+    "signtoolOptions": null
   },
   "asar": false,
   "extraMetadata": {
@@ -24,7 +26,8 @@
     "deleteAppDataOnUninstall": false,
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
-    "shortcutName": "HAL5 Facturatie Manager"
+    "shortcutName": "HAL5 Facturatie Manager",
+    "warningsAsErrors": false
   },
   "publish": {
     "provider": "github",
