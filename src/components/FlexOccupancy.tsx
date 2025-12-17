@@ -74,7 +74,7 @@ export function FlexOccupancy() {
   const [selectedSpaceId, setSelectedSpaceId] = useState('');
   const [availableFlexLeases, setAvailableFlexLeases] = useState<Lease[]>([]);
   const [filterType, setFilterType] = useState<'all' | 'occupied' | 'available'>('all');
-  const [spaceTypeFilter, setSpaceTypeFilter] = useState<'all' | 'full_time' | 'flex'>('all');
+  const [spaceTypeFilter, setSpaceTypeFilter] = useState<'all' | 'full_time' | 'flex'>('flex');
   const [searchQuery, setSearchQuery] = useState('');
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<{
@@ -336,14 +336,15 @@ export function FlexOccupancy() {
             <span className="text-sm text-gray-400 font-medium">Ruimte Type:</span>
             <div className="flex gap-2">
               <button
-                onClick={() => setSpaceTypeFilter('all')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  spaceTypeFilter === 'all'
+                onClick={() => setSpaceTypeFilter('flex')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+                  spaceTypeFilter === 'flex'
                     ? 'bg-blue-500 text-white'
                     : 'bg-dark-800 text-gray-400 hover:bg-dark-700'
                 }`}
               >
-                Alles
+                <Users size={16} />
+                Flexplekken
               </button>
               <button
                 onClick={() => setSpaceTypeFilter('full_time')}
@@ -357,15 +358,14 @@ export function FlexOccupancy() {
                 Vaste Verhuur
               </button>
               <button
-                onClick={() => setSpaceTypeFilter('flex')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
-                  spaceTypeFilter === 'flex'
+                onClick={() => setSpaceTypeFilter('all')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  spaceTypeFilter === 'all'
                     ? 'bg-blue-500 text-white'
                     : 'bg-dark-800 text-gray-400 hover:bg-dark-700'
                 }`}
               >
-                <Users size={16} />
-                Flexplekken
+                Alles
               </button>
             </div>
           </div>
