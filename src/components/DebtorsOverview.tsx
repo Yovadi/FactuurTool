@@ -352,7 +352,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
   }
 
   return (
-    <div className="h-full bg-dark-950">
+    <div className="bg-dark-950">
       <div>
         <div className="mb-6">
           {activeTab === 'open' && (
@@ -375,7 +375,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
             <div className="p-4 bg-dark-800 border-b border-dark-700">
               <h2 className="text-lg font-semibold text-gray-100">Debiteuren</h2>
             </div>
-            <div className="overflow-auto max-h-[600px]">
+            <div className="overflow-auto" style={{ maxHeight: 'calc(100vh - 400px)' }}>
               {debtors.length === 0 ? (
                 <div className="bg-dark-900 rounded-lg p-8 text-center">
                   <CheckCircle size={48} className="text-green-500 mx-auto mb-4" />
@@ -423,7 +423,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                 {selectedDebtor ? `Facturen - ${selectedDebtor.company_name}` : 'Selecteer een debiteur'}
               </h2>
             </div>
-            <div className="overflow-auto max-h-[600px]">
+            <div className="overflow-auto" style={{ maxHeight: 'calc(100vh - 400px)' }}>
               {!selectedDebtor ? (
                 <div className="bg-dark-900 rounded-lg p-8 text-center">
                   <AlertCircle size={48} className="text-gray-500 mx-auto mb-4" />

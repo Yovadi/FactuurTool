@@ -57,7 +57,18 @@ const generateMonthlyInvoices = async (job: ScheduledJob) => {
 
       const { data: invoiceNumber } = await supabase.rpc('generate_invoice_number');
 
-      const baseAmount = Math.round((lease.lease_spaces.reduce((sum: number, ls: any) => sum + ls.monthly_rent, 0) + (lease.security_deposit || 0)) * 100) / 100;
+      let baseAmount = 0;
+      if ((lease as any).lease_type === 'flex') {
+        const flexLease = lease as any;
+        if (flexLease.credits_per_week && flexLease.flex_credit_rate) {
+          const weeksPerMonth = 4.33;
+          baseAmount = Math.round((flexLease.credits_per_week * flexLease.flex_credit_rate * weeksPerMonth) * 100) / 100;
+        }
+      } else {
+        baseAmount = Math.round(lease.lease_spaces.reduce((sum: number, ls: any) => sum + ls.monthly_rent, 0) * 100) / 100;
+      }
+
+      baseAmount = Math.round((baseAmount + (lease.security_deposit || 0)) * 100) / 100;
 
       const calculateVAT = (baseAmount: number, vatRate: number, vatInclusive: boolean) => {
         if (vatInclusive) {
@@ -103,28 +114,45 @@ const generateMonthlyInvoices = async (job: ScheduledJob) => {
 
       const lineItemsToInsert = [];
 
-      for (const ls of lease.lease_spaces) {
-        const spaceName = ls.space.space_number;
-        const spaceType = ls.space.space_type;
+      if ((lease as any).lease_type === 'flex') {
+        const flexLease = lease as any;
+        if (flexLease.credits_per_week && flexLease.flex_credit_rate) {
+          const weeksPerMonth = 4.33;
+          const monthlyAmount = Math.round((flexLease.credits_per_week * flexLease.flex_credit_rate * weeksPerMonth) * 100) / 100;
+          const dayType = flexLease.flex_day_type === 'half_day' ? 'halve dag' : 'dag';
 
-        let displayName = spaceName;
-        if (spaceType === 'bedrijfsruimte') {
-          const numOnly = spaceName.replace(/^(Bedrijfsruimte|Hal)\s*/i, '').trim();
-          if (/^\d+/.test(numOnly)) {
-            displayName = `Hal ${numOnly}`;
-          }
+          lineItemsToInsert.push({
+            invoice_id: newInvoice.id,
+            description: `Flexwerkplek - ${flexLease.credits_per_week} ${flexLease.flex_day_type === 'half_day' ? 'halve dagen' : 'dagen'}/week`,
+            quantity: flexLease.credits_per_week,
+            unit_price: Math.round((flexLease.flex_credit_rate * weeksPerMonth) * 100) / 100,
+            amount: monthlyAmount
+          });
         }
+      } else {
+        for (const ls of lease.lease_spaces) {
+          const spaceName = ls.space.space_number;
+          const spaceType = ls.space.space_type;
 
-        const sqm = ls.space.square_footage || 1;
-        const pricePerSqm = sqm > 0 ? Math.round((ls.monthly_rent / sqm) * 100) / 100 : ls.monthly_rent;
+          let displayName = spaceName;
+          if (spaceType === 'bedrijfsruimte') {
+            const numOnly = spaceName.replace(/^(Bedrijfsruimte|Hal)\s*/i, '').trim();
+            if (/^\d+/.test(numOnly)) {
+              displayName = `Hal ${numOnly}`;
+            }
+          }
 
-        lineItemsToInsert.push({
-          invoice_id: newInvoice.id,
-          description: displayName,
-          quantity: sqm,
-          unit_price: pricePerSqm,
-          amount: ls.monthly_rent
-        });
+          const sqm = ls.space.square_footage || 1;
+          const pricePerSqm = sqm > 0 ? Math.round((ls.monthly_rent / sqm) * 100) / 100 : ls.monthly_rent;
+
+          lineItemsToInsert.push({
+            invoice_id: newInvoice.id,
+            description: displayName,
+            quantity: sqm,
+            unit_price: pricePerSqm,
+            amount: ls.monthly_rent
+          });
+        }
       }
 
       if (lease.security_deposit > 0) {
