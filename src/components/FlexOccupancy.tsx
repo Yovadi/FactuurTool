@@ -810,7 +810,7 @@ export function FlexOccupancy() {
           onClose={() => {
             setBookingModalOpen(false);
             setSelectedBooking(null);
-            loadOccupancies();
+            loadData();
           }}
         />
       )}
