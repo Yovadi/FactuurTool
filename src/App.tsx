@@ -36,11 +36,8 @@ function App() {
   const [prefilledInvoiceData, setPrefilledInvoiceData] = useState<PrefilledInvoiceData | null>(null);
 
   useEffect(() => {
-    // Detect if running in Electron or development mode
-    const electron = typeof window !== 'undefined' && (window as any).electron;
-    const isDev = import.meta.env.DEV;
-    // isElectron is true for Electron OR development
-    setIsElectron(!!electron || isDev);
+    // Always run as Electron app (admin interface without login)
+    setIsElectron(true);
   }, []);
 
   const navigation: MenuSection[] = [
