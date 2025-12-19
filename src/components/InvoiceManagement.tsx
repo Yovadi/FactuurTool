@@ -1491,7 +1491,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
   }
 
   return (
-    <div>
+    <div className="h-full flex flex-col overflow-hidden">
 
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
@@ -1869,8 +1869,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
           const renderInvoiceTable = (invoices: typeof draftLeaseInvoices, title: string, borderColor: string, buttonConfig?: { label: string; onClick: () => void; color: string; disabled?: boolean }) => {
             const selectedInThisTable = invoices.filter(inv => selectedInvoices.has(inv.id)).length;
             return (
-            <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 bg-dark-800 border-b" style={{ borderBottomColor: borderColor }}>
+            <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden flex flex-col">
+              <div className="flex items-center justify-between px-4 py-3 bg-dark-800 border-b flex-shrink-0" style={{ borderBottomColor: borderColor }}>
                 <h2 className="text-lg font-bold text-gray-100">
                   {title}
                 </h2>
@@ -2040,7 +2040,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
           ); };
 
           return (
-            <div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-8">
               {/* Concept Huur Facturen */}
               {renderInvoiceTable(
                 draftLeaseInvoices,
@@ -2055,7 +2055,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               )}
 
               {/* Concept Vergaderruimte Facturen */}
-              <div className="mt-8">
+              <div>
                 {renderInvoiceTable(
                   draftMeetingRoomInvoices,
                   'Concept Vergaderruimte Facturen',
@@ -2070,7 +2070,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               </div>
 
               {/* Concept Handgemaakte Facturen */}
-              <div className="mt-8">
+              <div>
                 {renderInvoiceTable(
                   draftManualInvoices,
                   'Concept Handgemaakte Facturen',
@@ -2083,8 +2083,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                 )}
               </div>
 
-              <div className="mt-8 bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-3 bg-dark-800 border-b border-amber-500">
+              <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden flex flex-col">
+                <div className="flex items-center justify-between px-4 py-3 bg-dark-800 border-b border-amber-500 flex-shrink-0">
                   <h2 className="text-lg font-bold text-gray-100">
                     Openstaande Facturen
                   </h2>
