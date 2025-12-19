@@ -425,12 +425,12 @@ export default function FlexDayBooking({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-dark-800 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-dark-700">
-        <div className="sticky top-0 bg-dark-800 border-b border-dark-700 p-6 z-10">
-          <div className="flex items-center justify-between mb-4">
+      <div className="bg-dark-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-dark-700">
+        <div className="sticky top-0 bg-dark-800 border-b border-dark-700 p-4 z-10">
+          <div className="flex items-center justify-between mb-3">
             <div>
-              <h2 className="text-2xl font-bold text-gray-100">{tenantName}</h2>
-              <p className="text-gray-400 mt-1">{spaceName}</p>
+              <h2 className="text-xl font-bold text-gray-100">{tenantName}</h2>
+              <p className="text-gray-400 text-sm">{spaceName}</p>
             </div>
             <button
               onClick={onClose}
@@ -440,17 +440,17 @@ export default function FlexDayBooking({
             </button>
           </div>
 
-          <div className="bg-dark-900 rounded-lg p-4 border border-dark-700">
-            <div className="flex items-center justify-between mb-3">
+          <div className="bg-dark-900 rounded-lg p-3 border border-dark-700">
+            <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <Calendar size={20} className="text-gold-500" />
-                <span className="font-medium text-gray-200">Maandelijks Tegoed</span>
+                <Calendar size={18} className="text-gold-500" />
+                <span className="text-sm font-medium text-gray-200">Maandelijks Tegoed</span>
               </div>
               <div className="text-right">
-                <div className="text-2xl font-bold text-gray-100">
+                <div className="text-xl font-bold text-gray-100">
                   {creditsUsed} / {creditsPerMonth}
                 </div>
-                <div className="text-sm text-gray-400">
+                <div className="text-xs text-gray-400">
                   {dayType === 'half_day' ? 'dagen/halve dagen' : 'dagen'}
                 </div>
               </div>
@@ -469,13 +469,13 @@ export default function FlexDayBooking({
               />
             </div>
 
-            <div className="flex items-center justify-between mt-3 text-sm">
+            <div className="flex items-center justify-between mt-2 text-xs">
               <span className="text-gray-400">
                 Nog {creditsRemaining} {creditsRemaining === 1 ? 'dag' : 'dagen'} beschikbaar
               </span>
               {usagePercentage >= 100 && (
                 <span className="flex items-center gap-1 text-red-400">
-                  <AlertCircle size={14} />
+                  <AlertCircle size={12} />
                   Limiet bereikt
                 </span>
               )}
@@ -483,39 +483,39 @@ export default function FlexDayBooking({
           </div>
         </div>
 
-        <div className="p-6">
-          <div className="bg-dark-900 rounded-lg p-6 border border-dark-700">
-            <div className="flex items-center justify-between mb-4">
+        <div className="p-4">
+          <div className="bg-dark-900 rounded-lg p-4 border border-dark-700">
+            <div className="flex items-center justify-between mb-3">
               <button
                 onClick={goToPreviousMonth}
-                className="p-2 hover:bg-dark-700 rounded-lg transition-colors"
+                className="p-1.5 hover:bg-dark-700 rounded-lg transition-colors"
               >
-                <ChevronLeft size={20} className="text-gray-400" />
+                <ChevronLeft size={18} className="text-gray-400" />
               </button>
-              <h3 className="text-xl font-bold text-gray-100">
+              <h3 className="text-lg font-bold text-gray-100">
                 {monthNames[month]} {year}
               </h3>
               <button
                 onClick={goToNextMonth}
-                className="p-2 hover:bg-dark-700 rounded-lg transition-colors"
+                className="p-1.5 hover:bg-dark-700 rounded-lg transition-colors"
               >
-                <ChevronRight size={20} className="text-gray-400" />
+                <ChevronRight size={18} className="text-gray-400" />
               </button>
             </div>
 
             {flexSchedule && (
-              <div className="mb-6 space-y-3">
-                <div className="bg-dark-800 rounded-lg p-4 border border-dark-700">
+              <div className="mb-4 space-y-2">
+                <div className="bg-dark-800 rounded-lg p-3 border border-dark-700">
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-sm font-medium text-gray-300">Vast patroon voor contract:</span>
                   </div>
-                  <div className="flex gap-2 justify-center">
+                  <div className="flex gap-1.5 justify-center">
                     {(['monday', 'tuesday', 'wednesday', 'thursday', 'friday'] as const).map((day, idx) => {
                       const dayLabels = ['Ma', 'Di', 'Wo', 'Do', 'Vr'];
                       return (
                         <div
                           key={day}
-                          className={`px-3 py-2 rounded-lg text-sm font-medium ${
+                          className={`px-2.5 py-1.5 rounded-lg text-xs font-medium ${
                             flexSchedule[day]
                               ? 'bg-gold-500 text-white'
                               : 'bg-dark-700 text-gray-500'
@@ -526,7 +526,7 @@ export default function FlexDayBooking({
                       );
                     })}
                   </div>
-                  <div className="text-xs text-gray-500 mt-2 text-center">
+                  <div className="text-xs text-gray-500 mt-1.5 text-center">
                     Dit patroon is ingesteld bij "Bezetting" → "Vaste dagen in deze ruimte"
                   </div>
                 </div>
@@ -534,35 +534,35 @@ export default function FlexDayBooking({
                   <button
                     onClick={applyPatternToEntireContract}
                     disabled={applyingPattern}
-                    className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Wand2 size={16} />
+                    <Wand2 size={14} />
                     {applyingPattern ? 'Bezig...' : 'Hele contract'}
                   </button>
                   <button
                     onClick={applyPatternToMonth}
                     disabled={applyingPattern}
-                    className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Calendar size={16} />
+                    <Calendar size={14} />
                     {applyingPattern ? 'Bezig...' : 'Alleen deze maand'}
                   </button>
                 </div>
               </div>
             )}
 
-            <div className="grid grid-cols-7 gap-2 mb-2">
+            <div className="grid grid-cols-7 gap-1 mb-1">
               {weekDays.map(day => (
-                <div key={day} className="text-center text-sm font-medium text-gray-400 py-2">
+                <div key={day} className="text-center text-xs font-medium text-gray-400 py-1">
                   {day}
                 </div>
               ))}
             </div>
 
             {loading ? (
-              <div className="text-center py-12 text-gray-400">Laden...</div>
+              <div className="text-center py-8 text-gray-400 text-sm">Laden...</div>
             ) : (
-              <div className="grid grid-cols-7 gap-2">
+              <div className="grid grid-cols-7 gap-1">
                 {getDaysInMonth().map((date, index) => {
                   if (!date) {
                     return <div key={`empty-${index}`} className="aspect-square" />;
@@ -577,7 +577,7 @@ export default function FlexDayBooking({
                       key={index}
                       onClick={() => !isPast && toggleBooking(date)}
                       disabled={isPast}
-                      className={`aspect-square rounded-lg flex flex-col items-center justify-center transition-all relative ${
+                      className={`aspect-square rounded-md flex flex-col items-center justify-center transition-all relative ${
                         isPast
                           ? 'bg-dark-800 text-gray-600 cursor-not-allowed'
                           : booking
@@ -585,14 +585,14 @@ export default function FlexDayBooking({
                           : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
                       } ${isToday ? 'ring-2 ring-blue-500' : ''}`}
                     >
-                      <span className="text-lg font-medium">{date.getDate()}</span>
+                      <span className="text-sm font-medium">{date.getDate()}</span>
                       {booking && (
-                        <div className="absolute top-1 right-1">
-                          <CheckCircle2 size={14} />
+                        <div className="absolute top-0.5 right-0.5">
+                          <CheckCircle2 size={10} />
                         </div>
                       )}
                       {booking && booking.is_half_day && (
-                        <span className="text-xs mt-1">½</span>
+                        <span className="text-[10px] mt-0.5">½</span>
                       )}
                     </button>
                   );
@@ -600,27 +600,27 @@ export default function FlexDayBooking({
               </div>
             )}
 
-            <div className="mt-6 pt-6 border-t border-dark-700 space-y-4">
-              <div className="flex items-start gap-4 text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-gold-500 rounded" />
+            <div className="mt-4 pt-4 border-t border-dark-700 space-y-3">
+              <div className="flex items-start gap-3 text-xs">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 bg-gold-500 rounded" />
                   <span className="text-gray-400">Geboekt</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-dark-700 rounded" />
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 bg-dark-700 rounded" />
                   <span className="text-gray-400">Beschikbaar</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-dark-800 rounded" />
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 bg-dark-800 rounded" />
                   <span className="text-gray-400">Verleden</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-blue-500 rounded" />
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 border-2 border-blue-500 rounded" />
                   <span className="text-gray-400">Vandaag</span>
                 </div>
               </div>
-              <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
-                <p className="text-sm text-blue-300">
+              <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-2.5">
+                <p className="text-xs text-blue-300">
                   <strong>Tip:</strong> Gebruik "Hele contract" om de volledige contractperiode in één keer te vullen,
                   of gebruik "Alleen deze maand" voor specifieke maanden.
                   Klik daarna individuele dagen aan/uit om uitzonderingen te maken.
