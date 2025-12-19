@@ -125,7 +125,6 @@ export default function FlexDayBooking({
   };
 
   const loadBookings = async () => {
-    setLoading(true);
     try {
       const monthEnd = getMonthEnd(currentMonth);
       const firstDayStr = formatDateStr(currentMonth);
@@ -144,10 +143,10 @@ export default function FlexDayBooking({
 
       setBookings(data || []);
       calculateCreditsUsed(data || []);
+      setLoading(false);
     } catch (error) {
       console.error('Error loading bookings:', error);
       showToast('Fout bij laden van boekingen', 'error');
-    } finally {
       setLoading(false);
     }
   };
