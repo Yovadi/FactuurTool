@@ -1869,7 +1869,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
           const renderInvoiceTable = (invoices: typeof draftLeaseInvoices, title: string, borderColor: string, buttonConfig?: { label: string; onClick: () => void; color: string; disabled?: boolean }) => {
             const selectedInThisTable = invoices.filter(inv => selectedInvoices.has(inv.id)).length;
             return (
-            <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden flex flex-col">
+            <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 flex flex-col max-h-[500px]">
               <div className="flex items-center justify-between px-4 py-3 bg-dark-800 border-b flex-shrink-0" style={{ borderBottomColor: borderColor }}>
                 <h2 className="text-lg font-bold text-gray-100">
                   {title}
@@ -1909,8 +1909,9 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                   )}
                 </div>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full table-fixed min-w-[1000px]">
+              <div className="flex-1 overflow-y-auto">
+                <div className="overflow-x-auto">
+                  <table className="w-full table-fixed min-w-[1000px]">
                   <thead>
                     <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
                     <th className="text-center px-4 py-3 font-semibold w-[5%]">
@@ -2035,6 +2036,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                     )}
                   </tbody>
                 </table>
+                </div>
               </div>
             </div>
           ); };
@@ -2083,7 +2085,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                 )}
               </div>
 
-              <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden flex flex-col">
+              <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 flex flex-col max-h-[500px]">
                 <div className="flex items-center justify-between px-4 py-3 bg-dark-800 border-b border-amber-500 flex-shrink-0">
                   <h2 className="text-lg font-bold text-gray-100">
                     Openstaande Facturen
@@ -2113,6 +2115,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                     )}
                   </div>
                 </div>
+                <div className="flex-1 overflow-y-auto">
                   <div className="overflow-x-auto">
                     <table className="w-full table-fixed min-w-[1000px]">
                       <thead>
@@ -2237,6 +2240,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                       </tbody>
                     </table>
                   </div>
+                </div>
               </div>
             </div>
           );
