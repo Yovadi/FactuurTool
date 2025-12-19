@@ -1157,11 +1157,11 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
         const lineItemsToInsert = [];
 
         if (lease.lease_type === 'flex') {
-          if (lease.flex_pricing_model === 'monthly') {
+          if (lease.flex_pricing_model === 'monthly_unlimited') {
             rentAmount = lease.flex_monthly_rate || 0;
             lineItemsToInsert.push({
               invoice_id: '',
-              description: 'Flexplek - Maandelijks tarief',
+              description: 'Flexplek - Maandelijks tarief (onbeperkt)',
               quantity: 1,
               unit_price: rentAmount,
               amount: rentAmount
@@ -1178,7 +1178,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               unit_price: lease.flex_daily_rate || 0,
               amount: rentAmount
             });
-          } else if (lease.flex_pricing_model === 'credits') {
+          } else if (lease.flex_pricing_model === 'credit_based') {
             const creditsPerWeek = (lease as any).credits_per_week || 0;
             const weeksInMonth = 4.33;
             const monthlyCredits = Math.round(creditsPerWeek * weeksInMonth);

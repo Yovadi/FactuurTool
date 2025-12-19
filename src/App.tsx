@@ -224,7 +224,7 @@ function App() {
             </div>
           </aside>
 
-          <main className="flex-1 min-w-0 h-full overflow-hidden bg-dark-950">
+          <main className="flex-1 min-w-0 h-full flex flex-col overflow-hidden bg-dark-950">
             {activeTab === 'dashboard' && <Dashboard />}
             {activeTab === 'tenants' && <TenantManagement />}
             {activeTab === 'spaces-spaces' && <SpaceManagement />}
