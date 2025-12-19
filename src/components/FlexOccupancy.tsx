@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Users, Calendar, Save, X, Plus, Trash2, Check, Building2, Mail, Phone, Euro, CreditCard, CalendarDays } from 'lucide-react';
 import FlexDayBooking from './FlexDayBooking';
+import { Toast } from './Toast';
+import { ConfirmModal } from './ConfirmModal';
 
 type Space = {
   id: string;
@@ -66,6 +68,19 @@ type SpaceOccupancy = {
   flexSchedules: Array<{ schedule: FlexSchedule; lease: Lease }>;
 };
 
+type ToastMessage = {
+  id: number;
+  message: string;
+  type: 'success' | 'error' | 'info';
+};
+
+type ConfirmDialog = {
+  title: string;
+  message: string;
+  onConfirm: () => void;
+  variant?: 'default' | 'danger';
+} | null;
+
 export function FlexOccupancy() {
   const [occupancies, setOccupancies] = useState<SpaceOccupancy[]>([]);
   const [loading, setLoading] = useState(true);
@@ -94,6 +109,17 @@ export function FlexOccupancy() {
     thursday: false,
     friday: false
   });
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialog>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+  };
+
+  const removeToast = (id: number) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
 
   const workDays = [
     { key: 'monday', label: 'Ma' },
@@ -166,12 +192,12 @@ export function FlexOccupancy() {
 
   const handleAddSchedule = async () => {
     if (!selectedLeaseId || !selectedSpaceId) {
-      alert('Selecteer een flexer en ruimte');
+      showToast('Selecteer een flexer en ruimte', 'error');
       return;
     }
 
     if (!newSchedule.monday && !newSchedule.tuesday && !newSchedule.wednesday && !newSchedule.thursday && !newSchedule.friday) {
-      alert('Selecteer minimaal één dag');
+      showToast('Selecteer minimaal één dag', 'error');
       return;
     }
 
@@ -186,7 +212,7 @@ export function FlexOccupancy() {
       .single();
 
     if (error) {
-      alert('Deze flexer heeft al een planning voor deze ruimte');
+      showToast('Deze flexer heeft al een planning voor deze ruimte', 'error');
       return;
     }
 
@@ -203,10 +229,17 @@ export function FlexOccupancy() {
     });
   };
 
-  const handleDeleteSchedule = async (scheduleId: string) => {
-    if (!confirm('Weet je zeker dat je deze planning wilt verwijderen?')) {
-      return;
-    }
+  const handleDeleteSchedule = (scheduleId: string) => {
+    setConfirmDialog({
+      title: 'Planning verwijderen',
+      message: 'Weet je zeker dat je deze planning wilt verwijderen?',
+      variant: 'danger',
+      onConfirm: () => executeDeleteSchedule(scheduleId)
+    });
+  };
+
+  const executeDeleteSchedule = async (scheduleId: string) => {
+    setConfirmDialog(null);
 
     await supabase
       .from('flex_schedules')
@@ -214,6 +247,7 @@ export function FlexOccupancy() {
       .eq('id', scheduleId);
 
     await loadData();
+    showToast('Planning succesvol verwijderd', 'success');
   };
 
   const handleToggleDay = async (scheduleId: string, day: string, currentValue: boolean) => {
@@ -818,6 +852,27 @@ export function FlexOccupancy() {
             setSelectedBooking(null);
             loadData();
           }}
+        />
+      )}
+
+      <div className="fixed top-4 right-4 z-50 space-y-2 max-w-md">
+        {toasts.map(toast => (
+          <Toast
+            key={toast.id}
+            message={toast.message}
+            type={toast.type}
+            onClose={() => removeToast(toast.id)}
+          />
+        ))}
+      </div>
+
+      {confirmDialog && (
+        <ConfirmModal
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          onConfirm={confirmDialog.onConfirm}
+          onCancel={() => setConfirmDialog(null)}
+          variant={confirmDialog.variant}
         />
       )}
     </div>

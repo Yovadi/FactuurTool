@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Calendar, ChevronLeft, ChevronRight, CheckCircle2, Circle, AlertCircle, Copy, Wand2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { Toast } from './Toast';
+import { ConfirmModal } from './ConfirmModal';
 
 interface FlexDayBookingProps {
   leaseId: string;
@@ -28,6 +30,19 @@ interface FlexSchedule {
   friday: boolean;
 }
 
+type ToastMessage = {
+  id: number;
+  message: string;
+  type: 'success' | 'error' | 'info';
+};
+
+type ConfirmDialog = {
+  title: string;
+  message: string;
+  onConfirm: () => void;
+  variant?: 'default' | 'danger';
+} | null;
+
 export default function FlexDayBooking({
   leaseId,
   spaceId,
@@ -45,9 +60,20 @@ export default function FlexDayBooking({
   const [creditsUsed, setCreditsUsed] = useState(0);
   const [flexSchedule, setFlexSchedule] = useState<FlexSchedule | null>(null);
   const [applyingPattern, setApplyingPattern] = useState(false);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialog>(null);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+  };
+
+  const removeToast = (id: number) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
 
   useEffect(() => {
     loadBookings();
@@ -94,7 +120,7 @@ export default function FlexDayBooking({
       calculateCreditsUsed(data || []);
     } catch (error) {
       console.error('Error loading bookings:', error);
-      alert('Fout bij laden van boekingen');
+      showToast('Fout bij laden van boekingen', 'error');
     } finally {
       setLoading(false);
     }
@@ -128,7 +154,7 @@ export default function FlexDayBooking({
       } else {
         const creditCost = (dayType === 'half_day' && isHalfDay) ? 0.5 : 1;
         if (creditsUsed + creditCost > creditsPerMonth) {
-          alert(`Je hebt maar ${creditsPerMonth} dagen per maand. Je hebt al ${creditsUsed} dag(en) gebruikt.`);
+          showToast(`Je hebt maar ${creditsPerMonth} dagen per maand. Je hebt al ${creditsUsed} dag(en) gebruikt.`, 'error');
           return;
         }
 
@@ -160,9 +186,9 @@ export default function FlexDayBooking({
     } catch (error: any) {
       console.error('Error toggling booking:', error);
       if (error.message?.includes('credit limit')) {
-        alert(error.message);
+        showToast(error.message, 'error');
       } else {
-        alert('Fout bij opslaan van boeking');
+        showToast('Fout bij opslaan van boeking', 'error');
       }
       await loadBookings();
     }
@@ -207,9 +233,9 @@ export default function FlexDayBooking({
     return dayNames[dayIndex - 1];
   };
 
-  const applyPatternToEntireContract = async () => {
+  const applyPatternToEntireContract = () => {
     if (!flexSchedule) {
-      alert('Er is geen vast patroon ingesteld voor deze flexer in deze ruimte.');
+      showToast('Er is geen vast patroon ingesteld voor deze flexer in deze ruimte.', 'error');
       return;
     }
 
@@ -220,9 +246,23 @@ export default function FlexDayBooking({
 
     const startFrom = contractStart > today ? contractStart : today;
 
-    if (!confirm(`Dit vult automatisch ALLE maanden van het contract volgens het vaste patroon, vanaf ${startFrom.toLocaleDateString('nl-NL')} tot ${contractEnd.toLocaleDateString('nl-NL')}. Bestaande boekingen blijven behouden. Doorgaan?`)) {
-      return;
-    }
+    setConfirmDialog({
+      title: 'Hele contract invullen',
+      message: `Dit vult automatisch ALLE maanden van het contract volgens het vaste patroon:\n\nVan: ${startFrom.toLocaleDateString('nl-NL')}\nTot: ${contractEnd.toLocaleDateString('nl-NL')}\n\nBestaande boekingen blijven behouden.`,
+      onConfirm: () => executeApplyPatternToEntireContract()
+    });
+  };
+
+  const executeApplyPatternToEntireContract = async () => {
+    setConfirmDialog(null);
+
+    if (!flexSchedule) return;
+
+    const contractStart = new Date(startDate);
+    const contractEnd = endDate ? new Date(endDate) : new Date(contractStart.getFullYear() + 10, 11, 31);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const startFrom = contractStart > today ? contractStart : today;
 
     setApplyingPattern(true);
     try {
@@ -261,7 +301,7 @@ export default function FlexDayBooking({
       }
 
       if (bookingsToCreate.length === 0) {
-        alert('Alle dagen volgens het patroon zijn al geboekt voor de hele contractperiode.');
+        showToast('Alle dagen volgens het patroon zijn al geboekt voor de hele contractperiode.', 'info');
         return;
       }
 
@@ -276,24 +316,34 @@ export default function FlexDayBooking({
       }
 
       await loadBookings();
-      alert(`${bookingsToCreate.length} dag(en) succesvol geboekt voor de hele contractperiode!`);
+      showToast(`${bookingsToCreate.length} dag(en) succesvol geboekt voor de hele contractperiode!`, 'success');
     } catch (error: any) {
       console.error('Error applying pattern:', error);
-      alert('Fout bij toepassen van patroon: ' + (error.message || 'Onbekende fout'));
+      showToast('Fout bij toepassen van patroon: ' + (error.message || 'Onbekende fout'), 'error');
     } finally {
       setApplyingPattern(false);
     }
   };
 
-  const applyPatternToMonth = async () => {
+  const applyPatternToMonth = () => {
     if (!flexSchedule) {
-      alert('Er is geen vast patroon ingesteld voor deze flexer in deze ruimte.');
+      showToast('Er is geen vast patroon ingesteld voor deze flexer in deze ruimte.', 'error');
       return;
     }
 
-    if (!confirm('Dit vult automatisch alle dagen in deze maand op basis van het vaste patroon. Bestaande boekingen blijven behouden. Doorgaan?')) {
-      return;
-    }
+    const monthName = currentDate.toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' });
+
+    setConfirmDialog({
+      title: 'Maand invullen',
+      message: `Dit vult automatisch alle dagen in ${monthName} op basis van het vaste patroon.\n\nBestaande boekingen blijven behouden.`,
+      onConfirm: () => executeApplyPatternToMonth()
+    });
+  };
+
+  const executeApplyPatternToMonth = async () => {
+    setConfirmDialog(null);
+
+    if (!flexSchedule) return;
 
     setApplyingPattern(true);
     try {
@@ -323,7 +373,7 @@ export default function FlexDayBooking({
       }
 
       if (bookingsToCreate.length === 0) {
-        alert('Alle dagen volgens het patroon zijn al geboekt of liggen in het verleden.');
+        showToast('Alle dagen volgens het patroon zijn al geboekt of liggen in het verleden.', 'info');
         return;
       }
 
@@ -334,10 +384,10 @@ export default function FlexDayBooking({
       if (error) throw error;
 
       await loadBookings();
-      alert(`${bookingsToCreate.length} dag(en) succesvol geboekt volgens het vaste patroon!`);
+      showToast(`${bookingsToCreate.length} dag(en) succesvol geboekt volgens het vaste patroon!`, 'success');
     } catch (error: any) {
       console.error('Error applying pattern:', error);
-      alert('Fout bij toepassen van patroon: ' + (error.message || 'Onbekende fout'));
+      showToast('Fout bij toepassen van patroon: ' + (error.message || 'Onbekende fout'), 'error');
     } finally {
       setApplyingPattern(false);
     }
@@ -568,6 +618,27 @@ export default function FlexDayBooking({
           </div>
         </div>
       </div>
+
+      <div className="fixed top-4 right-4 z-50 space-y-2 max-w-md">
+        {toasts.map(toast => (
+          <Toast
+            key={toast.id}
+            message={toast.message}
+            type={toast.type}
+            onClose={() => removeToast(toast.id)}
+          />
+        ))}
+      </div>
+
+      {confirmDialog && (
+        <ConfirmModal
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          onConfirm={confirmDialog.onConfirm}
+          onCancel={() => setConfirmDialog(null)}
+          variant={confirmDialog.variant}
+        />
+      )}
     </div>
   );
 }
