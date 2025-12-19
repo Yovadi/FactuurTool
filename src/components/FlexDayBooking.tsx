@@ -425,38 +425,38 @@ export default function FlexDayBooking({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-dark-800 rounded-lg max-w-xl w-full max-h-[85vh] overflow-hidden border border-dark-700 flex flex-col">
-        <div className="bg-dark-800 border-b border-dark-700 p-2.5 flex-shrink-0">
+      <div className="bg-dark-800 rounded-lg max-w-2xl w-full max-h-[88vh] overflow-hidden border border-dark-700 flex flex-col">
+        <div className="bg-dark-800 border-b border-dark-700 p-3 flex-shrink-0">
           <div className="flex items-center justify-between mb-2">
             <div>
-              <h2 className="text-base font-bold text-gray-100">{tenantName}</h2>
-              <p className="text-gray-400 text-xs">{spaceName}</p>
+              <h2 className="text-lg font-bold text-gray-100">{tenantName}</h2>
+              <p className="text-gray-400 text-sm">{spaceName}</p>
             </div>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-200 text-xl leading-none"
+              className="text-gray-400 hover:text-gray-200 text-2xl leading-none"
             >
               ×
             </button>
           </div>
 
-          <div className="bg-dark-900 rounded-lg p-2 border border-dark-700">
-            <div className="flex items-center justify-between mb-1">
-              <div className="flex items-center gap-1.5">
-                <Calendar size={14} className="text-gold-500" />
-                <span className="text-xs font-medium text-gray-200">Maandelijks Tegoed</span>
+          <div className="bg-dark-900 rounded-lg p-2.5 border border-dark-700">
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center gap-2">
+                <Calendar size={16} className="text-gold-500" />
+                <span className="text-sm font-medium text-gray-200">Maandelijks Tegoed</span>
               </div>
               <div className="text-right">
-                <div className="text-base font-bold text-gray-100">
+                <div className="text-lg font-bold text-gray-100">
                   {creditsUsed} / {creditsPerMonth}
                 </div>
-                <div className="text-[10px] text-gray-400">
+                <div className="text-xs text-gray-400">
                   {dayType === 'half_day' ? 'dagen/halve dagen' : 'dagen'}
                 </div>
               </div>
             </div>
 
-            <div className="relative w-full h-1.5 bg-dark-700 rounded-full overflow-hidden">
+            <div className="relative w-full h-2 bg-dark-700 rounded-full overflow-hidden">
               <div
                 className={`absolute top-0 left-0 h-full transition-all ${
                   usagePercentage >= 100
@@ -469,13 +469,13 @@ export default function FlexDayBooking({
               />
             </div>
 
-            <div className="flex items-center justify-between mt-1 text-[10px]">
+            <div className="flex items-center justify-between mt-1.5 text-xs">
               <span className="text-gray-400">
                 Nog {creditsRemaining} {creditsRemaining === 1 ? 'dag' : 'dagen'} beschikbaar
               </span>
               {usagePercentage >= 100 && (
                 <span className="flex items-center gap-1 text-red-400">
-                  <AlertCircle size={10} />
+                  <AlertCircle size={12} />
                   Limiet bereikt
                 </span>
               )}
@@ -483,39 +483,39 @@ export default function FlexDayBooking({
           </div>
         </div>
 
-        <div className="p-2.5 overflow-y-auto flex-1">
-          <div className="bg-dark-900 rounded-lg p-2.5 border border-dark-700">
-            <div className="flex items-center justify-between mb-2">
+        <div className="p-3 overflow-y-auto flex-1">
+          <div className="bg-dark-900 rounded-lg p-3 border border-dark-700">
+            <div className="flex items-center justify-between mb-2.5">
               <button
                 onClick={goToPreviousMonth}
-                className="p-1 hover:bg-dark-700 rounded-lg transition-colors"
+                className="p-1.5 hover:bg-dark-700 rounded-lg transition-colors"
               >
-                <ChevronLeft size={16} className="text-gray-400" />
+                <ChevronLeft size={18} className="text-gray-400" />
               </button>
-              <h3 className="text-sm font-bold text-gray-100">
+              <h3 className="text-base font-bold text-gray-100">
                 {monthNames[month]} {year}
               </h3>
               <button
                 onClick={goToNextMonth}
-                className="p-1 hover:bg-dark-700 rounded-lg transition-colors"
+                className="p-1.5 hover:bg-dark-700 rounded-lg transition-colors"
               >
-                <ChevronRight size={16} className="text-gray-400" />
+                <ChevronRight size={18} className="text-gray-400" />
               </button>
             </div>
 
             {flexSchedule && (
-              <div className="mb-2 space-y-1.5">
-                <div className="bg-dark-800 rounded-lg p-2 border border-dark-700">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs font-medium text-gray-300">Vast patroon voor contract:</span>
+              <div className="mb-2.5 space-y-2">
+                <div className="bg-dark-800 rounded-lg p-2.5 border border-dark-700">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-300">Vast patroon voor contract:</span>
                   </div>
-                  <div className="flex gap-1 justify-center">
+                  <div className="flex gap-1.5 justify-center">
                     {(['monday', 'tuesday', 'wednesday', 'thursday', 'friday'] as const).map((day, idx) => {
                       const dayLabels = ['Ma', 'Di', 'Wo', 'Do', 'Vr'];
                       return (
                         <div
                           key={day}
-                          className={`px-2 py-1 rounded text-[10px] font-medium ${
+                          className={`px-2.5 py-1.5 rounded text-xs font-medium ${
                             flexSchedule[day]
                               ? 'bg-gold-500 text-white'
                               : 'bg-dark-700 text-gray-500'
@@ -526,46 +526,46 @@ export default function FlexDayBooking({
                       );
                     })}
                   </div>
-                  <div className="text-[10px] text-gray-500 mt-1 text-center">
+                  <div className="text-xs text-gray-500 mt-1.5 text-center">
                     Dit patroon is ingesteld bij "Bezetting" → "Vaste dagen in deze ruimte"
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-1.5">
+                <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={applyPatternToEntireContract}
                     disabled={applyingPattern}
-                    className="flex items-center justify-center gap-1 px-2 py-1 text-xs bg-emerald-500 text-white rounded hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Wand2 size={12} />
+                    <Wand2 size={14} />
                     {applyingPattern ? 'Bezig...' : 'Hele contract'}
                   </button>
                   <button
                     onClick={applyPatternToMonth}
                     disabled={applyingPattern}
-                    className="flex items-center justify-center gap-1 px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Calendar size={12} />
+                    <Calendar size={14} />
                     {applyingPattern ? 'Bezig...' : 'Alleen deze maand'}
                   </button>
                 </div>
               </div>
             )}
 
-            <div className="grid grid-cols-7 gap-0.5 mb-0.5">
+            <div className="grid grid-cols-7 gap-1 mb-1">
               {weekDays.map(day => (
-                <div key={day} className="text-center text-[10px] font-medium text-gray-400 py-0.5">
+                <div key={day} className="text-center text-xs font-medium text-gray-400 py-1">
                   {day}
                 </div>
               ))}
             </div>
 
             {loading ? (
-              <div className="text-center py-4 text-gray-400 text-xs">Laden...</div>
+              <div className="text-center py-6 text-gray-400 text-sm">Laden...</div>
             ) : (
-              <div className="grid grid-cols-7 gap-0.5">
+              <div className="grid grid-cols-7 gap-1">
                 {getDaysInMonth().map((date, index) => {
                   if (!date) {
-                    return <div key={`empty-${index}`} className="w-full h-9" />;
+                    return <div key={`empty-${index}`} className="w-full h-11" />;
                   }
 
                   const booking = isBooked(date);
@@ -577,22 +577,22 @@ export default function FlexDayBooking({
                       key={index}
                       onClick={() => !isPast && toggleBooking(date)}
                       disabled={isPast}
-                      className={`w-full h-9 rounded flex flex-col items-center justify-center transition-all relative ${
+                      className={`w-full h-11 rounded flex flex-col items-center justify-center transition-all relative ${
                         isPast
                           ? 'bg-dark-800 text-gray-600 cursor-not-allowed'
                           : booking
                           ? 'bg-gold-500 text-white hover:bg-gold-600'
                           : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
-                      } ${isToday ? 'ring-1 ring-blue-500' : ''}`}
+                      } ${isToday ? 'ring-2 ring-blue-500' : ''}`}
                     >
-                      <span className="text-xs font-medium">{date.getDate()}</span>
+                      <span className="text-sm font-medium">{date.getDate()}</span>
                       {booking && (
                         <div className="absolute top-0.5 right-0.5">
-                          <CheckCircle2 size={8} />
+                          <CheckCircle2 size={10} />
                         </div>
                       )}
                       {booking && booking.is_half_day && (
-                        <span className="text-[8px]">½</span>
+                        <span className="text-[9px]">½</span>
                       )}
                     </button>
                   );
@@ -600,27 +600,27 @@ export default function FlexDayBooking({
               </div>
             )}
 
-            <div className="mt-2 pt-2 border-t border-dark-700 space-y-2">
-              <div className="flex items-start gap-2 text-[10px]">
-                <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 bg-gold-500 rounded" />
+            <div className="mt-3 pt-3 border-t border-dark-700 space-y-2.5">
+              <div className="flex items-start gap-3 text-xs">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 bg-gold-500 rounded" />
                   <span className="text-gray-400">Geboekt</span>
                 </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 bg-dark-700 rounded" />
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 bg-dark-700 rounded" />
                   <span className="text-gray-400">Beschikbaar</span>
                 </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 bg-dark-800 rounded" />
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 bg-dark-800 rounded" />
                   <span className="text-gray-400">Verleden</span>
                 </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 border border-blue-500 rounded" />
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 border-2 border-blue-500 rounded" />
                   <span className="text-gray-400">Vandaag</span>
                 </div>
               </div>
-              <div className="bg-blue-500/10 border border-blue-500/30 rounded p-1.5">
-                <p className="text-[10px] text-blue-300">
+              <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-2">
+                <p className="text-xs text-blue-300">
                   <strong>Tip:</strong> Gebruik "Hele contract" om de volledige contractperiode in één keer te vullen,
                   of gebruik "Alleen deze maand" voor specifieke maanden.
                   Klik daarna individuele dagen aan/uit om uitzonderingen te maken.
