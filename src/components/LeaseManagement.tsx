@@ -687,11 +687,17 @@ export function LeaseManagement() {
                       </div>
                     </div>
                     {formData.credits_per_week && formData.flex_credit_rate && (
-                      <div className="pt-2 border-t border-dark-700">
+                      <div className="pt-2 border-t border-dark-700 space-y-1">
                         <div className="text-sm text-gray-300">
                           Weekhuur: €{parseFloat(formData.flex_credit_rate).toFixed(2)} × {formData.credits_per_week} {formData.flex_day_type === 'half_day' ? 'halve dagen' : 'dagen'} =
                           <span className="font-bold text-gold-500 ml-1">
                             €{(parseFloat(formData.flex_credit_rate) * parseInt(formData.credits_per_week)).toFixed(2)}/week
+                          </span>
+                        </div>
+                        <div className="text-sm text-gray-300">
+                          Maandhuur: €{(parseFloat(formData.flex_credit_rate) * parseInt(formData.credits_per_week)).toFixed(2)}/week × 4.33 weken/maand =
+                          <span className="font-bold text-blue-400 ml-1">
+                            €{(parseFloat(formData.flex_credit_rate) * parseInt(formData.credits_per_week) * 4.33).toFixed(2)}/maand
                           </span>
                         </div>
                       </div>
