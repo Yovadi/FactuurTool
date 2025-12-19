@@ -543,9 +543,13 @@ export default function FlexDayBooking({
             {loading ? (
               <div className="text-center py-6 text-gray-400 text-sm">Laden...</div>
             ) : (
-              <div className="grid grid-cols-7 gap-1">
+              <div className="grid grid-cols-7 gap-1" key={`month-${currentMonth.getFullYear()}-${currentMonth.getMonth()}`}>
                 {(() => {
                   const monthDays = getMonthDays();
+                  if (monthDays.length === 0) {
+                    return <div className="col-span-7 text-center py-6 text-gray-400 text-sm">Geen dagen gevonden</div>;
+                  }
+
                   const firstDay = monthDays[0];
                   const firstDayOfWeek = firstDay.getDay();
                   const offset = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1;
@@ -566,7 +570,7 @@ export default function FlexDayBooking({
 
                     cells.push(
                       <button
-                        key={`day-${index}`}
+                        key={`day-${date.getTime()}`}
                         onClick={() => !isPast && !isWeekend && toggleBooking(date)}
                         disabled={isPast || isWeekend}
                         className={`w-full h-12 rounded-lg flex flex-col items-center justify-center transition-all relative ${
