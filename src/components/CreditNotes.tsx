@@ -481,7 +481,8 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
   }
 
   return (
-    <div>
+    <div className="h-full overflow-y-auto">
+      <div className="p-6">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold text-gray-100">Credit Nota's</h2>
         <button
@@ -821,6 +822,7 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
           }}
         />
       )}
+      </div>
     </div>
   );
 }

@@ -17,12 +17,12 @@ export function DebiteurenTabs({ onCreateCreditNote }: DebiteurenTabsProps) {
   const [activeTab, setActiveTab] = useState<'invoices' | 'outstanding' | 'log'>('invoices');
 
   return (
-    <div>
-      <div className="mb-6">
+    <div className="h-full flex flex-col overflow-hidden">
+      <div className="flex-shrink-0 mb-6">
         <h2 className="text-2xl font-bold text-gray-100 mb-4">Debiteuren</h2>
       </div>
 
-      <div className="sticky top-0 z-10 bg-dark-950 pb-2 mb-4">
+      <div className="flex-shrink-0 mb-4">
         <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2">
           <div className="flex gap-2">
             <button
@@ -62,9 +62,11 @@ export function DebiteurenTabs({ onCreateCreditNote }: DebiteurenTabsProps) {
         </div>
       </div>
 
-      {activeTab === 'invoices' && <InvoiceManagement onCreateCreditNote={onCreateCreditNote} />}
-      {activeTab === 'outstanding' && <DebtorsOverview initialTab="open" />}
-      {activeTab === 'log' && <DebtorsOverview initialTab="log" />}
+      <div className="flex-1 min-h-0 overflow-hidden">
+        {activeTab === 'invoices' && <InvoiceManagement onCreateCreditNote={onCreateCreditNote} />}
+        {activeTab === 'outstanding' && <DebtorsOverview initialTab="open" />}
+        {activeTab === 'log' && <DebtorsOverview initialTab="log" />}
+      </div>
     </div>
   );
 }

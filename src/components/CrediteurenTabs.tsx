@@ -18,12 +18,12 @@ export function CrediteurenTabs({ prefilledInvoiceData, onClearPrefilled }: Cred
   const [activeTab, setActiveTab] = useState<'creditnotes' | 'overview'>('creditnotes');
 
   return (
-    <div>
-      <div className="mb-6">
+    <div className="h-full flex flex-col overflow-hidden">
+      <div className="flex-shrink-0 mb-6">
         <h2 className="text-2xl font-bold text-gray-100 mb-4">Crediteuren</h2>
       </div>
 
-      <div className="sticky top-0 z-10 bg-dark-950 pb-2 mb-4">
+      <div className="flex-shrink-0 mb-4">
         <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2">
           <div className="flex gap-2">
             <button
@@ -52,13 +52,15 @@ export function CrediteurenTabs({ prefilledInvoiceData, onClearPrefilled }: Cred
         </div>
       </div>
 
-      {activeTab === 'creditnotes' && (
-        <CreditNotes
-          prefilledInvoiceData={prefilledInvoiceData}
-          onClearPrefilled={onClearPrefilled}
-        />
-      )}
-      {activeTab === 'overview' && <CreditOverview />}
+      <div className="flex-1 min-h-0 overflow-hidden">
+        {activeTab === 'creditnotes' && (
+          <CreditNotes
+            prefilledInvoiceData={prefilledInvoiceData}
+            onClearPrefilled={onClearPrefilled}
+          />
+        )}
+        {activeTab === 'overview' && <CreditOverview />}
+      </div>
     </div>
   );
 }
