@@ -352,30 +352,29 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
   }
 
   return (
-    <div className="bg-dark-950">
-      <div>
-        <div className="mb-6">
-          {activeTab === 'open' && (
-            <div className="flex items-center gap-4">
-              <div className="bg-dark-900 px-4 py-2 rounded-lg">
-                <div className="text-sm text-gray-400">Totaal Openstaand</div>
-                <div className="text-2xl font-bold text-yellow-500">{formatCurrency(totalOutstanding)}</div>
-              </div>
-              <div className="bg-dark-900 px-4 py-2 rounded-lg">
-                <div className="text-sm text-gray-400">Aantal Debiteuren</div>
-                <div className="text-2xl font-bold text-gray-100">{debtors.length}</div>
-              </div>
-            </div>
-          )}
-        </div>
-
+    <div className="h-full flex flex-col bg-dark-950 overflow-hidden">
+      <div className="flex-shrink-0 mb-6">
         {activeTab === 'open' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-dark-900 rounded-lg overflow-hidden">
-            <div className="p-4 bg-dark-800 border-b border-dark-700">
+          <div className="flex items-center gap-4">
+            <div className="bg-dark-900 px-4 py-2 rounded-lg">
+              <div className="text-sm text-gray-400">Totaal Openstaand</div>
+              <div className="text-2xl font-bold text-yellow-500">{formatCurrency(totalOutstanding)}</div>
+            </div>
+            <div className="bg-dark-900 px-4 py-2 rounded-lg">
+              <div className="text-sm text-gray-400">Aantal Debiteuren</div>
+              <div className="text-2xl font-bold text-gray-100">{debtors.length}</div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {activeTab === 'open' && (
+        <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 overflow-hidden">
+          <div className="bg-dark-900 rounded-lg overflow-hidden flex flex-col">
+            <div className="p-4 bg-dark-800 border-b border-dark-700 flex-shrink-0">
               <h2 className="text-lg font-semibold text-gray-100">Debiteuren</h2>
             </div>
-            <div className="overflow-auto" style={{ maxHeight: 'calc(100vh - 400px)' }}>
+            <div className="overflow-y-auto flex-1">
               {debtors.length === 0 ? (
                 <div className="bg-dark-900 rounded-lg p-8 text-center">
                   <CheckCircle size={48} className="text-green-500 mx-auto mb-4" />
@@ -417,13 +416,13 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
             </div>
           </div>
 
-          <div className="bg-dark-900 rounded-lg overflow-hidden">
-            <div className="p-4 bg-dark-800 border-b border-dark-700">
+          <div className="bg-dark-900 rounded-lg overflow-hidden flex flex-col">
+            <div className="p-4 bg-dark-800 border-b border-dark-700 flex-shrink-0">
               <h2 className="text-lg font-semibold text-gray-100">
                 {selectedDebtor ? `Facturen - ${selectedDebtor.company_name}` : 'Selecteer een debiteur'}
               </h2>
             </div>
-            <div className="overflow-auto" style={{ maxHeight: 'calc(100vh - 400px)' }}>
+            <div className="overflow-y-auto flex-1">
               {!selectedDebtor ? (
                 <div className="bg-dark-900 rounded-lg p-8 text-center">
                   <AlertCircle size={48} className="text-gray-500 mx-auto mb-4" />
@@ -477,12 +476,12 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
               )}
             </div>
           </div>
-          </div>
-        )}
+        </div>
+      )}
 
-        {activeTab === 'log' && (
-          <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
-            <h2 className="text-lg font-bold text-gray-100 px-4 py-3 bg-dark-800 border-b border-amber-500">
+      {activeTab === 'log' && (
+        <div className="flex-1 flex flex-col bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
+            <h2 className="text-lg font-bold text-gray-100 px-4 py-3 bg-dark-800 border-b border-amber-500 flex-shrink-0">
               Betaalde Facturen (Logboek)
             </h2>
             {paidInvoices.length === 0 ? (
@@ -491,8 +490,8 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                 <p className="text-gray-400">Geen betaalde facturen gevonden</p>
               </div>
             ) : (
-              <div>
-                <div className="px-4 py-3 bg-dark-800 border-b border-dark-700">
+              <div className="flex flex-col flex-1 overflow-hidden">
+                <div className="px-4 py-3 bg-dark-800 border-b border-dark-700 flex-shrink-0">
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
                       <Filter size={16} className="text-gray-400" />
@@ -552,7 +551,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                     {getFilteredPaidInvoices().length} van {paidInvoices.length} facturen
                   </div>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="overflow-auto flex-1">
                   <table className="w-full table-fixed min-w-[1100px]">
                     <thead>
                       <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
@@ -642,7 +641,6 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
             )}
           </div>
         )}
-      </div>
 
       {selectedInvoice && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
