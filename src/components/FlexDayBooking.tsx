@@ -45,13 +45,16 @@ export default function FlexDayBooking({
       const firstDay = new Date(year, month, 1);
       const lastDay = new Date(year, month + 1, 0);
 
+      const firstDayStr = `${firstDay.getFullYear()}-${String(firstDay.getMonth() + 1).padStart(2, '0')}-${String(firstDay.getDate()).padStart(2, '0')}`;
+      const lastDayStr = `${lastDay.getFullYear()}-${String(lastDay.getMonth() + 1).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`;
+
       const { data, error } = await supabase
         .from('flex_day_bookings')
         .select('*')
         .eq('lease_id', leaseId)
         .eq('space_id', spaceId)
-        .gte('booking_date', firstDay.toISOString().split('T')[0])
-        .lte('booking_date', lastDay.toISOString().split('T')[0])
+        .gte('booking_date', firstDayStr)
+        .lte('booking_date', lastDayStr)
         .order('booking_date');
 
       if (error) throw error;
@@ -77,7 +80,7 @@ export default function FlexDayBooking({
   };
 
   const toggleBooking = async (date: Date, isHalfDay: boolean = false) => {
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     const existingBooking = bookings.find(b => b.booking_date === dateStr);
 
     try {
@@ -139,7 +142,7 @@ export default function FlexDayBooking({
   };
 
   const isBooked = (date: Date): Booking | undefined => {
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     return bookings.find(b => b.booking_date === dateStr);
   };
 
