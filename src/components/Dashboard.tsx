@@ -211,7 +211,7 @@ export function Dashboard() {
   }
 
   return (
-    <div>
+    <div className="h-full bg-dark-950 overflow-y-auto p-6">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-100 mb-2">Overzicht</h1>
         <p className="text-gray-300">Overzicht van je kantoorgebouw beheer</p>

@@ -292,8 +292,7 @@ export function TenantManagement() {
   }
 
   return (
-    <div>
-
+    <div className="h-full bg-dark-950 overflow-y-auto p-6">
       <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2 mb-6">
         <div className="flex gap-2">
           <button

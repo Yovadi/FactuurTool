@@ -171,7 +171,7 @@ export function SpaceTypeRates() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="h-full bg-dark-950 overflow-y-auto p-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-100">Ruimte Tarieven</h2>
         <button

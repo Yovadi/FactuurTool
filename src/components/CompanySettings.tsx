@@ -148,7 +148,7 @@ export function CompanySettings() {
   }
 
   return (
-    <div>
+    <div className="h-full bg-dark-950 overflow-y-auto p-6">
       <div className="flex items-center gap-3 mb-6">
         <Building2 size={32} className="text-gold-500" />
         <h2 className="text-2xl font-bold text-gray-100">Verhuurder</h2>

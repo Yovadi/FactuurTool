@@ -358,7 +358,7 @@ export function Analytics() {
   const availableYears = yearlyData.map(y => y.year);
 
   return (
-    <div>
+    <div className="h-full bg-dark-950 overflow-y-auto p-6">
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-100 mb-2">Financiële Analyses</h1>
         <p className="text-gray-300">Overzicht van omzet en financiële prestaties</p>
