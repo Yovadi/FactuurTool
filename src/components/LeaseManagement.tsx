@@ -30,7 +30,7 @@ export function LeaseManagement() {
     days_per_week: '5',
     selected_days: [] as string[],
     flex_pricing_model: 'credit_based' as 'credit_based',
-    flex_credits_per_month: '',
+    credits_per_week: '',
     flex_credit_rate: '',
     flex_day_type: 'full_day' as 'full_day' | 'half_day'
   });
@@ -105,7 +105,7 @@ export function LeaseManagement() {
     }
 
     if (formData.lease_type === 'flex') {
-      if (!formData.flex_credits_per_month || !formData.flex_credit_rate) {
+      if (!formData.credits_per_week || !formData.flex_credit_rate) {
         alert('Vul het aantal dagen en prijs per dag in voor de strippenkaart');
         return;
       }
@@ -140,7 +140,7 @@ export function LeaseManagement() {
       leaseData.flex_pricing_model = 'credit_based';
       leaseData.flex_daily_rate = null;
       leaseData.flex_monthly_rate = null;
-      leaseData.flex_credits_per_month = parseInt(formData.flex_credits_per_month);
+      leaseData.credits_per_week = parseInt(formData.credits_per_week);
       leaseData.flex_credit_rate = parseFloat(formData.flex_credit_rate);
       leaseData.flex_day_type = formData.flex_day_type;
     }
@@ -309,7 +309,7 @@ export function LeaseManagement() {
       days_per_week: (lease as any).days_per_week?.toString() || '5',
       selected_days: (lease as any).selected_days || [],
       flex_pricing_model: 'credit_based' as 'credit_based',
-      flex_credits_per_month: (lease as any).flex_credits_per_month?.toString() || '',
+      credits_per_week: (lease as any).credits_per_week?.toString() || '',
       flex_credit_rate: (lease as any).flex_credit_rate?.toString() || '',
       flex_day_type: (lease as any).flex_day_type || 'full_day'
     });
@@ -433,8 +433,8 @@ export function LeaseManagement() {
     let spacesTotal = 0;
 
     if (formData.lease_type === 'flex') {
-      if (formData.flex_credits_per_month && formData.flex_credit_rate) {
-        spacesTotal = parseInt(formData.flex_credits_per_month) * parseFloat(formData.flex_credit_rate);
+      if (formData.credits_per_week && formData.flex_credit_rate) {
+        spacesTotal = parseInt(formData.credits_per_week) * parseFloat(formData.flex_credit_rate);
       }
     } else {
       spacesTotal = selectedSpaces.reduce((sum, space) => {
@@ -460,7 +460,7 @@ export function LeaseManagement() {
       days_per_week: '5',
       selected_days: [],
       flex_pricing_model: 'credit_based',
-      flex_credits_per_month: '',
+      credits_per_week: '',
       flex_credit_rate: '',
       flex_day_type: 'full_day'
     });
@@ -493,8 +493,8 @@ export function LeaseManagement() {
   const calculateLeaseTotal = (lease: LeaseWithDetails) => {
     if (lease.lease_type === 'flex') {
       const flexLease = lease as any;
-      if (flexLease.flex_credits_per_month && flexLease.flex_credit_rate) {
-        return Math.round(flexLease.flex_credits_per_month * flexLease.flex_credit_rate * 100) / 100;
+      if (flexLease.credits_per_week && flexLease.flex_credit_rate) {
+        return Math.round(flexLease.credits_per_week * flexLease.flex_credit_rate * 100) / 100;
       }
     }
     return lease.lease_spaces.reduce((sum, ls) => sum + ls.monthly_rent, 0);
@@ -652,15 +652,15 @@ export function LeaseManagement() {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-200 mb-1">
-                          Aantal {formData.flex_day_type === 'half_day' ? 'halve' : 'hele'} dagen per maand
+                          Aantal {formData.flex_day_type === 'half_day' ? 'halve' : 'hele'} dagen per week
                         </label>
                         <input
                           type="number"
                           required
                           min="1"
-                          placeholder="Bijv. 10"
-                          value={formData.flex_credits_per_month}
-                          onChange={(e) => setFormData({ ...formData, flex_credits_per_month: e.target.value })}
+                          placeholder="Bijv. 3"
+                          value={formData.credits_per_week}
+                          onChange={(e) => setFormData({ ...formData, credits_per_week: e.target.value })}
                           className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                         />
                       </div>
@@ -684,12 +684,12 @@ export function LeaseManagement() {
                         />
                       </div>
                     </div>
-                    {formData.flex_credits_per_month && formData.flex_credit_rate && (
+                    {formData.credits_per_week && formData.flex_credit_rate && (
                       <div className="pt-2 border-t border-dark-700">
                         <div className="text-sm text-gray-300">
-                          Maandhuur: €{parseFloat(formData.flex_credit_rate).toFixed(2)} × {formData.flex_credits_per_month} {formData.flex_day_type === 'half_day' ? 'halve dagen' : 'dagen'} =
+                          Weekhuur: €{parseFloat(formData.flex_credit_rate).toFixed(2)} × {formData.credits_per_week} {formData.flex_day_type === 'half_day' ? 'halve dagen' : 'dagen'} =
                           <span className="font-bold text-gold-500 ml-1">
-                            €{(parseFloat(formData.flex_credit_rate) * parseInt(formData.flex_credits_per_month)).toFixed(2)}/mnd
+                            €{(parseFloat(formData.flex_credit_rate) * parseInt(formData.credits_per_week)).toFixed(2)}/week
                           </span>
                         </div>
                       </div>
@@ -1146,7 +1146,7 @@ export function LeaseManagement() {
                                   const flexLease = lease as any;
                                   const dayType = flexLease.flex_day_type === 'half_day' ? 'halve dagen' : 'dagen';
                                   const perType = flexLease.flex_day_type === 'half_day' ? 'halve dag' : 'dag';
-                                  return `Strippenkaart: ${flexLease.flex_credits_per_month} ${dayType} × €${flexLease.flex_credit_rate?.toFixed(2)}/${perType}`;
+                                  return `Strippenkaart: ${flexLease.credits_per_week} ${dayType} × €${flexLease.flex_credit_rate?.toFixed(2)}/${perType}`;
                                 })()}
                               </div>
                             </div>

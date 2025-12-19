@@ -1179,11 +1179,14 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               amount: rentAmount
             });
           } else if (lease.flex_pricing_model === 'credits') {
-            rentAmount = (lease.flex_credits_per_month || 0) * (lease.flex_credit_rate || 0);
+            const creditsPerWeek = (lease as any).credits_per_week || 0;
+            const weeksInMonth = 4.33;
+            const monthlyCredits = Math.round(creditsPerWeek * weeksInMonth);
+            rentAmount = monthlyCredits * (lease.flex_credit_rate || 0);
             lineItemsToInsert.push({
               invoice_id: '',
-              description: `Flexplek - Credits (${lease.flex_credits_per_month} credits)`,
-              quantity: lease.flex_credits_per_month || 0,
+              description: `Flexplek - ${creditsPerWeek} dagen/week (≈${monthlyCredits} dagen/maand)`,
+              quantity: monthlyCredits,
               unit_price: lease.flex_credit_rate || 0,
               amount: rentAmount
             });

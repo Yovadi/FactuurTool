@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar, ChevronLeft, ChevronRight, CheckCircle2, Circle, AlertCircle, Copy, Wand2 } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, CheckCircle2, AlertCircle, Wand2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Toast } from './Toast';
 import { ConfirmModal } from './ConfirmModal';
@@ -9,7 +9,7 @@ interface FlexDayBookingProps {
   spaceId: string;
   spaceName: string;
   tenantName: string;
-  creditsPerMonth: number;
+  creditsPerWeek: number;
   dayType: 'full_day' | 'half_day';
   startDate: string;
   endDate: string | null;
@@ -43,18 +43,38 @@ type ConfirmDialog = {
   variant?: 'default' | 'danger';
 } | null;
 
+function getWeekStart(date: Date): Date {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function getWeekEnd(date: Date): Date {
+  const weekStart = getWeekStart(date);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  return weekEnd;
+}
+
+function formatDateStr(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
 export default function FlexDayBooking({
   leaseId,
   spaceId,
   spaceName,
   tenantName,
-  creditsPerMonth,
+  creditsPerWeek,
   dayType,
   startDate,
   endDate,
   onClose
 }: FlexDayBookingProps) {
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentWeekStart, setCurrentWeekStart] = useState(getWeekStart(new Date()));
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [creditsUsed, setCreditsUsed] = useState(0);
@@ -62,9 +82,6 @@ export default function FlexDayBooking({
   const [applyingPattern, setApplyingPattern] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialog>(null);
-
-  const year = currentDate.getFullYear();
-  const month = currentDate.getMonth();
 
   const showToast = (message: string, type: 'success' | 'error' | 'info') => {
     const id = Date.now();
@@ -78,10 +95,8 @@ export default function FlexDayBooking({
   const translateError = (error: any): string => {
     const message = error?.message || '';
 
-    if (message.includes('exceed monthly credit limit')) {
-      const match = message.match(/limit of (\d+)/);
-      const limit = match ? match[1] : creditsPerMonth;
-      return `Je hebt de limiet van ${limit} dagen per maand bereikt`;
+    if (message.includes('exceed weekly credit limit') || message.includes('exceed monthly credit limit')) {
+      return `Je hebt de limiet van ${creditsPerWeek} dagen per week bereikt`;
     }
 
     if (message.includes('credit limit')) {
@@ -94,7 +109,7 @@ export default function FlexDayBooking({
   useEffect(() => {
     loadBookings();
     loadFlexSchedule();
-  }, [leaseId, spaceId, year, month]);
+  }, [leaseId, spaceId, currentWeekStart]);
 
   const loadFlexSchedule = async () => {
     try {
@@ -115,11 +130,9 @@ export default function FlexDayBooking({
   const loadBookings = async () => {
     setLoading(true);
     try {
-      const firstDay = new Date(year, month, 1);
-      const lastDay = new Date(year, month + 1, 0);
-
-      const firstDayStr = `${firstDay.getFullYear()}-${String(firstDay.getMonth() + 1).padStart(2, '0')}-${String(firstDay.getDate()).padStart(2, '0')}`;
-      const lastDayStr = `${lastDay.getFullYear()}-${String(lastDay.getMonth() + 1).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`;
+      const weekEnd = getWeekEnd(currentWeekStart);
+      const firstDayStr = formatDateStr(currentWeekStart);
+      const lastDayStr = formatDateStr(weekEnd);
 
       const { data, error } = await supabase
         .from('flex_day_bookings')
@@ -153,7 +166,7 @@ export default function FlexDayBooking({
   };
 
   const toggleBooking = async (date: Date, isHalfDay: boolean = false) => {
-    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const dateStr = formatDateStr(date);
     const existingBooking = bookings.find(b => b.booking_date === dateStr);
 
     try {
@@ -169,8 +182,8 @@ export default function FlexDayBooking({
         if (error) throw error;
       } else {
         const creditCost = (dayType === 'half_day' && isHalfDay) ? 0.5 : 1;
-        if (creditsUsed + creditCost > creditsPerMonth) {
-          showToast(`Je hebt maar ${creditsPerMonth} dagen per maand. Je hebt al ${creditsUsed} dag(en) gebruikt.`, 'error');
+        if (creditsUsed + creditCost > creditsPerWeek) {
+          showToast(`Je hebt maar ${creditsPerWeek} dagen per week. Je hebt al ${creditsUsed} dag(en) gebruikt.`, 'error');
           return;
         }
 
@@ -206,28 +219,18 @@ export default function FlexDayBooking({
     }
   };
 
-  const getDaysInMonth = () => {
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startingDayOfWeek = firstDay.getDay();
-
-    const days: (Date | null)[] = [];
-
-    const adjustedStart = startingDayOfWeek === 0 ? 6 : startingDayOfWeek - 1;
-    for (let i = 0; i < adjustedStart; i++) {
-      days.push(null);
+  const getWeekDays = (): Date[] => {
+    const days: Date[] = [];
+    for (let i = 0; i < 7; i++) {
+      const day = new Date(currentWeekStart);
+      day.setDate(currentWeekStart.getDate() + i);
+      days.push(day);
     }
-
-    for (let day = 1; day <= daysInMonth; day++) {
-      days.push(new Date(year, month, day));
-    }
-
     return days;
   };
 
   const isBooked = (date: Date): Booking | undefined => {
-    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const dateStr = formatDateStr(date);
     return bookings.find(b => b.booking_date === dateStr);
   };
 
@@ -245,6 +248,72 @@ export default function FlexDayBooking({
     return dayNames[dayIndex - 1];
   };
 
+  const applyPatternToWeek = () => {
+    if (!flexSchedule) {
+      showToast('Er is geen vast patroon ingesteld voor deze flexer in deze ruimte.', 'error');
+      return;
+    }
+
+    const weekEnd = getWeekEnd(currentWeekStart);
+    setConfirmDialog({
+      title: 'Week invullen',
+      message: `Dit vult automatisch de week van ${currentWeekStart.toLocaleDateString('nl-NL')} t/m ${weekEnd.toLocaleDateString('nl-NL')} op basis van het vaste patroon.\n\nBestaande boekingen blijven behouden.`,
+      onConfirm: () => executeApplyPatternToWeek()
+    });
+  };
+
+  const executeApplyPatternToWeek = async () => {
+    setConfirmDialog(null);
+
+    if (!flexSchedule) return;
+
+    setApplyingPattern(true);
+    try {
+      const bookingsToCreate = [];
+      const weekDays = getWeekDays();
+
+      for (const date of weekDays) {
+        const dayName = getDayName(date);
+        const dayIndex = date.getDay();
+
+        if (dayIndex === 0 || dayIndex === 6) continue;
+        if (!flexSchedule[dayName]) continue;
+        if (isPastDate(date)) continue;
+
+        const dateStr = formatDateStr(date);
+        const alreadyBooked = bookings.some(b => b.booking_date === dateStr);
+
+        if (!alreadyBooked) {
+          bookingsToCreate.push({
+            lease_id: leaseId,
+            space_id: spaceId,
+            booking_date: dateStr,
+            is_half_day: false
+          });
+        }
+      }
+
+      if (bookingsToCreate.length === 0) {
+        showToast('Alle dagen volgens het patroon zijn al geboekt of liggen in het verleden.', 'info');
+        return;
+      }
+
+      const { error } = await supabase
+        .from('flex_day_bookings')
+        .insert(bookingsToCreate);
+
+      if (error) throw error;
+
+      await loadBookings();
+      showToast(`${bookingsToCreate.length} dag(en) succesvol geboekt volgens het vaste patroon!`, 'success');
+    } catch (error: any) {
+      console.error('Error applying pattern:', error);
+      showToast(translateError(error), 'error');
+    } finally {
+      setApplyingPattern(false);
+    }
+  };
+
   const applyPatternToEntireContract = () => {
     if (!flexSchedule) {
       showToast('Er is geen vast patroon ingesteld voor deze flexer in deze ruimte.', 'error');
@@ -260,7 +329,7 @@ export default function FlexDayBooking({
 
     setConfirmDialog({
       title: 'Hele contract invullen',
-      message: `Dit vult automatisch ALLE maanden van het contract volgens het vaste patroon:\n\nVan: ${startFrom.toLocaleDateString('nl-NL')}\nTot: ${contractEnd.toLocaleDateString('nl-NL')}\n\nBestaande boekingen blijven behouden.`,
+      message: `Dit vult automatisch ALLE weken van het contract volgens het vaste patroon:\n\nVan: ${startFrom.toLocaleDateString('nl-NL')}\nTot: ${contractEnd.toLocaleDateString('nl-NL')}\n\nBestaande boekingen blijven behouden.`,
       onConfirm: () => executeApplyPatternToEntireContract()
     });
   };
@@ -283,8 +352,8 @@ export default function FlexDayBooking({
         .select('booking_date')
         .eq('lease_id', leaseId)
         .eq('space_id', spaceId)
-        .gte('booking_date', startFrom.toISOString().split('T')[0])
-        .lte('booking_date', contractEnd.toISOString().split('T')[0]);
+        .gte('booking_date', formatDateStr(startFrom))
+        .lte('booking_date', formatDateStr(contractEnd));
 
       if (fetchError) throw fetchError;
 
@@ -297,7 +366,7 @@ export default function FlexDayBooking({
         const dayIndex = currentDate.getDay();
 
         if (dayIndex !== 0 && dayIndex !== 6 && flexSchedule[dayName]) {
-          const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
+          const dateStr = formatDateStr(currentDate);
 
           if (!existingDates.has(dateStr)) {
             bookingsToCreate.push({
@@ -337,91 +406,33 @@ export default function FlexDayBooking({
     }
   };
 
-  const applyPatternToMonth = () => {
-    if (!flexSchedule) {
-      showToast('Er is geen vast patroon ingesteld voor deze flexer in deze ruimte.', 'error');
-      return;
-    }
-
-    const monthName = currentDate.toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' });
-
-    setConfirmDialog({
-      title: 'Maand invullen',
-      message: `Dit vult automatisch alle dagen in ${monthName} op basis van het vaste patroon.\n\nBestaande boekingen blijven behouden.`,
-      onConfirm: () => executeApplyPatternToMonth()
-    });
+  const goToPreviousWeek = () => {
+    const prev = new Date(currentWeekStart);
+    prev.setDate(prev.getDate() - 7);
+    setCurrentWeekStart(prev);
   };
 
-  const executeApplyPatternToMonth = async () => {
-    setConfirmDialog(null);
-
-    if (!flexSchedule) return;
-
-    setApplyingPattern(true);
-    try {
-      const daysInMonth = new Date(year, month + 1, 0).getDate();
-      const bookingsToCreate = [];
-
-      for (let day = 1; day <= daysInMonth; day++) {
-        const date = new Date(year, month, day);
-        const dayName = getDayName(date);
-        const dayIndex = date.getDay();
-
-        if (dayIndex === 0 || dayIndex === 6) continue;
-        if (!flexSchedule[dayName]) continue;
-        if (isPastDate(date)) continue;
-
-        const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-        const alreadyBooked = bookings.some(b => b.booking_date === dateStr);
-
-        if (!alreadyBooked) {
-          bookingsToCreate.push({
-            lease_id: leaseId,
-            space_id: spaceId,
-            booking_date: dateStr,
-            is_half_day: false
-          });
-        }
-      }
-
-      if (bookingsToCreate.length === 0) {
-        showToast('Alle dagen volgens het patroon zijn al geboekt of liggen in het verleden.', 'info');
-        return;
-      }
-
-      const { error } = await supabase
-        .from('flex_day_bookings')
-        .insert(bookingsToCreate);
-
-      if (error) throw error;
-
-      await loadBookings();
-      showToast(`${bookingsToCreate.length} dag(en) succesvol geboekt volgens het vaste patroon!`, 'success');
-    } catch (error: any) {
-      console.error('Error applying pattern:', error);
-      showToast(translateError(error), 'error');
-    } finally {
-      setApplyingPattern(false);
-    }
+  const goToNextWeek = () => {
+    const next = new Date(currentWeekStart);
+    next.setDate(next.getDate() + 7);
+    setCurrentWeekStart(next);
   };
 
-  const goToPreviousMonth = () => {
-    setCurrentDate(new Date(year, month - 1, 1));
-  };
+  const weekDayLabels = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'];
 
-  const goToNextMonth = () => {
-    setCurrentDate(new Date(year, month + 1, 1));
-  };
+  const creditsRemaining = creditsPerWeek - creditsUsed;
+  const usagePercentage = (creditsUsed / creditsPerWeek) * 100;
 
-  const monthNames = [
-    'Januari', 'Februari', 'Maart', 'April', 'Mei', 'Juni',
-    'Juli', 'Augustus', 'September', 'Oktober', 'November', 'December'
-  ];
+  const weekEnd = getWeekEnd(currentWeekStart);
+  const weekNumber = getWeekNumber(currentWeekStart);
 
-  const weekDays = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'];
-
-  const creditsRemaining = creditsPerMonth - creditsUsed;
-  const usagePercentage = (creditsUsed / creditsPerMonth) * 100;
+  function getWeekNumber(date: Date): number {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  }
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -444,11 +455,11 @@ export default function FlexDayBooking({
             <div className="flex items-center justify-between mb-1.5">
               <div className="flex items-center gap-2">
                 <Calendar size={16} className="text-gold-500" />
-                <span className="text-sm font-medium text-gray-200">Maandelijks Tegoed</span>
+                <span className="text-sm font-medium text-gray-200">Wekelijks Tegoed</span>
               </div>
               <div className="text-right">
                 <div className="text-lg font-bold text-gray-100">
-                  {creditsUsed} / {creditsPerMonth}
+                  {creditsUsed} / {creditsPerWeek}
                 </div>
                 <div className="text-xs text-gray-400">
                   {dayType === 'half_day' ? 'dagen/halve dagen' : 'dagen'}
@@ -485,18 +496,23 @@ export default function FlexDayBooking({
 
         <div className="p-3 overflow-y-auto flex-1">
           <div className="bg-dark-900 rounded-lg p-3 border border-dark-700">
-            <div className="flex items-center justify-between mb-2.5">
+            <div className="flex items-center justify-between mb-3">
               <button
-                onClick={goToPreviousMonth}
+                onClick={goToPreviousWeek}
                 className="p-1.5 hover:bg-dark-700 rounded-lg transition-colors"
               >
                 <ChevronLeft size={18} className="text-gray-400" />
               </button>
-              <h3 className="text-base font-bold text-gray-100">
-                {monthNames[month]} {year}
-              </h3>
+              <div className="text-center">
+                <h3 className="text-base font-bold text-gray-100">
+                  Week {weekNumber}
+                </h3>
+                <p className="text-xs text-gray-400">
+                  {currentWeekStart.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })} - {weekEnd.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </p>
+              </div>
               <button
-                onClick={goToNextMonth}
+                onClick={goToNextWeek}
                 className="p-1.5 hover:bg-dark-700 rounded-lg transition-colors"
               >
                 <ChevronRight size={18} className="text-gray-400" />
@@ -504,7 +520,7 @@ export default function FlexDayBooking({
             </div>
 
             {flexSchedule && (
-              <div className="mb-2.5 space-y-2">
+              <div className="mb-3 space-y-2">
                 <div className="bg-dark-800 rounded-lg p-2.5 border border-dark-700">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium text-gray-300">Vast patroon voor contract:</span>
@@ -532,6 +548,14 @@ export default function FlexDayBooking({
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <button
+                    onClick={applyPatternToWeek}
+                    disabled={applyingPattern}
+                    className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Calendar size={14} />
+                    {applyingPattern ? 'Bezig...' : 'Alleen deze week'}
+                  </button>
+                  <button
                     onClick={applyPatternToEntireContract}
                     disabled={applyingPattern}
                     className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -539,20 +563,12 @@ export default function FlexDayBooking({
                     <Wand2 size={14} />
                     {applyingPattern ? 'Bezig...' : 'Hele contract'}
                   </button>
-                  <button
-                    onClick={applyPatternToMonth}
-                    disabled={applyingPattern}
-                    className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Calendar size={14} />
-                    {applyingPattern ? 'Bezig...' : 'Alleen deze maand'}
-                  </button>
                 </div>
               </div>
             )}
 
-            <div className="grid grid-cols-7 gap-1 mb-1">
-              {weekDays.map(day => (
+            <div className="grid grid-cols-7 gap-2 mb-2">
+              {weekDayLabels.map(day => (
                 <div key={day} className="text-center text-xs font-medium text-gray-400 py-1">
                   {day}
                 </div>
@@ -562,37 +578,37 @@ export default function FlexDayBooking({
             {loading ? (
               <div className="text-center py-6 text-gray-400 text-sm">Laden...</div>
             ) : (
-              <div className="grid grid-cols-7 gap-1">
-                {getDaysInMonth().map((date, index) => {
-                  if (!date) {
-                    return <div key={`empty-${index}`} className="w-full h-11" />;
-                  }
-
+              <div className="grid grid-cols-7 gap-2">
+                {getWeekDays().map((date, index) => {
                   const booking = isBooked(date);
                   const isPast = isPastDate(date);
                   const isToday = date.toDateString() === new Date().toDateString();
+                  const isWeekend = date.getDay() === 0 || date.getDay() === 6;
 
                   return (
                     <button
                       key={index}
-                      onClick={() => !isPast && toggleBooking(date)}
-                      disabled={isPast}
-                      className={`w-full h-11 rounded flex flex-col items-center justify-center transition-all relative ${
-                        isPast
+                      onClick={() => !isPast && !isWeekend && toggleBooking(date)}
+                      disabled={isPast || isWeekend}
+                      className={`w-full h-16 rounded-lg flex flex-col items-center justify-center transition-all relative ${
+                        isWeekend
+                          ? 'bg-dark-800/50 text-gray-600 cursor-not-allowed'
+                          : isPast
                           ? 'bg-dark-800 text-gray-600 cursor-not-allowed'
                           : booking
                           ? 'bg-gold-500 text-white hover:bg-gold-600'
                           : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
                       } ${isToday ? 'ring-2 ring-blue-500' : ''}`}
                     >
-                      <span className="text-sm font-medium">{date.getDate()}</span>
+                      <span className="text-xs text-gray-500 mb-0.5">{weekDayLabels[index]}</span>
+                      <span className="text-base font-bold">{date.getDate()}</span>
                       {booking && (
-                        <div className="absolute top-0.5 right-0.5">
-                          <CheckCircle2 size={10} />
+                        <div className="absolute top-1 right-1">
+                          <CheckCircle2 size={12} />
                         </div>
                       )}
                       {booking && booking.is_half_day && (
-                        <span className="text-[9px]">½</span>
+                        <span className="text-[10px] mt-0.5">½ dag</span>
                       )}
                     </button>
                   );
@@ -601,7 +617,7 @@ export default function FlexDayBooking({
             )}
 
             <div className="mt-3 pt-3 border-t border-dark-700 space-y-2.5">
-              <div className="flex items-start gap-3 text-xs">
+              <div className="flex items-start gap-3 text-xs flex-wrap">
                 <div className="flex items-center gap-1.5">
                   <div className="w-3 h-3 bg-gold-500 rounded" />
                   <span className="text-gray-400">Geboekt</span>
@@ -621,8 +637,8 @@ export default function FlexDayBooking({
               </div>
               <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-2">
                 <p className="text-xs text-blue-300">
-                  <strong>Tip:</strong> Gebruik "Hele contract" om de volledige contractperiode in één keer te vullen,
-                  of gebruik "Alleen deze maand" voor specifieke maanden.
+                  <strong>Tip:</strong> Gebruik "Alleen deze week" om de huidige week in te vullen volgens het vaste patroon,
+                  of gebruik "Hele contract" om de volledige contractperiode in één keer te vullen.
                   Klik daarna individuele dagen aan/uit om uitzonderingen te maken.
                 </p>
               </div>

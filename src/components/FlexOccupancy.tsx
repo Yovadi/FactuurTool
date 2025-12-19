@@ -36,7 +36,7 @@ type Lease = {
   lease_type: 'full_time' | 'flex';
   security_deposit: number;
   vat_rate: number;
-  flex_credits_per_month: number | null;
+  credits_per_week: number | null;
   flex_credit_rate: number | null;
   flex_day_type: 'full_day' | 'half_day' | null;
   tenants: Tenant;
@@ -97,7 +97,7 @@ export function FlexOccupancy() {
     spaceId: string;
     spaceName: string;
     tenantName: string;
-    creditsPerMonth: number;
+    creditsPerWeek: number;
     dayType: 'full_day' | 'half_day';
     startDate: string;
     endDate: string | null;
@@ -754,11 +754,11 @@ export function FlexOccupancy() {
                                 </a>
                               </div>
                             )}
-                            {lease.flex_credits_per_month && lease.flex_credit_rate && (
+                            {lease.credits_per_week && lease.flex_credit_rate && (
                               <>
                                 <div className="flex items-center gap-2 text-gray-400">
                                   <CreditCard size={14} />
-                                  <span>{lease.flex_credits_per_month} dagen per maand</span>
+                                  <span>{lease.credits_per_week} dagen per week</span>
                                 </div>
                                 <div className="flex items-center gap-2 text-gray-400">
                                   <Euro size={14} />
@@ -792,7 +792,7 @@ export function FlexOccupancy() {
                               </div>
                             </div>
 
-                            {lease.flex_credits_per_month && (
+                            {lease.credits_per_week && (
                               <div className="pt-3 border-t border-dark-600">
                                 <button
                                   onClick={() => {
@@ -801,7 +801,7 @@ export function FlexOccupancy() {
                                       spaceId: occupancy.space.id,
                                       spaceName: occupancy.space.space_number,
                                       tenantName: lease.tenants.company_name,
-                                      creditsPerMonth: lease.flex_credits_per_month,
+                                      creditsPerWeek: lease.credits_per_week,
                                       dayType: lease.flex_day_type || 'full_day',
                                       startDate: lease.start_date,
                                       endDate: lease.end_date
@@ -811,7 +811,7 @@ export function FlexOccupancy() {
                                   className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
                                 >
                                   <CalendarDays size={16} />
-                                  Dagen Beheren ({lease.flex_credits_per_month} per maand)
+                                  Dagen Beheren ({lease.credits_per_week} per week)
                                 </button>
                               </div>
                             )}
@@ -843,7 +843,7 @@ export function FlexOccupancy() {
           spaceId={selectedBooking.spaceId}
           spaceName={selectedBooking.spaceName}
           tenantName={selectedBooking.tenantName}
-          creditsPerMonth={selectedBooking.creditsPerMonth}
+          creditsPerWeek={selectedBooking.creditsPerWeek}
           dayType={selectedBooking.dayType}
           startDate={selectedBooking.startDate}
           endDate={selectedBooking.endDate}

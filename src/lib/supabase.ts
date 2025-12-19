@@ -67,7 +67,7 @@ export type Lease = {
   flex_pricing_model: 'daily' | 'monthly_unlimited' | 'credit_based' | null;
   flex_daily_rate: number | null;
   flex_monthly_rate: number | null;
-  flex_credits_per_month: number | null;
+  credits_per_week: number | null;
   flex_credit_rate: number | null;
   created_at: string;
 };
