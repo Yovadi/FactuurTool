@@ -25,18 +25,18 @@ export function Toast({ message, type, onClose, duration = 5000 }: ToastProps) {
   };
 
   const styles = {
-    success: 'bg-emerald-500/10 border-emerald-500/30',
-    error: 'bg-red-500/10 border-red-500/30',
-    info: 'bg-blue-500/10 border-blue-500/30'
+    success: 'bg-emerald-900/90 border-emerald-500/50 backdrop-blur-sm',
+    error: 'bg-red-900/90 border-red-500/50 backdrop-blur-sm',
+    info: 'bg-blue-900/90 border-blue-500/50 backdrop-blur-sm'
   };
 
   return (
-    <div className={`flex items-start gap-3 p-4 rounded-lg border ${styles[type]} shadow-lg animate-slide-in-right`}>
+    <div className={`flex items-start gap-3 p-4 rounded-lg border ${styles[type]} shadow-xl animate-slide-in-right`}>
       {icons[type]}
-      <p className="flex-1 text-sm text-gray-200">{message}</p>
+      <p className="flex-1 text-sm text-white font-medium">{message}</p>
       <button
         onClick={onClose}
-        className="text-gray-400 hover:text-gray-200 transition-colors"
+        className="text-gray-300 hover:text-white transition-colors"
       >
         <X size={18} />
       </button>

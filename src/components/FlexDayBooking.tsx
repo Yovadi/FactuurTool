@@ -75,6 +75,22 @@ export default function FlexDayBooking({
     setToasts(prev => prev.filter(t => t.id !== id));
   };
 
+  const translateError = (error: any): string => {
+    const message = error?.message || '';
+
+    if (message.includes('exceed monthly credit limit')) {
+      const match = message.match(/limit of (\d+)/);
+      const limit = match ? match[1] : creditsPerMonth;
+      return `Je hebt de limiet van ${limit} dagen per maand bereikt`;
+    }
+
+    if (message.includes('credit limit')) {
+      return 'Limiet bereikt';
+    }
+
+    return 'Er ging iets mis bij het opslaan';
+  };
+
   useEffect(() => {
     loadBookings();
     loadFlexSchedule();
@@ -185,11 +201,7 @@ export default function FlexDayBooking({
       }
     } catch (error: any) {
       console.error('Error toggling booking:', error);
-      if (error.message?.includes('credit limit')) {
-        showToast(error.message, 'error');
-      } else {
-        showToast('Fout bij opslaan van boeking', 'error');
-      }
+      showToast(translateError(error), 'error');
       await loadBookings();
     }
   };
@@ -319,7 +331,7 @@ export default function FlexDayBooking({
       showToast(`${bookingsToCreate.length} dag(en) succesvol geboekt voor de hele contractperiode!`, 'success');
     } catch (error: any) {
       console.error('Error applying pattern:', error);
-      showToast('Fout bij toepassen van patroon: ' + (error.message || 'Onbekende fout'), 'error');
+      showToast(translateError(error), 'error');
     } finally {
       setApplyingPattern(false);
     }
@@ -387,7 +399,7 @@ export default function FlexDayBooking({
       showToast(`${bookingsToCreate.length} dag(en) succesvol geboekt volgens het vaste patroon!`, 'success');
     } catch (error: any) {
       console.error('Error applying pattern:', error);
-      showToast('Fout bij toepassen van patroon: ' + (error.message || 'Onbekende fout'), 'error');
+      showToast(translateError(error), 'error');
     } finally {
       setApplyingPattern(false);
     }
