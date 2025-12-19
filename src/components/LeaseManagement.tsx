@@ -434,7 +434,8 @@ export function LeaseManagement() {
 
     if (formData.lease_type === 'flex') {
       if (formData.credits_per_week && formData.flex_credit_rate) {
-        spacesTotal = parseInt(formData.credits_per_week) * parseFloat(formData.flex_credit_rate);
+        const weeksPerMonth = 4.33;
+        spacesTotal = parseInt(formData.credits_per_week) * parseFloat(formData.flex_credit_rate) * weeksPerMonth;
       }
     } else {
       spacesTotal = selectedSpaces.reduce((sum, space) => {
@@ -494,7 +495,8 @@ export function LeaseManagement() {
     if (lease.lease_type === 'flex') {
       const flexLease = lease as any;
       if (flexLease.credits_per_week && flexLease.flex_credit_rate) {
-        return Math.round(flexLease.credits_per_week * flexLease.flex_credit_rate * 100) / 100;
+        const weeksPerMonth = 4.33;
+        return Math.round(flexLease.credits_per_week * flexLease.flex_credit_rate * weeksPerMonth * 100) / 100;
       }
     }
     return lease.lease_spaces.reduce((sum, ls) => sum + ls.monthly_rent, 0);
