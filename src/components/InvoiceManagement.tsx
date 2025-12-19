@@ -1491,7 +1491,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
   }
 
   return (
-    <div>
+    <div className="h-full overflow-y-auto">
 
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
@@ -2040,7 +2040,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
           ); };
 
           return (
-            <div className="space-y-8">
+            <div className="p-6 space-y-8">
               {/* Concept Huur Facturen */}
               {renderInvoiceTable(
                 draftLeaseInvoices,
