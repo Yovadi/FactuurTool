@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar, ChevronLeft, ChevronRight, CheckCircle2, Circle, AlertCircle } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, CheckCircle2, Circle, AlertCircle, Copy, Wand2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface FlexDayBookingProps {
@@ -18,6 +18,14 @@ interface Booking {
   is_half_day: boolean;
 }
 
+interface FlexSchedule {
+  monday: boolean;
+  tuesday: boolean;
+  wednesday: boolean;
+  thursday: boolean;
+  friday: boolean;
+}
+
 export default function FlexDayBooking({
   leaseId,
   spaceId,
@@ -31,13 +39,32 @@ export default function FlexDayBooking({
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [creditsUsed, setCreditsUsed] = useState(0);
+  const [flexSchedule, setFlexSchedule] = useState<FlexSchedule | null>(null);
+  const [applyingPattern, setApplyingPattern] = useState(false);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
   useEffect(() => {
     loadBookings();
+    loadFlexSchedule();
   }, [leaseId, spaceId, year, month]);
+
+  const loadFlexSchedule = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('flex_schedules')
+        .select('monday, tuesday, wednesday, thursday, friday')
+        .eq('lease_id', leaseId)
+        .eq('space_id', spaceId)
+        .maybeSingle();
+
+      if (error) throw error;
+      setFlexSchedule(data);
+    } catch (error) {
+      console.error('Error loading flex schedule:', error);
+    }
+  };
 
   const loadBookings = async () => {
     setLoading(true);
@@ -85,6 +112,9 @@ export default function FlexDayBooking({
 
     try {
       if (existingBooking) {
+        setBookings(prev => prev.filter(b => b.id !== existingBooking.id));
+        calculateCreditsUsed(bookings.filter(b => b.id !== existingBooking.id));
+
         const { error } = await supabase
           .from('flex_day_bookings')
           .delete()
@@ -98,19 +128,31 @@ export default function FlexDayBooking({
           return;
         }
 
-        const { error } = await supabase
+        const tempId = `temp-${Date.now()}`;
+        const newBooking: Booking = {
+          id: tempId,
+          booking_date: dateStr,
+          is_half_day: isHalfDay
+        };
+
+        setBookings(prev => [...prev, newBooking]);
+        calculateCreditsUsed([...bookings, newBooking]);
+
+        const { data, error } = await supabase
           .from('flex_day_bookings')
           .insert({
             lease_id: leaseId,
             space_id: spaceId,
             booking_date: dateStr,
             is_half_day: isHalfDay
-          });
+          })
+          .select()
+          .single();
 
         if (error) throw error;
-      }
 
-      await loadBookings();
+        setBookings(prev => prev.map(b => b.id === tempId ? data : b));
+      }
     } catch (error: any) {
       console.error('Error toggling booking:', error);
       if (error.message?.includes('credit limit')) {
@@ -118,6 +160,7 @@ export default function FlexDayBooking({
       } else {
         alert('Fout bij opslaan van boeking');
       }
+      await loadBookings();
     }
   };
 
@@ -150,6 +193,72 @@ export default function FlexDayBooking({
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return date < today;
+  };
+
+  const getDayName = (date: Date): keyof FlexSchedule => {
+    const dayIndex = date.getDay();
+    const dayNames: (keyof FlexSchedule)[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+    if (dayIndex === 0) return 'friday';
+    if (dayIndex === 6) return 'friday';
+    return dayNames[dayIndex - 1];
+  };
+
+  const applyPatternToMonth = async () => {
+    if (!flexSchedule) {
+      alert('Er is geen vast patroon ingesteld voor deze flexer in deze ruimte.');
+      return;
+    }
+
+    if (!confirm('Dit vult automatisch alle dagen in deze maand op basis van het vaste patroon. Bestaande boekingen blijven behouden. Doorgaan?')) {
+      return;
+    }
+
+    setApplyingPattern(true);
+    try {
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const bookingsToCreate = [];
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(year, month, day);
+        const dayName = getDayName(date);
+        const dayIndex = date.getDay();
+
+        if (dayIndex === 0 || dayIndex === 6) continue;
+        if (!flexSchedule[dayName]) continue;
+        if (isPastDate(date)) continue;
+
+        const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        const alreadyBooked = bookings.some(b => b.booking_date === dateStr);
+
+        if (!alreadyBooked) {
+          bookingsToCreate.push({
+            lease_id: leaseId,
+            space_id: spaceId,
+            booking_date: dateStr,
+            is_half_day: false
+          });
+        }
+      }
+
+      if (bookingsToCreate.length === 0) {
+        alert('Alle dagen volgens het patroon zijn al geboekt of liggen in het verleden.');
+        return;
+      }
+
+      const { error } = await supabase
+        .from('flex_day_bookings')
+        .insert(bookingsToCreate);
+
+      if (error) throw error;
+
+      await loadBookings();
+      alert(`${bookingsToCreate.length} dag(en) succesvol geboekt volgens het vaste patroon!`);
+    } catch (error: any) {
+      console.error('Error applying pattern:', error);
+      alert('Fout bij toepassen van patroon: ' + (error.message || 'Onbekende fout'));
+    } finally {
+      setApplyingPattern(false);
+    }
   };
 
   const goToPreviousMonth = () => {
@@ -232,7 +341,7 @@ export default function FlexDayBooking({
 
         <div className="p-6">
           <div className="bg-dark-900 rounded-lg p-6 border border-dark-700">
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-4">
               <button
                 onClick={goToPreviousMonth}
                 className="p-2 hover:bg-dark-700 rounded-lg transition-colors"
@@ -249,6 +358,44 @@ export default function FlexDayBooking({
                 <ChevronRight size={20} className="text-gray-400" />
               </button>
             </div>
+
+            {flexSchedule && (
+              <div className="mb-6 space-y-3">
+                <div className="bg-dark-800 rounded-lg p-4 border border-dark-700">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-medium text-gray-300">Vast patroon voor contract:</span>
+                  </div>
+                  <div className="flex gap-2 justify-center">
+                    {(['monday', 'tuesday', 'wednesday', 'thursday', 'friday'] as const).map((day, idx) => {
+                      const dayLabels = ['Ma', 'Di', 'Wo', 'Do', 'Vr'];
+                      return (
+                        <div
+                          key={day}
+                          className={`px-3 py-2 rounded-lg text-sm font-medium ${
+                            flexSchedule[day]
+                              ? 'bg-gold-500 text-white'
+                              : 'bg-dark-700 text-gray-500'
+                          }`}
+                        >
+                          {dayLabels[idx]}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-2 text-center">
+                    Dit patroon is ingesteld bij "Bezetting" → "Vaste dagen in deze ruimte"
+                  </div>
+                </div>
+                <button
+                  onClick={applyPatternToMonth}
+                  disabled={applyingPattern}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Wand2 size={16} />
+                  {applyingPattern ? 'Bezig...' : 'Vul maand automatisch volgens patroon'}
+                </button>
+              </div>
+            )}
 
             <div className="grid grid-cols-7 gap-2 mb-2">
               {weekDays.map(day => (
@@ -299,7 +446,7 @@ export default function FlexDayBooking({
               </div>
             )}
 
-            <div className="mt-6 pt-6 border-t border-dark-700">
+            <div className="mt-6 pt-6 border-t border-dark-700 space-y-4">
               <div className="flex items-start gap-4 text-sm">
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 bg-gold-500 rounded" />
@@ -317,6 +464,12 @@ export default function FlexDayBooking({
                   <div className="w-4 h-4 border-2 border-blue-500 rounded" />
                   <span className="text-gray-400">Vandaag</span>
                 </div>
+              </div>
+              <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
+                <p className="text-sm text-blue-300">
+                  <strong>Tip:</strong> Gebruik de knop hierboven om automatisch de hele maand te vullen volgens het vaste patroon.
+                  Klik daarna individuele dagen aan/uit om uitzonderingen te maken.
+                </p>
               </div>
             </div>
           </div>
