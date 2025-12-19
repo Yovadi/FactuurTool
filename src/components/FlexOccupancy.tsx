@@ -84,6 +84,8 @@ export function FlexOccupancy() {
     tenantName: string;
     creditsPerMonth: number;
     dayType: 'full_day' | 'half_day';
+    startDate: string;
+    endDate: string | null;
   } | null>(null);
   const [newSchedule, setNewSchedule] = useState({
     monday: false,
@@ -766,7 +768,9 @@ export function FlexOccupancy() {
                                       spaceName: occupancy.space.space_number,
                                       tenantName: lease.tenants.company_name,
                                       creditsPerMonth: lease.flex_credits_per_month,
-                                      dayType: lease.flex_day_type || 'full_day'
+                                      dayType: lease.flex_day_type || 'full_day',
+                                      startDate: lease.start_date,
+                                      endDate: lease.end_date
                                     });
                                     setBookingModalOpen(true);
                                   }}
@@ -807,6 +811,8 @@ export function FlexOccupancy() {
           tenantName={selectedBooking.tenantName}
           creditsPerMonth={selectedBooking.creditsPerMonth}
           dayType={selectedBooking.dayType}
+          startDate={selectedBooking.startDate}
+          endDate={selectedBooking.endDate}
           onClose={() => {
             setBookingModalOpen(false);
             setSelectedBooking(null);

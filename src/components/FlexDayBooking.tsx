@@ -9,6 +9,8 @@ interface FlexDayBookingProps {
   tenantName: string;
   creditsPerMonth: number;
   dayType: 'full_day' | 'half_day';
+  startDate: string;
+  endDate: string | null;
   onClose: () => void;
 }
 
@@ -33,6 +35,8 @@ export default function FlexDayBooking({
   tenantName,
   creditsPerMonth,
   dayType,
+  startDate,
+  endDate,
   onClose
 }: FlexDayBookingProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -201,6 +205,84 @@ export default function FlexDayBooking({
     if (dayIndex === 0) return 'friday';
     if (dayIndex === 6) return 'friday';
     return dayNames[dayIndex - 1];
+  };
+
+  const applyPatternToEntireContract = async () => {
+    if (!flexSchedule) {
+      alert('Er is geen vast patroon ingesteld voor deze flexer in deze ruimte.');
+      return;
+    }
+
+    const contractStart = new Date(startDate);
+    const contractEnd = endDate ? new Date(endDate) : new Date(contractStart.getFullYear() + 10, 11, 31);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const startFrom = contractStart > today ? contractStart : today;
+
+    if (!confirm(`Dit vult automatisch ALLE maanden van het contract volgens het vaste patroon, vanaf ${startFrom.toLocaleDateString('nl-NL')} tot ${contractEnd.toLocaleDateString('nl-NL')}. Bestaande boekingen blijven behouden. Doorgaan?`)) {
+      return;
+    }
+
+    setApplyingPattern(true);
+    try {
+      const { data: existingBookings, error: fetchError } = await supabase
+        .from('flex_day_bookings')
+        .select('booking_date')
+        .eq('lease_id', leaseId)
+        .eq('space_id', spaceId)
+        .gte('booking_date', startFrom.toISOString().split('T')[0])
+        .lte('booking_date', contractEnd.toISOString().split('T')[0]);
+
+      if (fetchError) throw fetchError;
+
+      const existingDates = new Set(existingBookings?.map(b => b.booking_date) || []);
+      const bookingsToCreate = [];
+
+      let currentDate = new Date(startFrom);
+      while (currentDate <= contractEnd) {
+        const dayName = getDayName(currentDate);
+        const dayIndex = currentDate.getDay();
+
+        if (dayIndex !== 0 && dayIndex !== 6 && flexSchedule[dayName]) {
+          const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
+
+          if (!existingDates.has(dateStr)) {
+            bookingsToCreate.push({
+              lease_id: leaseId,
+              space_id: spaceId,
+              booking_date: dateStr,
+              is_half_day: false
+            });
+          }
+        }
+
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+
+      if (bookingsToCreate.length === 0) {
+        alert('Alle dagen volgens het patroon zijn al geboekt voor de hele contractperiode.');
+        return;
+      }
+
+      const batchSize = 100;
+      for (let i = 0; i < bookingsToCreate.length; i += batchSize) {
+        const batch = bookingsToCreate.slice(i, i + batchSize);
+        const { error } = await supabase
+          .from('flex_day_bookings')
+          .insert(batch);
+
+        if (error) throw error;
+      }
+
+      await loadBookings();
+      alert(`${bookingsToCreate.length} dag(en) succesvol geboekt voor de hele contractperiode!`);
+    } catch (error: any) {
+      console.error('Error applying pattern:', error);
+      alert('Fout bij toepassen van patroon: ' + (error.message || 'Onbekende fout'));
+    } finally {
+      setApplyingPattern(false);
+    }
   };
 
   const applyPatternToMonth = async () => {
@@ -386,14 +468,24 @@ export default function FlexDayBooking({
                     Dit patroon is ingesteld bij "Bezetting" → "Vaste dagen in deze ruimte"
                   </div>
                 </div>
-                <button
-                  onClick={applyPatternToMonth}
-                  disabled={applyingPattern}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Wand2 size={16} />
-                  {applyingPattern ? 'Bezig...' : 'Vul maand automatisch volgens patroon'}
-                </button>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={applyPatternToEntireContract}
+                    disabled={applyingPattern}
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Wand2 size={16} />
+                    {applyingPattern ? 'Bezig...' : 'Hele contract'}
+                  </button>
+                  <button
+                    onClick={applyPatternToMonth}
+                    disabled={applyingPattern}
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Calendar size={16} />
+                    {applyingPattern ? 'Bezig...' : 'Alleen deze maand'}
+                  </button>
+                </div>
               </div>
             )}
 
@@ -467,7 +559,8 @@ export default function FlexDayBooking({
               </div>
               <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
                 <p className="text-sm text-blue-300">
-                  <strong>Tip:</strong> Gebruik de knop hierboven om automatisch de hele maand te vullen volgens het vaste patroon.
+                  <strong>Tip:</strong> Gebruik "Hele contract" om de volledige contractperiode in één keer te vullen,
+                  of gebruik "Alleen deze maand" voor specifieke maanden.
                   Klik daarna individuele dagen aan/uit om uitzonderingen te maken.
                 </p>
               </div>
