@@ -1,10 +1,14 @@
 {
   "name": "invoice-manager",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "HAL5 Facturatie Manager",
   "author": "HAL5 Overloon",
   "main": "electron/main.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Yovadi/FactuurTool.git"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
