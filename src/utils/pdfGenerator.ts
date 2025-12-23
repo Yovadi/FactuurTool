@@ -221,9 +221,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
 
   const tableTop = yPosition;
   const col1X = margin;
-  const col2X = 100;
-  const col3X = 135;
-  const col4X = 165;
+  const col4X = pageWidth - margin - 55;
   const col5X = pageWidth - margin;
 
   pdf.setFillColor(234, 179, 8);
@@ -233,9 +231,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(255, 255, 255);
   pdf.text('Omschrijving', col1X + 2, tableTop + 5.5);
-  pdf.text('Hoeveelheid', col2X - 2, tableTop + 5.5, { align: 'right' });
-  pdf.text('Tarief', col3X - 2, tableTop + 5.5, { align: 'right' });
-  pdf.text('Bedrag', col4X - 2, tableTop + 5.5, { align: 'right' });
+  pdf.text('Bedrag', col4X, tableTop + 5.5, { align: 'right' });
   pdf.text('BTW', col5X - 2, tableTop + 5.5, { align: 'right' });
 
   yPosition = tableTop + 12;
@@ -269,52 +265,30 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
 
       // Format: - 04-11-2025 04:00-06:30 (2.5u) = €62.50
       let description = line.replace(/^-\s*/, '').trim();
-      let quantity = '';
-      let rate = '';
       let amount = '';
-
-      // Extract hours from pattern like (2.5u)
-      const hoursMatch = description.match(/\((\d+(?:\.\d+)?)u\)/);
-      if (hoursMatch) {
-        quantity = `${parseFloat(hoursMatch[1]).toFixed(1)} uur`;
-      }
 
       // Extract amount from pattern like = €62.50
       const amountMatch = description.match(/=\s*€([\d.]+)\s*$/);
       if (amountMatch) {
         amount = amountMatch[1];
-        // Calculate hourly rate if we have both hours and amount
-        if (hoursMatch) {
-          const hours = parseFloat(hoursMatch[1]);
-          const totalAmount = parseFloat(amount);
-          const hourlyRate = totalAmount / hours;
-          rate = `€ ${hourlyRate.toFixed(2)} / uur`;
-        }
         description = description.substring(0, description.lastIndexOf('=')).trim();
       }
 
-      const maxDescWidth = col2X - col1X - 10;
-      const descLines = pdf.splitTextToSize(description, maxDescWidth);
-      const numLines = Math.max(1, descLines.length);
+      const maxDescWidth = col4X - col1X - 15;
 
       if (lineIndex % 2 === 0) {
         pdf.setFillColor(250, 250, 250);
-        pdf.rect(margin, yPosition - 4, pageWidth - 2 * margin, 7 * numLines, 'F');
+        pdf.rect(margin, yPosition - 4, pageWidth - 2 * margin, 7, 'F');
       }
 
-      pdf.text(descLines, col1X + 2, yPosition);
-
-      // Place quantity, rate, amount and VAT on the last line of the description
-      const lastLineY = yPosition + (7 * (numLines - 1));
-      pdf.text(quantity, col2X - 2, lastLineY, { align: 'right' });
-      pdf.text(rate, col3X - 2, lastLineY, { align: 'right' });
+      pdf.text(description, col1X + 2, yPosition, { maxWidth: maxDescWidth });
       if (amount) {
-        pdf.text(`€ ${amount}`, col4X - 2, lastLineY, { align: 'right' });
+        pdf.text(`€ ${amount}`, col4X, yPosition, { align: 'right' });
       }
-      pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col5X - 2, lastLineY, { align: 'right' });
+      pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col5X - 2, yPosition, { align: 'right' });
 
       lineIndex++;
-      yPosition += 7 * numLines;
+      yPosition += 7;
     });
   } else {
     invoice.spaces.forEach((space, index) => {
@@ -324,24 +298,27 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
     }
 
     let displayName = space.space_name;
-    let quantity = '';
-    let rate = '';
+    let details = '';
 
     if (space.hours && space.hours > 0) {
-      quantity = `${space.hours.toFixed(1)} uur`;
+      details = ` (${space.hours.toFixed(1)} uur`;
       if (space.hourly_rate && space.hourly_rate > 0) {
-        rate = `€ ${space.hourly_rate.toFixed(2)} / uur`;
+        details += ` × € ${space.hourly_rate.toFixed(2)})`;
+      } else {
+        details += ')';
       }
     } else if (space.square_footage && space.space_type !== 'voorschot') {
       const sqm = typeof space.square_footage === 'string' ? parseFloat(space.square_footage) : space.square_footage;
       if (!isNaN(sqm) && sqm > 0) {
         if (space.space_type === 'flex') {
-          quantity = `${sqm.toFixed(0)} dagen`;
+          details = ` (${sqm.toFixed(0)} dagen`;
           if (space.price_per_sqm && space.price_per_sqm > 0) {
-            rate = `€ ${space.price_per_sqm.toFixed(2)} / dag`;
+            details += ` × € ${space.price_per_sqm.toFixed(2)})`;
+          } else {
+            details += ')';
           }
         } else {
-          quantity = `${sqm.toFixed(0)} m²`;
+          details = ` (${sqm.toFixed(0)} m²`;
           if (space.price_per_sqm && space.price_per_sqm > 0) {
             const isAnnualRate = space.space_type === 'bedrijfsruimte' ||
                                   space.space_type === 'buitenterrein' ||
@@ -349,34 +326,30 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
                                   displayName.toLowerCase().includes('bedrijfsruimte') ||
                                   displayName.toLowerCase().includes('buitenterrein');
             if (isAnnualRate) {
-              rate = `€ ${space.price_per_sqm.toFixed(2)} / m² / jaar`;
+              details += ` × € ${space.price_per_sqm.toFixed(2)} / jaar)`;
             } else {
-              rate = `€ ${space.price_per_sqm.toFixed(2)} / m²`;
+              details += ` × € ${space.price_per_sqm.toFixed(2)})`;
             }
+          } else {
+            details += ')';
           }
         }
       }
     }
 
-    const maxDescWidth = col2X - col1X - 10;
-    const descLines = pdf.splitTextToSize(displayName, maxDescWidth);
-    const numLines = Math.max(1, descLines.length);
+    const fullDescription = displayName + details;
+    const maxDescWidth = col4X - col1X - 15;
 
     if (index % 2 === 0) {
       pdf.setFillColor(250, 250, 250);
-      pdf.rect(margin, yPosition - 4, pageWidth - 2 * margin, 7 * numLines, 'F');
+      pdf.rect(margin, yPosition - 4, pageWidth - 2 * margin, 7, 'F');
     }
 
-    pdf.text(descLines, col1X + 2, yPosition);
+    pdf.text(fullDescription, col1X + 2, yPosition, { maxWidth: maxDescWidth });
+    pdf.text(`€ ${space.monthly_rent.toFixed(2)}`, col4X, yPosition, { align: 'right' });
+    pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col5X - 2, yPosition, { align: 'right' });
 
-    // Place quantity, rate, amount and VAT on the last line of the description
-    const lastLineY = yPosition + (7 * (numLines - 1));
-    pdf.text(quantity, col2X - 2, lastLineY, { align: 'right' });
-    pdf.text(rate, col3X - 2, lastLineY, { align: 'right' });
-    pdf.text(`€ ${space.monthly_rent.toFixed(2)}`, col4X - 2, lastLineY, { align: 'right' });
-    pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col5X - 2, lastLineY, { align: 'right' });
-
-    yPosition += 7 * numLines;
+    yPosition += 7;
     });
   }
 
@@ -391,7 +364,8 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
       pdf.rect(margin, yPosition - 4, pageWidth - 2 * margin, 7, 'F');
     }
 
-    pdf.text('Voorschot Gas, Water & Electra', col1X + 2, yPosition);
+    const maxDescWidth = col4X - col1X - 15;
+    pdf.text('Voorschot Gas, Water & Electra', col1X + 2, yPosition, { maxWidth: maxDescWidth });
     pdf.text(`€ ${invoice.security_deposit.toFixed(2)}`, col4X, yPosition, { align: 'right' });
     pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col5X - 2, yPosition, { align: 'right' });
     yPosition += 7;
@@ -587,9 +561,7 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
 
   const tableTop = yPosition;
   const col1X = margin;
-  const col2X = 100;
-  const col3X = 135;
-  const col4X = 165;
+  const col4X = pageWidth - margin - 55;
   const col5X = pageWidth - margin;
 
   pdf.setFillColor(220, 38, 38);
@@ -599,9 +571,7 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(255, 255, 255);
   pdf.text('Omschrijving', col1X + 2, tableTop + 5.5);
-  pdf.text('Hoeveelheid', col2X - 2, tableTop + 5.5, { align: 'right' });
-  pdf.text('Tarief', col3X - 2, tableTop + 5.5, { align: 'right' });
-  pdf.text('Bedrag', col4X - 2, tableTop + 5.5, { align: 'right' });
+  pdf.text('Bedrag', col4X, tableTop + 5.5, { align: 'right' });
   pdf.text('BTW', col5X - 2, tableTop + 5.5, { align: 'right' });
 
   yPosition = tableTop + 12;
@@ -615,30 +585,24 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
       yPosition = 20;
     }
 
-    const description = item.description;
-    const quantity = item.quantity > 0 ? item.quantity.toFixed(0) : '';
-    const rate = item.unit_price > 0 ? `€ -${item.unit_price.toFixed(2)}` : '';
+    let fullDescription = item.description;
+    if (item.quantity > 0 && item.unit_price > 0) {
+      fullDescription += ` (${item.quantity.toFixed(0)} × € -${item.unit_price.toFixed(2)})`;
+    }
 
-    const maxDescWidth = col2X - col1X - 10;
-    const descLines = pdf.splitTextToSize(description, maxDescWidth);
-    const numLines = Math.max(1, descLines.length);
+    const maxDescWidth = col4X - col1X - 15;
 
     if (index % 2 === 0) {
       pdf.setFillColor(250, 250, 250);
-      pdf.rect(margin, yPosition - 3.5, pageWidth - 2 * margin, 7 * numLines, 'F');
+      pdf.rect(margin, yPosition - 3.5, pageWidth - 2 * margin, 7, 'F');
     }
 
-    pdf.text(descLines, col1X + 2, yPosition);
-
-    // Place quantity, rate, amount and VAT on the last line of the description
-    const lastLineY = yPosition + (7 * (numLines - 1));
-    pdf.text(quantity, col2X - 2, lastLineY, { align: 'right' });
-    pdf.text(rate, col3X - 2, lastLineY, { align: 'right' });
+    pdf.text(fullDescription, col1X + 2, yPosition, { maxWidth: maxDescWidth });
     const amount = -item.amount;
-    pdf.text(`€ ${amount.toFixed(2)}`, col4X - 2, lastLineY, { align: 'right' });
-    pdf.text(`${creditNote.vat_rate.toFixed(0)}%`, col5X - 2, lastLineY, { align: 'right' });
+    pdf.text(`€ ${amount.toFixed(2)}`, col4X, yPosition, { align: 'right' });
+    pdf.text(`${creditNote.vat_rate.toFixed(0)}%`, col5X - 2, yPosition, { align: 'right' });
 
-    yPosition += 7 * numLines;
+    yPosition += 7;
   });
 
   if (creditNote.notes) {
