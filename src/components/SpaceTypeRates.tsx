@@ -172,7 +172,7 @@ export function SpaceTypeRates() {
 
   return (
     <div className="h-full bg-dark-950 overflow-y-auto p-6">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-100">Ruimte Tarieven</h2>
         <button
           onClick={() => setShowForm(true)}
@@ -184,15 +184,15 @@ export function SpaceTypeRates() {
       </div>
 
       {rates.length === 0 ? (
-        <div className="bg-dark-900 rounded-lg p-8 text-center border border-dark-700">
+        <div className="bg-dark-900 rounded-lg p-8 text-center border border-dark-700 mb-6">
           <AlertCircle size={48} className="text-gray-500 mx-auto mb-4" />
           <p className="text-gray-400">Nog geen tarieven ingesteld</p>
           <p className="text-sm text-gray-500 mt-2">Klik op "Tarief Toevoegen" om een nieuw tarief aan te maken</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
           {rates.map(rate => (
-            <div key={rate.id} className="bg-dark-900 rounded-lg border border-dark-700 overflow-hidden hover:border-gold-500 transition-colors">
+            <div key={rate.id} className="bg-dark-900 rounded-lg border border-dark-700 overflow-hidden hover:border-gold-500 transition-colors h-fit">
               <div className="flex items-center justify-between px-4 py-3 bg-dark-800 border-b border-dark-700">
                 <div className="flex items-center gap-2">
                   <Building2 className="text-gold-500" size={18} />
