@@ -12,6 +12,7 @@ export function SpaceManagement() {
   const [editingSpace, setEditingSpace] = useState<OfficeSpace | null>(null);
   const [loading, setLoading] = useState(true);
   const [spaceTypeRates, setSpaceTypeRates] = useState<SpaceTypeRate[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     space_type: 'bedrijfsruimte' as 'bedrijfsruimte' | 'kantoor' | 'buitenterrein' | 'diversen' | 'Meeting Room' | 'Flexplek',
@@ -147,6 +148,7 @@ export function SpaceManagement() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
 
     const spaceData: any = {
       space_number: formData.space_number,
@@ -186,6 +188,7 @@ export function SpaceManagement() {
 
       if (error) {
         console.error('Error updating space:', error);
+        setError(`Fout bij bijwerken: ${error.message}`);
         return;
       }
 
@@ -206,6 +209,7 @@ export function SpaceManagement() {
 
       if (error) {
         console.error('Error creating space:', error);
+        setError(`Fout bij aanmaken: ${error.message}`);
         return;
       }
 
@@ -233,6 +237,7 @@ export function SpaceManagement() {
       hourly_rate: space.hourly_rate ? space.hourly_rate.toString() : ''
     });
     setShowForm(true);
+    setError(null);
   };
 
   const handleDelete = async (id: string) => {
@@ -264,6 +269,7 @@ export function SpaceManagement() {
     });
     setEditingSpace(null);
     setShowForm(false);
+    setError(null);
   };
 
   if (loading) {
@@ -275,7 +281,10 @@ export function SpaceManagement() {
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-100">Ruimtes</h2>
         <button
-          onClick={() => setShowForm(true)}
+          onClick={() => {
+            setShowForm(true);
+            setError(null);
+          }}
           className="flex items-center gap-2 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors"
         >
           <Plus size={20} />
@@ -289,6 +298,12 @@ export function SpaceManagement() {
             <h3 className="text-xl font-bold text-gray-100 mb-4">
               {editingSpace ? 'Ruimte Bewerken' : 'Nieuwe Ruimte Toevoegen'}
             </h3>
+            {error && (
+              <div className="bg-red-500/10 border border-red-500 text-red-500 px-4 py-3 rounded-lg flex items-start gap-2">
+                <AlertCircle size={20} className="flex-shrink-0 mt-0.5" />
+                <p className="text-sm">{error}</p>
+              </div>
+            )}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-200 mb-1">
@@ -440,11 +455,12 @@ export function SpaceManagement() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-200 mb-2">
-                      Dagtarief (€)
+                      Dagtarief (€) *
                     </label>
                     <input
                       type="text"
                       inputMode="decimal"
+                      required
                       value={formData.daily_rate}
                       onChange={(e) => {
                         const value = e.target.value;
