@@ -45,6 +45,7 @@ function convertLineItemsToSpaces(items: InvoiceLineItem[]) {
     let hours: number | undefined = undefined;
     let hourlyRate: number | undefined = undefined;
     let pricePerSqm: number | undefined = undefined;
+    let cleanDescription = item.description;
 
     if (isMeetingRoom) {
       if (item.quantity !== null && item.quantity !== undefined) {
@@ -52,6 +53,11 @@ function convertLineItemsToSpaces(items: InvoiceLineItem[]) {
         if (!isNaN(parsed) && parsed > 0) {
           hours = parsed;
           hourlyRate = item.unit_price;
+
+          const hoursMatch = cleanDescription.match(/\([\d.]+\s*u(?:ur)?\)/i);
+          if (hoursMatch) {
+            cleanDescription = cleanDescription.replace(hoursMatch[0], '').trim();
+          }
         }
       }
     } else if (isKnownSpaceType && item.quantity !== null && item.quantity !== undefined) {
@@ -63,7 +69,7 @@ function convertLineItemsToSpaces(items: InvoiceLineItem[]) {
     }
 
     return {
-      space_name: item.description,
+      space_name: cleanDescription,
       monthly_rent: item.amount,
       space_type: spaceType as any,
       square_footage: squareFootage,
@@ -82,6 +88,7 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
   const [invoices, setInvoices] = useState<InvoiceWithDetails[]>([]);
   const [leases, setLeases] = useState<LeaseWithDetails[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [externalCustomers, setExternalCustomers] = useState<ExternalCustomer[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -173,10 +180,12 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
     return (bookings || []).map(booking => {
       const spaceName = booking.office_spaces?.space_number || 'Onbekende ruimte';
       const bookingDate = new Date(booking.booking_date).toLocaleDateString('nl-NL');
+      const startTime = booking.start_time?.substring(0, 5) || '';
+      const endTime = booking.end_time?.substring(0, 5) || '';
       const totalHours = parseFloat(booking.total_hours?.toString() || '0');
 
       return {
-        description: `${spaceName} - ${bookingDate} (${totalHours.toFixed(1)} uur)`,
+        description: `${bookingDate} ${startTime}-${endTime}`,
         unit_price: (booking.hourly_rate || 0).toFixed(2),
         quantity: totalHours.toFixed(1),
         space_type: 'Meeting Room',
@@ -188,11 +197,15 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
   const [formData, setFormData] = useState({
     lease_id: '',
     tenant_id: '',
+    external_customer_id: '',
+    customer_type: 'tenant' as 'tenant' | 'external',
     invoice_date: '',
     due_date: '',
     invoice_month: '',
     vat_rate: '21',
     vat_inclusive: false,
+    reference_number: '',
+    payment_term_days: '14',
     notes: ''
   });
 
@@ -255,6 +268,13 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
       .order('company_name');
 
     setTenants(tenantsData || []);
+
+    const { data: externalCustomersData } = await supabase
+      .from('external_customers')
+      .select('*')
+      .order('company_name');
+
+    setExternalCustomers(externalCustomersData || []);
 
     const { data: leasesData } = await supabase
       .from('leases')
@@ -322,14 +342,20 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
       })));
     }
 
+    const customerType = invoice.external_customer_id ? 'external' : 'tenant';
+
     setFormData({
       lease_id: invoice.lease_id || '',
       tenant_id: invoice.tenant_id || '',
+      external_customer_id: invoice.external_customer_id || '',
+      customer_type: customerType,
       invoice_date: invoice.invoice_date,
       due_date: invoice.due_date,
       invoice_month: invoice.invoice_month || getNextMonthString(),
       vat_rate: invoice.vat_rate.toString(),
       vat_inclusive: invoice.vat_inclusive,
+      reference_number: invoice.reference_number || '',
+      payment_term_days: invoice.payment_term_days?.toString() || '14',
       notes: invoice.notes || ''
     });
 
@@ -346,9 +372,15 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
       return;
     }
 
-    if (invoiceMode === 'manual' && !formData.tenant_id) {
-      alert('Selecteer een huurder');
-      return;
+    if (invoiceMode === 'manual') {
+      if (formData.customer_type === 'tenant' && !formData.tenant_id) {
+        alert('Selecteer een huurder');
+        return;
+      }
+      if (formData.customer_type === 'external' && !formData.external_customer_id) {
+        alert('Selecteer een externe klant');
+        return;
+      }
     }
 
     const baseAmount = Math.round(lineItems.reduce((sum, item) => {
@@ -388,6 +420,8 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
           amount: total,
           vat_rate: vatRate,
           vat_inclusive: vatInclusive,
+          reference_number: formData.reference_number || null,
+          payment_term_days: parseInt(formData.payment_term_days) || 14,
           notes: formData.notes || null
         })
         .eq('id', editingInvoiceId);
@@ -459,7 +493,8 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
         .from('invoices')
         .insert([{
           lease_id: invoiceMode === 'lease' ? formData.lease_id : null,
-          tenant_id: invoiceMode === 'manual' ? formData.tenant_id : null,
+          tenant_id: invoiceMode === 'manual' && formData.customer_type === 'tenant' ? formData.tenant_id : null,
+          external_customer_id: invoiceMode === 'manual' && formData.customer_type === 'external' ? formData.external_customer_id : null,
           invoice_number: invoiceNumber,
           invoice_date: formData.invoice_date,
           due_date: formData.due_date,
@@ -469,6 +504,8 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
           amount: total,
           vat_rate: vatRate,
           vat_inclusive: vatInclusive,
+          reference_number: formData.reference_number || null,
+          payment_term_days: parseInt(formData.payment_term_days) || 14,
           status: 'draft',
           notes: formData.notes || null
         }])
@@ -866,11 +903,15 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
     setFormData({
       lease_id: '',
       tenant_id: '',
+      external_customer_id: '',
+      customer_type: 'tenant',
       invoice_date: new Date().toISOString().split('T')[0],
       due_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       invoice_month: getNextMonthString(),
       vat_rate: '21',
       vat_inclusive: false,
+      reference_number: '',
+      payment_term_days: '14',
       notes: ''
     });
     setLineItems([]);
@@ -1580,23 +1621,77 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                 <>
                   <div>
                     <label className="block text-sm font-medium text-gray-200 mb-1">
-                      Huurder *
+                      Klanttype *
                     </label>
-                    <select
-                      required
-                      disabled={!!editingInvoiceId}
-                      value={formData.tenant_id}
-                      onChange={(e) => setFormData({ ...formData, tenant_id: e.target.value })}
-                      className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <option value="">Selecteer een huurder...</option>
-                      {tenants.map((tenant) => (
-                        <option key={tenant.id} value={tenant.id}>
-                          {tenant.company_name} - {tenant.name}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="flex gap-2 mb-3">
+                      <button
+                        type="button"
+                        disabled={!!editingInvoiceId}
+                        onClick={() => setFormData({ ...formData, customer_type: 'tenant', external_customer_id: '' })}
+                        className={`flex-1 px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                          formData.customer_type === 'tenant'
+                            ? 'bg-gold-500 text-white'
+                            : 'bg-dark-800 text-gray-200 hover:bg-dark-700'
+                        }`}
+                      >
+                        Huurder
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!!editingInvoiceId}
+                        onClick={() => setFormData({ ...formData, customer_type: 'external', tenant_id: '' })}
+                        className={`flex-1 px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                          formData.customer_type === 'external'
+                            ? 'bg-gold-500 text-white'
+                            : 'bg-dark-800 text-gray-200 hover:bg-dark-700'
+                        }`}
+                      >
+                        Externe Klant
+                      </button>
+                    </div>
                   </div>
+
+                  {formData.customer_type === 'tenant' ? (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-200 mb-1">
+                        Huurder *
+                      </label>
+                      <select
+                        required
+                        disabled={!!editingInvoiceId}
+                        value={formData.tenant_id}
+                        onChange={(e) => setFormData({ ...formData, tenant_id: e.target.value })}
+                        className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <option value="">Selecteer een huurder...</option>
+                        {tenants.map((tenant) => (
+                          <option key={tenant.id} value={tenant.id}>
+                            {tenant.company_name} - {tenant.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-200 mb-1">
+                        Externe Klant *
+                      </label>
+                      <select
+                        required
+                        disabled={!!editingInvoiceId}
+                        value={formData.external_customer_id}
+                        onChange={(e) => setFormData({ ...formData, external_customer_id: e.target.value })}
+                        className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <option value="">Selecteer een externe klant...</option>
+                        {externalCustomers.map((customer) => (
+                          <option key={customer.id} value={customer.id}>
+                            {customer.company_name} - {customer.contact_name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-200 mb-1">
@@ -1645,6 +1740,34 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-200 mb-1">
+                    Referentie/Kenmerk
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Bijv. projectnummer of kenmerk"
+                    value={formData.reference_number}
+                    onChange={(e) => setFormData({ ...formData, reference_number: e.target.value })}
+                    className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-200 mb-1">
+                    Betalingstermijn (dagen) *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    value={formData.payment_term_days}
+                    onChange={(e) => setFormData({ ...formData, payment_term_days: e.target.value })}
+                    className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-200 mb-1">
                     Factuurdatum *
                   </label>
                   <input
@@ -1669,7 +1792,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                 </div>
               </div>
 
-              {((invoiceMode === 'lease' && formData.lease_id) || (invoiceMode === 'manual' && formData.tenant_id)) && (
+              {((invoiceMode === 'lease' && formData.lease_id) || (invoiceMode === 'manual' && (formData.tenant_id || formData.external_customer_id))) && (
                 <div>
                   <div className="flex justify-between items-center mb-2">
                     <label className="block text-sm font-medium text-gray-200">
@@ -1785,7 +1908,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                   disabled={
                     lineItems.length === 0 ||
                     (invoiceMode === 'lease' && !formData.lease_id) ||
-                    (invoiceMode === 'manual' && !formData.tenant_id)
+                    (invoiceMode === 'manual' && !formData.tenant_id && !formData.external_customer_id)
                   }
                 >
                   {editingInvoiceId ? 'Factuur Opslaan' : 'Factuur Aanmaken'}
