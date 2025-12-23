@@ -274,14 +274,12 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
         description = description.substring(0, description.lastIndexOf('=')).trim();
       }
 
-      const maxDescWidth = col4X - col1X - 15;
-
       if (lineIndex % 2 === 0) {
         pdf.setFillColor(250, 250, 250);
         pdf.rect(margin, yPosition - 4, pageWidth - 2 * margin, 7, 'F');
       }
 
-      pdf.text(description, col1X + 2, yPosition, { maxWidth: maxDescWidth });
+      pdf.text(description, col1X + 2, yPosition);
       if (amount) {
         pdf.text(`€ ${amount}`, col4X, yPosition, { align: 'right' });
       }
@@ -338,14 +336,13 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
     }
 
     const fullDescription = displayName + details;
-    const maxDescWidth = col4X - col1X - 15;
 
     if (index % 2 === 0) {
       pdf.setFillColor(250, 250, 250);
       pdf.rect(margin, yPosition - 4, pageWidth - 2 * margin, 7, 'F');
     }
 
-    pdf.text(fullDescription, col1X + 2, yPosition, { maxWidth: maxDescWidth });
+    pdf.text(fullDescription, col1X + 2, yPosition);
     pdf.text(`€ ${space.monthly_rent.toFixed(2)}`, col4X, yPosition, { align: 'right' });
     pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col5X - 2, yPosition, { align: 'right' });
 
@@ -364,8 +361,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
       pdf.rect(margin, yPosition - 4, pageWidth - 2 * margin, 7, 'F');
     }
 
-    const maxDescWidth = col4X - col1X - 15;
-    pdf.text('Voorschot Gas, Water & Electra', col1X + 2, yPosition, { maxWidth: maxDescWidth });
+    pdf.text('Voorschot Gas, Water & Electra', col1X + 2, yPosition);
     pdf.text(`€ ${invoice.security_deposit.toFixed(2)}`, col4X, yPosition, { align: 'right' });
     pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col5X - 2, yPosition, { align: 'right' });
     yPosition += 7;
@@ -590,14 +586,12 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
       fullDescription += ` (${item.quantity.toFixed(0)} × € -${item.unit_price.toFixed(2)})`;
     }
 
-    const maxDescWidth = col4X - col1X - 15;
-
     if (index % 2 === 0) {
       pdf.setFillColor(250, 250, 250);
       pdf.rect(margin, yPosition - 3.5, pageWidth - 2 * margin, 7, 'F');
     }
 
-    pdf.text(fullDescription, col1X + 2, yPosition, { maxWidth: maxDescWidth });
+    pdf.text(fullDescription, col1X + 2, yPosition);
     const amount = -item.amount;
     pdf.text(`€ ${amount.toFixed(2)}`, col4X, yPosition, { align: 'right' });
     pdf.text(`${creditNote.vat_rate.toFixed(0)}%`, col5X - 2, yPosition, { align: 'right' });
