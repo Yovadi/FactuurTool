@@ -18,7 +18,7 @@
     "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && cross-env NODE_ENV=development electron .\"",
     "electron:build": "npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win --config electron-builder.json",
     "electron:build:dir": "npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win --dir --config electron-builder.json",
-    "electron:publish": "npm run build && node scripts/publish.js"
+    "electron:publish": "npm run build && dotenv -- node scripts/publish.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
