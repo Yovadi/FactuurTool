@@ -303,12 +303,15 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
       }
 
       pdf.text(descLines, col1X + 2, yPosition);
-      pdf.text(quantity, col2X - 2, yPosition, { align: 'right' });
-      pdf.text(rate, col3X - 2, yPosition, { align: 'right' });
+
+      // Place quantity, rate, amount and VAT on the last line of the description
+      const lastLineY = yPosition + (7 * (numLines - 1));
+      pdf.text(quantity, col2X - 2, lastLineY, { align: 'right' });
+      pdf.text(rate, col3X - 2, lastLineY, { align: 'right' });
       if (amount) {
-        pdf.text(`€ ${amount}`, col4X - 2, yPosition, { align: 'right' });
+        pdf.text(`€ ${amount}`, col4X - 2, lastLineY, { align: 'right' });
       }
-      pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col5X - 2, yPosition, { align: 'right' });
+      pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col5X - 2, lastLineY, { align: 'right' });
 
       lineIndex++;
       yPosition += 7 * numLines;
@@ -365,10 +368,13 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
     }
 
     pdf.text(descLines, col1X + 2, yPosition);
-    pdf.text(quantity, col2X - 2, yPosition, { align: 'right' });
-    pdf.text(rate, col3X - 2, yPosition, { align: 'right' });
-    pdf.text(`€ ${space.monthly_rent.toFixed(2)}`, col4X - 2, yPosition, { align: 'right' });
-    pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col5X - 2, yPosition, { align: 'right' });
+
+    // Place quantity, rate, amount and VAT on the last line of the description
+    const lastLineY = yPosition + (7 * (numLines - 1));
+    pdf.text(quantity, col2X - 2, lastLineY, { align: 'right' });
+    pdf.text(rate, col3X - 2, lastLineY, { align: 'right' });
+    pdf.text(`€ ${space.monthly_rent.toFixed(2)}`, col4X - 2, lastLineY, { align: 'right' });
+    pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col5X - 2, lastLineY, { align: 'right' });
 
     yPosition += 7 * numLines;
     });
@@ -623,11 +629,14 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
     }
 
     pdf.text(descLines, col1X + 2, yPosition);
-    pdf.text(quantity, col2X - 2, yPosition, { align: 'right' });
-    pdf.text(rate, col3X - 2, yPosition, { align: 'right' });
+
+    // Place quantity, rate, amount and VAT on the last line of the description
+    const lastLineY = yPosition + (7 * (numLines - 1));
+    pdf.text(quantity, col2X - 2, lastLineY, { align: 'right' });
+    pdf.text(rate, col3X - 2, lastLineY, { align: 'right' });
     const amount = -item.amount;
-    pdf.text(`€ ${amount.toFixed(2)}`, col4X - 2, yPosition, { align: 'right' });
-    pdf.text(`${creditNote.vat_rate.toFixed(0)}%`, col5X - 2, yPosition, { align: 'right' });
+    pdf.text(`€ ${amount.toFixed(2)}`, col4X - 2, lastLineY, { align: 'right' });
+    pdf.text(`${creditNote.vat_rate.toFixed(0)}%`, col5X - 2, lastLineY, { align: 'right' });
 
     yPosition += 7 * numLines;
   });
