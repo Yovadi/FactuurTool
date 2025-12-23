@@ -32,7 +32,8 @@ export function LeaseManagement() {
     flex_pricing_model: 'credit_based' as 'credit_based',
     credits_per_week: '',
     flex_credit_rate: '',
-    flex_day_type: 'full_day' as 'full_day' | 'half_day'
+    flex_day_type: 'full_day' as 'full_day' | 'half_day',
+    selected_rate_id: ''
   });
 
   const [selectedSpaces, setSelectedSpaces] = useState<Array<{
@@ -58,6 +59,20 @@ export function LeaseManagement() {
       setSelectedSpaces([{ space_id: '', price_per_sqm: '' }]);
     }
   }, [showForm, editingLease, formData.lease_type]);
+
+  useEffect(() => {
+    if (formData.lease_type === 'flex' && !editingLease && !formData.flex_credit_rate) {
+      const flexRates = getFlexRates();
+      const defaultFlexRate = flexRates.find(r => r.space_type === 'Flexplek');
+      if (defaultFlexRate) {
+        setFormData(prev => ({
+          ...prev,
+          flex_credit_rate: defaultFlexRate.daily_rate.toFixed(2),
+          selected_rate_id: defaultFlexRate.id
+        }));
+      }
+    }
+  }, [formData.lease_type, spaceTypeRates]);
 
   const loadData = async () => {
     setLoading(true);
@@ -296,6 +311,17 @@ export function LeaseManagement() {
 
   const handleEdit = async (lease: LeaseWithDetails) => {
     setEditingLease(lease);
+
+    let selectedRateId = '';
+    if ((lease as any).lease_type === 'flex' && (lease as any).flex_credit_rate) {
+      const matchingRate = getFlexRates().find(r =>
+        Math.abs(r.daily_rate - (lease as any).flex_credit_rate) < 0.01
+      );
+      if (matchingRate) {
+        selectedRateId = matchingRate.id;
+      }
+    }
+
     setFormData({
       tenant_id: lease.tenant_id,
       start_date: lease.start_date,
@@ -311,7 +337,8 @@ export function LeaseManagement() {
       flex_pricing_model: 'credit_based' as 'credit_based',
       credits_per_week: (lease as any).credits_per_week?.toString() || '',
       flex_credit_rate: (lease as any).flex_credit_rate?.toString() || '',
-      flex_day_type: (lease as any).flex_day_type || 'full_day'
+      flex_day_type: (lease as any).flex_day_type || 'full_day',
+      selected_rate_id: selectedRateId
     });
     setSelectedSpaces(lease.lease_spaces.map(ls => ({
       space_id: ls.space_id,
@@ -367,6 +394,24 @@ export function LeaseManagement() {
 
   const removeSpace = (index: number) => {
     setSelectedSpaces(selectedSpaces.filter((_, i) => i !== index));
+  };
+
+  const getFlexRates = () => {
+    return spaceTypeRates.filter(r =>
+      r.calculation_method === 'daily' && r.daily_rate > 0
+    );
+  };
+
+  const getFlexRate = (): string => {
+    const flexRate = spaceTypeRates.find(r => r.space_type === 'Flexplek');
+    if (!flexRate || flexRate.calculation_method !== 'daily') return '';
+    return flexRate.daily_rate > 0 ? flexRate.daily_rate.toFixed(2) : '';
+  };
+
+  const getRateById = (rateId: string): string => {
+    const rate = spaceTypeRates.find(r => r.id === rateId);
+    if (!rate || rate.calculation_method !== 'daily') return '';
+    return rate.daily_rate > 0 ? rate.daily_rate.toFixed(2) : '';
   };
 
   const getDefaultRate = (spaceId: string): string => {
@@ -463,7 +508,8 @@ export function LeaseManagement() {
       flex_pricing_model: 'credit_based',
       credits_per_week: '',
       flex_credit_rate: '',
-      flex_day_type: 'full_day'
+      flex_day_type: 'full_day',
+      selected_rate_id: ''
     });
     setSelectedSpaces([]);
     setFlexDefaultSchedule({
@@ -650,39 +696,81 @@ export function LeaseManagement() {
                       )}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-200 mb-1">
-                          Aantal {formData.flex_day_type === 'half_day' ? 'halve' : 'hele'} dagen per week
-                        </label>
-                        <input
-                          type="number"
-                          required
-                          min="1"
-                          placeholder="Bijv. 3"
-                          value={formData.credits_per_week}
-                          onChange={(e) => setFormData({ ...formData, credits_per_week: e.target.value })}
-                          className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-200 mb-1">
-                          Prijs per {formData.flex_day_type === 'half_day' ? 'halve' : 'hele'} dag
-                        </label>
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          required
-                          placeholder="Bijv. 45"
-                          value={formData.flex_credit_rate}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                              setFormData({ ...formData, flex_credit_rate: value });
-                            }
-                          }}
-                          className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                        />
+                    <div className="space-y-3">
+                      {getFlexRates().length > 0 && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-200 mb-1">
+                            Tarief selectie
+                          </label>
+                          <select
+                            value={formData.selected_rate_id}
+                            onChange={(e) => {
+                              const rateId = e.target.value;
+                              const rate = getRateById(rateId);
+                              setFormData({
+                                ...formData,
+                                selected_rate_id: rateId,
+                                flex_credit_rate: rate || formData.flex_credit_rate
+                              });
+                            }}
+                            className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                          >
+                            <option value="">Aangepast tarief...</option>
+                            {getFlexRates().map(rate => (
+                              <option key={rate.id} value={rate.id}>
+                                {rate.space_type} - €{rate.daily_rate.toFixed(2)}/dag
+                                {rate.description && ` (${rate.description})`}
+                              </option>
+                            ))}
+                          </select>
+                          <p className="text-xs text-gray-400 mt-1">
+                            Selecteer een standaardtarief of laat leeg voor aangepast tarief
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-200 mb-1">
+                            Aantal {formData.flex_day_type === 'half_day' ? 'halve' : 'hele'} dagen per week
+                          </label>
+                          <input
+                            type="number"
+                            required
+                            min="1"
+                            placeholder="Bijv. 3"
+                            value={formData.credits_per_week}
+                            onChange={(e) => setFormData({ ...formData, credits_per_week: e.target.value })}
+                            className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-200 mb-1">
+                            Prijs per {formData.flex_day_type === 'half_day' ? 'halve' : 'hele'} dag
+                          </label>
+                          <div className="relative">
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              required
+                              placeholder="Bijv. 45"
+                              value={formData.flex_credit_rate}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                                  setFormData({ ...formData, flex_credit_rate: value, selected_rate_id: '' });
+                                }
+                              }}
+                              className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                            />
+                            {formData.selected_rate_id && (
+                              <div className="text-xs text-emerald-500 flex items-center gap-1 mt-1">
+                                <CheckCircle size={12} />
+                                Standaardtarief uit Ruimte Tarieven
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
                     {formData.credits_per_week && formData.flex_credit_rate && (
