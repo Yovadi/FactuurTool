@@ -23,7 +23,9 @@ function convertLineItemsToSpaces(items: InvoiceLineItem[]) {
     let isMeetingRoom = false;
     let isKnownSpaceType = false;
 
-    if (item.description.toLowerCase().includes('voorschot')) {
+    if (item.booking_id) {
+      isMeetingRoom = true;
+    } else if (item.description.toLowerCase().includes('voorschot')) {
       spaceType = 'voorschot';
     } else if (item.description.startsWith('Hal ')) {
       spaceType = 'bedrijfsruimte';
