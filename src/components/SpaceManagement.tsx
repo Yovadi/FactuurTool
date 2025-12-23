@@ -519,7 +519,7 @@ export function SpaceManagement() {
       )}
 
       <div className="space-y-8">
-        {['bedrijfsruimte', 'buitenterrein', 'diversen', 'kantoor', 'Meeting Room'].map(type => {
+        {['bedrijfsruimte', 'buitenterrein', 'diversen', 'kantoor', 'Meeting Room', 'Flexplek'].map(type => {
           const typedSpaces = spaces.filter(s => s.space_type === type);
           if (typedSpaces.length === 0) return null;
 
@@ -528,7 +528,8 @@ export function SpaceManagement() {
             kantoor: 'Kantoren',
             buitenterrein: 'Buitenterreinen',
             diversen: 'Diversen',
-            'Meeting Room': 'Vergaderruimtes'
+            'Meeting Room': 'Vergaderruimtes',
+            'Flexplek': 'Flexplekken'
           };
 
           return (
@@ -542,7 +543,7 @@ export function SpaceManagement() {
                     <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
                       <th className="text-left px-4 py-3 font-semibold w-[20%]">Benaming</th>
                       <th className="text-left px-4 py-3 font-semibold w-[15%]">
-                        {type === 'Meeting Room' ? 'Type' : type === 'diversen' ? 'Bedrag' : 'Oppervlakte'}
+                        {type === 'Meeting Room' ? 'Type' : type === 'Flexplek' ? 'Capaciteit' : type === 'diversen' ? 'Bedrag' : 'Oppervlakte'}
                       </th>
                       <th className="text-left px-4 py-3 font-semibold w-[15%]">Tarief</th>
                       <th className="text-left px-4 py-3 font-semibold w-[20%]">Huurder</th>
