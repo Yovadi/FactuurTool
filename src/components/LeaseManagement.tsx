@@ -62,17 +62,16 @@ export function LeaseManagement() {
 
   useEffect(() => {
     if (formData.lease_type === 'flex' && !editingLease && !formData.flex_credit_rate) {
-      const flexRates = getFlexRates();
-      const defaultFlexRate = flexRates.find(r => r.space_type === 'Flexplek');
-      if (defaultFlexRate) {
+      const flexSpaces = getFlexRates();
+      if (flexSpaces.length > 0 && flexSpaces[0].daily_rate) {
         setFormData(prev => ({
           ...prev,
-          flex_credit_rate: defaultFlexRate.daily_rate.toFixed(2),
-          selected_rate_id: defaultFlexRate.id
+          flex_credit_rate: flexSpaces[0].daily_rate.toFixed(2),
+          selected_rate_id: flexSpaces[0].id
         }));
       }
     }
-  }, [formData.lease_type, spaceTypeRates]);
+  }, [formData.lease_type, spaces]);
 
   const loadData = async () => {
     setLoading(true);
@@ -314,11 +313,11 @@ export function LeaseManagement() {
 
     let selectedRateId = '';
     if ((lease as any).lease_type === 'flex' && (lease as any).flex_credit_rate) {
-      const matchingRate = getFlexRates().find(r =>
-        Math.abs(r.daily_rate - (lease as any).flex_credit_rate) < 0.01
+      const matchingSpace = getFlexRates().find(s =>
+        s.daily_rate && Math.abs(s.daily_rate - (lease as any).flex_credit_rate) < 0.01
       );
-      if (matchingRate) {
-        selectedRateId = matchingRate.id;
+      if (matchingSpace) {
+        selectedRateId = matchingSpace.id;
       }
     }
 
@@ -397,45 +396,32 @@ export function LeaseManagement() {
   };
 
   const getFlexRates = () => {
-    return spaceTypeRates.filter(r =>
-      r.calculation_method === 'daily' && r.daily_rate > 0
-    );
+    return spaces.filter(s => s.is_flex_space && s.daily_rate && s.daily_rate > 0);
   };
 
   const getFlexRate = (): string => {
-    const flexRate = spaceTypeRates.find(r => r.space_type === 'Flexplek');
-    if (!flexRate || flexRate.calculation_method !== 'daily') return '';
-    return flexRate.daily_rate > 0 ? flexRate.daily_rate.toFixed(2) : '';
+    const flexSpaces = getFlexRates();
+    if (flexSpaces.length > 0 && flexSpaces[0].daily_rate) {
+      return flexSpaces[0].daily_rate.toFixed(2);
+    }
+    return '';
   };
 
-  const getRateById = (rateId: string): string => {
-    const rate = spaceTypeRates.find(r => r.id === rateId);
-    if (!rate || rate.calculation_method !== 'daily') return '';
-    return rate.daily_rate > 0 ? rate.daily_rate.toFixed(2) : '';
+  const getRateById = (spaceId: string): string => {
+    const space = spaces.find(s => s.id === spaceId);
+    if (!space || !space.daily_rate) return '';
+    return space.daily_rate.toFixed(2);
   };
 
   const getDefaultRate = (spaceId: string): string => {
     const space = spaces.find(s => s.id === spaceId);
     if (!space) return '';
 
-    const rate = spaceTypeRates.find(r => r.space_type === space.space_type);
-    if (!rate) return '';
-
-    const isFurnished = space.is_furnished ?? false;
-
-    let pricePerSqm = 0;
-
-    if (rate.calculation_method === 'per_sqm') {
-      pricePerSqm = isFurnished && space.space_type === 'kantoor'
-        ? rate.rate_per_sqm_furnished
-        : rate.rate_per_sqm;
-    } else if (rate.calculation_method === 'custom') {
-      pricePerSqm = isFurnished && space.space_type === 'kantoor'
-        ? rate.rate_per_sqm_furnished
-        : rate.rate_per_sqm;
+    if (space.rate_per_sqm) {
+      return space.rate_per_sqm.toFixed(2);
     }
 
-    return pricePerSqm > 0 ? pricePerSqm.toFixed(2) : '';
+    return '';
   };
 
   const updateSpace = (index: number, spaceId: string) => {
@@ -705,26 +691,26 @@ export function LeaseManagement() {
                           <select
                             value={formData.selected_rate_id}
                             onChange={(e) => {
-                              const rateId = e.target.value;
-                              const rate = getRateById(rateId);
+                              const spaceId = e.target.value;
+                              const rate = getRateById(spaceId);
                               setFormData({
                                 ...formData,
-                                selected_rate_id: rateId,
+                                selected_rate_id: spaceId,
                                 flex_credit_rate: rate || formData.flex_credit_rate
                               });
                             }}
                             className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                           >
                             <option value="">Aangepast tarief...</option>
-                            {getFlexRates().map(rate => (
-                              <option key={rate.id} value={rate.id}>
-                                {rate.space_type} - €{rate.daily_rate.toFixed(2)}/dag
-                                {rate.description && ` (${rate.description})`}
+                            {getFlexRates().map(space => (
+                              <option key={space.id} value={space.id}>
+                                {space.space_number} - €{space.daily_rate!.toFixed(2)}/dag
+                                {space.is_furnished && ' (gemeubileerd)'}
                               </option>
                             ))}
                           </select>
                           <p className="text-xs text-gray-400 mt-1">
-                            Selecteer een standaardtarief of laat leeg voor aangepast tarief
+                            Selecteer een flexplek tarief of laat leeg voor aangepast tarief
                           </p>
                         </div>
                       )}
@@ -766,7 +752,10 @@ export function LeaseManagement() {
                             {formData.selected_rate_id && (
                               <div className="text-xs text-emerald-500 flex items-center gap-1 mt-1">
                                 <CheckCircle size={12} />
-                                Standaardtarief uit Ruimte Tarieven
+                                {(() => {
+                                  const selectedSpace = spaces.find(s => s.id === formData.selected_rate_id);
+                                  return selectedSpace ? `Tarief van ${selectedSpace.space_number}` : 'Standaardtarief';
+                                })()}
                               </div>
                             )}
                           </div>
@@ -909,7 +898,7 @@ export function LeaseManagement() {
                                 {space.space_id && getDefaultRate(space.space_id) && (
                                   <div className="text-xs text-emerald-500 flex items-center gap-1 mt-1">
                                     <CheckCircle size={12} />
-                                    Standaardtarief
+                                    Tarief van deze ruimte
                                   </div>
                                 )}
                               </div>

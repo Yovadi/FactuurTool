@@ -19,7 +19,10 @@ export function SpaceManagement() {
     is_available: true,
     is_furnished: false,
     is_flex_space: false,
-    flex_capacity: 1
+    flex_capacity: 1,
+    rate_per_sqm: '',
+    daily_rate: '',
+    hourly_rate: ''
   });
 
   useEffect(() => {
@@ -98,7 +101,19 @@ export function SpaceManagement() {
       flex_capacity: formData.is_flex_space ? formData.flex_capacity : 1
     };
 
-    spaceData.hourly_rate = null;
+    if (formData.space_type === 'Meeting Room') {
+      spaceData.hourly_rate = formData.hourly_rate ? parseFloat(formData.hourly_rate) : null;
+      spaceData.rate_per_sqm = null;
+      spaceData.daily_rate = null;
+    } else if (formData.is_flex_space) {
+      spaceData.daily_rate = formData.daily_rate ? parseFloat(formData.daily_rate) : null;
+      spaceData.rate_per_sqm = null;
+      spaceData.hourly_rate = null;
+    } else {
+      spaceData.rate_per_sqm = formData.rate_per_sqm ? parseFloat(formData.rate_per_sqm) : null;
+      spaceData.daily_rate = null;
+      spaceData.hourly_rate = null;
+    }
 
     if (editingSpace) {
       const { data, error } = await supabase
@@ -151,7 +166,10 @@ export function SpaceManagement() {
       is_available: space.is_available,
       is_furnished: space.is_furnished || false,
       is_flex_space: (space as any).is_flex_space || false,
-      flex_capacity: (space as any).flex_capacity || 1
+      flex_capacity: (space as any).flex_capacity || 1,
+      rate_per_sqm: space.rate_per_sqm ? space.rate_per_sqm.toString() : '',
+      daily_rate: space.daily_rate ? space.daily_rate.toString() : '',
+      hourly_rate: space.hourly_rate ? space.hourly_rate.toString() : ''
     });
     setShowForm(true);
   };
@@ -178,7 +196,10 @@ export function SpaceManagement() {
       is_available: true,
       is_furnished: false,
       is_flex_space: false,
-      flex_capacity: 1
+      flex_capacity: 1,
+      rate_per_sqm: '',
+      daily_rate: '',
+      hourly_rate: ''
     });
     setEditingSpace(null);
     setShowForm(false);
@@ -281,6 +302,54 @@ export function SpaceManagement() {
                   </label>
                 </div>
               )}
+              {formData.space_type !== 'Meeting Room' && !formData.is_flex_space && formData.space_type !== 'diversen' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-200 mb-1">
+                    Tarief per m² (€)
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={formData.rate_per_sqm}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                        setFormData({ ...formData, rate_per_sqm: value });
+                      }
+                    }}
+                    className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                    placeholder="bijv. 120.00"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    {formData.space_type === 'bedrijfsruimte' || formData.space_type === 'buitenterrein'
+                      ? 'Jaartarief per m² (wordt gedeeld door 12 voor maandhuur)'
+                      : 'Maandtarief per m²'}
+                  </p>
+                </div>
+              )}
+              {formData.space_type === 'Meeting Room' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-200 mb-1">
+                    Uurtarief (€)
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={formData.hourly_rate}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                        setFormData({ ...formData, hourly_rate: value });
+                      }
+                    }}
+                    className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                    placeholder="bijv. 25.00"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    Tarief per uur voor vergaderingen
+                  </p>
+                </div>
+              )}
               {formData.space_type !== 'Meeting Room' && (
                 <>
                   <div className="flex items-center gap-2">
@@ -296,22 +365,45 @@ export function SpaceManagement() {
                     </label>
                   </div>
                   {formData.is_flex_space && (
-                    <div className="bg-dark-950 p-4 rounded-lg border border-dark-700">
-                      <label className="block text-sm font-medium text-gray-200 mb-2">
-                        Capaciteit (aantal personen tegelijkertijd) *
-                      </label>
-                      <input
-                        type="number"
-                        min="1"
-                        required
-                        value={formData.flex_capacity}
-                        onChange={(e) => setFormData({ ...formData, flex_capacity: parseInt(e.target.value) || 1 })}
-                        className="w-full px-4 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-200 focus:outline-none focus:border-gold-500"
-                        placeholder="Bijv. 4"
-                      />
-                      <p className="text-xs text-gray-400 mt-1">
-                        Voor flexplekken gaat het om capaciteit, niet om m². Hoeveel personen kunnen deze ruimte tegelijk gebruiken?
-                      </p>
+                    <div className="bg-dark-950 p-4 rounded-lg border border-dark-700 space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-200 mb-2">
+                          Capaciteit (aantal personen tegelijkertijd) *
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          required
+                          value={formData.flex_capacity}
+                          onChange={(e) => setFormData({ ...formData, flex_capacity: parseInt(e.target.value) || 1 })}
+                          className="w-full px-4 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-200 focus:outline-none focus:border-gold-500"
+                          placeholder="Bijv. 4"
+                        />
+                        <p className="text-xs text-gray-400 mt-1">
+                          Voor flexplekken gaat het om capaciteit, niet om m². Hoeveel personen kunnen deze ruimte tegelijk gebruiken?
+                        </p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-200 mb-2">
+                          Dagtarief (€)
+                        </label>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={formData.daily_rate}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                              setFormData({ ...formData, daily_rate: value });
+                            }
+                          }}
+                          className="w-full px-4 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-200 focus:outline-none focus:border-gold-500"
+                          placeholder="bijv. 45.00"
+                        />
+                        <p className="text-xs text-gray-400 mt-1">
+                          Tarief per dag voor deze flexplek
+                        </p>
+                      </div>
                     </div>
                   )}
                 </>
@@ -370,11 +462,12 @@ export function SpaceManagement() {
                 <table className="w-full table-fixed">
                   <thead>
                     <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
-                      <th className="text-left px-4 py-3 font-semibold w-[25%]">Benaming</th>
-                      <th className="text-left px-4 py-3 font-semibold w-[20%]">
+                      <th className="text-left px-4 py-3 font-semibold w-[20%]">Benaming</th>
+                      <th className="text-left px-4 py-3 font-semibold w-[15%]">
                         {type === 'Meeting Room' ? 'Type' : type === 'diversen' ? 'Bedrag' : 'Oppervlakte'}
                       </th>
-                      <th className="text-left px-4 py-3 font-semibold w-[25%]">Huurder</th>
+                      <th className="text-left px-4 py-3 font-semibold w-[15%]">Tarief</th>
+                      <th className="text-left px-4 py-3 font-semibold w-[20%]">Huurder</th>
                       <th className="text-center px-4 py-3 font-semibold w-[15%]">Status</th>
                       <th className="text-right px-4 py-3 font-semibold w-[15%]">Acties</th>
                     </tr>
@@ -413,6 +506,16 @@ export function SpaceManagement() {
                             : space.space_type === 'diversen'
                             ? `€ ${space.square_footage?.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}`
                             : `${space.square_footage?.toLocaleString('nl-NL', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) || '0'} m²`
+                          }
+                        </td>
+                        <td className="px-4 py-3 text-gray-300 text-sm">
+                          {space.space_type === 'Meeting Room' && space.hourly_rate
+                            ? `€ ${space.hourly_rate.toFixed(2)}/uur`
+                            : (space as any).is_flex_space && space.daily_rate
+                            ? `€ ${space.daily_rate.toFixed(2)}/dag`
+                            : space.rate_per_sqm
+                            ? `€ ${space.rate_per_sqm.toFixed(2)}/m²`
+                            : <span className="text-gray-500 italic">Geen tarief</span>
                           }
                         </td>
                         <td className="px-4 py-3 text-gray-300 text-sm">
