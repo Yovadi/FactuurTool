@@ -115,87 +115,91 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
     } catch (error) {
       console.error('Failed to load logo:', error);
     }
-
-    pdf.setFontSize(9);
-    pdf.setFont('helvetica', 'normal');
-    pdf.setTextColor(80, 80, 80);
-
-    let companyYPos = yPosition;
-    pdf.text(invoice.company.name, margin, companyYPos);
-    companyYPos += 4;
-    pdf.text(invoice.company.address, margin, companyYPos);
-    companyYPos += 4;
-    pdf.text(`${invoice.company.postal_code} ${invoice.company.city}`, margin, companyYPos);
-    companyYPos += 4;
-    if (invoice.company.email) {
-      pdf.setTextColor(0, 102, 204);
-      pdf.text(invoice.company.email, margin, companyYPos);
-    }
   }
 
   pdf.setFontSize(18);
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(40, 40, 40);
   const invoiceNumberDisplay = invoice.invoice_number.replace(/^INV-/, '');
-  pdf.text(`Factuur ${invoiceNumberDisplay}`, margin, yPosition + 30);
+  pdf.text(`Factuur ${invoiceNumberDisplay}`, margin, yPosition + 10);
 
-  yPosition = 58;
+  yPosition = 38;
 
-  let boxHeight = 28;
-  let addressLines = 1;
-  if (invoice.tenant_company_name) addressLines++;
+  // Calculate box height for company info
+  let companyBoxLines = 1; // company name
+  if (invoice.company?.address) companyBoxLines++;
+  if (invoice.company?.postal_code || invoice.company?.city) companyBoxLines++;
+  if (invoice.company?.email) companyBoxLines++;
+  const companyBoxHeight = 6 + (companyBoxLines * 4) + 2;
 
-  // Calculate address lines based on new or old format
-  if (invoice.tenant_street) {
-    addressLines += 2; // street + postal_code/city
-    if (invoice.tenant_country && invoice.tenant_country !== 'Nederland') addressLines++;
-  } else if (invoice.tenant_billing_address) {
-    const lines = pdf.splitTextToSize(invoice.tenant_billing_address, 70);
-    addressLines += lines.length;
+  // Grey box with company (verhuurder) info
+  if (invoice.company) {
+    pdf.setFillColor(240, 240, 240);
+    pdf.rect(margin, yPosition, 80, companyBoxHeight, 'F');
+
+    let companyYPos = yPosition + 6;
+    pdf.setFontSize(9);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(60, 60, 60);
+
+    pdf.text(invoice.company.name, margin + 3, companyYPos);
+    companyYPos += 4;
+
+    if (invoice.company.address) {
+      pdf.text(invoice.company.address, margin + 3, companyYPos);
+      companyYPos += 4;
+    }
+
+    if (invoice.company.postal_code || invoice.company.city) {
+      pdf.text(`${invoice.company.postal_code} ${invoice.company.city}`, margin + 3, companyYPos);
+      companyYPos += 4;
+    }
+
+    if (invoice.company.email) {
+      pdf.setTextColor(0, 102, 204);
+      pdf.text(invoice.company.email, margin + 3, companyYPos);
+    }
   }
 
-  if (invoice.tenant_email) addressLines++;
-  boxHeight = 6 + (addressLines * 4) + 2;
+  yPosition = 38 + companyBoxHeight + 8;
 
-  pdf.setFillColor(240, 240, 240);
-  pdf.rect(margin, yPosition, 80, boxHeight, 'F');
-
-  yPosition += 6;
+  // Tenant info (without box, just text)
   pdf.setFontSize(9);
   pdf.setFont('helvetica', 'normal');
   pdf.setTextColor(60, 60, 60);
-  pdf.text(`t.a.v. ${invoice.tenant_name || invoice.tenant_contact_name || ''}`, margin + 3, yPosition);
+  pdf.text(`t.a.v. ${invoice.tenant_name || invoice.tenant_contact_name || ''}`, margin, yPosition);
   yPosition += 4;
 
   if (invoice.tenant_company_name) {
-    pdf.text(invoice.tenant_company_name, margin + 3, yPosition);
+    pdf.text(invoice.tenant_company_name, margin, yPosition);
     yPosition += 4;
   }
 
   // Display address - prefer new format over old
   if (invoice.tenant_street) {
-    pdf.text(invoice.tenant_street, margin + 3, yPosition);
+    pdf.text(invoice.tenant_street, margin, yPosition);
     yPosition += 4;
-    pdf.text(`${invoice.tenant_postal_code || ''} ${invoice.tenant_city || ''}`.trim(), margin + 3, yPosition);
+    pdf.text(`${invoice.tenant_postal_code || ''} ${invoice.tenant_city || ''}`.trim(), margin, yPosition);
     yPosition += 4;
     if (invoice.tenant_country && invoice.tenant_country !== 'Nederland') {
-      pdf.text(invoice.tenant_country, margin + 3, yPosition);
+      pdf.text(invoice.tenant_country, margin, yPosition);
       yPosition += 4;
     }
   } else if (invoice.tenant_billing_address) {
     const lines = pdf.splitTextToSize(invoice.tenant_billing_address, 70);
     for (const line of lines) {
-      pdf.text(line, margin + 3, yPosition);
+      pdf.text(line, margin, yPosition);
       yPosition += 4;
     }
   }
 
   if (invoice.tenant_email) {
     pdf.setTextColor(0, 102, 204);
-    pdf.text(invoice.tenant_email, margin + 3, yPosition);
+    pdf.text(invoice.tenant_email, margin, yPosition);
+    yPosition += 4;
   }
 
-  yPosition = 77;
+  yPosition = 57;
   const invoiceInfoCol = pageWidth - margin - 55;
 
   pdf.setFontSize(8);
@@ -217,21 +221,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
   pdf.setFont('helvetica', 'normal');
   pdf.text(new Date(invoice.due_date).toLocaleDateString('nl-NL'), invoiceInfoCol + 30, yPosition);
 
-  const addressBoxBottom = 65 + (6 + ((() => {
-    let lines = 1;
-    if (invoice.tenant_company_name) lines++;
-    if (invoice.tenant_street) {
-      lines += 2;
-      if (invoice.tenant_country && invoice.tenant_country !== 'Nederland') lines++;
-    } else if (invoice.tenant_billing_address) {
-      const tempLines = pdf.splitTextToSize(invoice.tenant_billing_address, 70);
-      lines += tempLines.length;
-    }
-    if (invoice.tenant_email) lines++;
-    return lines * 4 + 2;
-  })()));
-
-  yPosition = Math.max(addressBoxBottom + 8, 95);
+  yPosition = 90;
 
   if (invoice.invoice_month) {
     pdf.setFontSize(9);
@@ -250,9 +240,9 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
 
   const tableTop = yPosition;
   const col1X = margin;
-  const col2X = 120;
-  const col3X = 155;
-  const col4X = 175;
+  const col2X = 105;
+  const col3X = 140;
+  const col4X = 165;
   const col5X = pageWidth - margin;
 
   pdf.setFillColor(234, 179, 8);
@@ -322,7 +312,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
         description = description.substring(0, description.lastIndexOf('=')).trim();
       }
 
-      const maxDescWidth = col2X - col1X - 10;
+      const maxDescWidth = col2X - col1X - 5;
       const descLines = pdf.splitTextToSize(description, maxDescWidth);
       const numLines = Math.max(1, descLines.length);
 
@@ -332,10 +322,10 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
       }
 
       pdf.text(descLines, col1X + 2, yPosition);
-      pdf.text(quantity, col2X, yPosition, { align: 'right' });
-      pdf.text(rate, col3X, yPosition, { align: 'right' });
+      pdf.text(quantity, col2X - 2, yPosition, { align: 'right' });
+      pdf.text(rate, col3X - 2, yPosition, { align: 'right' });
       if (amount) {
-        pdf.text(`€ ${amount}`, col4X, yPosition, { align: 'right' });
+        pdf.text(`€ ${amount}`, col4X - 2, yPosition, { align: 'right' });
       }
       pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col5X - 2, yPosition, { align: 'right' });
 
@@ -384,7 +374,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
       }
     }
 
-    const maxDescWidth = col2X - col1X - 10;
+    const maxDescWidth = col2X - col1X - 5;
     const descLines = pdf.splitTextToSize(displayName, maxDescWidth);
     const numLines = Math.max(1, descLines.length);
 
@@ -394,9 +384,9 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
     }
 
     pdf.text(descLines, col1X + 2, yPosition);
-    pdf.text(quantity, col2X, yPosition, { align: 'right' });
-    pdf.text(rate, col3X, yPosition, { align: 'right' });
-    pdf.text(`€ ${space.monthly_rent.toFixed(2)}`, col4X, yPosition, { align: 'right' });
+    pdf.text(quantity, col2X - 2, yPosition, { align: 'right' });
+    pdf.text(rate, col3X - 2, yPosition, { align: 'right' });
+    pdf.text(`€ ${space.monthly_rent.toFixed(2)}`, col4X - 2, yPosition, { align: 'right' });
     pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col5X - 2, yPosition, { align: 'right' });
 
     yPosition += 7 * numLines;
@@ -542,51 +532,67 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
     console.error('Failed to load logo:', error);
   }
 
-  if (creditNote.company) {
-    pdf.setFontSize(9);
-    pdf.setFont('helvetica', 'normal');
-    pdf.setTextColor(80, 80, 80);
-
-    let companyYPos = yPosition;
-    pdf.text(creditNote.company.name, margin, companyYPos);
-    companyYPos += 4;
-    pdf.text(creditNote.company.address, margin, companyYPos);
-    companyYPos += 4;
-    pdf.text(`${creditNote.company.postal_code} ${creditNote.company.city}`, margin, companyYPos);
-    companyYPos += 4;
-    if (creditNote.company.email) {
-      pdf.setTextColor(0, 102, 204);
-      pdf.text(creditNote.company.email, margin, companyYPos);
-    }
-  }
-
   pdf.setFontSize(18);
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(220, 38, 38);
   const creditNoteNumberDisplay = creditNote.credit_note_number.replace(/^CN-/, '');
-  pdf.text(`CREDITFACTUUR`, margin, yPosition + 30);
+  pdf.text(`CREDITFACTUUR`, margin, yPosition + 10);
 
-  yPosition = 58;
+  yPosition = 38;
 
+  // Calculate box height for company info
+  let companyBoxLines = 1; // company name
+  if (creditNote.company?.address) companyBoxLines++;
+  if (creditNote.company?.postal_code || creditNote.company?.city) companyBoxLines++;
+  if (creditNote.company?.email) companyBoxLines++;
+  const companyBoxHeight = 6 + (companyBoxLines * 4) + 2;
+
+  // Grey box with company (verhuurder) info
+  if (creditNote.company) {
+    pdf.setFillColor(240, 240, 240);
+    pdf.rect(margin, yPosition, 80, companyBoxHeight, 'F');
+
+    let companyYPos = yPosition + 6;
+    pdf.setFontSize(9);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(60, 60, 60);
+
+    pdf.text(creditNote.company.name, margin + 3, companyYPos);
+    companyYPos += 4;
+
+    if (creditNote.company.address) {
+      pdf.text(creditNote.company.address, margin + 3, companyYPos);
+      companyYPos += 4;
+    }
+
+    if (creditNote.company.postal_code || creditNote.company.city) {
+      pdf.text(`${creditNote.company.postal_code} ${creditNote.company.city}`, margin + 3, companyYPos);
+      companyYPos += 4;
+    }
+
+    if (creditNote.company.email) {
+      pdf.setTextColor(0, 102, 204);
+      pdf.text(creditNote.company.email, margin + 3, companyYPos);
+    }
+  }
+
+  yPosition = 38 + companyBoxHeight + 8;
+
+  // Customer info (without box, just text)
   const addressLines = creditNote.customer_address.split('\n').filter(line => line.trim());
-  let boxHeight = 6 + ((addressLines.length + 1) * 4) + 2;
 
-  pdf.setFillColor(240, 240, 240);
-  pdf.rect(margin, yPosition, 80, boxHeight, 'F');
-
-  yPosition += 6;
   pdf.setFontSize(9);
   pdf.setFont('helvetica', 'normal');
   pdf.setTextColor(60, 60, 60);
-  pdf.text(`t.a.v. ${creditNote.customer_name}`, margin + 3, yPosition);
+  pdf.text(`t.a.v. ${creditNote.customer_name}`, margin, yPosition);
   yPosition += 4;
 
   addressLines.forEach(line => {
-    pdf.text(line, margin + 3, yPosition);
+    pdf.text(line, margin, yPosition);
     yPosition += 4;
   });
 
-  yPosition = 77;
+  yPosition = 57;
   const creditNoteInfoCol = pageWidth - margin - 55;
 
   pdf.setFontSize(8);
@@ -602,8 +608,7 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
   pdf.setFont('helvetica', 'normal');
   pdf.text(new Date(creditNote.credit_date).toLocaleDateString('nl-NL'), creditNoteInfoCol + 30, yPosition);
 
-  const addressBoxBottom = 65 + boxHeight;
-  yPosition = Math.max(addressBoxBottom + 8, 95);
+  yPosition = 90;
 
   pdf.setFillColor(254, 242, 242);
   pdf.rect(margin, yPosition - 3, pageWidth - 2 * margin, 16, 'F');
@@ -624,9 +629,9 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
 
   const tableTop = yPosition;
   const col1X = margin;
-  const col2X = 120;
-  const col3X = 155;
-  const col4X = 175;
+  const col2X = 105;
+  const col3X = 140;
+  const col4X = 165;
   const col5X = pageWidth - margin;
 
   pdf.setFillColor(220, 38, 38);
@@ -656,7 +661,7 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
     const quantity = item.quantity > 0 ? item.quantity.toFixed(0) : '';
     const rate = item.unit_price > 0 ? `€ -${item.unit_price.toFixed(2)}` : '';
 
-    const maxDescWidth = col2X - col1X - 10;
+    const maxDescWidth = col2X - col1X - 5;
     const descLines = pdf.splitTextToSize(description, maxDescWidth);
     const numLines = Math.max(1, descLines.length);
 
@@ -666,10 +671,10 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
     }
 
     pdf.text(descLines, col1X + 2, yPosition);
-    pdf.text(quantity, col2X, yPosition, { align: 'right' });
-    pdf.text(rate, col3X, yPosition, { align: 'right' });
+    pdf.text(quantity, col2X - 2, yPosition, { align: 'right' });
+    pdf.text(rate, col3X - 2, yPosition, { align: 'right' });
     const amount = -item.amount;
-    pdf.text(`€ ${amount.toFixed(2)}`, col4X, yPosition, { align: 'right' });
+    pdf.text(`€ ${amount.toFixed(2)}`, col4X - 2, yPosition, { align: 'right' });
     pdf.text(`${creditNote.vat_rate.toFixed(0)}%`, col5X - 2, yPosition, { align: 'right' });
 
     yPosition += 7 * numLines;

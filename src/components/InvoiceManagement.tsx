@@ -1185,7 +1185,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             rentAmount = monthlyCredits * (lease.flex_credit_rate || 0);
             lineItemsToInsert.push({
               invoice_id: '',
-              description: `Flexplek - ${creditsPerWeek} dagen/week (≈${monthlyCredits} dagen/maand)`,
+              description: `Flexplek - ${creditsPerWeek} ${lease.flex_day_type === 'half_day' ? 'halve ' : ''}dagen/week`,
               quantity: monthlyCredits,
               unit_price: lease.flex_credit_rate || 0,
               amount: rentAmount
