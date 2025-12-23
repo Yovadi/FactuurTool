@@ -243,7 +243,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
   pdf.setTextColor(60, 60, 60);
   pdf.setFontSize(9);
 
-  if (invoice.notes) {
+  if (invoice.notes && invoice.notes.split('\n').filter(line => line.trim() && line.startsWith('-')).length > 0) {
     const lines = invoice.notes.split('\n').filter(line => line.trim());
     let lineIndex = 0;
 
