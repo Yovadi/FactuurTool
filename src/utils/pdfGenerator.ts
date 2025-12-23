@@ -115,15 +115,31 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
     } catch (error) {
       console.error('Failed to load logo:', error);
     }
+
+    pdf.setFontSize(9);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(80, 80, 80);
+
+    let companyYPos = yPosition;
+    pdf.text(invoice.company.name, margin, companyYPos);
+    companyYPos += 4;
+    pdf.text(invoice.company.address, margin, companyYPos);
+    companyYPos += 4;
+    pdf.text(`${invoice.company.postal_code} ${invoice.company.city}`, margin, companyYPos);
+    companyYPos += 4;
+    if (invoice.company.email) {
+      pdf.setTextColor(0, 102, 204);
+      pdf.text(invoice.company.email, margin, companyYPos);
+    }
   }
 
   pdf.setFontSize(18);
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(40, 40, 40);
   const invoiceNumberDisplay = invoice.invoice_number.replace(/^INV-/, '');
-  pdf.text(`Factuur ${invoiceNumberDisplay}`, margin, yPosition + 10);
+  pdf.text(`Factuur ${invoiceNumberDisplay}`, margin, yPosition + 30);
 
-  yPosition = 38;
+  yPosition = 58;
 
   let boxHeight = 28;
   let addressLines = 1;
@@ -179,7 +195,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
     pdf.text(invoice.tenant_email, margin + 3, yPosition);
   }
 
-  yPosition = 57;
+  yPosition = 77;
   const invoiceInfoCol = pageWidth - margin - 55;
 
   pdf.setFontSize(8);
@@ -201,7 +217,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
   pdf.setFont('helvetica', 'normal');
   pdf.text(new Date(invoice.due_date).toLocaleDateString('nl-NL'), invoiceInfoCol + 30, yPosition);
 
-  const addressBoxBottom = 45 + (6 + ((() => {
+  const addressBoxBottom = 65 + (6 + ((() => {
     let lines = 1;
     if (invoice.tenant_company_name) lines++;
     if (invoice.tenant_street) {
@@ -215,7 +231,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
     return lines * 4 + 2;
   })()));
 
-  yPosition = Math.max(addressBoxBottom + 8, 75);
+  yPosition = Math.max(addressBoxBottom + 8, 95);
 
   if (invoice.invoice_month) {
     pdf.setFontSize(9);
@@ -526,13 +542,31 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
     console.error('Failed to load logo:', error);
   }
 
+  if (creditNote.company) {
+    pdf.setFontSize(9);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(80, 80, 80);
+
+    let companyYPos = yPosition;
+    pdf.text(creditNote.company.name, margin, companyYPos);
+    companyYPos += 4;
+    pdf.text(creditNote.company.address, margin, companyYPos);
+    companyYPos += 4;
+    pdf.text(`${creditNote.company.postal_code} ${creditNote.company.city}`, margin, companyYPos);
+    companyYPos += 4;
+    if (creditNote.company.email) {
+      pdf.setTextColor(0, 102, 204);
+      pdf.text(creditNote.company.email, margin, companyYPos);
+    }
+  }
+
   pdf.setFontSize(18);
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(220, 38, 38);
   const creditNoteNumberDisplay = creditNote.credit_note_number.replace(/^CN-/, '');
-  pdf.text(`CREDITFACTUUR`, margin, yPosition + 10);
+  pdf.text(`CREDITFACTUUR`, margin, yPosition + 30);
 
-  yPosition = 38;
+  yPosition = 58;
 
   const addressLines = creditNote.customer_address.split('\n').filter(line => line.trim());
   let boxHeight = 6 + ((addressLines.length + 1) * 4) + 2;
@@ -552,7 +586,7 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
     yPosition += 4;
   });
 
-  yPosition = 57;
+  yPosition = 77;
   const creditNoteInfoCol = pageWidth - margin - 55;
 
   pdf.setFontSize(8);
@@ -568,8 +602,8 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
   pdf.setFont('helvetica', 'normal');
   pdf.text(new Date(creditNote.credit_date).toLocaleDateString('nl-NL'), creditNoteInfoCol + 30, yPosition);
 
-  const addressBoxBottom = 45 + boxHeight;
-  yPosition = Math.max(addressBoxBottom + 8, 75);
+  const addressBoxBottom = 65 + boxHeight;
+  yPosition = Math.max(addressBoxBottom + 8, 95);
 
   pdf.setFillColor(254, 242, 242);
   pdf.rect(margin, yPosition - 3, pageWidth - 2 * margin, 16, 'F');
