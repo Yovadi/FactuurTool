@@ -144,6 +144,7 @@ export type SpaceTypeRate = {
   fixed_rate_furnished: number;
   hourly_rate: number;
   daily_rate: number;
+  daily_rate_furnished: number;
   is_annual: boolean;
   description: string;
   description_furnished: string;

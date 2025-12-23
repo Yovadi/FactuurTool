@@ -54,9 +54,13 @@ export function SpaceManagement() {
     if (spaceType === 'Flexplek') {
       const flexRate = spaceTypeRates.find(r => r.space_type === 'Flexplek');
       if (flexRate && flexRate.calculation_method === 'daily') {
+        const dailyRateValue = (isFurnished && flexRate.daily_rate_furnished > 0)
+          ? flexRate.daily_rate_furnished
+          : flexRate.daily_rate;
+
         return {
           rate_per_sqm: '',
-          daily_rate: flexRate.daily_rate > 0 ? flexRate.daily_rate.toFixed(2) : '',
+          daily_rate: dailyRateValue > 0 ? dailyRateValue.toFixed(2) : '',
           hourly_rate: ''
         };
       }
@@ -357,7 +361,7 @@ export function SpaceManagement() {
                   />
                 </div>
               )}
-              {formData.space_type === 'kantoor' && (
+              {(formData.space_type === 'kantoor' || formData.space_type === 'Flexplek') && (
                 <div className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -461,7 +465,7 @@ export function SpaceManagement() {
                       placeholder="bijv. 25.00"
                     />
                     <p className="text-xs text-gray-400 mt-1">
-                      Tarief per dag voor deze flexplek
+                      Tarief per dag voor deze flexplek {formData.is_furnished ? '(gemeubileerd)' : '(basis)'}
                       {formData.daily_rate && !editingSpace && ' • Automatisch ingevuld uit Tarieven'}
                     </p>
                   </div>

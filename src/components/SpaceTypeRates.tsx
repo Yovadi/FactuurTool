@@ -35,6 +35,7 @@ export function SpaceTypeRates() {
     fixed_rate_furnished: '',
     hourly_rate: '',
     daily_rate: '',
+    daily_rate_furnished: '',
     is_annual: false,
     description: '',
     description_furnished: ''
@@ -86,6 +87,7 @@ export function SpaceTypeRates() {
       fixed_rate_furnished: fixedRateFurnished,
       hourly_rate: parseFloat(formData.hourly_rate) || 0,
       daily_rate: parseFloat(formData.daily_rate) || 0,
+      daily_rate_furnished: parseFloat(formData.daily_rate_furnished) || 0,
       is_annual: formData.is_annual,
       description: formData.description,
       description_furnished: formData.description_furnished
@@ -132,6 +134,7 @@ export function SpaceTypeRates() {
       fixed_rate_furnished: (rate.fixed_rate_furnished * multiplier).toString(),
       hourly_rate: rate.hourly_rate.toString(),
       daily_rate: rate.daily_rate.toString(),
+      daily_rate_furnished: rate.daily_rate_furnished?.toString() || '',
       is_annual: rate.is_annual,
       description: rate.description || '',
       description_furnished: rate.description_furnished || ''
@@ -149,6 +152,7 @@ export function SpaceTypeRates() {
       fixed_rate_furnished: '',
       hourly_rate: '',
       daily_rate: '',
+      daily_rate_furnished: '',
       is_annual: false,
       description: '',
       description_furnished: ''
@@ -270,13 +274,25 @@ export function SpaceTypeRates() {
                 )}
 
                 {rate.calculation_method === 'daily' && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-400">Dagprijs:</span>
-                    <div className="flex items-center gap-1">
-                      <Euro size={14} className="text-gold-500" />
-                      <span className="text-gray-100 font-bold">€{rate.daily_rate.toFixed(2)}</span>
-                      <span className="text-gray-400">/dag</span>
+                  <div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-400">Dagprijs:</span>
+                      <div className="flex items-center gap-1">
+                        <Euro size={14} className="text-gold-500" />
+                        <span className="text-gray-100 font-bold">€{rate.daily_rate.toFixed(2)}</span>
+                        <span className="text-gray-400">/dag</span>
+                      </div>
                     </div>
+                    {rate.space_type === 'Flexplek' && rate.daily_rate_furnished > 0 && (
+                      <div className="flex items-center justify-between text-sm mt-1">
+                        <span className="text-gray-400">Gemeubileerd:</span>
+                        <div className="flex items-center gap-1">
+                          <Euro size={14} className="text-gold-500" />
+                          <span className="text-gray-100 font-bold">€{rate.daily_rate_furnished.toFixed(2)}</span>
+                          <span className="text-gray-400">/dag</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -495,30 +511,58 @@ export function SpaceTypeRates() {
               )}
 
               {formData.calculation_method === 'daily' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-200 mb-1">
-                    Prijs per Dag
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      required
-                      value={formData.daily_rate}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                          setFormData({ ...formData, daily_rate: value });
-                        }
-                      }}
-                      className="flex-1 px-3 py-2 bg-dark-700 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                      placeholder="0.00"
-                    />
-                    <span className="text-gray-400">€/dag</span>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-200 mb-1">
+                      Prijs per Dag (Basis)
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        required
+                        value={formData.daily_rate}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                            setFormData({ ...formData, daily_rate: value });
+                          }
+                        }}
+                        className="flex-1 px-3 py-2 bg-dark-700 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                        placeholder="0.00"
+                      />
+                      <span className="text-gray-400">€/dag</span>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2">
+                      Dit tarief wordt gebruikt voor flexplekken en vermenigvuldigd met het aantal gebruikte dagen
+                    </p>
                   </div>
-                  <p className="text-xs text-gray-400 mt-2">
-                    Dit tarief wordt gebruikt voor flexplekken en vermenigvuldigd met het aantal gebruikte dagen
-                  </p>
+                  {formData.space_type === 'Flexplek' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-200 mb-1">
+                        Prijs per Dag (Gemeubileerd)
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={formData.daily_rate_furnished}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                              setFormData({ ...formData, daily_rate_furnished: value });
+                            }
+                          }}
+                          className="flex-1 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                          placeholder="0.00"
+                        />
+                        <span className="text-gray-400">€/dag</span>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-2">
+                        Tarief voor gemeubileerde flexplekken (optioneel, laat leeg indien niet van toepassing)
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -549,7 +593,7 @@ export function SpaceTypeRates() {
                     placeholder="Bijvoorbeeld: Standaard kantoorruimte"
                   />
                 </div>
-                {formData.space_type === 'kantoor' && (
+                {(formData.space_type === 'kantoor' || formData.space_type === 'Flexplek') && (
                   <div>
                     <label className="block text-sm font-medium text-gray-200 mb-1">
                       Beschrijving Gemeubileerd (optioneel)
@@ -559,7 +603,7 @@ export function SpaceTypeRates() {
                       value={formData.description_furnished}
                       onChange={(e) => setFormData({ ...formData, description_furnished: e.target.value })}
                       className="w-full px-3 py-2 bg-dark-700 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                      placeholder="Bijvoorbeeld: Volledig gemeubileerd kantoor"
+                      placeholder={formData.space_type === 'kantoor' ? 'Bijvoorbeeld: Volledig gemeubileerd kantoor' : 'Bijvoorbeeld: Flexplek met bureau en stoel'}
                     />
                   </div>
                 )}
