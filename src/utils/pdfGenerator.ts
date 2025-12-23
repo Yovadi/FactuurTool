@@ -125,78 +125,59 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
 
   yPosition = 38;
 
-  // Calculate box height for company info
-  let companyBoxLines = 1; // company name
-  if (invoice.company?.address) companyBoxLines++;
-  if (invoice.company?.postal_code || invoice.company?.city) companyBoxLines++;
-  if (invoice.company?.email) companyBoxLines++;
-  const companyBoxHeight = 6 + (companyBoxLines * 4) + 2;
+  // Calculate box height for tenant info
+  let tenantBoxLines = 1; // t.a.v. line
+  if (invoice.tenant_company_name) tenantBoxLines++;
 
-  // Grey box with company (verhuurder) info
-  if (invoice.company) {
-    pdf.setFillColor(240, 240, 240);
-    pdf.rect(margin, yPosition, 80, companyBoxHeight, 'F');
-
-    let companyYPos = yPosition + 6;
-    pdf.setFontSize(9);
-    pdf.setFont('helvetica', 'normal');
-    pdf.setTextColor(60, 60, 60);
-
-    pdf.text(invoice.company.name, margin + 3, companyYPos);
-    companyYPos += 4;
-
-    if (invoice.company.address) {
-      pdf.text(invoice.company.address, margin + 3, companyYPos);
-      companyYPos += 4;
-    }
-
-    if (invoice.company.postal_code || invoice.company.city) {
-      pdf.text(`${invoice.company.postal_code} ${invoice.company.city}`, margin + 3, companyYPos);
-      companyYPos += 4;
-    }
-
-    if (invoice.company.email) {
-      pdf.setTextColor(0, 102, 204);
-      pdf.text(invoice.company.email, margin + 3, companyYPos);
-    }
+  if (invoice.tenant_street) {
+    tenantBoxLines += 2; // street + postal_code/city
+    if (invoice.tenant_country && invoice.tenant_country !== 'Nederland') tenantBoxLines++;
+  } else if (invoice.tenant_billing_address) {
+    const tempLines = pdf.splitTextToSize(invoice.tenant_billing_address, 70);
+    tenantBoxLines += tempLines.length;
   }
 
-  yPosition = 38 + companyBoxHeight + 8;
+  if (invoice.tenant_email) tenantBoxLines++;
+  const tenantBoxHeight = 6 + (tenantBoxLines * 4) + 2;
 
-  // Tenant info (without box, just text)
+  // Grey box with tenant (huurder) info
+  pdf.setFillColor(240, 240, 240);
+  pdf.rect(margin, yPosition, 80, tenantBoxHeight, 'F');
+
+  let tenantYPos = yPosition + 6;
   pdf.setFontSize(9);
   pdf.setFont('helvetica', 'normal');
   pdf.setTextColor(60, 60, 60);
-  pdf.text(`t.a.v. ${invoice.tenant_name || invoice.tenant_contact_name || ''}`, margin, yPosition);
-  yPosition += 4;
+
+  pdf.text(`t.a.v. ${invoice.tenant_name || invoice.tenant_contact_name || ''}`, margin + 3, tenantYPos);
+  tenantYPos += 4;
 
   if (invoice.tenant_company_name) {
-    pdf.text(invoice.tenant_company_name, margin, yPosition);
-    yPosition += 4;
+    pdf.text(invoice.tenant_company_name, margin + 3, tenantYPos);
+    tenantYPos += 4;
   }
 
   // Display address - prefer new format over old
   if (invoice.tenant_street) {
-    pdf.text(invoice.tenant_street, margin, yPosition);
-    yPosition += 4;
-    pdf.text(`${invoice.tenant_postal_code || ''} ${invoice.tenant_city || ''}`.trim(), margin, yPosition);
-    yPosition += 4;
+    pdf.text(invoice.tenant_street, margin + 3, tenantYPos);
+    tenantYPos += 4;
+    pdf.text(`${invoice.tenant_postal_code || ''} ${invoice.tenant_city || ''}`.trim(), margin + 3, tenantYPos);
+    tenantYPos += 4;
     if (invoice.tenant_country && invoice.tenant_country !== 'Nederland') {
-      pdf.text(invoice.tenant_country, margin, yPosition);
-      yPosition += 4;
+      pdf.text(invoice.tenant_country, margin + 3, tenantYPos);
+      tenantYPos += 4;
     }
   } else if (invoice.tenant_billing_address) {
     const lines = pdf.splitTextToSize(invoice.tenant_billing_address, 70);
     for (const line of lines) {
-      pdf.text(line, margin, yPosition);
-      yPosition += 4;
+      pdf.text(line, margin + 3, tenantYPos);
+      tenantYPos += 4;
     }
   }
 
   if (invoice.tenant_email) {
     pdf.setTextColor(0, 102, 204);
-    pdf.text(invoice.tenant_email, margin, yPosition);
-    yPosition += 4;
+    pdf.text(invoice.tenant_email, margin + 3, tenantYPos);
   }
 
   yPosition = 57;
@@ -240,9 +221,9 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
 
   const tableTop = yPosition;
   const col1X = margin;
-  const col2X = 105;
-  const col3X = 140;
-  const col4X = 165;
+  const col2X = 115;
+  const col3X = 145;
+  const col4X = 170;
   const col5X = pageWidth - margin;
 
   pdf.setFillColor(234, 179, 8);
@@ -312,7 +293,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
         description = description.substring(0, description.lastIndexOf('=')).trim();
       }
 
-      const maxDescWidth = col2X - col1X - 5;
+      const maxDescWidth = col2X - col1X - 8;
       const descLines = pdf.splitTextToSize(description, maxDescWidth);
       const numLines = Math.max(1, descLines.length);
 
@@ -374,7 +355,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
       }
     }
 
-    const maxDescWidth = col2X - col1X - 5;
+    const maxDescWidth = col2X - col1X - 8;
     const descLines = pdf.splitTextToSize(displayName, maxDescWidth);
     const numLines = Math.max(1, descLines.length);
 
@@ -540,56 +521,27 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
 
   yPosition = 38;
 
-  // Calculate box height for company info
-  let companyBoxLines = 1; // company name
-  if (creditNote.company?.address) companyBoxLines++;
-  if (creditNote.company?.postal_code || creditNote.company?.city) companyBoxLines++;
-  if (creditNote.company?.email) companyBoxLines++;
-  const companyBoxHeight = 6 + (companyBoxLines * 4) + 2;
-
-  // Grey box with company (verhuurder) info
-  if (creditNote.company) {
-    pdf.setFillColor(240, 240, 240);
-    pdf.rect(margin, yPosition, 80, companyBoxHeight, 'F');
-
-    let companyYPos = yPosition + 6;
-    pdf.setFontSize(9);
-    pdf.setFont('helvetica', 'normal');
-    pdf.setTextColor(60, 60, 60);
-
-    pdf.text(creditNote.company.name, margin + 3, companyYPos);
-    companyYPos += 4;
-
-    if (creditNote.company.address) {
-      pdf.text(creditNote.company.address, margin + 3, companyYPos);
-      companyYPos += 4;
-    }
-
-    if (creditNote.company.postal_code || creditNote.company.city) {
-      pdf.text(`${creditNote.company.postal_code} ${creditNote.company.city}`, margin + 3, companyYPos);
-      companyYPos += 4;
-    }
-
-    if (creditNote.company.email) {
-      pdf.setTextColor(0, 102, 204);
-      pdf.text(creditNote.company.email, margin + 3, companyYPos);
-    }
-  }
-
-  yPosition = 38 + companyBoxHeight + 8;
-
-  // Customer info (without box, just text)
+  // Calculate box height for customer info
   const addressLines = creditNote.customer_address.split('\n').filter(line => line.trim());
+  let customerBoxLines = 1; // t.a.v. line
+  customerBoxLines += addressLines.length;
+  const customerBoxHeight = 6 + (customerBoxLines * 4) + 2;
 
+  // Grey box with customer (huurder) info
+  pdf.setFillColor(240, 240, 240);
+  pdf.rect(margin, yPosition, 80, customerBoxHeight, 'F');
+
+  let customerYPos = yPosition + 6;
   pdf.setFontSize(9);
   pdf.setFont('helvetica', 'normal');
   pdf.setTextColor(60, 60, 60);
-  pdf.text(`t.a.v. ${creditNote.customer_name}`, margin, yPosition);
-  yPosition += 4;
+
+  pdf.text(`t.a.v. ${creditNote.customer_name}`, margin + 3, customerYPos);
+  customerYPos += 4;
 
   addressLines.forEach(line => {
-    pdf.text(line, margin, yPosition);
-    yPosition += 4;
+    pdf.text(line, margin + 3, customerYPos);
+    customerYPos += 4;
   });
 
   yPosition = 57;
@@ -629,9 +581,9 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
 
   const tableTop = yPosition;
   const col1X = margin;
-  const col2X = 105;
-  const col3X = 140;
-  const col4X = 165;
+  const col2X = 115;
+  const col3X = 145;
+  const col4X = 170;
   const col5X = pageWidth - margin;
 
   pdf.setFillColor(220, 38, 38);
@@ -661,7 +613,7 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
     const quantity = item.quantity > 0 ? item.quantity.toFixed(0) : '';
     const rate = item.unit_price > 0 ? `€ -${item.unit_price.toFixed(2)}` : '';
 
-    const maxDescWidth = col2X - col1X - 5;
+    const maxDescWidth = col2X - col1X - 8;
     const descLines = pdf.splitTextToSize(description, maxDescWidth);
     const numLines = Math.max(1, descLines.length);
 
