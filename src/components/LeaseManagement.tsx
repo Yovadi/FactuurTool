@@ -61,17 +61,18 @@ export function LeaseManagement() {
   }, [showForm, editingLease, formData.lease_type]);
 
   useEffect(() => {
-    if (formData.lease_type === 'flex' && !editingLease && !formData.flex_credit_rate) {
-      const flexSpaces = getFlexRates();
-      if (flexSpaces.length > 0 && flexSpaces[0].daily_rate) {
+    // Wanneer flex type geselecteerd wordt en er is al een ruimte gekozen, vul tarief in
+    if (formData.lease_type === 'flex' && !editingLease && flexDefaultSchedule.space_id && !formData.flex_credit_rate) {
+      const rate = getRateById(flexDefaultSchedule.space_id);
+      if (rate) {
         setFormData(prev => ({
           ...prev,
-          flex_credit_rate: flexSpaces[0].daily_rate.toFixed(2),
-          selected_rate_id: flexSpaces[0].id
+          flex_credit_rate: rate,
+          selected_rate_id: flexDefaultSchedule.space_id
         }));
       }
     }
-  }, [formData.lease_type, spaces]);
+  }, [formData.lease_type, flexDefaultSchedule.space_id, spaces]);
 
   const loadData = async () => {
     setLoading(true);
@@ -639,150 +640,10 @@ export function LeaseManagement() {
                 </div>
               </div>
 
-                <div className="bg-dark-950 p-4 rounded-lg space-y-3">
+                <div className="bg-dark-950 p-4 rounded-lg space-y-4">
                   <div>
-                    <p className="text-sm font-medium text-gray-400 mb-3">
-                      Flex-contract werkt met een strippenkaart systeem
-                    </p>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-200 mb-2">
-                        Type dag
-                      </label>
-                      <div className="flex gap-4">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="flex_day_type"
-                            value="full_day"
-                            checked={formData.flex_day_type === 'full_day'}
-                            onChange={(e) => setFormData({ ...formData, flex_day_type: e.target.value as 'full_day' | 'half_day' })}
-                            className="w-4 h-4 text-gold-500 focus:ring-gold-500"
-                          />
-                          <span className="text-gray-300">Hele dag</span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="flex_day_type"
-                            value="half_day"
-                            checked={formData.flex_day_type === 'half_day'}
-                            onChange={(e) => setFormData({ ...formData, flex_day_type: e.target.value as 'full_day' | 'half_day' })}
-                            className="w-4 h-4 text-gold-500 focus:ring-gold-500"
-                          />
-                          <span className="text-gray-300">Halve dag</span>
-                        </label>
-                      </div>
-                      {formData.flex_day_type === 'half_day' && (
-                        <p className="text-xs text-gray-400 mt-1">
-                          Bij halve dagen betaalt de flexer per halve dag. 1 dag = 2 halve dagen.
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-3">
-                      {getFlexRates().length > 0 && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-200 mb-1">
-                            Tarief selectie
-                          </label>
-                          <select
-                            value={formData.selected_rate_id}
-                            onChange={(e) => {
-                              const spaceId = e.target.value;
-                              const rate = getRateById(spaceId);
-                              setFormData({
-                                ...formData,
-                                selected_rate_id: spaceId,
-                                flex_credit_rate: rate || formData.flex_credit_rate
-                              });
-                            }}
-                            className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                          >
-                            <option value="">Aangepast tarief...</option>
-                            {getFlexRates().map(space => (
-                              <option key={space.id} value={space.id}>
-                                {space.space_number} - €{space.daily_rate!.toFixed(2)}/dag
-                                {space.is_furnished && ' (gemeubileerd)'}
-                              </option>
-                            ))}
-                          </select>
-                          <p className="text-xs text-gray-400 mt-1">
-                            Selecteer een flexplek tarief of laat leeg voor aangepast tarief
-                          </p>
-                        </div>
-                      )}
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-200 mb-1">
-                            Aantal {formData.flex_day_type === 'half_day' ? 'halve' : 'hele'} dagen per week
-                          </label>
-                          <input
-                            type="number"
-                            required
-                            min="1"
-                            placeholder="Bijv. 3"
-                            value={formData.credits_per_week}
-                            onChange={(e) => setFormData({ ...formData, credits_per_week: e.target.value })}
-                            className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-200 mb-1">
-                            Prijs per {formData.flex_day_type === 'half_day' ? 'halve' : 'hele'} dag
-                          </label>
-                          <div className="relative">
-                            <input
-                              type="text"
-                              inputMode="decimal"
-                              required
-                              placeholder="Bijv. 45"
-                              value={formData.flex_credit_rate}
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                                  setFormData({ ...formData, flex_credit_rate: value, selected_rate_id: '' });
-                                }
-                              }}
-                              className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                            />
-                            {formData.selected_rate_id && (
-                              <div className="text-xs text-emerald-500 flex items-center gap-1 mt-1">
-                                <CheckCircle size={12} />
-                                {(() => {
-                                  const selectedSpace = spaces.find(s => s.id === formData.selected_rate_id);
-                                  return selectedSpace ? `Tarief van ${selectedSpace.space_number}` : 'Standaardtarief';
-                                })()}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    {formData.credits_per_week && formData.flex_credit_rate && (
-                      <div className="pt-2 border-t border-dark-700 space-y-1">
-                        <div className="text-sm text-gray-300">
-                          Weekhuur: €{parseFloat(formData.flex_credit_rate).toFixed(2)} × {formData.credits_per_week} {formData.flex_day_type === 'half_day' ? 'halve dagen' : 'dagen'} =
-                          <span className="font-bold text-gold-500 ml-1">
-                            €{(parseFloat(formData.flex_credit_rate) * parseInt(formData.credits_per_week)).toFixed(2)}/week
-                          </span>
-                        </div>
-                        <div className="text-sm text-gray-300">
-                          Maandhuur: €{(parseFloat(formData.flex_credit_rate) * parseInt(formData.credits_per_week)).toFixed(2)}/week × 4.33 weken/maand =
-                          <span className="font-bold text-blue-400 ml-1">
-                            €{(parseFloat(formData.flex_credit_rate) * parseInt(formData.credits_per_week) * 4.33).toFixed(2)}/maand
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="border-t border-dark-700 pt-4 mt-4">
                     <h4 className="text-sm font-medium text-gray-200 mb-3">
-                      Vaste weekindeling *
+                      Flex-ruimte en vaste weekindeling *
                     </h4>
 
                     <div className="space-y-3">
@@ -792,17 +653,34 @@ export function LeaseManagement() {
                         </label>
                         <select
                           value={flexDefaultSchedule.space_id}
-                          onChange={(e) => setFlexDefaultSchedule({ ...flexDefaultSchedule, space_id: e.target.value })}
+                          onChange={(e) => {
+                            const spaceId = e.target.value;
+                            setFlexDefaultSchedule({ ...flexDefaultSchedule, space_id: spaceId });
+
+                            // Automatisch het tarief instellen op basis van de geselecteerde ruimte
+                            if (spaceId) {
+                              const rate = getRateById(spaceId);
+                              setFormData({
+                                ...formData,
+                                selected_rate_id: spaceId,
+                                flex_credit_rate: rate || formData.flex_credit_rate
+                              });
+                            }
+                          }}
                           className="w-full px-3 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-200 focus:outline-none focus:border-gold-500"
                           required
                         >
                           <option value="">Selecteer een flex-ruimte</option>
                           {spaces.filter(s => s.space_type === 'Flexplek').map(space => (
                             <option key={space.id} value={space.id}>
-                              {space.space_number}
+                              {space.space_number} - €{space.daily_rate?.toFixed(2) || '0.00'}/dag
+                              {space.is_furnished && ' (gemeubileerd)'}
                             </option>
                           ))}
                         </select>
+                        <p className="text-xs text-gray-400 mt-1">
+                          Het tarief wordt automatisch ingesteld op basis van de gekozen ruimte
+                        </p>
                       </div>
 
                       <div>
@@ -838,6 +716,117 @@ export function LeaseManagement() {
                           Selecteer de dagen waarop deze flexer standaard de ruimte gebruikt
                         </p>
                       </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-dark-700 pt-4">
+                    <h4 className="text-sm font-medium text-gray-200 mb-3">
+                      Strippenkaart systeem
+                    </h4>
+                    <p className="text-xs text-gray-400 mb-3">
+                      Het flex-contract werkt met een strippenkaart systeem
+                    </p>
+
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-200 mb-2">
+                          Type dag
+                        </label>
+                        <div className="flex gap-4">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="radio"
+                              name="flex_day_type"
+                              value="full_day"
+                              checked={formData.flex_day_type === 'full_day'}
+                              onChange={(e) => setFormData({ ...formData, flex_day_type: e.target.value as 'full_day' | 'half_day' })}
+                              className="w-4 h-4 text-gold-500 focus:ring-gold-500"
+                            />
+                            <span className="text-gray-300">Hele dag</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="radio"
+                              name="flex_day_type"
+                              value="half_day"
+                              checked={formData.flex_day_type === 'half_day'}
+                              onChange={(e) => setFormData({ ...formData, flex_day_type: e.target.value as 'full_day' | 'half_day' })}
+                              className="w-4 h-4 text-gold-500 focus:ring-gold-500"
+                            />
+                            <span className="text-gray-300">Halve dag</span>
+                          </label>
+                        </div>
+                        {formData.flex_day_type === 'half_day' && (
+                          <p className="text-xs text-gray-400 mt-1">
+                            Bij halve dagen betaalt de flexer per halve dag. 1 dag = 2 halve dagen.
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-200 mb-1">
+                            Aantal {formData.flex_day_type === 'half_day' ? 'halve' : 'hele'} dagen per week
+                          </label>
+                          <input
+                            type="number"
+                            required
+                            min="1"
+                            placeholder="Bijv. 3"
+                            value={formData.credits_per_week}
+                            onChange={(e) => setFormData({ ...formData, credits_per_week: e.target.value })}
+                            className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-200 mb-1">
+                            Prijs per {formData.flex_day_type === 'half_day' ? 'halve' : 'hele'} dag
+                          </label>
+                          <div className="relative">
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              required
+                              placeholder="Bijv. 45"
+                              value={formData.flex_credit_rate}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                                  setFormData({ ...formData, flex_credit_rate: value, selected_rate_id: '' });
+                                }
+                              }}
+                              className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                              disabled={!!flexDefaultSchedule.space_id && !!formData.flex_credit_rate}
+                            />
+                            {flexDefaultSchedule.space_id && (
+                              <div className="text-xs text-emerald-500 flex items-center gap-1 mt-1">
+                                <CheckCircle size={12} />
+                                {(() => {
+                                  const selectedSpace = spaces.find(s => s.id === flexDefaultSchedule.space_id);
+                                  return selectedSpace ? `Tarief van ${selectedSpace.space_number}` : 'Standaardtarief';
+                                })()}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {formData.credits_per_week && formData.flex_credit_rate && (
+                        <div className="pt-2 border-t border-dark-700 space-y-1">
+                          <div className="text-sm text-gray-300">
+                            Weekhuur: €{parseFloat(formData.flex_credit_rate).toFixed(2)} × {formData.credits_per_week} {formData.flex_day_type === 'half_day' ? 'halve dagen' : 'dagen'} =
+                            <span className="font-bold text-gold-500 ml-1">
+                              €{(parseFloat(formData.flex_credit_rate) * parseInt(formData.credits_per_week)).toFixed(2)}/week
+                            </span>
+                          </div>
+                          <div className="text-sm text-gray-300">
+                            Maandhuur: €{(parseFloat(formData.flex_credit_rate) * parseInt(formData.credits_per_week)).toFixed(2)}/week × 4.33 weken/maand =
+                            <span className="font-bold text-blue-400 ml-1">
+                              €{(parseFloat(formData.flex_credit_rate) * parseInt(formData.credits_per_week) * 4.33).toFixed(2)}/maand
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
