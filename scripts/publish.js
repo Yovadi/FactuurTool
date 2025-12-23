@@ -1,6 +1,30 @@
 const { spawn } = require('child_process');
 const path = require('path');
 const https = require('https');
+const fs = require('fs');
+
+// Load .env file explicitly from project root
+const envPath = path.resolve(__dirname, '..', '.env');
+console.log('Loading .env from:', envPath);
+
+if (fs.existsSync(envPath)) {
+  const envContent = fs.readFileSync(envPath, 'utf8');
+  const lines = envContent.split('\n');
+
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+    if (trimmedLine && !trimmedLine.startsWith('#')) {
+      const [key, ...valueParts] = trimmedLine.split('=');
+      if (key && valueParts.length > 0) {
+        const value = valueParts.join('=').trim();
+        process.env[key.trim()] = value;
+      }
+    }
+  }
+  console.log('.env file loaded successfully');
+} else {
+  console.error('.env file not found at:', envPath);
+}
 
 let GH_TOKEN = process.env.GH_TOKEN;
 
