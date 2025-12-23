@@ -8,7 +8,7 @@ const SPACE_TYPE_LABELS: Record<string, string> = {
   'buitenterrein': 'Buitenterrein',
   'diversen': 'Diversen',
   'Meeting Room': 'Vergaderruimte',
-  'flexplek': 'Flexplek'
+  'Flexplek': 'Flexplek'
 };
 
 const CALCULATION_METHOD_LABELS: Record<string, string> = {
@@ -25,6 +25,7 @@ export function SpaceTypeRates() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingRate, setEditingRate] = useState<SpaceTypeRate | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     space_type: '',
@@ -65,6 +66,7 @@ export function SpaceTypeRates() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
 
     let ratePerSqm = parseFloat(formData.rate_per_sqm) || 0;
     let ratePerSqmFurnished = parseFloat(formData.rate_per_sqm_furnished) || 0;
@@ -102,6 +104,7 @@ export function SpaceTypeRates() {
 
       if (error) {
         console.error('Error updating rate:', error);
+        setError(`Fout bij bijwerken: ${error.message}`);
         return;
       }
     } else {
@@ -111,6 +114,7 @@ export function SpaceTypeRates() {
 
       if (error) {
         console.error('Error creating rate:', error);
+        setError(`Fout bij toevoegen: ${error.message}`);
         return;
       }
     }
@@ -160,6 +164,7 @@ export function SpaceTypeRates() {
     });
     setEditingRate(null);
     setShowForm(false);
+    setError(null);
   };
 
   if (loading) {
@@ -336,6 +341,12 @@ export function SpaceTypeRates() {
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              {error && (
+                <div className="bg-red-900/20 border border-red-500 text-red-300 px-4 py-3 rounded-lg flex items-start gap-2">
+                  <AlertCircle size={20} className="flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">{error}</div>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-200 mb-1">
                   Ruimte Type
