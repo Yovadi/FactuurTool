@@ -10,12 +10,7 @@
     "public/**/*"
   ],
   "win": {
-    "target": [
-      {
-        "target": "nsis",
-        "arch": ["x64"]
-      }
-    ],
+    "target": "nsis",
     "artifactName": "${productName}-Setup-${version}.${ext}"
   },
   "asar": false,
@@ -29,13 +24,11 @@
     "deleteAppDataOnUninstall": false,
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
-    "shortcutName": "HAL5 Facturatie Manager",
-    "differentialPackage": true
+    "shortcutName": "HAL5 Facturatie Manager"
   },
   "publish": {
     "provider": "github",
     "owner": "Yovadi",
-    "repo": "FactuurTool",
-    "releaseType": "release"
+    "repo": "FactuurTool"
   }
 }
