@@ -33,7 +33,7 @@ export function SpaceManagement() {
 
   useEffect(() => {
     if (showForm && !editingSpace && spaceTypeRates.length > 0) {
-      const rates = getRateForSpaceType(formData.space_type, formData.is_furnished, formData.is_flex_space);
+      const rates = getRateForSpaceType(formData.space_type, formData.is_furnished);
       setFormData(prev => ({ ...prev, ...rates }));
     }
   }, [showForm, editingSpace, spaceTypeRates]);
@@ -47,7 +47,7 @@ export function SpaceManagement() {
     }
   };
 
-  const getRateForSpaceType = (spaceType: string, isFurnished: boolean, isFlexSpace: boolean) => {
+  const getRateForSpaceType = (spaceType: string, isFurnished: boolean) => {
     const rate = spaceTypeRates.find(r => r.space_type === spaceType);
     if (!rate && spaceType !== 'Flexplek') return { rate_per_sqm: '', daily_rate: '', hourly_rate: '' };
 
@@ -72,14 +72,6 @@ export function SpaceManagement() {
         rate_per_sqm: '',
         daily_rate: '',
         hourly_rate: rate.hourly_rate > 0 ? rate.hourly_rate.toFixed(2) : ''
-      };
-    }
-
-    if (isFlexSpace && rate.calculation_method === 'daily') {
-      return {
-        rate_per_sqm: '',
-        daily_rate: rate.daily_rate > 0 ? rate.daily_rate.toFixed(2) : '',
-        hourly_rate: ''
       };
     }
 
@@ -159,22 +151,22 @@ export function SpaceManagement() {
     const spaceData: any = {
       space_number: formData.space_number,
       floor: 0,
-      square_footage: (formData.space_type === 'Meeting Room' || formData.is_flex_space)
+      square_footage: (formData.space_type === 'Meeting Room' || formData.space_type === 'Flexplek')
         ? null
         : (parseFloat(formData.square_footage) || 0),
       space_type: formData.space_type,
       base_rent: 0,
       is_available: formData.is_available,
-      is_furnished: formData.space_type === 'kantoor' ? formData.is_furnished : null,
-      is_flex_space: formData.is_flex_space,
-      flex_capacity: formData.is_flex_space ? formData.flex_capacity : 1
+      is_furnished: (formData.space_type === 'kantoor' || formData.space_type === 'Flexplek') ? formData.is_furnished : null,
+      is_flex_space: false,
+      flex_capacity: formData.space_type === 'Flexplek' ? formData.flex_capacity : 1
     };
 
     if (formData.space_type === 'Meeting Room') {
       spaceData.hourly_rate = formData.hourly_rate ? parseFloat(formData.hourly_rate) : null;
       spaceData.rate_per_sqm = null;
       spaceData.daily_rate = null;
-    } else if (formData.is_flex_space) {
+    } else if (formData.space_type === 'Flexplek') {
       spaceData.daily_rate = formData.daily_rate ? parseFloat(formData.daily_rate) : null;
       spaceData.rate_per_sqm = null;
       spaceData.hourly_rate = null;
@@ -307,13 +299,12 @@ export function SpaceManagement() {
                   onChange={(e) => {
                     const newType = e.target.value as 'bedrijfsruimte' | 'kantoor' | 'buitenterrein' | 'diversen' | 'Meeting Room' | 'Flexplek';
                     const isFlexType = newType === 'Flexplek';
-                    const rates = getRateForSpaceType(newType, formData.is_furnished, isFlexType);
+                    const rates = getRateForSpaceType(newType, formData.is_furnished);
                     setFormData({
                       ...formData,
                       space_type: newType,
                       square_footage: (newType === 'Meeting Room' || isFlexType) ? '' : formData.square_footage,
-                      is_furnished: newType === 'kantoor' ? formData.is_furnished : false,
-                      is_flex_space: isFlexType,
+                      is_furnished: (newType === 'kantoor' || newType === 'Flexplek') ? formData.is_furnished : false,
                       ...rates
                     });
                   }}
@@ -340,7 +331,7 @@ export function SpaceManagement() {
                   placeholder="bijv. Suite 101"
                 />
               </div>
-              {formData.space_type !== 'Meeting Room' && formData.space_type !== 'Flexplek' && !formData.is_flex_space && (
+              {formData.space_type !== 'Meeting Room' && formData.space_type !== 'Flexplek' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-200 mb-1">
                     {formData.space_type === 'diversen' ? 'Bedrag *' : 'Oppervlakte (m²) *'}
@@ -368,7 +359,7 @@ export function SpaceManagement() {
                     id="is_furnished"
                     checked={formData.is_furnished}
                     onChange={(e) => {
-                      const rates = getRateForSpaceType(formData.space_type, e.target.checked, formData.is_flex_space);
+                      const rates = getRateForSpaceType(formData.space_type, e.target.checked);
                       setFormData({ ...formData, is_furnished: e.target.checked, ...rates });
                     }}
                     className="w-4 h-4 text-gold-500 border-dark-600 rounded focus:ring-2 focus:ring-gold-500"
@@ -378,7 +369,7 @@ export function SpaceManagement() {
                   </label>
                 </div>
               )}
-              {formData.space_type !== 'Meeting Room' && formData.space_type !== 'Flexplek' && !formData.is_flex_space && formData.space_type !== 'diversen' && (
+              {formData.space_type !== 'Meeting Room' && formData.space_type !== 'Flexplek' && formData.space_type !== 'diversen' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-200 mb-1">
                     Tarief per m² (€)
@@ -471,73 +462,6 @@ export function SpaceManagement() {
                   </div>
                 </div>
               )}
-              {formData.space_type !== 'Meeting Room' && formData.space_type !== 'Flexplek' && (
-                <>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="is_flex_space"
-                      checked={formData.is_flex_space}
-                      onChange={(e) => {
-                        const rates = getRateForSpaceType(formData.space_type, formData.is_furnished, e.target.checked);
-                        setFormData({
-                          ...formData,
-                          is_flex_space: e.target.checked,
-                          square_footage: e.target.checked ? '' : formData.square_footage,
-                          ...rates
-                        });
-                      }}
-                      className="w-4 h-4 text-gold-500 border-dark-600 rounded focus:ring-2 focus:ring-gold-500"
-                    />
-                    <label htmlFor="is_flex_space" className="text-sm font-medium text-gray-200">
-                      Dit is een Flexplek (zonder m² prijs)
-                    </label>
-                  </div>
-                  {formData.is_flex_space && (
-                    <div className="bg-dark-950 p-4 rounded-lg border border-dark-700 space-y-3">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-200 mb-2">
-                          Capaciteit (aantal personen tegelijkertijd) *
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          required
-                          value={formData.flex_capacity}
-                          onChange={(e) => setFormData({ ...formData, flex_capacity: parseInt(e.target.value) || 1 })}
-                          className="w-full px-4 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-200 focus:outline-none focus:border-gold-500"
-                          placeholder="Bijv. 4"
-                        />
-                        <p className="text-xs text-gray-400 mt-1">
-                          Voor flexplekken gaat het om capaciteit, niet om m². Hoeveel personen kunnen deze ruimte tegelijk gebruiken?
-                        </p>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-200 mb-2">
-                          Dagtarief (€)
-                        </label>
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          value={formData.daily_rate}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                              setFormData({ ...formData, daily_rate: value });
-                            }
-                          }}
-                          className="w-full px-4 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-200 focus:outline-none focus:border-gold-500"
-                          placeholder="bijv. 45.00"
-                        />
-                        <p className="text-xs text-gray-400 mt-1">
-                          Tarief per dag voor deze flexplek
-                          {formData.daily_rate && !editingSpace && ' • Automatisch ingevuld uit Tarieven'}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
@@ -614,12 +538,12 @@ export function SpaceManagement() {
                             <div className="flex-1">
                               <div className="text-gray-100 font-medium mb-1">{space.space_number}</div>
                               <div className="flex flex-wrap gap-1.5">
-                                {space.space_type === 'kantoor' && space.is_furnished && (
+                                {(space.space_type === 'kantoor' || space.space_type === 'Flexplek') && space.is_furnished && (
                                   <span className="text-xs bg-gold-500 text-dark-950 px-2 py-0.5 rounded-full font-medium">
                                     Gemeubileerd
                                   </span>
                                 )}
-                                {(space as any).is_flex_space && (
+                                {space.space_type === 'Flexplek' && (
                                   <span className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded-full font-medium">
                                     Flex (max {(space as any).flex_capacity || 1} pers.)
                                   </span>
@@ -631,7 +555,7 @@ export function SpaceManagement() {
                         <td className="px-4 py-3 text-gray-300 text-sm">
                           {space.space_type === 'Meeting Room'
                             ? 'Vergaderruimte'
-                            : (space as any).is_flex_space
+                            : space.space_type === 'Flexplek'
                             ? `Flexplek (${(space as any).flex_capacity} pers.)`
                             : space.space_type === 'diversen'
                             ? `€ ${space.square_footage?.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}`
@@ -641,7 +565,7 @@ export function SpaceManagement() {
                         <td className="px-4 py-3 text-gray-300 text-sm">
                           {space.space_type === 'Meeting Room' && space.hourly_rate
                             ? `€ ${space.hourly_rate.toFixed(2)}/uur`
-                            : (space as any).is_flex_space && space.daily_rate
+                            : space.space_type === 'Flexplek' && space.daily_rate
                             ? `€ ${space.daily_rate.toFixed(2)}/dag`
                             : space.rate_per_sqm
                             ? `€ ${space.rate_per_sqm.toFixed(2)}/m²`

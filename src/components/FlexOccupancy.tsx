@@ -260,7 +260,7 @@ export function FlexOccupancy() {
   };
 
   const getDayOccupancy = (occupancy: SpaceOccupancy, day: string) => {
-    if (!occupancy.space.is_flex_space || !occupancy.space.flex_capacity) {
+    if (occupancy.space.space_type !== 'Flexplek' || !occupancy.space.flex_capacity) {
       return { used: 0, capacity: 1 };
     }
 
@@ -282,8 +282,8 @@ export function FlexOccupancy() {
     if (filterType === 'occupied' && !hasOccupants) return false;
     if (filterType === 'available' && hasOccupants) return false;
 
-    if (spaceTypeFilter === 'flex' && !occ.space.is_flex_space) return false;
-    if (spaceTypeFilter === 'full_time' && occ.space.is_flex_space) return false;
+    if (spaceTypeFilter === 'flex' && occ.space.space_type !== 'Flexplek') return false;
+    if (spaceTypeFilter === 'full_time' && occ.space.space_type === 'Flexplek') return false;
 
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
@@ -299,8 +299,8 @@ export function FlexOccupancy() {
     return true;
   });
 
-  const fullTimeSpaces = filteredOccupancies.filter(occ => !occ.space.is_flex_space);
-  const flexSpaces = filteredOccupancies.filter(occ => occ.space.is_flex_space);
+  const fullTimeSpaces = filteredOccupancies.filter(occ => occ.space.space_type !== 'Flexplek');
+  const flexSpaces = filteredOccupancies.filter(occ => occ.space.space_type === 'Flexplek');
 
   if (loading) {
     return <div className="flex items-center justify-center h-full"><p className="text-gray-400">Laden...</p></div>;
@@ -439,7 +439,7 @@ export function FlexOccupancy() {
                     className="w-full px-3 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-200 focus:outline-none focus:border-gold-500"
                   >
                     <option value="">Selecteer een ruimte</option>
-                    {occupancies.filter(occ => occ.space.is_flex_space).map(occ => (
+                    {occupancies.filter(occ => occ.space.space_type === 'Flexplek').map(occ => (
                       <option key={occ.space.id} value={occ.space.id}>
                         {occ.space.space_number} (max {occ.space.flex_capacity} pers.)
                       </option>
@@ -625,7 +625,7 @@ export function FlexOccupancy() {
                     {occupancy.space.square_footage && (
                       <span>{occupancy.space.square_footage} m²</span>
                     )}
-                    {occupancy.space.is_flex_space && occupancy.space.flex_capacity && (
+                    {occupancy.space.space_type === 'Flexplek' && occupancy.space.flex_capacity && (
                       <span>Capaciteit: {occupancy.space.flex_capacity} personen</span>
                     )}
                   </div>

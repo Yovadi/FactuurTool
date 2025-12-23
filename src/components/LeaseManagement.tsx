@@ -396,7 +396,7 @@ export function LeaseManagement() {
   };
 
   const getFlexRates = () => {
-    return spaces.filter(s => s.is_flex_space && s.daily_rate && s.daily_rate > 0);
+    return spaces.filter(s => s.space_type === 'Flexplek' && s.daily_rate && s.daily_rate > 0);
   };
 
   const getFlexRate = (): string => {
@@ -797,7 +797,7 @@ export function LeaseManagement() {
                           required
                         >
                           <option value="">Selecteer een flex-ruimte</option>
-                          {spaces.filter(s => s.is_flex_space).map(space => (
+                          {spaces.filter(s => s.space_type === 'Flexplek').map(space => (
                             <option key={space.id} value={space.id}>
                               {space.space_number}
                             </option>
