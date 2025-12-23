@@ -250,7 +250,7 @@ export function InvoicePreview({
           </div>
 
           <div>
-            {invoice.notes ? (
+            {invoice.notes && invoice.notes.split('\n').filter(line => line.trim() && line.startsWith('-')).length > 0 ? (
               <div>
                 <table className="w-full">
                   <thead>
