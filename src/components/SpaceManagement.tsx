@@ -568,11 +568,6 @@ export function SpaceManagement() {
                                     Gemeubileerd
                                   </span>
                                 )}
-                                {space.space_type === 'Flexplek' && (
-                                  <span className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded-full font-medium">
-                                    Flex (max {(space as any).flex_capacity || 1} pers.)
-                                  </span>
-                                )}
                               </div>
                             </div>
                           </div>
