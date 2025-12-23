@@ -137,13 +137,11 @@ export type SpaceTypeRate = {
   space_type: string;
   rate_per_sqm: number;
   rate_per_sqm_furnished: number;
-  calculation_method: 'per_sqm' | 'fixed_monthly' | 'hourly' | 'custom' | 'daily' | 'punch_card';
+  calculation_method: 'per_sqm' | 'fixed_monthly' | 'hourly' | 'custom' | 'daily';
   fixed_rate: number;
   fixed_rate_furnished: number;
   hourly_rate: number;
   daily_rate: number;
-  punch_card_rate: number;
-  punch_card_days: number;
   is_annual: boolean;
   description: string;
   description_furnished: string;
