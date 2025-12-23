@@ -627,25 +627,8 @@ export function LeaseManagement() {
 
               {formData.lease_type === 'flex' && (
                 <>
-              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-                <div className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <h4 className="text-sm font-medium text-blue-300 mb-1">Flexplek Huurcontract</h4>
-                    <p className="text-sm text-gray-300">
-                      Flexplek huurders krijgen geen vaste ruimte toegewezen. Ze kunnen gebruik maken van beschikbare werkplekken.
-                      In Ruimtebeheer kun je aangeven welke ruimtes beschikbaar zijn voor flex gebruik.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
                 <div className="bg-dark-950 p-4 rounded-lg space-y-4">
                   <div>
-                    <h4 className="text-sm font-medium text-gray-200 mb-3">
-                      Flex-ruimte en vaste weekindeling *
-                    </h4>
-
                     <div className="space-y-3">
                       <div>
                         <label className="block text-sm font-medium text-gray-200 mb-2">
@@ -682,40 +665,6 @@ export function LeaseManagement() {
                           Het tarief wordt automatisch ingesteld op basis van de gekozen ruimte
                         </p>
                       </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-200 mb-2">
-                          Vaste dagen *
-                        </label>
-                        <div className="flex gap-2">
-                          {[
-                            { key: 'monday', label: 'Ma' },
-                            { key: 'tuesday', label: 'Di' },
-                            { key: 'wednesday', label: 'Wo' },
-                            { key: 'thursday', label: 'Do' },
-                            { key: 'friday', label: 'Vr' }
-                          ].map(({ key, label }) => (
-                            <button
-                              key={key}
-                              type="button"
-                              onClick={() => setFlexDefaultSchedule({
-                                ...flexDefaultSchedule,
-                                [key]: !(flexDefaultSchedule as any)[key]
-                              })}
-                              className={`flex-1 py-2 rounded-lg font-medium transition-colors ${
-                                (flexDefaultSchedule as any)[key]
-                                  ? 'bg-gold-500 text-white'
-                                  : 'bg-dark-800 text-gray-400 hover:bg-dark-700'
-                              }`}
-                            >
-                              {label}
-                            </button>
-                          ))}
-                        </div>
-                        <p className="text-xs text-gray-400 mt-2">
-                          Selecteer de dagen waarop deze flexer standaard de ruimte gebruikt
-                        </p>
-                      </div>
                     </div>
                   </div>
 
@@ -723,9 +672,6 @@ export function LeaseManagement() {
                     <h4 className="text-sm font-medium text-gray-200 mb-3">
                       Strippenkaart systeem
                     </h4>
-                    <p className="text-xs text-gray-400 mb-3">
-                      Het flex-contract werkt met een strippenkaart systeem
-                    </p>
 
                     <div className="space-y-3">
                       <div>
@@ -827,6 +773,47 @@ export function LeaseManagement() {
                           </div>
                         </div>
                       )}
+                    </div>
+                  </div>
+
+                  <div className="border-t border-dark-700 pt-4">
+                    <h4 className="text-sm font-medium text-gray-200 mb-3">
+                      Vaste weekindeling *
+                    </h4>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-200 mb-2">
+                          Vaste dagen *
+                        </label>
+                        <div className="flex gap-2">
+                          {[
+                            { key: 'monday', label: 'Ma' },
+                            { key: 'tuesday', label: 'Di' },
+                            { key: 'wednesday', label: 'Wo' },
+                            { key: 'thursday', label: 'Do' },
+                            { key: 'friday', label: 'Vr' }
+                          ].map(({ key, label }) => (
+                            <button
+                              key={key}
+                              type="button"
+                              onClick={() => setFlexDefaultSchedule({
+                                ...flexDefaultSchedule,
+                                [key]: !(flexDefaultSchedule as any)[key]
+                              })}
+                              className={`flex-1 py-2 rounded-lg font-medium transition-colors ${
+                                (flexDefaultSchedule as any)[key]
+                                  ? 'bg-gold-500 text-white'
+                                  : 'bg-dark-800 text-gray-400 hover:bg-dark-700'
+                              }`}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                        <p className="text-xs text-gray-400 mt-2">
+                          Selecteer de dagen waarop deze flexer standaard de ruimte gebruikt
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
