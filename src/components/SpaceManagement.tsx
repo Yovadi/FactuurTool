@@ -188,7 +188,11 @@ export function SpaceManagement() {
 
       if (error) {
         console.error('Error updating space:', error);
-        setError(`Fout bij bijwerken: ${error.message}`);
+        if (error.code === '23505' && error.message.includes('space_number_key')) {
+          setError(`Deze ruimtenaam bestaat al. Kies een andere naam.`);
+        } else {
+          setError(`Fout bij bijwerken: ${error.message}`);
+        }
         return;
       }
 
@@ -209,7 +213,11 @@ export function SpaceManagement() {
 
       if (error) {
         console.error('Error creating space:', error);
-        setError(`Fout bij aanmaken: ${error.message}`);
+        if (error.code === '23505' && error.message.includes('space_number_key')) {
+          setError(`Deze ruimtenaam bestaat al. Kies een andere naam.`);
+        } else {
+          setError(`Fout bij aanmaken: ${error.message}`);
+        }
         return;
       }
 
