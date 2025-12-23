@@ -221,9 +221,9 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
 
   const tableTop = yPosition;
   const col1X = margin;
-  const col2X = 115;
-  const col3X = 145;
-  const col4X = 170;
+  const col2X = 100;
+  const col3X = 135;
+  const col4X = 165;
   const col5X = pageWidth - margin;
 
   pdf.setFillColor(234, 179, 8);
@@ -233,9 +233,9 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(255, 255, 255);
   pdf.text('Omschrijving', col1X + 2, tableTop + 5.5);
-  pdf.text('Hoeveelheid', col2X, tableTop + 5.5, { align: 'right' });
-  pdf.text('Tarief', col3X, tableTop + 5.5, { align: 'right' });
-  pdf.text('Bedrag', col4X, tableTop + 5.5, { align: 'right' });
+  pdf.text('Hoeveelheid', col2X - 2, tableTop + 5.5, { align: 'right' });
+  pdf.text('Tarief', col3X - 2, tableTop + 5.5, { align: 'right' });
+  pdf.text('Bedrag', col4X - 2, tableTop + 5.5, { align: 'right' });
   pdf.text('BTW', col5X - 2, tableTop + 5.5, { align: 'right' });
 
   yPosition = tableTop + 12;
@@ -293,7 +293,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
         description = description.substring(0, description.lastIndexOf('=')).trim();
       }
 
-      const maxDescWidth = col2X - col1X - 8;
+      const maxDescWidth = col2X - col1X - 10;
       const descLines = pdf.splitTextToSize(description, maxDescWidth);
       const numLines = Math.max(1, descLines.length);
 
@@ -355,7 +355,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
       }
     }
 
-    const maxDescWidth = col2X - col1X - 8;
+    const maxDescWidth = col2X - col1X - 10;
     const descLines = pdf.splitTextToSize(displayName, maxDescWidth);
     const numLines = Math.max(1, descLines.length);
 
@@ -581,9 +581,9 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
 
   const tableTop = yPosition;
   const col1X = margin;
-  const col2X = 115;
-  const col3X = 145;
-  const col4X = 170;
+  const col2X = 100;
+  const col3X = 135;
+  const col4X = 165;
   const col5X = pageWidth - margin;
 
   pdf.setFillColor(220, 38, 38);
@@ -593,9 +593,9 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(255, 255, 255);
   pdf.text('Omschrijving', col1X + 2, tableTop + 5.5);
-  pdf.text('Hoeveelheid', col2X, tableTop + 5.5, { align: 'right' });
-  pdf.text('Tarief', col3X, tableTop + 5.5, { align: 'right' });
-  pdf.text('Bedrag', col4X, tableTop + 5.5, { align: 'right' });
+  pdf.text('Hoeveelheid', col2X - 2, tableTop + 5.5, { align: 'right' });
+  pdf.text('Tarief', col3X - 2, tableTop + 5.5, { align: 'right' });
+  pdf.text('Bedrag', col4X - 2, tableTop + 5.5, { align: 'right' });
   pdf.text('BTW', col5X - 2, tableTop + 5.5, { align: 'right' });
 
   yPosition = tableTop + 12;
@@ -613,7 +613,7 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
     const quantity = item.quantity > 0 ? item.quantity.toFixed(0) : '';
     const rate = item.unit_price > 0 ? `€ -${item.unit_price.toFixed(2)}` : '';
 
-    const maxDescWidth = col2X - col1X - 8;
+    const maxDescWidth = col2X - col1X - 10;
     const descLines = pdf.splitTextToSize(description, maxDescWidth);
     const numLines = Math.max(1, descLines.length);
 
