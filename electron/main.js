@@ -7,6 +7,19 @@ let mainWindow;
 autoUpdater.autoDownload = false;
 autoUpdater.autoInstallOnAppQuit = true;
 
+// Logging voor debugging
+try {
+  autoUpdater.logger = require('electron-log');
+  autoUpdater.logger.transports.file.level = 'info';
+  console.log('electron-log enabled for auto-updater');
+} catch (err) {
+  console.log('electron-log not available, using console logging');
+  autoUpdater.logger = console;
+}
+
+console.log('App version:', app.getVersion());
+console.log('App path:', app.getAppPath());
+
 function createWindow() {
   const { screen } = require('electron');
   const primaryDisplay = screen.getPrimaryDisplay();
@@ -219,12 +232,20 @@ autoUpdater.on('update-available', (info) => {
   });
 });
 
-autoUpdater.on('update-not-available', () => {
-  console.log('No updates available');
+autoUpdater.on('update-not-available', (info) => {
+  console.log('No updates available. Current version:', info.version);
 });
 
 autoUpdater.on('error', (err) => {
   console.error('Update error:', err);
+  console.error('Error details:', {
+    message: err.message,
+    stack: err.stack,
+    code: err.code
+  });
+
+  // Toon geen error dialog tenzij het een kritieke fout is
+  // De meeste fouten zijn netwerk gerelateerd en hoeven de gebruiker niet te storen
 });
 
 autoUpdater.on('download-progress', (progressObj) => {
@@ -249,7 +270,24 @@ autoUpdater.on('update-downloaded', () => {
 
 function checkForUpdates() {
   if (process.env.NODE_ENV !== 'development') {
-    autoUpdater.checkForUpdates();
+    console.log('Checking for updates...');
+    autoUpdater.checkForUpdates().catch(err => {
+      console.error('Error checking for updates:', err);
+    });
+  } else {
+    console.log('Skipping update check in development mode');
+  }
+}
+
+// Periodiek checken voor updates (elk uur)
+function startPeriodicUpdateCheck() {
+  if (process.env.NODE_ENV !== 'development') {
+    setInterval(() => {
+      console.log('Periodic update check...');
+      autoUpdater.checkForUpdates().catch(err => {
+        console.error('Error in periodic update check:', err);
+      });
+    }, 60 * 60 * 1000); // Elk uur
   }
 }
 
@@ -258,6 +296,7 @@ app.whenReady().then(() => {
 
   setTimeout(() => {
     checkForUpdates();
+    startPeriodicUpdateCheck();
   }, 3000);
 });
 

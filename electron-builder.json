@@ -30,6 +30,7 @@
     "provider": "github",
     "owner": "Yovadi",
     "repo": "FactuurTool",
-    "private": true
+    "private": false,
+    "releaseType": "release"
   }
 }
