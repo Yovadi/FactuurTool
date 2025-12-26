@@ -34,10 +34,20 @@ function App() {
   const [loggedInTenantId, setLoggedInTenantId] = useState<string | null>(null);
   const [loggedInTenantName, setLoggedInTenantName] = useState<string>('');
   const [prefilledInvoiceData, setPrefilledInvoiceData] = useState<PrefilledInvoiceData | null>(null);
+  const [appVersion, setAppVersion] = useState<string>('');
 
   useEffect(() => {
     // Always run as Electron app (admin interface without login)
     setIsElectron(true);
+
+    // Get app version from Electron
+    if ((window as any).electron?.getAppVersion) {
+      (window as any).electron.getAppVersion().then((version: string) => {
+        setAppVersion(version);
+      }).catch((err: any) => {
+        console.error('Error getting app version:', err);
+      });
+    }
   }, []);
 
   const navigation: MenuSection[] = [
@@ -131,6 +141,9 @@ function App() {
               <div className="px-4 py-3 mb-2">
                 <h2 className="text-xl font-bold text-gold-500">HAL5 Facturatie</h2>
                 <p className="text-sm text-gray-400 mt-1">Beheer systeem</p>
+                {appVersion && (
+                  <p className="text-xs text-gray-500 mt-1">Versie {appVersion}</p>
+                )}
               </div>
               <nav className="space-y-1 pb-2">
                 {navigation.map((item) => {
