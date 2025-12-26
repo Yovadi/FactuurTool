@@ -49,8 +49,9 @@ async function testToken() {
       path: '/user',
       method: 'GET',
       headers: {
-        'Authorization': `token ${GH_TOKEN}`,
-        'User-Agent': 'electron-builder-publish'
+        'Authorization': `Bearer ${GH_TOKEN}`,
+        'User-Agent': 'electron-builder-publish',
+        'Accept': 'application/vnd.github.v3+json'
       }
     };
 
