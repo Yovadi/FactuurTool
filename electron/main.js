@@ -209,12 +209,50 @@ ipcMain.handle('save-pdf', async (event, pdfBuffer, folderPath, fileName) => {
   }
 });
 
+ipcMain.handle('get-app-version', () => {
+  return app.getVersion();
+});
+
+ipcMain.handle('check-for-updates', async () => {
+  try {
+    if (process.env.NODE_ENV === 'development') {
+      return {
+        success: false,
+        message: 'Update check is uitgeschakeld in development modus'
+      };
+    }
+
+    console.log('Manual update check initiated...');
+    const result = await autoUpdater.checkForUpdates();
+    console.log('Update check result:', result);
+
+    return {
+      success: true,
+      message: 'Update check gestart',
+      updateInfo: result?.updateInfo
+    };
+  } catch (error) {
+    console.error('Error checking for updates:', error);
+    return {
+      success: false,
+      error: error.message,
+      details: {
+        message: error.message,
+        code: error.code,
+        stack: error.stack
+      }
+    };
+  }
+});
+
 autoUpdater.on('update-available', (info) => {
+  console.log('Update available:', JSON.stringify(info, null, 2));
+
   dialog.showMessageBox(mainWindow, {
     type: 'info',
     title: 'Update Beschikbaar',
     message: `Nieuwe versie ${info.version} is beschikbaar!`,
-    detail: 'Wilt u de update nu downloaden? De update wordt geïnstalleerd wanneer u de applicatie afsluit.',
+    detail: `Huidige versie: ${app.getVersion()}\nNieuwe versie: ${info.version}\n\nWilt u de update nu downloaden? De update wordt geïnstalleerd wanneer u de applicatie afsluit.`,
     buttons: ['Download Update', 'Later'],
     defaultId: 0,
     cancelId: 1
@@ -233,7 +271,9 @@ autoUpdater.on('update-available', (info) => {
 });
 
 autoUpdater.on('update-not-available', (info) => {
-  console.log('No updates available. Current version:', info.version);
+  console.log('No updates available.');
+  console.log('Current version:', app.getVersion());
+  console.log('Update info:', JSON.stringify(info, null, 2));
 });
 
 autoUpdater.on('error', (err) => {
@@ -270,10 +310,22 @@ autoUpdater.on('update-downloaded', () => {
 
 function checkForUpdates() {
   if (process.env.NODE_ENV !== 'development') {
-    console.log('Checking for updates...');
-    autoUpdater.checkForUpdates().catch(err => {
-      console.error('Error checking for updates:', err);
-    });
+    console.log('=== Update Check Started ===');
+    console.log('Current version:', app.getVersion());
+    console.log('Update feed URL:', autoUpdater.getFeedURL());
+
+    autoUpdater.checkForUpdates()
+      .then(result => {
+        console.log('Update check completed:', JSON.stringify(result, null, 2));
+      })
+      .catch(err => {
+        console.error('Error checking for updates:', err);
+        console.error('Error details:', {
+          message: err.message,
+          code: err.code,
+          stack: err.stack
+        });
+      });
   } else {
     console.log('Skipping update check in development mode');
   }

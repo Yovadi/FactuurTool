@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { supabase, type CompanySettings } from '../lib/supabase';
-import { Building2, Edit2, Mail, Phone, MapPin, CreditCard, Lock, FolderOpen } from 'lucide-react';
+import { Building2, Edit2, Mail, Phone, MapPin, CreditCard, Lock, FolderOpen, RefreshCw } from 'lucide-react';
 
 export function CompanySettings() {
   const [settings, setSettings] = useState<CompanySettings | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [updateMessage, setUpdateMessage] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     company_name: '',
@@ -140,6 +142,34 @@ export function CompanySettings() {
       }
     } else {
       console.warn('Folder selectie is alleen beschikbaar in de desktop applicatie');
+    }
+  };
+
+  const handleCheckForUpdates = async () => {
+    setCheckingUpdate(true);
+    setUpdateMessage(null);
+
+    try {
+      if ((window as any).electron?.checkForUpdates) {
+        const result = await (window as any).electron.checkForUpdates();
+
+        if (result.success) {
+          setUpdateMessage('Update check gestart. Als er een update beschikbaar is, krijgt u een melding.');
+        } else {
+          setUpdateMessage(result.message || result.error || 'Kon niet checken voor updates');
+        }
+      } else {
+        setUpdateMessage('Update functionaliteit is alleen beschikbaar in de desktop applicatie');
+      }
+    } catch (error: any) {
+      setUpdateMessage(`Fout bij checken voor updates: ${error.message}`);
+      console.error('Error checking for updates:', error);
+    } finally {
+      setCheckingUpdate(false);
+
+      setTimeout(() => {
+        setUpdateMessage(null);
+      }, 5000);
     }
   };
 
@@ -545,6 +575,23 @@ export function CompanySettings() {
                 </div>
               </div>
             )}
+          </div>
+
+          <div className="mt-6 pt-6 border-t border-dark-700">
+            <h4 className="text-sm font-semibold text-gray-400 uppercase mb-3">Software Updates</h4>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleCheckForUpdates}
+                disabled={checkingUpdate}
+                className="flex items-center gap-2 bg-dark-800 text-gray-200 px-4 py-2 rounded-lg hover:bg-dark-700 transition-colors border border-dark-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <RefreshCw size={18} className={checkingUpdate ? 'animate-spin' : ''} />
+                {checkingUpdate ? 'Checken...' : 'Check voor Updates'}
+              </button>
+              {updateMessage && (
+                <p className="text-sm text-gray-300">{updateMessage}</p>
+              )}
+            </div>
           </div>
         </div>
       ) : (

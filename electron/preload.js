@@ -12,6 +12,12 @@ contextBridge.exposeInMainWorld('electron', {
   },
   savePDF: (pdfBuffer, folderPath, fileName) => {
     return ipcRenderer.invoke('save-pdf', pdfBuffer, folderPath, fileName);
+  },
+  getAppVersion: () => {
+    return ipcRenderer.invoke('get-app-version');
+  },
+  checkForUpdates: () => {
+    return ipcRenderer.invoke('check-for-updates');
   }
 });
 
@@ -27,5 +33,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   savePDF: (pdfBuffer, folderPath, fileName) => {
     return ipcRenderer.invoke('save-pdf', pdfBuffer, folderPath, fileName);
+  },
+  getAppVersion: () => {
+    return ipcRenderer.invoke('get-app-version');
+  },
+  checkForUpdates: () => {
+    return ipcRenderer.invoke('check-for-updates');
   }
 });
