@@ -242,13 +242,25 @@ ipcMain.handle('check-for-updates', async () => {
     console.log('Is app packaged?', app.isPackaged);
     console.log('App path:', app.getAppPath());
     console.log('Checking URL: https://github.com/Yovadi/FactuurTool/releases/latest');
+    console.log('Auto-download:', autoUpdater.autoDownload);
+    console.log('Allow prerelease:', autoUpdater.allowPrerelease);
+    console.log('Allow downgrade:', autoUpdater.allowDowngrade);
 
     const result = await autoUpdater.checkForUpdates();
     console.log('Update check result:', JSON.stringify(result, null, 2));
 
     if (result && result.updateInfo) {
       console.log('Available version:', result.updateInfo.version);
-      console.log('Current < Available?', app.getVersion() < result.updateInfo.version);
+      console.log('Current version (parsed):', app.getVersion());
+
+      const semver = require('electron-updater').semver;
+      const currentV = app.getVersion();
+      const availableV = result.updateInfo.version;
+      console.log('Version comparison:', {
+        current: currentV,
+        available: availableV,
+        isNewer: semver.gt(availableV, currentV)
+      });
     }
 
     // Reset flag after a short delay
