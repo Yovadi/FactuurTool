@@ -7,6 +7,14 @@ let mainWindow;
 autoUpdater.autoDownload = false;
 autoUpdater.autoInstallOnAppQuit = true;
 
+// Stel de update feed URL expliciet in
+autoUpdater.setFeedURL({
+  provider: 'github',
+  owner: 'Yovadi',
+  repo: 'FactuurTool',
+  private: false
+});
+
 // Logging voor debugging
 try {
   autoUpdater.logger = require('electron-log');
