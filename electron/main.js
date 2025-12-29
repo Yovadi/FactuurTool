@@ -75,6 +75,16 @@ function createWindow() {
     console.log(`Console [${level}]:`, message);
   });
 
+  // Keyboard shortcut to open DevTools (F12 or Ctrl+Shift+I)
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.key === 'F12' || (input.control && input.shift && input.key.toLowerCase() === 'i')) {
+      if (input.type === 'keyDown') {
+        mainWindow.webContents.toggleDevTools();
+      }
+      event.preventDefault();
+    }
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
