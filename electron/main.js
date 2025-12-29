@@ -238,9 +238,10 @@ ipcMain.handle('check-for-updates', async () => {
 
     console.log('=== MANUAL UPDATE CHECK ===');
     console.log('Current version:', app.getVersion());
-    console.log('Feed URL:', autoUpdater.getFeedURL());
+    console.log('Feed URL:', JSON.stringify(autoUpdater.getFeedURL(), null, 2));
     console.log('Is app packaged?', app.isPackaged);
     console.log('App path:', app.getAppPath());
+    console.log('Checking URL: https://github.com/Yovadi/FactuurTool/releases/latest');
 
     const result = await autoUpdater.checkForUpdates();
     console.log('Update check result:', JSON.stringify(result, null, 2));
@@ -329,15 +330,28 @@ autoUpdater.on('update-not-available', (info) => {
 });
 
 autoUpdater.on('error', (err) => {
-  console.error('Update error:', err);
-  console.error('Error details:', {
-    message: err.message,
-    stack: err.stack,
-    code: err.code
-  });
+  console.error('=== UPDATE ERROR ===');
+  console.error('Error message:', err.message);
+  console.error('Error stack:', err.stack);
+  console.error('Error code:', err.code);
+  console.error('Error name:', err.name);
+  console.error('Full error:', JSON.stringify(err, Object.getOwnPropertyNames(err), 2));
 
-  // Toon geen error dialog tenzij het een kritieke fout is
-  // De meeste fouten zijn netwerk gerelateerd en hoeven de gebruiker niet te storen
+  if (isManualUpdateCheck && mainWindow) {
+    dialog.showMessageBox(mainWindow, {
+      type: 'error',
+      title: 'Update Error',
+      message: 'Er ging iets fout bij het checken voor updates',
+      detail: `Error: ${err.message}\n\nControleer de console voor meer details.`,
+      buttons: ['OK']
+    });
+  }
+});
+
+autoUpdater.on('checking-for-update', () => {
+  console.log('=== CHECKING FOR UPDATE ===');
+  console.log('Current version:', app.getVersion());
+  console.log('Repository:', 'https://github.com/Yovadi/FactuurTool');
 });
 
 autoUpdater.on('download-progress', (progressObj) => {
