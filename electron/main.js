@@ -3,16 +3,20 @@ const { autoUpdater } = require('electron-updater');
 const path = require('path');
 
 let mainWindow;
+let isManualUpdateCheck = false;
 
 autoUpdater.autoDownload = false;
 autoUpdater.autoInstallOnAppQuit = true;
+autoUpdater.allowPrerelease = false;
+autoUpdater.allowDowngrade = false;
 
 // Stel de update feed URL expliciet in
 autoUpdater.setFeedURL({
   provider: 'github',
   owner: 'Yovadi',
   repo: 'FactuurTool',
-  private: false
+  private: false,
+  releaseType: 'release'
 });
 
 // Logging voor debugging
@@ -230,28 +234,53 @@ ipcMain.handle('check-for-updates', async () => {
       };
     }
 
-    console.log('Manual update check initiated...');
+    isManualUpdateCheck = true;
+
+    console.log('=== MANUAL UPDATE CHECK ===');
+    console.log('Current version:', app.getVersion());
+    console.log('Feed URL:', autoUpdater.getFeedURL());
+    console.log('Is app packaged?', app.isPackaged);
+    console.log('App path:', app.getAppPath());
+
     const result = await autoUpdater.checkForUpdates();
-    console.log('Update check result:', result);
+    console.log('Update check result:', JSON.stringify(result, null, 2));
+
+    if (result && result.updateInfo) {
+      console.log('Available version:', result.updateInfo.version);
+      console.log('Current < Available?', app.getVersion() < result.updateInfo.version);
+    }
+
+    // Reset flag after a short delay
+    setTimeout(() => {
+      isManualUpdateCheck = false;
+    }, 3000);
 
     return {
       success: true,
       message: 'Update check gestart',
-      updateInfo: result?.updateInfo
+      updateInfo: result?.updateInfo,
+      currentVersion: app.getVersion(),
+      isPackaged: app.isPackaged
     };
   } catch (error) {
+    isManualUpdateCheck = false;
+
     console.error('Error checking for updates:', error);
+    console.error('Error stack:', error.stack);
 
     if (error.message && error.message.includes('404')) {
       return {
         success: false,
-        message: 'Er zijn momenteel geen updates beschikbaar. U gebruikt al de nieuwste versie.'
+        message: 'Er zijn momenteel geen updates beschikbaar. U gebruikt al de nieuwste versie.',
+        currentVersion: app.getVersion()
       };
     }
 
     return {
       success: false,
-      message: 'Kon niet checken voor updates. Controleer uw internetverbinding.'
+      message: `Kon niet checken voor updates: ${error.message}`,
+      currentVersion: app.getVersion(),
+      error: error.message
     };
   }
 });
@@ -282,9 +311,21 @@ autoUpdater.on('update-available', (info) => {
 });
 
 autoUpdater.on('update-not-available', (info) => {
-  console.log('No updates available.');
+  console.log('=== NO UPDATE AVAILABLE ===');
   console.log('Current version:', app.getVersion());
+  console.log('Latest available version:', info?.version);
   console.log('Update info:', JSON.stringify(info, null, 2));
+
+  // Only show message when user manually checks
+  if (isManualUpdateCheck && mainWindow && mainWindow.webContents) {
+    dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      title: 'Geen Updates',
+      message: 'U gebruikt al de nieuwste versie',
+      detail: `Huidige versie: ${app.getVersion()}\n\nEr zijn geen nieuwe updates beschikbaar.`,
+      buttons: ['OK']
+    });
+  }
 });
 
 autoUpdater.on('error', (err) => {
