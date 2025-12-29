@@ -233,14 +233,17 @@ ipcMain.handle('check-for-updates', async () => {
     };
   } catch (error) {
     console.error('Error checking for updates:', error);
+
+    if (error.message && error.message.includes('404')) {
+      return {
+        success: false,
+        message: 'Er zijn momenteel geen updates beschikbaar. U gebruikt al de nieuwste versie.'
+      };
+    }
+
     return {
       success: false,
-      error: error.message,
-      details: {
-        message: error.message,
-        code: error.code,
-        stack: error.stack
-      }
+      message: 'Kon niet checken voor updates. Controleer uw internetverbinding.'
     };
   }
 });
@@ -319,12 +322,11 @@ function checkForUpdates() {
         console.log('Update check completed:', JSON.stringify(result, null, 2));
       })
       .catch(err => {
-        console.error('Error checking for updates:', err);
-        console.error('Error details:', {
-          message: err.message,
-          code: err.code,
-          stack: err.stack
-        });
+        if (err.message && err.message.includes('404')) {
+          console.log('No updates available on GitHub (404). This is normal if no releases are published yet.');
+        } else {
+          console.error('Error checking for updates:', err.message);
+        }
       });
   } else {
     console.log('Skipping update check in development mode');
@@ -337,7 +339,11 @@ function startPeriodicUpdateCheck() {
     setInterval(() => {
       console.log('Periodic update check...');
       autoUpdater.checkForUpdates().catch(err => {
-        console.error('Error in periodic update check:', err);
+        if (err.message && err.message.includes('404')) {
+          console.log('No updates available (404).');
+        } else {
+          console.error('Error in periodic update check:', err.message);
+        }
       });
     }, 60 * 60 * 1000); // Elk uur
   }
