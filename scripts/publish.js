@@ -129,11 +129,8 @@ async function testToken() {
 async function main() {
   console.log('=== HAL5 Facturatie Manager - Automated Publish ===\n');
 
-  console.log('Step 1: Read current version');
-  const packagePath = path.resolve(__dirname, '..', 'package.json');
-  const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
-  const newVersion = packageJson.version;
-  console.log(`Using version ${newVersion} from package.json`);
+  console.log('Step 1: Bump version');
+  const newVersion = bumpVersion();
 
   console.log('\nStep 2: Clean old builds');
   cleanBuildFolders();
