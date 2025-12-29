@@ -1,4 +1,4 @@
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
 const path = require('path');
 const https = require('https');
 const fs = require('fs');
@@ -42,6 +42,52 @@ GH_TOKEN = GH_TOKEN.trim().replace(/[\r\n]/g, '');
 console.log('- GH_TOKEN (cleaned):', GH_TOKEN.substring(0, 4) + '****' + GH_TOKEN.substring(GH_TOKEN.length - 4));
 console.log('- Token length:', GH_TOKEN.length);
 
+function bumpVersion() {
+  const packagePath = path.resolve(__dirname, '..', 'package.json');
+  const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
+
+  const versionParts = packageJson.version.split('.');
+  versionParts[2] = parseInt(versionParts[2]) + 1;
+  packageJson.version = versionParts.join('.');
+
+  fs.writeFileSync(packagePath, JSON.stringify(packageJson, null, 2) + '\n');
+
+  console.log(`Version bumped to ${packageJson.version}`);
+  return packageJson.version;
+}
+
+function cleanBuildFolders() {
+  const projectRoot = path.resolve(__dirname, '..');
+  const releasePath = path.join(projectRoot, 'release');
+  const distPath = path.join(projectRoot, 'dist');
+
+  console.log('Cleaning build folders...');
+
+  if (fs.existsSync(releasePath)) {
+    fs.rmSync(releasePath, { recursive: true, force: true });
+    console.log('- Removed release folder');
+  }
+
+  if (fs.existsSync(distPath)) {
+    fs.rmSync(distPath, { recursive: true, force: true });
+    console.log('- Removed dist folder');
+  }
+}
+
+function runBuild() {
+  console.log('\nBuilding project...');
+  try {
+    execSync('npm run build', {
+      cwd: path.resolve(__dirname, '..'),
+      stdio: 'inherit'
+    });
+    console.log('Build completed successfully!\n');
+  } catch (error) {
+    console.error('Build failed:', error.message);
+    process.exit(1);
+  }
+}
+
 async function testToken() {
   return new Promise((resolve) => {
     const options = {
@@ -81,7 +127,18 @@ async function testToken() {
 }
 
 async function main() {
-  console.log('\nTesting GitHub token...');
+  console.log('=== HAL5 Facturatie Manager - Automated Publish ===\n');
+
+  console.log('Step 1: Bump version');
+  const newVersion = bumpVersion();
+
+  console.log('\nStep 2: Clean old builds');
+  cleanBuildFolders();
+
+  console.log('\nStep 3: Build project');
+  runBuild();
+
+  console.log('Step 4: Verify GitHub token');
   const tokenValid = await testToken();
 
   if (!tokenValid) {
@@ -95,7 +152,7 @@ async function main() {
   process.env.GH_TOKEN = GH_TOKEN;
   process.env.ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES = 'true';
 
-  console.log('\nPublishing to GitHub...\n');
+  console.log(`\nStep 5: Publishing version ${newVersion} to GitHub...\n`);
 
   const buildProcess = spawn('npx', ['electron-builder', '--win', '--publish', 'always', '--config', 'electron-builder.json'], {
     cwd: path.resolve(__dirname, '..'),
@@ -114,7 +171,7 @@ async function main() {
       console.error('Build failed with code:', code);
       process.exit(code);
     }
-    console.log('Build completed successfully!');
+    console.log(`\n=== Successfully published version ${newVersion}! ===`);
   });
 }
 
