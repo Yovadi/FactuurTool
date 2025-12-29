@@ -16,7 +16,8 @@ autoUpdater.setFeedURL({
   owner: 'Yovadi',
   repo: 'FactuurTool',
   private: false,
-  releaseType: 'release'
+  releaseType: 'release',
+  vPrefixedTagName: true
 });
 
 // Logging voor debugging
