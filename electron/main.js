@@ -10,15 +10,30 @@ autoUpdater.autoInstallOnAppQuit = true;
 autoUpdater.allowPrerelease = false;
 autoUpdater.allowDowngrade = false;
 
+// GitHub token voor toegang tot releases (ook voor private repos)
+// De token wordt ingeladen vanuit een .env bestand tijdens build
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+
 // Stel de update feed URL expliciet in
-autoUpdater.setFeedURL({
+const feedConfig = {
   provider: 'github',
   owner: 'Yovadi',
   repo: 'FactuurTool',
-  private: false,
   releaseType: 'release',
   vPrefixedTagName: true
-});
+};
+
+// Voeg token toe als deze beschikbaar is
+if (GITHUB_TOKEN) {
+  feedConfig.token = GITHUB_TOKEN;
+  feedConfig.private = true;
+  console.log('Auto-updater: Using GitHub token for private repository access');
+} else {
+  feedConfig.private = false;
+  console.log('Auto-updater: No GitHub token found, assuming public repository');
+}
+
+autoUpdater.setFeedURL(feedConfig);
 
 // Logging voor debugging
 try {
