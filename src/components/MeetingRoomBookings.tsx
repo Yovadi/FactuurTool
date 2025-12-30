@@ -214,6 +214,36 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     return diffMs / (1000 * 60 * 60);
   };
 
+  const calculateOptimalRate = (
+    totalHours: number,
+    hourlyRate: number,
+    halfDayRate?: number,
+    fullDayRate?: number
+  ): { rateType: 'hourly' | 'half_day' | 'full_day'; appliedRate: number; totalAmount: number } => {
+    const hourlyTotal = totalHours * hourlyRate;
+
+    if (totalHours >= 8 && fullDayRate && fullDayRate < hourlyTotal) {
+      return { rateType: 'full_day', appliedRate: fullDayRate, totalAmount: fullDayRate };
+    }
+
+    if (totalHours >= 4 && halfDayRate && halfDayRate < hourlyTotal) {
+      if (fullDayRate && totalHours >= 8 && fullDayRate < halfDayRate) {
+        return { rateType: 'full_day', appliedRate: fullDayRate, totalAmount: fullDayRate };
+      }
+      return { rateType: 'half_day', appliedRate: halfDayRate, totalAmount: halfDayRate };
+    }
+
+    return { rateType: 'hourly', appliedRate: hourlyRate, totalAmount: hourlyTotal };
+  };
+
+  const getRateLabel = (rateType: 'hourly' | 'half_day' | 'full_day') => {
+    switch (rateType) {
+      case 'hourly': return 'Uurtarief';
+      case 'half_day': return 'Dagdeeltarief';
+      case 'full_day': return 'Hele dag tarief';
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -285,16 +315,24 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     }
 
     const totalHours = calculateTotalHours(formData.start_time, formData.end_time);
-    const totalAmount = totalHours * formData.hourly_rate;
+    const selectedRoom = meetingRooms.find(r => r.id === formData.space_id);
+    const { rateType, appliedRate, totalAmount } = calculateOptimalRate(
+      totalHours,
+      selectedRoom?.hourly_rate || formData.hourly_rate,
+      selectedRoom?.half_day_rate,
+      selectedRoom?.full_day_rate
+    );
 
     const insertData: any = {
       space_id: formData.space_id,
       booking_date: formData.booking_date,
       start_time: formData.start_time,
       end_time: formData.end_time,
-      hourly_rate: formData.hourly_rate,
+      hourly_rate: selectedRoom?.hourly_rate || formData.hourly_rate,
       total_hours: totalHours,
       total_amount: totalAmount,
+      rate_type: rateType,
+      applied_rate: appliedRate,
       status: 'confirmed',
       notes: formData.notes,
       booking_type: bookingType
@@ -905,30 +943,51 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                     </div>
                   </div>
 
-                  <div className="flex gap-4">
-                    <div className="flex-1">
-                      <label className="block text-sm font-medium text-gray-200 mb-1">
-                        Uurtarief (€)
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={formData.hourly_rate}
-                        onChange={(e) => setFormData({ ...formData, hourly_rate: parseFloat(e.target.value) })}
-                        className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                        required
-                      />
-                    </div>
+                  {(() => {
+                    const selectedRoom = meetingRooms.find(r => r.id === formData.space_id);
+                    const totalHours = calculateTotalHours(formData.start_time, formData.end_time);
+                    const rateInfo = selectedRoom ? calculateOptimalRate(
+                      totalHours,
+                      selectedRoom.hourly_rate || 25,
+                      selectedRoom.half_day_rate,
+                      selectedRoom.full_day_rate
+                    ) : { rateType: 'hourly' as const, appliedRate: 25, totalAmount: totalHours * 25 };
 
-                    <div className="flex-1">
-                      <label className="block text-sm font-medium text-gray-200 mb-1">
-                        Totaalbedrag
-                      </label>
-                      <div className="px-3 py-2 bg-dark-800 text-gray-100 rounded">
-                        €{(calculateTotalHours(formData.start_time, formData.end_time) * formData.hourly_rate).toFixed(2)}
+                    return (
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className={`p-3 rounded-lg border ${rateInfo.rateType === 'hourly' ? 'border-gold-500 bg-gold-500/10' : 'border-dark-600 bg-dark-800'}`}>
+                            <div className="text-xs text-gray-400 mb-1">Uurtarief</div>
+                            <div className="text-sm font-medium text-gray-100">
+                              {selectedRoom?.hourly_rate ? `€${selectedRoom.hourly_rate}/uur` : '-'}
+                            </div>
+                          </div>
+                          <div className={`p-3 rounded-lg border ${rateInfo.rateType === 'half_day' ? 'border-gold-500 bg-gold-500/10' : 'border-dark-600 bg-dark-800'}`}>
+                            <div className="text-xs text-gray-400 mb-1">Dagdeel (4+ uur)</div>
+                            <div className="text-sm font-medium text-gray-100">
+                              {selectedRoom?.half_day_rate ? `€${selectedRoom.half_day_rate}` : '-'}
+                            </div>
+                          </div>
+                          <div className={`p-3 rounded-lg border ${rateInfo.rateType === 'full_day' ? 'border-gold-500 bg-gold-500/10' : 'border-dark-600 bg-dark-800'}`}>
+                            <div className="text-xs text-gray-400 mb-1">Hele dag (8+ uur)</div>
+                            <div className="text-sm font-medium text-gray-100">
+                              {selectedRoom?.full_day_rate ? `€${selectedRoom.full_day_rate}` : '-'}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between p-3 bg-dark-700 rounded-lg">
+                          <div>
+                            <span className="text-sm text-gray-400">Toegepast tarief: </span>
+                            <span className="text-sm font-medium text-gold-400">{getRateLabel(rateInfo.rateType)}</span>
+                            <span className="text-sm text-gray-400"> ({totalHours} uur)</span>
+                          </div>
+                          <div className="text-lg font-semibold text-gray-100">
+                            €{rateInfo.totalAmount.toFixed(2)}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
+                    );
+                  })()}
 
                   <div>
                     <label className="block text-sm font-medium text-gray-200 mb-1">
@@ -1169,7 +1228,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                         {booking.total_hours.toFixed(1)} uur
                       </div>
                       <div className="text-xs text-gray-400 mt-0.5">
-                        €{booking.hourly_rate}/uur
+                        {booking.rate_type ? getRateLabel(booking.rate_type) : `€${booking.hourly_rate}/uur`}
                       </div>
                     </td>
                     <td className="px-4 py-3 w-[10%]">

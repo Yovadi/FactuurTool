@@ -135,6 +135,52 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
     }, 5000);
   };
 
+  const calculateOptimalRate = (
+    totalHours: number,
+    hourlyRate: number,
+    halfDayRate?: number,
+    fullDayRate?: number
+  ): { rateType: 'hourly' | 'half_day' | 'full_day'; appliedRate: number; totalAmount: number } => {
+    const hourlyTotal = totalHours * hourlyRate;
+
+    if (totalHours >= 8 && fullDayRate && fullDayRate < hourlyTotal) {
+      return { rateType: 'full_day', appliedRate: fullDayRate, totalAmount: fullDayRate };
+    }
+
+    if (totalHours >= 4 && halfDayRate && halfDayRate < hourlyTotal) {
+      if (fullDayRate && totalHours >= 8 && fullDayRate < halfDayRate) {
+        return { rateType: 'full_day', appliedRate: fullDayRate, totalAmount: fullDayRate };
+      }
+      return { rateType: 'half_day', appliedRate: halfDayRate, totalAmount: halfDayRate };
+    }
+
+    return { rateType: 'hourly', appliedRate: hourlyRate, totalAmount: hourlyTotal };
+  };
+
+  useEffect(() => {
+    if (selectedCells.length > 0 && formData.room_id) {
+      const selectedRoom = meetingRooms.find(r => r.id === formData.room_id);
+      if (selectedRoom) {
+        const sortedCells = [...selectedCells].sort((a, b) => a.slotIndex - b.slotIndex);
+        const startIndex = sortedCells[0].slotIndex;
+        const endIndex = sortedCells[sortedCells.length - 1].slotIndex + 1;
+        const startTime = timeSlots[startIndex];
+        const endTime = timeSlots[endIndex] || '22:00';
+
+        const [startHour, startMin] = startTime.split(':').map(Number);
+        const [endHour, endMin] = endTime.split(':').map(Number);
+        const totalHours = ((endHour * 60 + endMin) - (startHour * 60 + startMin)) / 60;
+
+        const { rateType: optimalRateType } = calculateOptimalRate(
+          totalHours,
+          selectedRoom.hourly_rate || 25,
+          selectedRoom.half_day_rate,
+          selectedRoom.full_day_rate
+        );
+        setRateType(optimalRateType);
+      }
+    }
+  }, [selectedCells, formData.room_id, meetingRooms]);
 
   useEffect(() => {
     setIsTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0);
@@ -1476,10 +1522,25 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
 
                 if (!hasMultipleRates) return null;
 
+                const sortedCells = [...selectedCells].sort((a, b) => a.slotIndex - b.slotIndex);
+                const startIdx = sortedCells[0]?.slotIndex || 0;
+                const endIdx = (sortedCells[sortedCells.length - 1]?.slotIndex || 0) + 1;
+                const startT = timeSlots[startIdx];
+                const endT = timeSlots[endIdx] || '22:00';
+                const [sH, sM] = startT.split(':').map(Number);
+                const [eH, eM] = endT.split(':').map(Number);
+                const hours = ((eH * 60 + eM) - (sH * 60 + sM)) / 60;
+                const optimal = calculateOptimalRate(
+                  hours,
+                  selectedRoom?.hourly_rate || 25,
+                  selectedRoom?.half_day_rate,
+                  selectedRoom?.full_day_rate
+                );
+
                 return (
                   <div>
                     <label className="block text-sm font-medium text-gray-200 mb-2">
-                      Tarieftype *
+                      Tarieftype {optimal.rateType !== 'hourly' && <span className="text-gold-400 text-xs">(automatisch aanbevolen)</span>}
                     </label>
                     <div className="grid grid-cols-3 gap-2">
                       {hasHourlyRate && (
@@ -1490,7 +1551,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                             rateType === 'hourly'
                               ? 'bg-gold-500 text-white'
                               : 'bg-dark-700 text-gray-400 hover:bg-dark-600'
-                          }`}
+                          } ${optimal.rateType === 'hourly' ? 'ring-2 ring-gold-500/50' : ''}`}
                         >
                           Per uur
                           <div className="text-xs opacity-75">€{selectedRoom?.hourly_rate?.toFixed(2)}</div>
@@ -1504,7 +1565,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                             rateType === 'half_day'
                               ? 'bg-gold-500 text-white'
                               : 'bg-dark-700 text-gray-400 hover:bg-dark-600'
-                          }`}
+                          } ${optimal.rateType === 'half_day' ? 'ring-2 ring-gold-500/50' : ''}`}
                         >
                           Dagdeel
                           <div className="text-xs opacity-75">€{selectedRoom?.half_day_rate?.toFixed(2)}</div>
@@ -1518,7 +1579,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                             rateType === 'full_day'
                               ? 'bg-gold-500 text-white'
                               : 'bg-dark-700 text-gray-400 hover:bg-dark-600'
-                          }`}
+                          } ${optimal.rateType === 'full_day' ? 'ring-2 ring-gold-500/50' : ''}`}
                         >
                           Hele dag
                           <div className="text-xs opacity-75">€{selectedRoom?.full_day_rate?.toFixed(2)}</div>
