@@ -296,7 +296,16 @@ export function SpaceTypeRates() {
                   </div>
                 )}
 
-                {rate.is_annual && (
+                {(rate.space_type === 'bedrijfsruimte' || rate.space_type === 'buitenterrein') && (
+                  <div className="pt-2 border-t border-dark-700">
+                    <div className="flex items-center gap-2 text-xs text-amber-400">
+                      <AlertCircle size={12} />
+                      <span>Jaarlijks tarief (wordt gedeeld door 12 voor maandfactuur)</span>
+                    </div>
+                  </div>
+                )}
+
+                {rate.is_annual && rate.space_type !== 'bedrijfsruimte' && rate.space_type !== 'buitenterrein' && (
                   <div className="pt-2 border-t border-dark-700">
                     <div className="flex items-center gap-2 text-xs text-amber-400">
                       <AlertCircle size={12} />
@@ -640,7 +649,8 @@ export function SpaceTypeRates() {
           <p><strong className="text-gold-500">Per uur:</strong> Prijs wordt berekend per uur gebruik (voor vergaderruimtes)</p>
           <p><strong className="text-gold-500">Per dag:</strong> Dagprijs × aantal gebruikte dagen (alleen voor flexplekken)</p>
           <p><strong className="text-gold-500">Aangepast:</strong> Combinatie van m²-prijs en vast bedrag mogelijk</p>
-          <p className="pt-2 border-t border-dark-700"><strong className="text-gold-500">Jaarlijks tarief:</strong> Wanneer aangevinkt wordt het opgegeven tarief automatisch gedeeld door 12 voor maandelijkse facturering</p>
+          <p className="pt-2 border-t border-dark-700"><strong className="text-gold-500">Bedrijfsruimte & Buitenterrein:</strong> Deze ruimtetypes hebben altijd een jaarlijks tarief dat automatisch gedeeld wordt door 12 voor maandelijkse facturering</p>
+          <p><strong className="text-gold-500">Jaarlijks tarief:</strong> Wanneer aangevinkt wordt het opgegeven tarief automatisch gedeeld door 12 voor maandelijkse facturering</p>
           <p><strong className="text-gold-500">Gemeubileerd:</strong> Voor kantoren kun je aparte tarieven instellen voor gemeubileerde en niet-gemeubileerde ruimtes</p>
           <p><strong className="text-gold-500">Flexplek:</strong> Flexplekken gebruiken altijd de "per dag" berekeningsmethode</p>
         </div>
