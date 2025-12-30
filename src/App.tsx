@@ -1,17 +1,19 @@
-import { useState, useEffect } from 'react';
-import { Dashboard } from './components/Dashboard';
-import { TenantManagement } from './components/TenantManagement';
-import { LeaseManagement } from './components/LeaseManagement';
-import { SpaceManagement } from './components/SpaceManagement';
-import { SpaceTypeRates } from './components/SpaceTypeRates';
-import { FlexOccupancy } from './components/FlexOccupancy';
-import { CompanySettings } from './components/CompanySettings';
-import { MeetingRoomBookings } from './components/MeetingRoomBookings';
-import { PinLogin } from './components/PinLogin';
-import { Analytics } from './components/Analytics';
-import { DebiteurenTabs } from './components/DebiteurenTabs';
-import { CrediteurenTabs } from './components/CrediteurenTabs';
-import { LayoutDashboard, Users, Building, Settings, CalendarClock, LogOut, TrendingUp, FileText, Building2, Calculator, Euro, UserCheck, UserMinus, BarChart3 } from 'lucide-react';
+import { useState, useEffect, lazy, Suspense } from 'react';
+import { UpdateDialog } from './components/UpdateDialog';
+import { LayoutDashboard, Users, Building, Settings, CalendarClock, LogOut, TrendingUp, FileText, Building2, Calculator, Euro, UserCheck, UserMinus, BarChart3, Loader2 } from 'lucide-react';
+
+const Dashboard = lazy(() => import('./components/Dashboard').then(m => ({ default: m.Dashboard })));
+const TenantManagement = lazy(() => import('./components/TenantManagement').then(m => ({ default: m.TenantManagement })));
+const LeaseManagement = lazy(() => import('./components/LeaseManagement').then(m => ({ default: m.LeaseManagement })));
+const SpaceManagement = lazy(() => import('./components/SpaceManagement').then(m => ({ default: m.SpaceManagement })));
+const SpaceTypeRates = lazy(() => import('./components/SpaceTypeRates').then(m => ({ default: m.SpaceTypeRates })));
+const FlexOccupancy = lazy(() => import('./components/FlexOccupancy').then(m => ({ default: m.FlexOccupancy })));
+const CompanySettings = lazy(() => import('./components/CompanySettings').then(m => ({ default: m.CompanySettings })));
+const MeetingRoomBookings = lazy(() => import('./components/MeetingRoomBookings').then(m => ({ default: m.MeetingRoomBookings })));
+const PinLogin = lazy(() => import('./components/PinLogin').then(m => ({ default: m.PinLogin })));
+const Analytics = lazy(() => import('./components/Analytics').then(m => ({ default: m.Analytics })));
+const DebiteurenTabs = lazy(() => import('./components/DebiteurenTabs').then(m => ({ default: m.DebiteurenTabs })));
+const CrediteurenTabs = lazy(() => import('./components/CrediteurenTabs').then(m => ({ default: m.CrediteurenTabs })));
 
 type Tab = 'dashboard' | 'tenants' | 'spaces-spaces' | 'spaces-rates' | 'contracts' | 'occupancy' | 'bookings' | 'financial-debtors' | 'financial-creditors' | 'analytics' | 'settings';
 
@@ -28,6 +30,15 @@ type PrefilledInvoiceData = {
   spaces: any[];
 };
 
+type UpdateDialogState = {
+  show: boolean;
+  type: 'update-available' | 'update-not-available' | 'update-downloaded' | 'update-error' | 'downloading';
+  currentVersion?: string;
+  newVersion?: string;
+  error?: string;
+  progress?: number;
+};
+
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [isElectron, setIsElectron] = useState(false);
@@ -35,17 +46,70 @@ function App() {
   const [loggedInTenantName, setLoggedInTenantName] = useState<string>('');
   const [prefilledInvoiceData, setPrefilledInvoiceData] = useState<PrefilledInvoiceData | null>(null);
   const [appVersion, setAppVersion] = useState<string>('');
+  const [updateDialog, setUpdateDialog] = useState<UpdateDialogState>({
+    show: false,
+    type: 'update-not-available'
+  });
 
   useEffect(() => {
-    // Always run as Electron app (admin interface without login)
     setIsElectron(true);
 
-    // Get app version from Electron
     if ((window as any).electron?.getAppVersion) {
       (window as any).electron.getAppVersion().then((version: string) => {
         setAppVersion(version);
       }).catch((err: any) => {
         console.error('Error getting app version:', err);
+      });
+    }
+
+    if ((window as any).electron?.onUpdateAvailable) {
+      (window as any).electron.onUpdateAvailable((data: any) => {
+        setUpdateDialog({
+          show: true,
+          type: 'update-available',
+          currentVersion: data.currentVersion,
+          newVersion: data.newVersion
+        });
+      });
+    }
+
+    if ((window as any).electron?.onUpdateNotAvailable) {
+      (window as any).electron.onUpdateNotAvailable((data: any) => {
+        setUpdateDialog({
+          show: true,
+          type: 'update-not-available',
+          currentVersion: data.currentVersion
+        });
+      });
+    }
+
+    if ((window as any).electron?.onUpdateDownloaded) {
+      (window as any).electron.onUpdateDownloaded(() => {
+        setUpdateDialog({
+          show: true,
+          type: 'update-downloaded'
+        });
+      });
+    }
+
+    if ((window as any).electron?.onUpdateError) {
+      (window as any).electron.onUpdateError((data: any) => {
+        setUpdateDialog({
+          show: true,
+          type: 'update-error',
+          error: data.error
+        });
+      });
+    }
+
+    if ((window as any).electron?.onDownloadProgress) {
+      (window as any).electron.onDownloadProgress((data: any) => {
+        setUpdateDialog(prev => ({
+          ...prev,
+          show: true,
+          type: 'downloading',
+          progress: data.percent
+        }));
       });
     }
   }, []);
@@ -100,9 +164,22 @@ function App() {
   };
 
   // On production (Netlify), show PIN login then booking calendar
+  const LoadingFallback = () => (
+    <div className="h-full flex items-center justify-center bg-dark-950">
+      <div className="flex flex-col items-center gap-3">
+        <Loader2 className="text-gold-500 animate-spin" size={32} />
+        <p className="text-gray-400">Laden...</p>
+      </div>
+    </div>
+  );
+
   if (!isElectron) {
     if (!loggedInTenantId) {
-      return <PinLogin onAuthenticated={handleAuthenticated} />;
+      return (
+        <Suspense fallback={<LoadingFallback />}>
+          <PinLogin onAuthenticated={handleAuthenticated} />
+        </Suspense>
+      );
     }
 
     return (
@@ -126,14 +203,41 @@ function App() {
             </button>
           </div>
         </div>
-        <MeetingRoomBookings loggedInTenantId={loggedInTenantId} />
+        <Suspense fallback={<LoadingFallback />}>
+          <MeetingRoomBookings loggedInTenantId={loggedInTenantId} />
+        </Suspense>
       </div>
     );
   }
 
-  // On Electron/Development, show full admin interface
+  const handleDownloadUpdate = async () => {
+    if ((window as any).electron?.downloadUpdate) {
+      setUpdateDialog(prev => ({ ...prev, show: true, type: 'downloading', progress: 0 }));
+      await (window as any).electron.downloadUpdate();
+    }
+  };
+
+  const handleInstallUpdate = async () => {
+    if ((window as any).electron?.installUpdate) {
+      await (window as any).electron.installUpdate();
+    }
+  };
+
   return (
     <div className="h-screen bg-dark-950 flex flex-col">
+      {updateDialog.show && (
+        <UpdateDialog
+          type={updateDialog.type}
+          currentVersion={updateDialog.currentVersion}
+          newVersion={updateDialog.newVersion}
+          error={updateDialog.error}
+          progress={updateDialog.progress}
+          onDownload={handleDownloadUpdate}
+          onInstall={handleInstallUpdate}
+          onClose={() => setUpdateDialog(prev => ({ ...prev, show: false }))}
+        />
+      )}
+
       <div className="flex-1 max-w-[1920px] w-full mx-auto p-6 overflow-hidden">
         <div className="flex gap-6 h-full">
           <aside className="w-64 flex-shrink-0 h-full flex flex-col overflow-hidden">
@@ -238,29 +342,31 @@ function App() {
           </aside>
 
           <main className="flex-1 min-w-0 h-full flex flex-col overflow-hidden bg-dark-950">
-            {activeTab === 'dashboard' && <Dashboard />}
-            {activeTab === 'tenants' && <TenantManagement />}
-            {activeTab === 'spaces-spaces' && <SpaceManagement />}
-            {activeTab === 'spaces-rates' && <SpaceTypeRates />}
-            {activeTab === 'contracts' && <LeaseManagement />}
-            {activeTab === 'occupancy' && <FlexOccupancy />}
-            {activeTab === 'bookings' && <MeetingRoomBookings />}
-            {activeTab === 'financial-debtors' && (
-              <DebiteurenTabs
-                onCreateCreditNote={(invoice, tenant, spaces) => {
-                  setPrefilledInvoiceData({ invoice, tenant, spaces });
-                  setActiveTab('financial-creditors');
-                }}
-              />
-            )}
-            {activeTab === 'financial-creditors' && (
-              <CrediteurenTabs
-                prefilledInvoiceData={prefilledInvoiceData}
-                onClearPrefilled={() => setPrefilledInvoiceData(null)}
-              />
-            )}
-            {activeTab === 'analytics' && <Analytics />}
-            {activeTab === 'settings' && <CompanySettings />}
+            <Suspense fallback={<LoadingFallback />}>
+              {activeTab === 'dashboard' && <Dashboard />}
+              {activeTab === 'tenants' && <TenantManagement />}
+              {activeTab === 'spaces-spaces' && <SpaceManagement />}
+              {activeTab === 'spaces-rates' && <SpaceTypeRates />}
+              {activeTab === 'contracts' && <LeaseManagement />}
+              {activeTab === 'occupancy' && <FlexOccupancy />}
+              {activeTab === 'bookings' && <MeetingRoomBookings />}
+              {activeTab === 'financial-debtors' && (
+                <DebiteurenTabs
+                  onCreateCreditNote={(invoice, tenant, spaces) => {
+                    setPrefilledInvoiceData({ invoice, tenant, spaces });
+                    setActiveTab('financial-creditors');
+                  }}
+                />
+              )}
+              {activeTab === 'financial-creditors' && (
+                <CrediteurenTabs
+                  prefilledInvoiceData={prefilledInvoiceData}
+                  onClearPrefilled={() => setPrefilledInvoiceData(null)}
+                />
+              )}
+              {activeTab === 'analytics' && <Analytics />}
+              {activeTab === 'settings' && <CompanySettings />}
+            </Suspense>
           </main>
         </div>
       </div>

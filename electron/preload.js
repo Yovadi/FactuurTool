@@ -18,6 +18,27 @@ contextBridge.exposeInMainWorld('electron', {
   },
   checkForUpdates: () => {
     return ipcRenderer.invoke('check-for-updates');
+  },
+  onUpdateAvailable: (callback) => {
+    ipcRenderer.on('update-available', (_, data) => callback(data));
+  },
+  onUpdateNotAvailable: (callback) => {
+    ipcRenderer.on('update-not-available', (_, data) => callback(data));
+  },
+  onUpdateDownloaded: (callback) => {
+    ipcRenderer.on('update-downloaded', (_, data) => callback(data));
+  },
+  onUpdateError: (callback) => {
+    ipcRenderer.on('update-error', (_, data) => callback(data));
+  },
+  onDownloadProgress: (callback) => {
+    ipcRenderer.on('download-progress', (_, data) => callback(data));
+  },
+  downloadUpdate: () => {
+    return ipcRenderer.invoke('download-update');
+  },
+  installUpdate: () => {
+    return ipcRenderer.invoke('install-update');
   }
 });
 
@@ -39,5 +60,26 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   checkForUpdates: () => {
     return ipcRenderer.invoke('check-for-updates');
+  },
+  onUpdateAvailable: (callback) => {
+    ipcRenderer.on('update-available', (_, data) => callback(data));
+  },
+  onUpdateNotAvailable: (callback) => {
+    ipcRenderer.on('update-not-available', (_, data) => callback(data));
+  },
+  onUpdateDownloaded: (callback) => {
+    ipcRenderer.on('update-downloaded', (_, data) => callback(data));
+  },
+  onUpdateError: (callback) => {
+    ipcRenderer.on('update-error', (_, data) => callback(data));
+  },
+  onDownloadProgress: (callback) => {
+    ipcRenderer.on('download-progress', (_, data) => callback(data));
+  },
+  downloadUpdate: () => {
+    return ipcRenderer.invoke('download-update');
+  },
+  installUpdate: () => {
+    return ipcRenderer.invoke('install-update');
   }
 });

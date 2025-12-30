@@ -289,7 +289,6 @@ ipcMain.handle('check-for-updates', async () => {
       });
     }
 
-    // Reset flag after a short delay
     setTimeout(() => {
       isManualUpdateCheck = false;
     }, 3000);
@@ -324,29 +323,35 @@ ipcMain.handle('check-for-updates', async () => {
   }
 });
 
+ipcMain.handle('download-update', async () => {
+  try {
+    await autoUpdater.downloadUpdate();
+    return { success: true };
+  } catch (error) {
+    console.error('Error downloading update:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('install-update', () => {
+  try {
+    autoUpdater.quitAndInstall(false, true);
+    return { success: true };
+  } catch (error) {
+    console.error('Error installing update:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 autoUpdater.on('update-available', (info) => {
   console.log('Update available:', JSON.stringify(info, null, 2));
 
-  dialog.showMessageBox(mainWindow, {
-    type: 'info',
-    title: 'Update Beschikbaar',
-    message: `Nieuwe versie ${info.version} is beschikbaar!`,
-    detail: `Huidige versie: ${app.getVersion()}\nNieuwe versie: ${info.version}\n\nWilt u de update nu downloaden? De update wordt geïnstalleerd wanneer u de applicatie afsluit.`,
-    buttons: ['Download Update', 'Later'],
-    defaultId: 0,
-    cancelId: 1
-  }).then(result => {
-    if (result.response === 0) {
-      autoUpdater.downloadUpdate();
-
-      dialog.showMessageBox(mainWindow, {
-        type: 'info',
-        title: 'Downloaden',
-        message: 'Update wordt gedownload op de achtergrond...',
-        buttons: ['OK']
-      });
-    }
-  });
+  if (mainWindow && mainWindow.webContents) {
+    mainWindow.webContents.send('update-available', {
+      currentVersion: app.getVersion(),
+      newVersion: info.version
+    });
+  }
 });
 
 autoUpdater.on('update-not-available', (info) => {
@@ -355,14 +360,9 @@ autoUpdater.on('update-not-available', (info) => {
   console.log('Latest available version:', info?.version);
   console.log('Update info:', JSON.stringify(info, null, 2));
 
-  // Only show message when user manually checks
   if (isManualUpdateCheck && mainWindow && mainWindow.webContents) {
-    dialog.showMessageBox(mainWindow, {
-      type: 'info',
-      title: 'Geen Updates',
-      message: 'U gebruikt al de nieuwste versie',
-      detail: `Huidige versie: ${app.getVersion()}\n\nEr zijn geen nieuwe updates beschikbaar.`,
-      buttons: ['OK']
+    mainWindow.webContents.send('update-not-available', {
+      currentVersion: app.getVersion()
     });
   }
 });
@@ -375,13 +375,9 @@ autoUpdater.on('error', (err) => {
   console.error('Error name:', err.name);
   console.error('Full error:', JSON.stringify(err, Object.getOwnPropertyNames(err), 2));
 
-  if (isManualUpdateCheck && mainWindow) {
-    dialog.showMessageBox(mainWindow, {
-      type: 'error',
-      title: 'Update Error',
-      message: 'Er ging iets fout bij het checken voor updates',
-      detail: `Error: ${err.message}\n\nControleer de console voor meer details.`,
-      buttons: ['OK']
+  if (isManualUpdateCheck && mainWindow && mainWindow.webContents) {
+    mainWindow.webContents.send('update-error', {
+      error: err.message
     });
   }
 });
@@ -394,22 +390,18 @@ autoUpdater.on('checking-for-update', () => {
 
 autoUpdater.on('download-progress', (progressObj) => {
   console.log(`Download progress: ${Math.round(progressObj.percent)}%`);
+
+  if (mainWindow && mainWindow.webContents) {
+    mainWindow.webContents.send('download-progress', {
+      percent: progressObj.percent
+    });
+  }
 });
 
 autoUpdater.on('update-downloaded', () => {
-  dialog.showMessageBox(mainWindow, {
-    type: 'info',
-    title: 'Update Klaar',
-    message: 'Update is gedownload en wordt geïnstalleerd bij het afsluiten van de applicatie.',
-    detail: 'Wilt u nu herstarten om de update te installeren?',
-    buttons: ['Nu Herstarten', 'Later'],
-    defaultId: 0,
-    cancelId: 1
-  }).then(result => {
-    if (result.response === 0) {
-      autoUpdater.quitAndInstall(false, true);
-    }
-  });
+  if (mainWindow && mainWindow.webContents) {
+    mainWindow.webContents.send('update-downloaded', {});
+  }
 });
 
 function checkForUpdates() {

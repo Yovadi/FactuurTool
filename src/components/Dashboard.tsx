@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Building, Users, AlertCircle, Calendar, Clock, CalendarClock, FileText, DollarSign, CheckCircle } from 'lucide-react';
+import { SkeletonDashboard } from './SkeletonLoader';
 
 type DashboardStats = {
   totalTenants: number;
@@ -207,7 +208,7 @@ export function Dashboard() {
     : 0;
 
   if (loading) {
-    return <div className="text-center py-8">Dashboard laden...</div>;
+    return <SkeletonDashboard />;
   }
 
   return (
