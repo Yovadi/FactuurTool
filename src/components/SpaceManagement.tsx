@@ -27,7 +27,9 @@ export function SpaceManagement() {
     hourly_rate: '',
     diversen_calculation: 'fixed' as 'fixed' | 'per_sqm' | 'quantity_price',
     diversen_quantity: '',
-    diversen_unit_price: ''
+    diversen_unit_price: '',
+    is_shared: false,
+    shared_capacity: 1
   });
 
   useEffect(() => {
@@ -174,6 +176,8 @@ export function SpaceManagement() {
       spaceData.diversen_calculation = null;
       spaceData.diversen_quantity = null;
       spaceData.diversen_unit_price = null;
+      spaceData.is_shared = false;
+      spaceData.shared_capacity = null;
     } else if (formData.space_type === 'Flexplek') {
       spaceData.daily_rate = formData.daily_rate ? parseFloat(formData.daily_rate) : null;
       spaceData.rate_per_sqm = null;
@@ -181,11 +185,15 @@ export function SpaceManagement() {
       spaceData.diversen_calculation = null;
       spaceData.diversen_quantity = null;
       spaceData.diversen_unit_price = null;
+      spaceData.is_shared = false;
+      spaceData.shared_capacity = null;
     } else if (formData.space_type === 'diversen') {
       spaceData.diversen_calculation = formData.diversen_calculation;
       spaceData.rate_per_sqm = null;
       spaceData.daily_rate = null;
       spaceData.hourly_rate = null;
+      spaceData.is_shared = formData.is_shared;
+      spaceData.shared_capacity = formData.is_shared ? formData.shared_capacity : 1;
 
       if (formData.diversen_calculation === 'fixed') {
         spaceData.square_footage = parseFloat(formData.square_footage) || 0;
@@ -208,6 +216,8 @@ export function SpaceManagement() {
       spaceData.diversen_calculation = null;
       spaceData.diversen_quantity = null;
       spaceData.diversen_unit_price = null;
+      spaceData.is_shared = false;
+      spaceData.shared_capacity = null;
     }
 
     if (editingSpace) {
@@ -277,7 +287,9 @@ export function SpaceManagement() {
       hourly_rate: space.hourly_rate ? space.hourly_rate.toString() : '',
       diversen_calculation: (space as any).diversen_calculation || 'fixed',
       diversen_quantity: (space as any).diversen_quantity ? (space as any).diversen_quantity.toString() : '',
-      diversen_unit_price: (space as any).diversen_unit_price ? (space as any).diversen_unit_price.toString() : ''
+      diversen_unit_price: (space as any).diversen_unit_price ? (space as any).diversen_unit_price.toString() : '',
+      is_shared: (space as any).is_shared || false,
+      shared_capacity: (space as any).shared_capacity || 1
     });
     setShowForm(true);
     setError(null);
@@ -311,7 +323,9 @@ export function SpaceManagement() {
       hourly_rate: '',
       diversen_calculation: 'fixed',
       diversen_quantity: '',
-      diversen_unit_price: ''
+      diversen_unit_price: '',
+      is_shared: false,
+      shared_capacity: 1
     });
     setEditingSpace(null);
     setShowForm(false);
@@ -534,6 +548,39 @@ export function SpaceManagement() {
                       </div>
                     </>
                   )}
+                  <div className="pt-3 border-t border-dark-700">
+                    <div className="flex items-center gap-2 mb-2">
+                      <input
+                        type="checkbox"
+                        id="is_shared"
+                        checked={formData.is_shared}
+                        onChange={(e) => setFormData({ ...formData, is_shared: e.target.checked })}
+                        className="w-4 h-4 text-gold-500 border-dark-600 rounded focus:ring-2 focus:ring-gold-500"
+                      />
+                      <label htmlFor="is_shared" className="text-sm font-medium text-gray-200">
+                        Gedeeld door meerdere huurders
+                      </label>
+                    </div>
+                    {formData.is_shared && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-200 mb-1">
+                          Maximaal aantal huurders *
+                        </label>
+                        <input
+                          type="number"
+                          min="2"
+                          required
+                          value={formData.shared_capacity}
+                          onChange={(e) => setFormData({ ...formData, shared_capacity: parseInt(e.target.value) || 2 })}
+                          className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                          placeholder="bijv. 5"
+                        />
+                        <p className="text-xs text-gray-400 mt-1">
+                          Hoeveel huurders kunnen dit item tegelijkertijd huren?
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
               {(formData.space_type === 'kantoor' || formData.space_type === 'Flexplek') && (

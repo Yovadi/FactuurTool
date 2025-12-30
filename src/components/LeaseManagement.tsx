@@ -228,11 +228,36 @@ export function LeaseManagement() {
           return;
         }
 
-        const spaceIds = selectedSpaces.map(s => s.space_id);
-        await supabase
-          .from('office_spaces')
-          .update({ is_available: false })
-          .in('id', spaceIds);
+        const nonSharedSpaceIds = selectedSpaces
+          .filter(s => {
+            const space = spaces.find(sp => sp.id === s.space_id);
+            return !space || !(space as any).is_shared || space.space_type !== 'diversen';
+          })
+          .map(s => s.space_id);
+
+        if (nonSharedSpaceIds.length > 0) {
+          await supabase
+            .from('office_spaces')
+            .update({ is_available: false })
+            .in('id', nonSharedSpaceIds);
+        }
+
+        for (const selectedSpace of selectedSpaces) {
+          const space = spaces.find(sp => sp.id === selectedSpace.space_id);
+          if (space && (space as any).is_shared && space.space_type === 'diversen') {
+            const leaseCount = leases
+              .filter(l => l.id !== editingLease?.id)
+              .filter(l => l.lease_spaces.some(ls => ls.space_id === space.id))
+              .length + 1;
+            const sharedCapacity = (space as any).shared_capacity || 1;
+            if (leaseCount >= sharedCapacity) {
+              await supabase
+                .from('office_spaces')
+                .update({ is_available: false })
+                .eq('id', space.id);
+            }
+          }
+        }
       }
 
       resetForm();
@@ -279,11 +304,33 @@ export function LeaseManagement() {
           return;
         }
 
-        const spaceIds = selectedSpaces.map(s => s.space_id);
-        await supabase
-          .from('office_spaces')
-          .update({ is_available: false })
-          .in('id', spaceIds);
+        const nonSharedSpaceIds = selectedSpaces
+          .filter(s => {
+            const space = spaces.find(sp => sp.id === s.space_id);
+            return !space || !(space as any).is_shared || space.space_type !== 'diversen';
+          })
+          .map(s => s.space_id);
+
+        if (nonSharedSpaceIds.length > 0) {
+          await supabase
+            .from('office_spaces')
+            .update({ is_available: false })
+            .in('id', nonSharedSpaceIds);
+        }
+
+        for (const selectedSpace of selectedSpaces) {
+          const space = spaces.find(sp => sp.id === selectedSpace.space_id);
+          if (space && (space as any).is_shared && space.space_type === 'diversen') {
+            const leaseCount = leases.filter(l => l.lease_spaces.some(ls => ls.space_id === space.id)).length + 1;
+            const sharedCapacity = (space as any).shared_capacity || 1;
+            if (leaseCount >= sharedCapacity) {
+              await supabase
+                .from('office_spaces')
+                .update({ is_available: false })
+                .eq('id', space.id);
+            }
+          }
+        }
       } else if (formData.lease_type === 'flex' && flexDefaultSchedule.space_id) {
         const { error: scheduleError } = await supabase
           .from('flex_schedules')
@@ -380,10 +427,27 @@ export function LeaseManagement() {
       return;
     }
 
-    await supabase
-      .from('office_spaces')
-      .update({ is_available: true })
-      .in('id', spaceIds);
+    for (const spaceId of spaceIds) {
+      const space = spaces.find(s => s.id === spaceId);
+      if (space && (space as any).is_shared && space.space_type === 'diversen') {
+        const remainingLeaseCount = leases
+          .filter(l => l.id !== lease.id)
+          .filter(l => l.lease_spaces.some(ls => ls.space_id === spaceId))
+          .length;
+        const sharedCapacity = (space as any).shared_capacity || 1;
+        if (remainingLeaseCount < sharedCapacity) {
+          await supabase
+            .from('office_spaces')
+            .update({ is_available: true })
+            .eq('id', spaceId);
+        }
+      } else {
+        await supabase
+          .from('office_spaces')
+          .update({ is_available: true })
+          .eq('id', spaceId);
+      }
+    }
 
     setLeases(leases.filter(l => l.id !== lease.id));
   };
@@ -440,14 +504,28 @@ export function LeaseManagement() {
       .map((s, i) => i !== currentIndex ? s.space_id : null)
       .filter(id => id !== null);
 
-    const occupiedSpaceIds = leases
+    const leaseSpaceCounts = new Map<string, number>();
+    leases
       .filter(l => !editingLease || l.id !== editingLease.id)
-      .flatMap(l => l.lease_spaces.map(ls => ls.space_id));
+      .forEach(l => {
+        l.lease_spaces.forEach(ls => {
+          leaseSpaceCounts.set(ls.space_id, (leaseSpaceCounts.get(ls.space_id) || 0) + 1);
+        });
+      });
 
-    return spaces.filter(s =>
-      !selectedIds.includes(s.id) &&
-      !occupiedSpaceIds.includes(s.id)
-    );
+    return spaces.filter(s => {
+      if (selectedIds.includes(s.id)) return false;
+
+      const currentLeaseCount = leaseSpaceCounts.get(s.id) || 0;
+      const isShared = (s as any).is_shared;
+      const sharedCapacity = (s as any).shared_capacity || 1;
+
+      if (isShared && s.space_type === 'diversen') {
+        return currentLeaseCount < sharedCapacity;
+      }
+
+      return currentLeaseCount === 0;
+    });
   };
 
   const calculateSpaceRent = (spaceId: string, pricePerSqm: string) => {
