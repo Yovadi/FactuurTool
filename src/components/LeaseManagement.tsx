@@ -458,7 +458,7 @@ export function LeaseManagement() {
     if (!effectivePrice) return 0;
 
     const yearlyRent = space.square_footage * parseFloat(effectivePrice);
-    return space.space_type === 'bedrijfsruimte' ? yearlyRent / 12 : yearlyRent;
+    return space.space_type === 'bedrijfsruimte' || space.space_type === 'buitenterrein' ? yearlyRent / 12 : yearlyRent;
   };
 
   const getTotalMonthlyRent = () => {
@@ -890,7 +890,7 @@ export function LeaseManagement() {
                                   })()}
                                 </div>
                                 <div className="text-xs text-gray-500 mt-1">
-                                  {selectedSpace.space_type === 'bedrijfsruimte'
+                                  {selectedSpace.space_type === 'bedrijfsruimte' || selectedSpace.space_type === 'buitenterrein'
                                     ? `${selectedSpace.square_footage} m² × tarief / 12`
                                     : `${selectedSpace.square_footage} m² × tarief`
                                   }
