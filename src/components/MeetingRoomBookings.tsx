@@ -22,8 +22,6 @@ type Space = {
   id: string;
   space_number: string;
   hourly_rate?: number;
-  half_day_rate?: number;
-  full_day_rate?: number;
 };
 
 type ExternalCustomer = {
@@ -49,8 +47,6 @@ type Booking = {
   hourly_rate: number;
   total_hours: number;
   total_amount: number;
-  rate_type?: 'hourly' | 'half_day' | 'full_day';
-  applied_rate?: number;
   status: 'confirmed' | 'cancelled' | 'completed';
   notes: string;
   invoice_id: string | null;
@@ -118,7 +114,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
 
     const { data: spacesData } = await supabase
       .from('office_spaces')
-      .select('id, space_number, hourly_rate, half_day_rate, full_day_rate')
+      .select('id, space_number, hourly_rate')
       .eq('space_type', 'Meeting Room')
       .order('space_number');
 
@@ -453,15 +449,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     const newTotal = newSubtotal + newVatAmount;
 
     // Verwijder de boeking uit de notes
-    let rateDescription = '';
-    if (booking.rate_type === 'half_day') {
-      rateDescription = 'dagdeel';
-    } else if (booking.rate_type === 'full_day') {
-      rateDescription = 'hele dag';
-    } else {
-      rateDescription = `${booking.total_hours}u`;
-    }
-    const bookingLine = `- ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)} (${rateDescription}) = €${booking.total_amount.toFixed(2)}`;
+    const bookingLine = `- ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)} (${booking.total_hours}u) = €${booking.total_amount.toFixed(2)}`;
 
     let updatedNotes = invoice.notes || '';
     const lines = updatedNotes.split('\n');
@@ -532,15 +520,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       throw new Error('Fout bij het zoeken naar bestaande factuur');
     }
 
-    let rateDescription = '';
-    if (booking.rate_type === 'half_day') {
-      rateDescription = 'dagdeel';
-    } else if (booking.rate_type === 'full_day') {
-      rateDescription = 'hele dag';
-    } else {
-      rateDescription = `${booking.total_hours}u`;
-    }
-    const bookingLine = `- ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)} (${rateDescription}) = €${booking.total_amount.toFixed(2)}`;
+    const bookingLine = `- ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)} (${booking.total_hours}u) = €${booking.total_amount.toFixed(2)}`;
 
     if (existingInvoice) {
       const newSubtotal = parseFloat(existingInvoice.subtotal) + booking.total_amount;

@@ -37,8 +37,6 @@ type Space = {
   id: string;
   space_number: string;
   hourly_rate?: number;
-  half_day_rate?: number;
-  full_day_rate?: number;
 };
 
 type Tenant = {
@@ -112,7 +110,6 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
     room_id: '',
     external_customer_id: ''
   });
-  const [rateType, setRateType] = useState<'hourly' | 'half_day' | 'full_day'>('hourly');
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteOption, setDeleteOption] = useState<'single' | 'all'>('single');
@@ -253,7 +250,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
         .order('start_time'),
       supabase
         .from('office_spaces')
-        .select('id, space_number, hourly_rate, half_day_rate, full_day_rate')
+        .select('id, space_number, hourly_rate')
         .eq('space_type', 'Meeting Room')
         .order('space_number'),
       supabase
@@ -488,20 +485,8 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
     };
 
     const totalHours = calculateTotalHours(startTime, endTime);
-
-    let appliedRate = 0;
-    let totalAmount = 0;
-
-    if (rateType === 'hourly') {
-      appliedRate = selectedRoomForBooking.hourly_rate || 25;
-      totalAmount = totalHours * appliedRate;
-    } else if (rateType === 'half_day') {
-      appliedRate = selectedRoomForBooking.half_day_rate || 50;
-      totalAmount = appliedRate;
-    } else if (rateType === 'full_day') {
-      appliedRate = selectedRoomForBooking.full_day_rate || 90;
-      totalAmount = appliedRate;
-    }
+    const hourlyRate = selectedRoomForBooking.hourly_rate || 25;
+    const totalAmount = totalHours * hourlyRate;
 
     const insertData: any = {
       space_id: selectedRoomForBooking.id,
@@ -509,11 +494,9 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
       booking_date: selectedCells[0].date,
       start_time: startTime,
       end_time: endTime,
-      hourly_rate: selectedRoomForBooking.hourly_rate || 25,
+      hourly_rate: hourlyRate,
       total_hours: totalHours,
       total_amount: totalAmount,
-      rate_type: rateType,
-      applied_rate: appliedRate,
       status: 'confirmed'
     };
 
@@ -580,7 +563,6 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
       room_id: '',
       external_customer_id: ''
     });
-    setRateType('hourly');
     if (onBookingChange) {
       onBookingChange('created', newBooking.id);
     }
@@ -1358,7 +1340,6 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                 onClick={() => {
                   setShowForm(false);
                   setSelectedCells([]);
-                  setRateType('hourly');
                 }}
                 className="text-gray-400 hover:text-gray-200"
               >
@@ -1385,20 +1366,8 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
 
                 const totalHours = calculateTotalHours(startTime, endTime);
                 const selectedRoomForCalc = meetingRooms.find(r => r.id === formData.room_id);
-
-                let previewAmount = 0;
-                let rateLabel = '';
-                if (rateType === 'hourly') {
-                  const rate = selectedRoomForCalc?.hourly_rate || 25;
-                  previewAmount = totalHours * rate;
-                  rateLabel = `€${rate.toFixed(2)}/uur`;
-                } else if (rateType === 'half_day') {
-                  previewAmount = selectedRoomForCalc?.half_day_rate || 50;
-                  rateLabel = 'Dagdeel tarief';
-                } else if (rateType === 'full_day') {
-                  previewAmount = selectedRoomForCalc?.full_day_rate || 90;
-                  rateLabel = 'Hele dag tarief';
-                }
+                const hourlyRate = selectedRoomForCalc?.hourly_rate || 25;
+                const totalAmount = totalHours * hourlyRate;
 
                 return (
                   <div className="bg-dark-700 rounded-lg p-4 space-y-2">
@@ -1412,11 +1381,6 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                     <p className="text-gray-300">
                       <strong>Duur:</strong> {totalHours.toFixed(1)} uur
                     </p>
-                    {formData.room_id && (
-                      <p className="text-gold-400 font-medium">
-                        <strong>Bedrag:</strong> €{previewAmount.toFixed(2)} ({rateLabel})
-                      </p>
-                    )}
                   </div>
                 );
               })()}
@@ -1466,68 +1430,6 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                   ))}
                 </select>
               </div>
-
-              {formData.room_id && (() => {
-                const selectedRoom = meetingRooms.find(r => r.id === formData.room_id);
-                const hasHourlyRate = selectedRoom?.hourly_rate && selectedRoom.hourly_rate > 0;
-                const hasHalfDayRate = selectedRoom?.half_day_rate && selectedRoom.half_day_rate > 0;
-                const hasFullDayRate = selectedRoom?.full_day_rate && selectedRoom.full_day_rate > 0;
-                const hasMultipleRates = [hasHourlyRate, hasHalfDayRate, hasFullDayRate].filter(Boolean).length > 1;
-
-                if (!hasMultipleRates) return null;
-
-                return (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-200 mb-2">
-                      Tarieftype *
-                    </label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {hasHourlyRate && (
-                        <button
-                          type="button"
-                          onClick={() => setRateType('hourly')}
-                          className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                            rateType === 'hourly'
-                              ? 'bg-gold-500 text-white'
-                              : 'bg-dark-700 text-gray-400 hover:bg-dark-600'
-                          }`}
-                        >
-                          Per uur
-                          <div className="text-xs opacity-75">€{selectedRoom?.hourly_rate?.toFixed(2)}</div>
-                        </button>
-                      )}
-                      {hasHalfDayRate && (
-                        <button
-                          type="button"
-                          onClick={() => setRateType('half_day')}
-                          className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                            rateType === 'half_day'
-                              ? 'bg-gold-500 text-white'
-                              : 'bg-dark-700 text-gray-400 hover:bg-dark-600'
-                          }`}
-                        >
-                          Dagdeel
-                          <div className="text-xs opacity-75">€{selectedRoom?.half_day_rate?.toFixed(2)}</div>
-                        </button>
-                      )}
-                      {hasFullDayRate && (
-                        <button
-                          type="button"
-                          onClick={() => setRateType('full_day')}
-                          className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                            rateType === 'full_day'
-                              ? 'bg-gold-500 text-white'
-                              : 'bg-dark-700 text-gray-400 hover:bg-dark-600'
-                          }`}
-                        >
-                          Hele dag
-                          <div className="text-xs opacity-75">€{selectedRoom?.full_day_rate?.toFixed(2)}</div>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })()}
 
               {formBookingType === 'tenant' && loggedInTenantId ? (
                 <div>
@@ -1590,7 +1492,6 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                       room_id: '',
                       external_customer_id: ''
                     });
-                    setRateType('hourly');
                   }}
                   className="px-6 py-2 border border-dark-600 rounded-lg text-gray-300 hover:bg-dark-700 transition-colors"
                 >
