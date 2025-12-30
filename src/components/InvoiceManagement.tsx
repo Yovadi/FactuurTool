@@ -336,19 +336,12 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
       .eq('invoice_id', invoice.id);
 
     if (items) {
-      setLineItems(items.map(item => {
-        const quantity = item.quantity && item.quantity > 0 ? item.quantity : 1;
-        const unitPrice = item.quantity && item.quantity > 0
-          ? item.unit_price
-          : item.amount;
-
-        return {
-          description: item.description,
-          unit_price: unitPrice.toString(),
-          quantity: quantity.toString(),
-          bookingId: item.booking_id || undefined
-        };
-      }));
+      setLineItems(items.map(item => ({
+        description: item.description,
+        unit_price: item.amount.toString(),
+        quantity: '1',
+        bookingId: item.booking_id || undefined
+      })));
     }
 
     const customerType = invoice.external_customer_id ? 'external' : 'tenant';
