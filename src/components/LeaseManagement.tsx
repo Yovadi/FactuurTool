@@ -203,17 +203,23 @@ export function LeaseManagement() {
       } else if (formData.lease_type !== 'flex') {
         const leaseSpacesData = selectedSpaces.map(space => {
           const officeSpace = spaces.find(s => s.id === space.space_id);
-          const effectivePrice = space.price_per_sqm || getDefaultRate(space.space_id);
           let monthlyRent = 0;
-          if (officeSpace && effectivePrice) {
-            const yearlyRent = officeSpace.square_footage * parseFloat(effectivePrice);
-            const isAnnualRate = officeSpace.space_type === 'bedrijfsruimte' || officeSpace.space_type === 'buitenterrein';
-            monthlyRent = isAnnualRate ? yearlyRent / 12 : yearlyRent;
+          let effectivePrice = space.price_per_sqm || getDefaultRate(space.space_id);
+
+          if (officeSpace) {
+            if (officeSpace.space_type === 'diversen') {
+              monthlyRent = calculateDiversenMonthlyRent(officeSpace);
+              effectivePrice = monthlyRent.toString();
+            } else if (effectivePrice) {
+              const yearlyRent = (officeSpace.square_footage || 0) * parseFloat(effectivePrice);
+              const isAnnualRate = officeSpace.space_type === 'bedrijfsruimte' || officeSpace.space_type === 'buitenterrein';
+              monthlyRent = isAnnualRate ? yearlyRent / 12 : yearlyRent;
+            }
           }
           return {
             lease_id: editingLease.id,
             space_id: space.space_id,
-            price_per_sqm: parseFloat(effectivePrice),
+            price_per_sqm: parseFloat(effectivePrice) || 0,
             monthly_rent: monthlyRent
           };
         });
@@ -279,17 +285,23 @@ export function LeaseManagement() {
       if (formData.lease_type !== 'flex') {
         const leaseSpacesData = selectedSpaces.map(space => {
           const officeSpace = spaces.find(s => s.id === space.space_id);
-          const effectivePrice = space.price_per_sqm || getDefaultRate(space.space_id);
           let monthlyRent = 0;
-          if (officeSpace && effectivePrice) {
-            const yearlyRent = officeSpace.square_footage * parseFloat(effectivePrice);
-            const isAnnualRate = officeSpace.space_type === 'bedrijfsruimte' || officeSpace.space_type === 'buitenterrein';
-            monthlyRent = isAnnualRate ? yearlyRent / 12 : yearlyRent;
+          let effectivePrice = space.price_per_sqm || getDefaultRate(space.space_id);
+
+          if (officeSpace) {
+            if (officeSpace.space_type === 'diversen') {
+              monthlyRent = calculateDiversenMonthlyRent(officeSpace);
+              effectivePrice = monthlyRent.toString();
+            } else if (effectivePrice) {
+              const yearlyRent = (officeSpace.square_footage || 0) * parseFloat(effectivePrice);
+              const isAnnualRate = officeSpace.space_type === 'bedrijfsruimte' || officeSpace.space_type === 'buitenterrein';
+              monthlyRent = isAnnualRate ? yearlyRent / 12 : yearlyRent;
+            }
           }
           return {
             lease_id: newLease.id,
             space_id: space.space_id,
-            price_per_sqm: parseFloat(effectivePrice),
+            price_per_sqm: parseFloat(effectivePrice) || 0,
             monthly_rent: monthlyRent
           };
         });
@@ -489,6 +501,20 @@ export function LeaseManagement() {
     return '';
   };
 
+  const calculateDiversenMonthlyRent = (space: OfficeSpace): number => {
+    const diversenCalc = (space as any).diversen_calculation;
+    if (diversenCalc === 'fixed') {
+      return space.square_footage || 0;
+    } else if (diversenCalc === 'per_sqm') {
+      return (space.square_footage || 0) * (space.rate_per_sqm || 0);
+    } else if (diversenCalc === 'quantity_price') {
+      const quantity = (space as any).diversen_quantity || 0;
+      const unitPrice = (space as any).diversen_unit_price || 0;
+      return quantity * unitPrice;
+    }
+    return 0;
+  };
+
   const updateSpace = (index: number, spaceId: string) => {
     const updated = [...selectedSpaces];
     const defaultRate = getDefaultRate(spaceId);
@@ -532,10 +558,14 @@ export function LeaseManagement() {
     const space = spaces.find(s => s.id === spaceId);
     if (!space) return 0;
 
+    if (space.space_type === 'diversen') {
+      return calculateDiversenMonthlyRent(space);
+    }
+
     const effectivePrice = pricePerSqm || getDefaultRate(spaceId);
     if (!effectivePrice) return 0;
 
-    const yearlyRent = space.square_footage * parseFloat(effectivePrice);
+    const yearlyRent = (space.square_footage || 0) * parseFloat(effectivePrice);
     return space.space_type === 'bedrijfsruimte' || space.space_type === 'buitenterrein' ? yearlyRent / 12 : yearlyRent;
   };
 
