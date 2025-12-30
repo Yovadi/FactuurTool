@@ -56,6 +56,35 @@ function bumpVersion() {
   return packageJson.version;
 }
 
+function commitAndPushVersion(version) {
+  const projectRoot = path.resolve(__dirname, '..');
+
+  console.log('Committing version bump to git...');
+  try {
+    execSync('git add package.json', {
+      cwd: projectRoot,
+      stdio: 'inherit'
+    });
+
+    execSync(`git commit -m "chore: bump version to ${version}"`, {
+      cwd: projectRoot,
+      stdio: 'inherit'
+    });
+
+    execSync('git push', {
+      cwd: projectRoot,
+      stdio: 'inherit'
+    });
+
+    console.log('Version bump committed and pushed to git!\n');
+    return true;
+  } catch (error) {
+    console.error('Warning: Could not commit/push version bump:', error.message);
+    console.error('Continuing with publish anyway...\n');
+    return false;
+  }
+}
+
 function cleanBuildFolders() {
   const projectRoot = path.resolve(__dirname, '..');
   const releasePath = path.join(projectRoot, 'release');
@@ -132,13 +161,16 @@ async function main() {
   console.log('Step 1: Bump version');
   const newVersion = bumpVersion();
 
-  console.log('\nStep 2: Clean old builds');
+  console.log('\nStep 2: Commit and push version bump');
+  commitAndPushVersion(newVersion);
+
+  console.log('\nStep 3: Clean old builds');
   cleanBuildFolders();
 
-  console.log('\nStep 3: Build project');
+  console.log('\nStep 4: Build project');
   runBuild();
 
-  console.log('Step 4: Verify GitHub token');
+  console.log('Step 5: Verify GitHub token');
   const tokenValid = await testToken();
 
   if (!tokenValid) {
@@ -152,7 +184,7 @@ async function main() {
   process.env.GH_TOKEN = GH_TOKEN;
   process.env.ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES = 'true';
 
-  console.log(`\nStep 5: Publishing version ${newVersion} to GitHub...\n`);
+  console.log(`\nStep 6: Publishing version ${newVersion} to GitHub...\n`);
 
   const buildProcess = spawn('npx', ['electron-builder', '--win', '--publish', 'always', '--config', 'electron-builder.json'], {
     cwd: path.resolve(__dirname, '..'),
