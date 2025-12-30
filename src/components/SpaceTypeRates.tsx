@@ -427,10 +427,16 @@ export function SpaceTypeRates() {
                   value={formData.space_type}
                   onChange={(e) => {
                     const newSpaceType = e.target.value;
+                    let newCalcMethod = formData.calculation_method;
+                    if (newSpaceType === 'Flexplek') {
+                      newCalcMethod = 'daily';
+                    } else if (newSpaceType === 'Meeting Room') {
+                      newCalcMethod = 'hourly';
+                    }
                     setFormData({
                       ...formData,
                       space_type: newSpaceType,
-                      calculation_method: newSpaceType === 'Flexplek' ? 'daily' : formData.calculation_method
+                      calculation_method: newCalcMethod
                     });
                   }}
                   className="w-full px-3 py-2 bg-dark-700 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
@@ -452,10 +458,12 @@ export function SpaceTypeRates() {
                   value={formData.calculation_method}
                   onChange={(e) => setFormData({ ...formData, calculation_method: e.target.value as any })}
                   className="w-full px-3 py-2 bg-dark-700 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                  disabled={formData.space_type === 'Flexplek'}
+                  disabled={formData.space_type === 'Flexplek' || formData.space_type === 'Meeting Room'}
                 >
                   {formData.space_type === 'Flexplek' ? (
                     <option value="daily">Per dag (x dagen per maand)</option>
+                  ) : formData.space_type === 'Meeting Room' ? (
+                    <option value="hourly">Per uur / dagdeel / hele dag</option>
                   ) : (
                     Object.entries(CALCULATION_METHOD_LABELS).map(([value, label]) => (
                       <option key={value} value={value}>{label}</option>
@@ -464,6 +472,9 @@ export function SpaceTypeRates() {
                 </select>
                 {formData.space_type === 'Flexplek' && (
                   <p className="text-xs text-gray-400 mt-1">Flexplek gebruikt altijd de "per dag" berekeningsmethode</p>
+                )}
+                {formData.space_type === 'Meeting Room' && (
+                  <p className="text-xs text-gray-400 mt-1">Vergaderruimte heeft tarieven per uur, dagdeel en hele dag</p>
                 )}
               </div>
 
