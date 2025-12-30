@@ -49,6 +49,8 @@ export type OfficeSpace = {
   is_furnished: boolean | null;
   space_type: 'bedrijfsruimte' | 'kantoor' | 'buitenterrein' | 'diversen' | 'Meeting Room' | 'Flexplek';
   hourly_rate?: number | null;
+  half_day_rate?: number | null;
+  full_day_rate?: number | null;
   rate_per_sqm?: number | null;
   daily_rate?: number | null;
   is_flex_space?: boolean;
@@ -143,6 +145,10 @@ export type SpaceTypeRate = {
   fixed_rate: number;
   fixed_rate_furnished: number;
   hourly_rate: number;
+  half_day_rate: number;
+  half_day_rate_furnished: number;
+  full_day_rate: number;
+  full_day_rate_furnished: number;
   daily_rate: number;
   daily_rate_furnished: number;
   is_annual: boolean;

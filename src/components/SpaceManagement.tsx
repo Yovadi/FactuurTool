@@ -25,6 +25,8 @@ export function SpaceManagement() {
     rate_per_sqm: '',
     daily_rate: '',
     hourly_rate: '',
+    half_day_rate: '',
+    full_day_rate: '',
     diversen_calculation: 'fixed' as 'fixed' | 'per_sqm' | 'quantity_price',
     diversen_quantity: '',
     diversen_unit_price: '',
@@ -55,29 +57,38 @@ export function SpaceManagement() {
 
   const getRateForSpaceType = (spaceType: string, isFurnished: boolean) => {
     const rate = spaceTypeRates.find(r => r.space_type === spaceType);
-    if (!rate && spaceType !== 'Flexplek') return { rate_per_sqm: '', daily_rate: '', hourly_rate: '' };
+    const emptyRates = { rate_per_sqm: '', daily_rate: '', hourly_rate: '', half_day_rate: '', full_day_rate: '' };
+    if (!rate && spaceType !== 'Flexplek') return emptyRates;
 
     if (spaceType === 'Flexplek') {
       const flexRate = spaceTypeRates.find(r => r.space_type === 'Flexplek');
-      if (flexRate && flexRate.calculation_method === 'daily') {
-        const dailyRateValue = (isFurnished && flexRate.daily_rate_furnished > 0)
-          ? flexRate.daily_rate_furnished
-          : flexRate.daily_rate;
+      if (flexRate) {
+        const hourlyRateValue = flexRate.hourly_rate || 0;
+        const halfDayRateValue = (isFurnished && flexRate.half_day_rate_furnished > 0)
+          ? flexRate.half_day_rate_furnished
+          : flexRate.half_day_rate || 0;
+        const fullDayRateValue = (isFurnished && flexRate.full_day_rate_furnished > 0)
+          ? flexRate.full_day_rate_furnished
+          : flexRate.full_day_rate || 0;
 
         return {
           rate_per_sqm: '',
-          daily_rate: dailyRateValue > 0 ? dailyRateValue.toFixed(2) : '',
-          hourly_rate: ''
+          daily_rate: '',
+          hourly_rate: hourlyRateValue > 0 ? hourlyRateValue.toFixed(2) : '',
+          half_day_rate: halfDayRateValue > 0 ? halfDayRateValue.toFixed(2) : '',
+          full_day_rate: fullDayRateValue > 0 ? fullDayRateValue.toFixed(2) : ''
         };
       }
-      return { rate_per_sqm: '', daily_rate: '', hourly_rate: '' };
+      return emptyRates;
     }
 
     if (spaceType === 'Meeting Room' && rate.calculation_method === 'hourly') {
       return {
         rate_per_sqm: '',
         daily_rate: '',
-        hourly_rate: rate.hourly_rate > 0 ? rate.hourly_rate.toFixed(2) : ''
+        hourly_rate: rate.hourly_rate > 0 ? rate.hourly_rate.toFixed(2) : '',
+        half_day_rate: rate.half_day_rate > 0 ? rate.half_day_rate.toFixed(2) : '',
+        full_day_rate: rate.full_day_rate > 0 ? rate.full_day_rate.toFixed(2) : ''
       };
     }
 
@@ -89,11 +100,13 @@ export function SpaceManagement() {
       return {
         rate_per_sqm: rateValue > 0 ? rateValue.toFixed(2) : '',
         daily_rate: '',
-        hourly_rate: ''
+        hourly_rate: '',
+        half_day_rate: '',
+        full_day_rate: ''
       };
     }
 
-    return { rate_per_sqm: '', daily_rate: '', hourly_rate: '' };
+    return emptyRates;
   };
 
   const loadSpaces = async () => {
@@ -171,6 +184,8 @@ export function SpaceManagement() {
 
     if (formData.space_type === 'Meeting Room') {
       spaceData.hourly_rate = formData.hourly_rate ? parseFloat(formData.hourly_rate) : null;
+      spaceData.half_day_rate = formData.half_day_rate ? parseFloat(formData.half_day_rate) : null;
+      spaceData.full_day_rate = formData.full_day_rate ? parseFloat(formData.full_day_rate) : null;
       spaceData.rate_per_sqm = null;
       spaceData.daily_rate = null;
       spaceData.diversen_calculation = null;
@@ -179,9 +194,11 @@ export function SpaceManagement() {
       spaceData.is_shared = false;
       spaceData.shared_capacity = null;
     } else if (formData.space_type === 'Flexplek') {
-      spaceData.daily_rate = formData.daily_rate ? parseFloat(formData.daily_rate) : null;
+      spaceData.hourly_rate = formData.hourly_rate ? parseFloat(formData.hourly_rate) : null;
+      spaceData.half_day_rate = formData.half_day_rate ? parseFloat(formData.half_day_rate) : null;
+      spaceData.full_day_rate = formData.full_day_rate ? parseFloat(formData.full_day_rate) : null;
+      spaceData.daily_rate = null;
       spaceData.rate_per_sqm = null;
-      spaceData.hourly_rate = null;
       spaceData.diversen_calculation = null;
       spaceData.diversen_quantity = null;
       spaceData.diversen_unit_price = null;
@@ -285,6 +302,8 @@ export function SpaceManagement() {
       rate_per_sqm: space.rate_per_sqm ? space.rate_per_sqm.toString() : '',
       daily_rate: space.daily_rate ? space.daily_rate.toString() : '',
       hourly_rate: space.hourly_rate ? space.hourly_rate.toString() : '',
+      half_day_rate: (space as any).half_day_rate ? (space as any).half_day_rate.toString() : '',
+      full_day_rate: (space as any).full_day_rate ? (space as any).full_day_rate.toString() : '',
       diversen_calculation: (space as any).diversen_calculation || 'fixed',
       diversen_quantity: (space as any).diversen_quantity ? (space as any).diversen_quantity.toString() : '',
       diversen_unit_price: (space as any).diversen_unit_price ? (space as any).diversen_unit_price.toString() : '',
@@ -321,6 +340,8 @@ export function SpaceManagement() {
       rate_per_sqm: '',
       daily_rate: '',
       hourly_rate: '',
+      half_day_rate: '',
+      full_day_rate: '',
       diversen_calculation: 'fixed',
       diversen_quantity: '',
       diversen_unit_price: '',
@@ -627,31 +648,66 @@ export function SpaceManagement() {
                 </div>
               )}
               {formData.space_type === 'Meeting Room' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-200 mb-1">
-                    Uurtarief (€)
-                  </label>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={formData.hourly_rate}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                        setFormData({ ...formData, hourly_rate: value });
-                      }
-                    }}
-                    className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                    placeholder="bijv. 25.00"
-                  />
-                  <p className="text-xs text-gray-400 mt-1">
-                    Tarief per uur voor vergaderingen
-                    {formData.hourly_rate && !editingSpace && ' • Automatisch ingevuld uit Tarieven'}
+                <div className="bg-dark-950 p-4 rounded-lg border border-dark-700 space-y-3">
+                  <h4 className="text-sm font-medium text-gray-200 mb-2">Vergaderruimte Tarieven</h4>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Per Uur (€)</label>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={formData.hourly_rate}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                            setFormData({ ...formData, hourly_rate: value });
+                          }
+                        }}
+                        className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                        placeholder="15.00"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Per Dagdeel (€)</label>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={formData.half_day_rate}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                            setFormData({ ...formData, half_day_rate: value });
+                          }
+                        }}
+                        className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                        placeholder="50.00"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Per Hele Dag (€)</label>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={formData.full_day_rate}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                            setFormData({ ...formData, full_day_rate: value });
+                          }
+                        }}
+                        className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                        placeholder="90.00"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-400">
+                    Dagdeel = halve dag (bijv. ochtend of middag). Vul minimaal 1 tarief in.
+                    {(formData.hourly_rate || formData.half_day_rate || formData.full_day_rate) && !editingSpace && ' • Automatisch ingevuld uit Tarieven'}
                   </p>
                 </div>
               )}
               {formData.space_type === 'Flexplek' && (
-                <div className="bg-dark-950 p-4 rounded-lg border border-dark-700 space-y-3">
+                <div className="bg-dark-950 p-4 rounded-lg border border-dark-700 space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-200 mb-2">
                       Capaciteit (aantal personen tegelijkertijd) *
@@ -670,26 +726,60 @@ export function SpaceManagement() {
                     </p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-200 mb-2">
-                      Dagtarief (€) *
-                    </label>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      required
-                      value={formData.daily_rate}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                          setFormData({ ...formData, daily_rate: value });
-                        }
-                      }}
-                      className="w-full px-4 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-200 focus:outline-none focus:border-gold-500"
-                      placeholder="bijv. 25.00"
-                    />
-                    <p className="text-xs text-gray-400 mt-1">
-                      Tarief per dag voor deze flexplek {formData.is_furnished ? '(gemeubileerd)' : '(basis)'}
-                      {formData.daily_rate && !editingSpace && ' • Automatisch ingevuld uit Tarieven'}
+                    <h4 className="text-sm font-medium text-gray-200 mb-2">Flexplek Tarieven</h4>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Per Uur (€)</label>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={formData.hourly_rate}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                              setFormData({ ...formData, hourly_rate: value });
+                            }
+                          }}
+                          className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                          placeholder="10.00"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Per Dagdeel (€)</label>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={formData.half_day_rate}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                              setFormData({ ...formData, half_day_rate: value });
+                            }
+                          }}
+                          className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                          placeholder="25.00"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Per Hele Dag (€)</label>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={formData.full_day_rate}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                              setFormData({ ...formData, full_day_rate: value });
+                            }
+                          }}
+                          className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                          placeholder="40.00"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2">
+                      Dagdeel = halve dag. Vul minimaal 1 tarief in. {formData.is_furnished ? '(gemeubileerd)' : ''}
+                      {(formData.hourly_rate || formData.half_day_rate || formData.full_day_rate) && !editingSpace && ' • Automatisch ingevuld uit Tarieven'}
                     </p>
                   </div>
                 </div>

@@ -33,6 +33,10 @@ export function SpaceTypeRates() {
     fixed_rate: '',
     fixed_rate_furnished: '',
     hourly_rate: '',
+    half_day_rate: '',
+    half_day_rate_furnished: '',
+    full_day_rate: '',
+    full_day_rate_furnished: '',
     daily_rate: '',
     daily_rate_furnished: '',
     is_annual: false,
@@ -85,6 +89,10 @@ export function SpaceTypeRates() {
       fixed_rate: fixedRate,
       fixed_rate_furnished: fixedRateFurnished,
       hourly_rate: parseFloat(formData.hourly_rate) || 0,
+      half_day_rate: parseFloat(formData.half_day_rate) || 0,
+      half_day_rate_furnished: parseFloat(formData.half_day_rate_furnished) || 0,
+      full_day_rate: parseFloat(formData.full_day_rate) || 0,
+      full_day_rate_furnished: parseFloat(formData.full_day_rate_furnished) || 0,
       daily_rate: parseFloat(formData.daily_rate) || 0,
       daily_rate_furnished: parseFloat(formData.daily_rate_furnished) || 0,
       is_annual: formData.is_annual,
@@ -131,8 +139,12 @@ export function SpaceTypeRates() {
       calculation_method: rate.calculation_method,
       fixed_rate: (rate.fixed_rate * multiplier).toString(),
       fixed_rate_furnished: (rate.fixed_rate_furnished * multiplier).toString(),
-      hourly_rate: rate.hourly_rate.toString(),
-      daily_rate: rate.daily_rate.toString(),
+      hourly_rate: rate.hourly_rate?.toString() || '',
+      half_day_rate: rate.half_day_rate?.toString() || '',
+      half_day_rate_furnished: rate.half_day_rate_furnished?.toString() || '',
+      full_day_rate: rate.full_day_rate?.toString() || '',
+      full_day_rate_furnished: rate.full_day_rate_furnished?.toString() || '',
+      daily_rate: rate.daily_rate?.toString() || '',
       daily_rate_furnished: rate.daily_rate_furnished?.toString() || '',
       is_annual: rate.is_annual,
       description: rate.description || '',
@@ -150,6 +162,10 @@ export function SpaceTypeRates() {
       fixed_rate: '',
       fixed_rate_furnished: '',
       hourly_rate: '',
+      half_day_rate: '',
+      half_day_rate_furnished: '',
+      full_day_rate: '',
+      full_day_rate_furnished: '',
       daily_rate: '',
       daily_rate_furnished: '',
       is_annual: false,
@@ -262,34 +278,90 @@ export function SpaceTypeRates() {
                 )}
 
                 {rate.calculation_method === 'hourly' && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-400">Uurtarief:</span>
-                    <div className="flex items-center gap-1">
-                      <Clock size={14} className="text-gold-500" />
-                      <span className="text-gray-100 font-bold">€{rate.hourly_rate.toFixed(2)}</span>
-                      <span className="text-gray-400">/uur</span>
-                    </div>
+                  <div className="space-y-2">
+                    {rate.hourly_rate > 0 && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-400">Per uur:</span>
+                        <div className="flex items-center gap-1">
+                          <Clock size={14} className="text-gold-500" />
+                          <span className="text-gray-100 font-bold">€{rate.hourly_rate.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    )}
+                    {rate.half_day_rate > 0 && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-400">Per dagdeel:</span>
+                        <div className="flex items-center gap-1">
+                          <Euro size={14} className="text-gold-500" />
+                          <span className="text-gray-100 font-bold">€{rate.half_day_rate.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    )}
+                    {rate.full_day_rate > 0 && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-400">Per hele dag:</span>
+                        <div className="flex items-center gap-1">
+                          <Euro size={14} className="text-gold-500" />
+                          <span className="text-gray-100 font-bold">€{rate.full_day_rate.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
                 {rate.calculation_method === 'daily' && (
-                  <div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-400">Dagprijs:</span>
-                      <div className="flex items-center gap-1">
-                        <Euro size={14} className="text-gold-500" />
-                        <span className="text-gray-100 font-bold">€{rate.daily_rate.toFixed(2)}</span>
-                        <span className="text-gray-400">/dag</span>
-                      </div>
-                    </div>
-                    {rate.space_type === 'Flexplek' && rate.daily_rate_furnished > 0 && (
-                      <div className="flex items-center justify-between text-sm mt-1">
-                        <span className="text-gray-400">Gemeubileerd:</span>
-                        <div className="flex items-center gap-1">
-                          <Euro size={14} className="text-gold-500" />
-                          <span className="text-gray-100 font-bold">€{rate.daily_rate_furnished.toFixed(2)}</span>
-                          <span className="text-gray-400">/dag</span>
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <div className="text-xs text-gray-500 font-medium">Standaard</div>
+                      {rate.hourly_rate > 0 && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-400">Per uur:</span>
+                          <div className="flex items-center gap-1">
+                            <Clock size={14} className="text-gold-500" />
+                            <span className="text-gray-100 font-bold">€{rate.hourly_rate.toFixed(2)}</span>
+                          </div>
                         </div>
+                      )}
+                      {rate.half_day_rate > 0 && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-400">Per dagdeel:</span>
+                          <div className="flex items-center gap-1">
+                            <Euro size={14} className="text-gold-500" />
+                            <span className="text-gray-100 font-bold">€{rate.half_day_rate.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      )}
+                      {rate.full_day_rate > 0 && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-400">Per hele dag:</span>
+                          <div className="flex items-center gap-1">
+                            <Euro size={14} className="text-gold-500" />
+                            <span className="text-gray-100 font-bold">€{rate.full_day_rate.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    {rate.space_type === 'Flexplek' && (rate.half_day_rate_furnished > 0 || rate.full_day_rate_furnished > 0) && (
+                      <div className="space-y-2 pt-2 border-t border-dark-700">
+                        <div className="text-xs text-gray-500 font-medium">Gemeubileerd</div>
+                        {rate.half_day_rate_furnished > 0 && (
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-400">Per dagdeel:</span>
+                            <div className="flex items-center gap-1">
+                              <Euro size={14} className="text-gold-500" />
+                              <span className="text-gray-100 font-bold">€{rate.half_day_rate_furnished.toFixed(2)}</span>
+                            </div>
+                          </div>
+                        )}
+                        {rate.full_day_rate_furnished > 0 && (
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-400">Per hele dag:</span>
+                            <div className="flex items-center gap-1">
+                              <Euro size={14} className="text-gold-500" />
+                              <span className="text-gray-100 font-bold">€{rate.full_day_rate_furnished.toFixed(2)}</span>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -494,83 +566,186 @@ export function SpaceTypeRates() {
               )}
 
               {formData.calculation_method === 'hourly' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-200 mb-1">
-                    Prijs per Uur
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      required
-                      value={formData.hourly_rate}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                          setFormData({ ...formData, hourly_rate: value });
-                        }
-                      }}
-                      className="flex-1 px-3 py-2 bg-dark-700 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                      placeholder="0.00"
-                    />
-                    <span className="text-gray-400">€/uur</span>
-                  </div>
-                </div>
-              )}
-
-              {formData.calculation_method === 'daily' && (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-200 mb-1">
-                      Prijs per Dag (Basis)
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        required
-                        value={formData.daily_rate}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                            setFormData({ ...formData, daily_rate: value });
-                          }
-                        }}
-                        className="flex-1 px-3 py-2 bg-dark-700 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                        placeholder="0.00"
-                      />
-                      <span className="text-gray-400">€/dag</span>
-                    </div>
-                    <p className="text-xs text-gray-400 mt-2">
-                      Dit tarief wordt gebruikt voor flexplekken en vermenigvuldigd met het aantal gebruikte dagen
-                    </p>
-                  </div>
-                  {formData.space_type === 'Flexplek' && (
+                <div className="space-y-4 p-4 bg-dark-900 rounded-lg">
+                  <h4 className="text-sm font-bold text-gray-200">Vergaderruimte Tarieven</h4>
+                  <div className="grid grid-cols-3 gap-3">
                     <div>
-                      <label className="block text-sm font-medium text-gray-200 mb-1">
-                        Prijs per Dag (Gemeubileerd)
-                      </label>
+                      <label className="block text-xs text-gray-400 mb-1">Per Uur</label>
                       <div className="flex items-center gap-2">
                         <input
                           type="text"
                           inputMode="decimal"
-                          value={formData.daily_rate_furnished}
+                          value={formData.hourly_rate}
                           onChange={(e) => {
                             const value = e.target.value;
                             if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                              setFormData({ ...formData, daily_rate_furnished: value });
+                              setFormData({ ...formData, hourly_rate: value });
                             }
                           }}
                           className="flex-1 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                           placeholder="0.00"
                         />
-                        <span className="text-gray-400">€/dag</span>
+                        <span className="text-gray-400 text-sm">€</span>
                       </div>
-                      <p className="text-xs text-gray-400 mt-2">
-                        Tarief voor gemeubileerde flexplekken (optioneel, laat leeg indien niet van toepassing)
-                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Per Dagdeel</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={formData.half_day_rate}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                              setFormData({ ...formData, half_day_rate: value });
+                            }
+                          }}
+                          className="flex-1 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                          placeholder="0.00"
+                        />
+                        <span className="text-gray-400 text-sm">€</span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Per Hele Dag</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={formData.full_day_rate}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                              setFormData({ ...formData, full_day_rate: value });
+                            }
+                          }}
+                          className="flex-1 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                          placeholder="0.00"
+                        />
+                        <span className="text-gray-400 text-sm">€</span>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-400">
+                    Dagdeel = halve dag (bijv. ochtend of middag). Vul minimaal 1 tarief in.
+                  </p>
+                </div>
+              )}
+
+              {formData.calculation_method === 'daily' && (
+                <div className="space-y-4">
+                  <div className="p-4 bg-dark-900 rounded-lg space-y-4">
+                    <h4 className="text-sm font-bold text-gray-200">Flexplek Tarieven (Standaard)</h4>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Per Uur</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={formData.hourly_rate}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                                setFormData({ ...formData, hourly_rate: value });
+                              }
+                            }}
+                            className="flex-1 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                            placeholder="0.00"
+                          />
+                          <span className="text-gray-400 text-sm">€</span>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Per Dagdeel</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={formData.half_day_rate}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                                setFormData({ ...formData, half_day_rate: value });
+                              }
+                            }}
+                            className="flex-1 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                            placeholder="0.00"
+                          />
+                          <span className="text-gray-400 text-sm">€</span>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Per Hele Dag</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={formData.full_day_rate}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                                setFormData({ ...formData, full_day_rate: value });
+                              }
+                            }}
+                            className="flex-1 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                            placeholder="0.00"
+                          />
+                          <span className="text-gray-400 text-sm">€</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  {formData.space_type === 'Flexplek' && (
+                    <div className="p-4 bg-dark-900 rounded-lg space-y-4">
+                      <h4 className="text-sm font-bold text-gray-200">Flexplek Tarieven (Gemeubileerd)</h4>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Per Dagdeel</label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={formData.half_day_rate_furnished}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                                  setFormData({ ...formData, half_day_rate_furnished: value });
+                                }
+                              }}
+                              className="flex-1 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                              placeholder="0.00"
+                            />
+                            <span className="text-gray-400 text-sm">€</span>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Per Hele Dag</label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={formData.full_day_rate_furnished}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                                  setFormData({ ...formData, full_day_rate_furnished: value });
+                                }
+                              }}
+                              className="flex-1 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                              placeholder="0.00"
+                            />
+                            <span className="text-gray-400 text-sm">€</span>
+                          </div>
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-400">Uurtarief is hetzelfde voor standaard en gemeubileerd.</p>
                     </div>
                   )}
+                  <p className="text-xs text-gray-400">
+                    Dagdeel = halve dag (bijv. ochtend of middag). Vul minimaal 1 tarief in.
+                  </p>
                 </div>
               )}
 
