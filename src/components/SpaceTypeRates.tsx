@@ -6,7 +6,6 @@ const SPACE_TYPE_LABELS: Record<string, string> = {
   'bedrijfsruimte': 'Bedrijfsruimte',
   'kantoor': 'Kantoor',
   'buitenterrein': 'Buitenterrein',
-  'diversen': 'Diversen',
   'Meeting Room': 'Vergaderruimte',
   'Flexplek': 'Flexplek'
 };

@@ -24,7 +24,10 @@ export function SpaceManagement() {
     flex_capacity: 1,
     rate_per_sqm: '',
     daily_rate: '',
-    hourly_rate: ''
+    hourly_rate: '',
+    diversen_calculation: 'fixed' as 'fixed' | 'per_sqm' | 'quantity_price',
+    diversen_quantity: '',
+    diversen_unit_price: ''
   });
 
   useEffect(() => {
@@ -168,14 +171,43 @@ export function SpaceManagement() {
       spaceData.hourly_rate = formData.hourly_rate ? parseFloat(formData.hourly_rate) : null;
       spaceData.rate_per_sqm = null;
       spaceData.daily_rate = null;
+      spaceData.diversen_calculation = null;
+      spaceData.diversen_quantity = null;
+      spaceData.diversen_unit_price = null;
     } else if (formData.space_type === 'Flexplek') {
       spaceData.daily_rate = formData.daily_rate ? parseFloat(formData.daily_rate) : null;
       spaceData.rate_per_sqm = null;
       spaceData.hourly_rate = null;
+      spaceData.diversen_calculation = null;
+      spaceData.diversen_quantity = null;
+      spaceData.diversen_unit_price = null;
+    } else if (formData.space_type === 'diversen') {
+      spaceData.diversen_calculation = formData.diversen_calculation;
+      spaceData.rate_per_sqm = null;
+      spaceData.daily_rate = null;
+      spaceData.hourly_rate = null;
+
+      if (formData.diversen_calculation === 'fixed') {
+        spaceData.square_footage = parseFloat(formData.square_footage) || 0;
+        spaceData.diversen_quantity = null;
+        spaceData.diversen_unit_price = null;
+      } else if (formData.diversen_calculation === 'per_sqm') {
+        spaceData.square_footage = parseFloat(formData.square_footage) || 0;
+        spaceData.rate_per_sqm = formData.rate_per_sqm ? parseFloat(formData.rate_per_sqm) : null;
+        spaceData.diversen_quantity = null;
+        spaceData.diversen_unit_price = null;
+      } else if (formData.diversen_calculation === 'quantity_price') {
+        spaceData.square_footage = null;
+        spaceData.diversen_quantity = formData.diversen_quantity ? parseFloat(formData.diversen_quantity) : null;
+        spaceData.diversen_unit_price = formData.diversen_unit_price ? parseFloat(formData.diversen_unit_price) : null;
+      }
     } else {
       spaceData.rate_per_sqm = formData.rate_per_sqm ? parseFloat(formData.rate_per_sqm) : null;
       spaceData.daily_rate = null;
       spaceData.hourly_rate = null;
+      spaceData.diversen_calculation = null;
+      spaceData.diversen_quantity = null;
+      spaceData.diversen_unit_price = null;
     }
 
     if (editingSpace) {
@@ -242,7 +274,10 @@ export function SpaceManagement() {
       flex_capacity: (space as any).flex_capacity || 1,
       rate_per_sqm: space.rate_per_sqm ? space.rate_per_sqm.toString() : '',
       daily_rate: space.daily_rate ? space.daily_rate.toString() : '',
-      hourly_rate: space.hourly_rate ? space.hourly_rate.toString() : ''
+      hourly_rate: space.hourly_rate ? space.hourly_rate.toString() : '',
+      diversen_calculation: (space as any).diversen_calculation || 'fixed',
+      diversen_quantity: (space as any).diversen_quantity ? (space as any).diversen_quantity.toString() : '',
+      diversen_unit_price: (space as any).diversen_unit_price ? (space as any).diversen_unit_price.toString() : ''
     });
     setShowForm(true);
     setError(null);
@@ -273,7 +308,10 @@ export function SpaceManagement() {
       flex_capacity: 1,
       rate_per_sqm: '',
       daily_rate: '',
-      hourly_rate: ''
+      hourly_rate: '',
+      diversen_calculation: 'fixed',
+      diversen_quantity: '',
+      diversen_unit_price: ''
     });
     setEditingSpace(null);
     setShowForm(false);
@@ -354,10 +392,10 @@ export function SpaceManagement() {
                   placeholder="bijv. Suite 101"
                 />
               </div>
-              {formData.space_type !== 'Meeting Room' && formData.space_type !== 'Flexplek' && (
+              {formData.space_type !== 'Meeting Room' && formData.space_type !== 'Flexplek' && formData.space_type !== 'diversen' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-200 mb-1">
-                    {formData.space_type === 'diversen' ? 'Bedrag *' : 'Oppervlakte (m²) *'}
+                    Oppervlakte (m²) *
                   </label>
                   <input
                     type="text"
@@ -371,8 +409,131 @@ export function SpaceManagement() {
                       }
                     }}
                     className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                    placeholder={formData.space_type === 'diversen' ? 'bijv. 150.00' : 'bijv. 50.5'}
+                    placeholder="bijv. 50.5"
                   />
+                </div>
+              )}
+              {formData.space_type === 'diversen' && (
+                <div className="bg-dark-950 p-4 rounded-lg border border-dark-700 space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-200 mb-2">
+                      Berekeningswijze *
+                    </label>
+                    <select
+                      value={formData.diversen_calculation}
+                      onChange={(e) => setFormData({ ...formData, diversen_calculation: e.target.value as 'fixed' | 'per_sqm' | 'quantity_price' })}
+                      className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                    >
+                      <option value="fixed">Vast bedrag per maand</option>
+                      <option value="per_sqm">Per vierkante meter</option>
+                      <option value="quantity_price">Aantal x Prijs</option>
+                    </select>
+                  </div>
+                  {formData.diversen_calculation === 'fixed' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-200 mb-1">
+                        Vast bedrag (€) *
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        required
+                        value={formData.square_footage}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                            setFormData({ ...formData, square_footage: value });
+                          }
+                        }}
+                        className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                        placeholder="bijv. 150.00"
+                      />
+                    </div>
+                  )}
+                  {formData.diversen_calculation === 'per_sqm' && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-200 mb-1">
+                          Oppervlakte (m²) *
+                        </label>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          required
+                          value={formData.square_footage}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                              setFormData({ ...formData, square_footage: value });
+                            }
+                          }}
+                          className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                          placeholder="bijv. 50.5"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-200 mb-1">
+                          Tarief per m² (€) *
+                        </label>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          required
+                          value={formData.rate_per_sqm}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                              setFormData({ ...formData, rate_per_sqm: value });
+                            }
+                          }}
+                          className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                          placeholder="bijv. 120.00"
+                        />
+                      </div>
+                    </>
+                  )}
+                  {formData.diversen_calculation === 'quantity_price' && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-200 mb-1">
+                          Aantal *
+                        </label>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          required
+                          value={formData.diversen_quantity}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                              setFormData({ ...formData, diversen_quantity: value });
+                            }
+                          }}
+                          className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                          placeholder="bijv. 10"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-200 mb-1">
+                          Prijs per eenheid (€) *
+                        </label>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          required
+                          value={formData.diversen_unit_price}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                              setFormData({ ...formData, diversen_unit_price: value });
+                            }
+                          }}
+                          className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                          placeholder="bijv. 25.00"
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
               {(formData.space_type === 'kantoor' || formData.space_type === 'Flexplek') && (
