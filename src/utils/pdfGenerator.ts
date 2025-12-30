@@ -106,7 +106,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
 
   if (invoice.company) {
     try {
-      const logoBase64 = await loadImageAsBase64('/Logo.png');
+      const logoBase64 = await loadImageAsBase64('/image copy copy copy copy.png');
       const logoWidth = 60;
       const logoHeight = 30;
       const logoX = pageWidth - margin - logoWidth;
@@ -487,7 +487,7 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
   let yPosition = 20;
 
   try {
-    const logoBase64 = await loadImageAsBase64('/Logo.png');
+    const logoBase64 = await loadImageAsBase64('/image copy copy copy copy.png');
     const logoWidth = 60;
     const logoHeight = 30;
     const logoX = pageWidth - margin - logoWidth;

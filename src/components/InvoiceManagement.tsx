@@ -657,7 +657,7 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
 
   const loadLogoAsBase64 = async (): Promise<string | null> => {
     try {
-      const response = await fetch('/Logo.png');
+      const response = await fetch('/image copy copy copy copy.png');
       const blob = await response.blob();
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
