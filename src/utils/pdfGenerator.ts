@@ -735,16 +735,15 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
   }
 
   if (rootPath && window.electronAPI?.savePDF) {
-    const pdfBlob = pdf.output('blob');
-    const arrayBuffer = await pdfBlob.arrayBuffer();
-    const uint8Array = new Uint8Array(arrayBuffer);
+    const pdfArrayBuffer = pdf.output('arraybuffer');
+    const creditYear = new Date(creditNote.credit_date).getFullYear().toString();
+    const folderPath = `${rootPath}/${creditNote.customer_name}/${creditYear}`;
+    const fileName = `${creditNote.credit_note_number}.pdf`;
 
     const result = await window.electronAPI.savePDF(
-      rootPath,
-      creditNote.customer_name,
-      creditNote.credit_note_number,
-      Array.from(uint8Array),
-      true
+      pdfArrayBuffer,
+      folderPath,
+      fileName
     );
 
     if (!result.success) {

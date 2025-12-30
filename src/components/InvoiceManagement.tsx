@@ -791,7 +791,8 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
         console.log('PDF generated, size:', pdfBlob.byteLength);
 
         if (companySettings.root_folder_path && window.electronAPI.savePDF) {
-          const tenantFolderPath = `${companySettings.root_folder_path}/${tenant.company_name}`;
+          const invoiceYear = new Date(invoice.invoice_date).getFullYear().toString();
+          const tenantFolderPath = `${companySettings.root_folder_path}/${tenant.company_name}/${invoiceYear}`;
           const fileName = `${invoice.invoice_number}.pdf`;
 
           const saveResult = await window.electronAPI.savePDF(

@@ -212,6 +212,17 @@ export function TenantManagement() {
         if (data) {
           setExternalCustomers([...externalCustomers, data].sort((a, b) => a.company_name.localeCompare(b.company_name)));
         }
+
+        if (companySettings?.root_folder_path && window.electronAPI?.createTenantFolder) {
+          const result = await window.electronAPI.createTenantFolder(
+            companySettings.root_folder_path,
+            customerData.company_name
+          );
+
+          if (!result.success) {
+            console.error('Error creating external customer folder:', result.error);
+          }
+        }
       }
     }
 
