@@ -470,10 +470,11 @@ export function SpaceTypeRates() {
               {(formData.calculation_method === 'per_sqm' || formData.calculation_method === 'custom') && (
                 <div className="space-y-3 p-4 bg-dark-900 rounded-lg">
                   <h4 className="text-sm font-bold text-gray-200">Prijs per m²</h4>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="block text-xs text-gray-400 mb-1">Standaard</label>
-                      <div className="flex items-center gap-2">
+                      <div className="relative">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-sm">€</span>
                         <input
                           type="text"
                           inputMode="decimal"
@@ -485,16 +486,17 @@ export function SpaceTypeRates() {
                               setFormData({ ...formData, rate_per_sqm: value });
                             }
                           }}
-                          className="flex-1 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                          className="w-full pl-6 pr-10 py-1.5 bg-dark-800 border border-dark-600 text-gray-100 rounded focus:outline-none focus:ring-2 focus:ring-gold-500 text-sm"
                           placeholder="0.00"
                         />
-                        <span className="text-gray-400">€/m²</span>
+                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-sm">/m²</span>
                       </div>
                     </div>
                     {formData.space_type === 'kantoor' && (
                       <div>
                         <label className="block text-xs text-gray-400 mb-1">Gemeubileerd</label>
-                        <div className="flex items-center gap-2">
+                        <div className="relative">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-sm">€</span>
                           <input
                             type="text"
                             inputMode="decimal"
@@ -505,10 +507,10 @@ export function SpaceTypeRates() {
                                 setFormData({ ...formData, rate_per_sqm_furnished: value });
                               }
                             }}
-                            className="flex-1 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                            className="w-full pl-6 pr-10 py-1.5 bg-dark-800 border border-dark-600 text-gray-100 rounded focus:outline-none focus:ring-2 focus:ring-gold-500 text-sm"
                             placeholder="0.00"
                           />
-                          <span className="text-gray-400">€/m²</span>
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-sm">/m²</span>
                         </div>
                       </div>
                     )}
@@ -519,10 +521,11 @@ export function SpaceTypeRates() {
               {(formData.calculation_method === 'fixed_monthly' || formData.calculation_method === 'custom') && (
                 <div className="space-y-3 p-4 bg-dark-900 rounded-lg">
                   <h4 className="text-sm font-bold text-gray-200">Vast Maandbedrag</h4>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="block text-xs text-gray-400 mb-1">Standaard</label>
-                      <div className="flex items-center gap-2">
+                      <div className="relative">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-sm">€</span>
                         <input
                           type="text"
                           inputMode="decimal"
@@ -534,16 +537,16 @@ export function SpaceTypeRates() {
                               setFormData({ ...formData, fixed_rate: value });
                             }
                           }}
-                          className="flex-1 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                          className="w-full pl-6 pr-2 py-1.5 bg-dark-800 border border-dark-600 text-gray-100 rounded focus:outline-none focus:ring-2 focus:ring-gold-500 text-sm"
                           placeholder="0.00"
                         />
-                        <span className="text-gray-400">€</span>
                       </div>
                     </div>
                     {formData.space_type === 'kantoor' && (
                       <div>
                         <label className="block text-xs text-gray-400 mb-1">Gemeubileerd</label>
-                        <div className="flex items-center gap-2">
+                        <div className="relative">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-sm">€</span>
                           <input
                             type="text"
                             inputMode="decimal"
@@ -554,10 +557,9 @@ export function SpaceTypeRates() {
                                 setFormData({ ...formData, fixed_rate_furnished: value });
                               }
                             }}
-                            className="flex-1 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                            className="w-full pl-6 pr-2 py-1.5 bg-dark-800 border border-dark-600 text-gray-100 rounded focus:outline-none focus:ring-2 focus:ring-gold-500 text-sm"
                             placeholder="0.00"
                           />
-                          <span className="text-gray-400">€</span>
                         </div>
                       </div>
                     )}
@@ -566,12 +568,13 @@ export function SpaceTypeRates() {
               )}
 
               {formData.calculation_method === 'hourly' && (
-                <div className="space-y-4 p-4 bg-dark-900 rounded-lg">
+                <div className="space-y-3 p-4 bg-dark-900 rounded-lg">
                   <h4 className="text-sm font-bold text-gray-200">Vergaderruimte Tarieven</h4>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-3 gap-2">
                     <div>
                       <label className="block text-xs text-gray-400 mb-1">Per Uur</label>
-                      <div className="flex items-center gap-2">
+                      <div className="relative">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-sm">€</span>
                         <input
                           type="text"
                           inputMode="decimal"
@@ -582,15 +585,15 @@ export function SpaceTypeRates() {
                               setFormData({ ...formData, hourly_rate: value });
                             }
                           }}
-                          className="flex-1 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                          className="w-full pl-6 pr-2 py-1.5 bg-dark-800 border border-dark-600 text-gray-100 rounded focus:outline-none focus:ring-2 focus:ring-gold-500 text-sm"
                           placeholder="0.00"
                         />
-                        <span className="text-gray-400 text-sm">€</span>
                       </div>
                     </div>
                     <div>
                       <label className="block text-xs text-gray-400 mb-1">Per Dagdeel</label>
-                      <div className="flex items-center gap-2">
+                      <div className="relative">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-sm">€</span>
                         <input
                           type="text"
                           inputMode="decimal"
@@ -601,15 +604,15 @@ export function SpaceTypeRates() {
                               setFormData({ ...formData, half_day_rate: value });
                             }
                           }}
-                          className="flex-1 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                          className="w-full pl-6 pr-2 py-1.5 bg-dark-800 border border-dark-600 text-gray-100 rounded focus:outline-none focus:ring-2 focus:ring-gold-500 text-sm"
                           placeholder="0.00"
                         />
-                        <span className="text-gray-400 text-sm">€</span>
                       </div>
                     </div>
                     <div>
                       <label className="block text-xs text-gray-400 mb-1">Per Hele Dag</label>
-                      <div className="flex items-center gap-2">
+                      <div className="relative">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-sm">€</span>
                         <input
                           type="text"
                           inputMode="decimal"
@@ -620,10 +623,9 @@ export function SpaceTypeRates() {
                               setFormData({ ...formData, full_day_rate: value });
                             }
                           }}
-                          className="flex-1 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                          className="w-full pl-6 pr-2 py-1.5 bg-dark-800 border border-dark-600 text-gray-100 rounded focus:outline-none focus:ring-2 focus:ring-gold-500 text-sm"
                           placeholder="0.00"
                         />
-                        <span className="text-gray-400 text-sm">€</span>
                       </div>
                     </div>
                   </div>
@@ -634,13 +636,14 @@ export function SpaceTypeRates() {
               )}
 
               {formData.calculation_method === 'daily' && (
-                <div className="space-y-4">
-                  <div className="p-4 bg-dark-900 rounded-lg space-y-4">
+                <div className="space-y-3">
+                  <div className="p-4 bg-dark-900 rounded-lg space-y-3">
                     <h4 className="text-sm font-bold text-gray-200">Flexplek Tarieven (Standaard)</h4>
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-3 gap-2">
                       <div>
                         <label className="block text-xs text-gray-400 mb-1">Per Uur</label>
-                        <div className="flex items-center gap-2">
+                        <div className="relative">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-sm">€</span>
                           <input
                             type="text"
                             inputMode="decimal"
@@ -651,15 +654,15 @@ export function SpaceTypeRates() {
                                 setFormData({ ...formData, hourly_rate: value });
                               }
                             }}
-                            className="flex-1 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                            className="w-full pl-6 pr-2 py-1.5 bg-dark-800 border border-dark-600 text-gray-100 rounded focus:outline-none focus:ring-2 focus:ring-gold-500 text-sm"
                             placeholder="0.00"
                           />
-                          <span className="text-gray-400 text-sm">€</span>
                         </div>
                       </div>
                       <div>
                         <label className="block text-xs text-gray-400 mb-1">Per Dagdeel</label>
-                        <div className="flex items-center gap-2">
+                        <div className="relative">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-sm">€</span>
                           <input
                             type="text"
                             inputMode="decimal"
@@ -670,15 +673,15 @@ export function SpaceTypeRates() {
                                 setFormData({ ...formData, half_day_rate: value });
                               }
                             }}
-                            className="flex-1 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                            className="w-full pl-6 pr-2 py-1.5 bg-dark-800 border border-dark-600 text-gray-100 rounded focus:outline-none focus:ring-2 focus:ring-gold-500 text-sm"
                             placeholder="0.00"
                           />
-                          <span className="text-gray-400 text-sm">€</span>
                         </div>
                       </div>
                       <div>
                         <label className="block text-xs text-gray-400 mb-1">Per Hele Dag</label>
-                        <div className="flex items-center gap-2">
+                        <div className="relative">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-sm">€</span>
                           <input
                             type="text"
                             inputMode="decimal"
@@ -689,21 +692,35 @@ export function SpaceTypeRates() {
                                 setFormData({ ...formData, full_day_rate: value });
                               }
                             }}
-                            className="flex-1 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                            className="w-full pl-6 pr-2 py-1.5 bg-dark-800 border border-dark-600 text-gray-100 rounded focus:outline-none focus:ring-2 focus:ring-gold-500 text-sm"
                             placeholder="0.00"
                           />
-                          <span className="text-gray-400 text-sm">€</span>
                         </div>
                       </div>
                     </div>
                   </div>
                   {formData.space_type === 'Flexplek' && (
-                    <div className="p-4 bg-dark-900 rounded-lg space-y-4">
+                    <div className="p-4 bg-dark-900 rounded-lg space-y-3">
                       <h4 className="text-sm font-bold text-gray-200">Flexplek Tarieven (Gemeubileerd)</h4>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Per Uur</label>
+                          <div className="relative">
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-sm">€</span>
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={formData.hourly_rate || ''}
+                              disabled
+                              className="w-full pl-6 pr-2 py-1.5 bg-dark-700 border border-dark-600 text-gray-400 rounded text-sm cursor-not-allowed"
+                              placeholder="zie standaard"
+                            />
+                          </div>
+                        </div>
                         <div>
                           <label className="block text-xs text-gray-400 mb-1">Per Dagdeel</label>
-                          <div className="flex items-center gap-2">
+                          <div className="relative">
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-sm">€</span>
                             <input
                               type="text"
                               inputMode="decimal"
@@ -714,15 +731,15 @@ export function SpaceTypeRates() {
                                   setFormData({ ...formData, half_day_rate_furnished: value });
                                 }
                               }}
-                              className="flex-1 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                              className="w-full pl-6 pr-2 py-1.5 bg-dark-800 border border-dark-600 text-gray-100 rounded focus:outline-none focus:ring-2 focus:ring-gold-500 text-sm"
                               placeholder="0.00"
                             />
-                            <span className="text-gray-400 text-sm">€</span>
                           </div>
                         </div>
                         <div>
                           <label className="block text-xs text-gray-400 mb-1">Per Hele Dag</label>
-                          <div className="flex items-center gap-2">
+                          <div className="relative">
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-sm">€</span>
                             <input
                               type="text"
                               inputMode="decimal"
@@ -733,17 +750,15 @@ export function SpaceTypeRates() {
                                   setFormData({ ...formData, full_day_rate_furnished: value });
                                 }
                               }}
-                              className="flex-1 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                              className="w-full pl-6 pr-2 py-1.5 bg-dark-800 border border-dark-600 text-gray-100 rounded focus:outline-none focus:ring-2 focus:ring-gold-500 text-sm"
                               placeholder="0.00"
                             />
-                            <span className="text-gray-400 text-sm">€</span>
                           </div>
                         </div>
                       </div>
-                      <p className="text-xs text-gray-400">Uurtarief is hetzelfde voor standaard en gemeubileerd.</p>
                     </div>
                   )}
-                  <p className="text-xs text-gray-400">
+                  <p className="text-xs text-gray-400 px-1">
                     Dagdeel = halve dag (bijv. ochtend of middag). Vul minimaal 1 tarief in.
                   </p>
                 </div>
