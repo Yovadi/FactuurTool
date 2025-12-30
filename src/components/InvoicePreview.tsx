@@ -330,6 +330,11 @@ export function InvoicePreview({
                           if (space.price_per_sqm && space.price_per_sqm > 0) {
                             rate = `€ ${space.price_per_sqm.toFixed(2)} / dag`;
                           }
+                        } else if (space.space_type === 'diversen') {
+                          quantity = sqm.toFixed(0);
+                          if (space.price_per_sqm && space.price_per_sqm > 0) {
+                            rate = `€ ${space.price_per_sqm.toFixed(2)}`;
+                          }
                         } else {
                           quantity = `${sqm.toFixed(0)} m²`;
                           if (space.price_per_sqm && space.price_per_sqm > 0) {

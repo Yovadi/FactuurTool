@@ -62,7 +62,7 @@ function convertLineItemsToSpaces(items: InvoiceLineItem[]) {
           }
         }
       }
-    } else if (isKnownSpaceType && item.quantity !== null && item.quantity !== undefined) {
+    } else if (item.quantity !== null && item.quantity !== undefined) {
       const parsed = typeof item.quantity === 'string' ? parseFloat(item.quantity) : item.quantity;
       if (!isNaN(parsed) && parsed > 0) {
         squareFootage = parsed;

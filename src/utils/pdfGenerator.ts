@@ -106,7 +106,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
 
   if (invoice.company) {
     try {
-      const logoBase64 = await loadImageAsBase64('/image copy copy copy copy copy copy.png');
+      const logoBase64 = await loadImageAsBase64('/Logo.png');
       const logoWidth = 60;
       const logoHeight = 30;
       const logoX = pageWidth - margin - logoWidth;
@@ -318,6 +318,11 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
           if (space.price_per_sqm && space.price_per_sqm > 0) {
             rate = `€ ${space.price_per_sqm.toFixed(2)} / dag`;
           }
+        } else if (space.space_type === 'diversen') {
+          quantity = sqm.toFixed(0);
+          if (space.price_per_sqm && space.price_per_sqm > 0) {
+            rate = `€ ${space.price_per_sqm.toFixed(2)}`;
+          }
         } else {
           quantity = `${sqm.toFixed(0)} m²`;
           if (space.price_per_sqm && space.price_per_sqm > 0) {
@@ -482,7 +487,7 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
   let yPosition = 20;
 
   try {
-    const logoBase64 = await loadImageAsBase64('/image copy copy copy copy copy copy.png');
+    const logoBase64 = await loadImageAsBase64('/Logo.png');
     const logoWidth = 60;
     const logoHeight = 30;
     const logoX = pageWidth - margin - logoWidth;
