@@ -132,6 +132,11 @@ export type CompanySettings = {
   root_folder_path: string | null;
   test_mode: boolean;
   test_date: string | null;
+  wifi_network_name: string | null;
+  wifi_password: string | null;
+  patch_points: string | null;
+  meter_cabinet_info: string | null;
+  building_notes: string | null;
   created_at: string;
   updated_at: string;
 };

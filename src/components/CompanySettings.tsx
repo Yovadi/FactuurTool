@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, type CompanySettings } from '../lib/supabase';
-import { Building2, Edit2, Mail, Phone, MapPin, CreditCard, Lock, FolderOpen, RefreshCw } from 'lucide-react';
+import { Building2, Edit2, Mail, Phone, MapPin, CreditCard, Lock, FolderOpen, RefreshCw, Wifi, Network, Zap, FileText } from 'lucide-react';
 
 export function CompanySettings() {
   const [settings, setSettings] = useState<CompanySettings | null>(null);
@@ -24,7 +24,12 @@ export function CompanySettings() {
     delete_code: '1234',
     root_folder_path: '',
     test_mode: false,
-    test_date: ''
+    test_date: '',
+    wifi_network_name: '',
+    wifi_password: '',
+    patch_points: '',
+    meter_cabinet_info: '',
+    building_notes: ''
   });
 
   useEffect(() => {
@@ -107,7 +112,12 @@ export function CompanySettings() {
         delete_code: settings.delete_code || '1234',
         root_folder_path: settings.root_folder_path || '',
         test_mode: settings.test_mode || false,
-        test_date: settings.test_date || ''
+        test_date: settings.test_date || '',
+        wifi_network_name: settings.wifi_network_name || '',
+        wifi_password: settings.wifi_password || '',
+        patch_points: settings.patch_points || '',
+        meter_cabinet_info: settings.meter_cabinet_info || '',
+        building_notes: settings.building_notes || ''
       });
     }
     setShowForm(true);
@@ -129,7 +139,12 @@ export function CompanySettings() {
       delete_code: '1234',
       root_folder_path: '',
       test_mode: false,
-      test_date: ''
+      test_date: '',
+      wifi_network_name: '',
+      wifi_password: '',
+      patch_points: '',
+      meter_cabinet_info: '',
+      building_notes: ''
     });
     setShowForm(false);
   };
@@ -422,6 +437,74 @@ export function CompanySettings() {
                 </div>
               </div>
 
+              <div className="border-t border-dark-700 pt-4 mt-4">
+                <h4 className="text-lg font-semibold text-gray-100 mb-3">Pand Informatie</h4>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-200 mb-1">
+                        WiFi Netwerk Naam
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.wifi_network_name}
+                        onChange={(e) => setFormData({ ...formData, wifi_network_name: e.target.value })}
+                        className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                        placeholder="SSID"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-200 mb-1">
+                        WiFi Wachtwoord
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.wifi_password}
+                        onChange={(e) => setFormData({ ...formData, wifi_password: e.target.value })}
+                        className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                        placeholder="Wachtwoord"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-200 mb-1">
+                      Patchpunten
+                    </label>
+                    <textarea
+                      value={formData.patch_points}
+                      onChange={(e) => setFormData({ ...formData, patch_points: e.target.value })}
+                      className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                      rows={3}
+                      placeholder="Beschrijving van netwerk patchpunten en aansluitingen"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-200 mb-1">
+                      Meterkast Indeling
+                    </label>
+                    <textarea
+                      value={formData.meter_cabinet_info}
+                      onChange={(e) => setFormData({ ...formData, meter_cabinet_info: e.target.value })}
+                      className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                      rows={3}
+                      placeholder="Beschrijving van meterkast indeling en groepenverdeling"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-200 mb-1">
+                      Algemene Notities
+                    </label>
+                    <textarea
+                      value={formData.building_notes}
+                      onChange={(e) => setFormData({ ...formData, building_notes: e.target.value })}
+                      className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                      rows={4}
+                      placeholder="Aanvullende informatie over het pand"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div className="flex gap-2 pt-4 mt-4 border-t border-dark-700">
                 <button
                   type="submit"
@@ -571,6 +654,70 @@ export function CompanySettings() {
                         day: 'numeric'
                       })}
                     </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {(settings.wifi_network_name || settings.wifi_password || settings.patch_points || settings.meter_cabinet_info || settings.building_notes) && (
+              <div className="border-t border-dark-700 pt-4">
+                <h4 className="text-sm font-semibold text-gray-400 uppercase mb-2">Pand Informatie</h4>
+                <div className="space-y-3 text-gray-200">
+                  {(settings.wifi_network_name || settings.wifi_password) && (
+                    <div className="bg-dark-800 rounded-lg p-4 border border-dark-700">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Wifi size={16} className="text-gold-500" />
+                        <span className="font-medium text-sm">WiFi Toegang</span>
+                      </div>
+                      {settings.wifi_network_name && (
+                        <div className="ml-6 mb-1">
+                          <span className="text-xs text-gray-400">Netwerk: </span>
+                          <span className="text-sm">{settings.wifi_network_name}</span>
+                        </div>
+                      )}
+                      {settings.wifi_password && (
+                        <div className="ml-6">
+                          <span className="text-xs text-gray-400">Wachtwoord: </span>
+                          <span className="text-sm font-mono">{settings.wifi_password}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {settings.patch_points && (
+                    <div className="bg-dark-800 rounded-lg p-4 border border-dark-700">
+                      <div className="flex items-start gap-2 mb-2">
+                        <Network size={16} className="text-gold-500 mt-0.5" />
+                        <div className="flex-1">
+                          <span className="font-medium text-sm block mb-1">Patchpunten</span>
+                          <p className="text-sm whitespace-pre-wrap">{settings.patch_points}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {settings.meter_cabinet_info && (
+                    <div className="bg-dark-800 rounded-lg p-4 border border-dark-700">
+                      <div className="flex items-start gap-2 mb-2">
+                        <Zap size={16} className="text-gold-500 mt-0.5" />
+                        <div className="flex-1">
+                          <span className="font-medium text-sm block mb-1">Meterkast Indeling</span>
+                          <p className="text-sm whitespace-pre-wrap">{settings.meter_cabinet_info}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {settings.building_notes && (
+                    <div className="bg-dark-800 rounded-lg p-4 border border-dark-700">
+                      <div className="flex items-start gap-2 mb-2">
+                        <FileText size={16} className="text-gold-500 mt-0.5" />
+                        <div className="flex-1">
+                          <span className="font-medium text-sm block mb-1">Algemene Notities</span>
+                          <p className="text-sm whitespace-pre-wrap">{settings.building_notes}</p>
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
