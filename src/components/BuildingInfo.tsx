@@ -14,11 +14,12 @@ export function BuildingInfo() {
 
   const [wifiFormData, setWifiFormData] = useState<{ [key: number]: { network_name: string; password: string; tenant_id: string | null } }>({});
   const [patchFormData, setPatchFormData] = useState<{ [key: string]: { location_type: string; location_number: string; notes: string } }>({});
-  const [meterFormData, setMeterFormData] = useState<{ [key: number]: { location_type: string; location_number: string; description: string } }>({});
+  const [meterFormData, setMeterFormData] = useState<{ [alaGroup: string]: { [entryId: string]: { group_number: number; location_type: string; location_number: string; description: string } } }>({});
   const [buildingFormData, setBuildingFormData] = useState({
     meter_cabinet_info: '',
     building_notes: '',
   });
+  const [selectedAla, setSelectedAla] = useState('ALA1');
 
   useEffect(() => {
     fetchAllData();
@@ -115,14 +116,18 @@ export function BuildingInfo() {
     const { data, error } = await supabase
       .from('meter_groups')
       .select('*')
-      .order('group_number');
+      .order('ala_group, group_number, location_number');
 
     if (error) throw error;
     setMeterGroups(data || []);
 
-    const formData: { [key: number]: { location_type: string; location_number: string; description: string } } = {};
+    const formData: { [alaGroup: string]: { [entryId: string]: { group_number: number; location_type: string; location_number: string; description: string } } } = {};
     data?.forEach(group => {
-      formData[group.group_number] = {
+      if (!formData[group.ala_group]) {
+        formData[group.ala_group] = {};
+      }
+      formData[group.ala_group][group.id] = {
+        group_number: group.group_number,
         location_type: group.location_type || '',
         location_number: group.location_number?.toString() || '',
         description: group.description || '',
@@ -218,39 +223,48 @@ export function BuildingInfo() {
 
   const handleSaveMeter = async () => {
     try {
-      const existingGroupNumbers = Object.keys(meterFormData).map(k => parseInt(k));
+      for (const alaGroup of Object.keys(meterFormData)) {
+        const entries = meterFormData[alaGroup];
 
-      for (const groupNum of existingGroupNumbers) {
-        const formValues = meterFormData[groupNum];
-        const existingGroup = meterGroups.find(g => g.group_number === groupNum);
-        const hasData = formValues?.location_type || formValues?.description?.trim();
+        for (const entryId of Object.keys(entries)) {
+          const formValues = entries[entryId];
+          const hasData = formValues?.location_type || formValues?.description?.trim();
 
-        if (existingGroup) {
-          if (hasData) {
-            await supabase
-              .from('meter_groups')
-              .update({
-                location_type: formValues.location_type || null,
-                location_number: formValues.location_number ? parseInt(formValues.location_number) : null,
-                description: formValues.description,
-                updated_at: new Date().toISOString(),
-              })
-              .eq('id', existingGroup.id);
+          if (entryId.startsWith('new-')) {
+            if (hasData) {
+              await supabase
+                .from('meter_groups')
+                .insert([{
+                  ala_group: alaGroup,
+                  group_number: formValues.group_number,
+                  location_type: formValues.location_type || null,
+                  location_number: formValues.location_number ? parseInt(formValues.location_number) : null,
+                  description: formValues.description,
+                }]);
+            }
           } else {
-            await supabase
-              .from('meter_groups')
-              .delete()
-              .eq('id', existingGroup.id);
+            const existingGroup = meterGroups.find(g => g.id === entryId);
+            if (existingGroup) {
+              if (hasData) {
+                await supabase
+                  .from('meter_groups')
+                  .update({
+                    ala_group: alaGroup,
+                    group_number: formValues.group_number,
+                    location_type: formValues.location_type || null,
+                    location_number: formValues.location_number ? parseInt(formValues.location_number) : null,
+                    description: formValues.description,
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq('id', entryId);
+              } else {
+                await supabase
+                  .from('meter_groups')
+                  .delete()
+                  .eq('id', entryId);
+              }
+            }
           }
-        } else if (hasData) {
-          await supabase
-            .from('meter_groups')
-            .insert([{
-              group_number: groupNum,
-              location_type: formValues.location_type || null,
-              location_number: formValues.location_number ? parseInt(formValues.location_number) : null,
-              description: formValues.description,
-            }]);
         }
       }
 
@@ -629,78 +643,124 @@ export function BuildingInfo() {
           </div>
 
           {editingSection === 'meter' ? (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {Array.from({ length: 30 }, (_, i) => i + 1).map((groupNum) => {
-                  const formValues = meterFormData[groupNum] || { location_type: '', location_number: '', description: '' };
-                  const hasData = formValues.location_type || formValues.description;
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 pb-4 border-b border-dark-700">
+                <label className="text-sm font-medium text-gray-300">ALA Groep:</label>
+                <select
+                  value={selectedAla}
+                  onChange={(e) => setSelectedAla(e.target.value)}
+                  className="bg-dark-800 border border-dark-600 rounded px-3 py-2 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                >
+                  {Array.from({ length: 10 }, (_, i) => `ALA${i + 1}`).map(ala => (
+                    <option key={ala} value={ala}>{ala}</option>
+                  ))}
+                </select>
+              </div>
 
-                  if (!hasData && !Object.keys(meterFormData).includes(groupNum.toString()) && groupNum > Math.max(0, ...Object.keys(meterFormData).map(k => parseInt(k))) + 3) {
+              <div className="space-y-4">
+                {Array.from({ length: 50 }, (_, i) => i + 1).map((groupNum) => {
+                  const currentAlaData = meterFormData[selectedAla] || {};
+                  const entries = Object.entries(currentAlaData).filter(([_, data]) => data.group_number === groupNum);
+                  const hasEntries = entries.length > 0;
+
+                  if (!hasEntries && groupNum > Math.max(0, ...Object.values(currentAlaData).map(d => d.group_number)) + 3) {
                     return null;
                   }
 
                   return (
                     <div key={groupNum} className="bg-dark-800 rounded-lg p-4 border border-dark-600">
-                      <label className="block text-sm font-medium text-gray-300 mb-3">
-                        Groep K{groupNum}
-                      </label>
-                      <div className="space-y-2">
-                        <select
-                          value={formValues.location_type}
-                          onChange={(e) => setMeterFormData({
-                            ...meterFormData,
-                            [groupNum]: { ...formValues, location_type: e.target.value, location_number: '' }
-                          })}
-                          className="w-full bg-dark-900 border border-dark-600 rounded px-3 py-2 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                      <div className="flex justify-between items-center mb-3">
+                        <h4 className="text-sm font-medium text-gray-300">Groep K{groupNum}</h4>
+                        <button
+                          onClick={() => {
+                            const newId = `new-${Date.now()}-${Math.random()}`;
+                            setMeterFormData({
+                              ...meterFormData,
+                              [selectedAla]: {
+                                ...currentAlaData,
+                                [newId]: { group_number: groupNum, location_type: '', location_number: '', description: '' }
+                              }
+                            });
+                          }}
+                          className="text-xs text-gold-500 hover:text-gold-400 transition-colors"
                         >
-                          <option value="">Geen toewijzing</option>
-                          <option value="kantoor">Kantoor</option>
-                          <option value="bedrijfshal">Bedrijfshal</option>
-                          <option value="eigen_gebruik">Eigen gebruik</option>
-                        </select>
+                          + Kantoor toevoegen
+                        </button>
+                      </div>
 
-                        {formValues.location_type === 'kantoor' && (
-                          <select
-                            value={formValues.location_number}
-                            onChange={(e) => setMeterFormData({
-                              ...meterFormData,
-                              [groupNum]: { ...formValues, location_number: e.target.value }
-                            })}
-                            className="w-full bg-dark-900 border border-dark-600 rounded px-3 py-2 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
-                          >
-                            <option value="">Selecteer kantoor</option>
-                            {[1, 2, 3, 4, 5, 6, 7, 8].map(num => (
-                              <option key={num} value={num}>Kantoor {num}</option>
-                            ))}
-                          </select>
+                      <div className="space-y-3">
+                        {entries.map(([entryId, formValues]) => (
+                          <div key={entryId} className="bg-dark-900 rounded p-3 border border-dark-700">
+                            <div className="space-y-2">
+                              <select
+                                value={formValues.location_type}
+                                onChange={(e) => setMeterFormData({
+                                  ...meterFormData,
+                                  [selectedAla]: {
+                                    ...currentAlaData,
+                                    [entryId]: { ...formValues, location_type: e.target.value, location_number: '' }
+                                  }
+                                })}
+                                className="w-full bg-dark-800 border border-dark-600 rounded px-3 py-2 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                              >
+                                <option value="">Geen toewijzing</option>
+                                <option value="kantoor">Kantoor</option>
+                                <option value="eigen_gebruik">Eigen gebruik</option>
+                              </select>
+
+                              {formValues.location_type === 'kantoor' && (
+                                <select
+                                  value={formValues.location_number}
+                                  onChange={(e) => setMeterFormData({
+                                    ...meterFormData,
+                                    [selectedAla]: {
+                                      ...currentAlaData,
+                                      [entryId]: { ...formValues, location_number: e.target.value }
+                                    }
+                                  })}
+                                  className="w-full bg-dark-800 border border-dark-600 rounded px-3 py-2 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                                >
+                                  <option value="">Selecteer kantoor</option>
+                                  {[1, 2, 3, 4, 5, 6, 7, 8].map(num => (
+                                    <option key={num} value={num}>Kantoor {num}</option>
+                                  ))}
+                                </select>
+                              )}
+
+                              <input
+                                type="text"
+                                value={formValues.description}
+                                onChange={(e) => setMeterFormData({
+                                  ...meterFormData,
+                                  [selectedAla]: {
+                                    ...currentAlaData,
+                                    [entryId]: { ...formValues, description: e.target.value }
+                                  }
+                                })}
+                                placeholder="Beschrijving (optioneel)"
+                                className="w-full bg-dark-800 border border-dark-600 rounded px-3 py-2 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                              />
+
+                              <button
+                                onClick={() => {
+                                  const newAlaData = { ...currentAlaData };
+                                  delete newAlaData[entryId];
+                                  setMeterFormData({
+                                    ...meterFormData,
+                                    [selectedAla]: newAlaData
+                                  });
+                                }}
+                                className="text-xs text-red-400 hover:text-red-300 transition-colors"
+                              >
+                                Verwijderen
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+
+                        {!hasEntries && (
+                          <p className="text-xs text-gray-500 text-center py-2">Nog geen kantoren toegewezen</p>
                         )}
-
-                        {formValues.location_type === 'bedrijfshal' && (
-                          <select
-                            value={formValues.location_number}
-                            onChange={(e) => setMeterFormData({
-                              ...meterFormData,
-                              [groupNum]: { ...formValues, location_number: e.target.value }
-                            })}
-                            className="w-full bg-dark-900 border border-dark-600 rounded px-3 py-2 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
-                          >
-                            <option value="">Selecteer hal</option>
-                            {[1, 2, 3, 4].map(num => (
-                              <option key={num} value={num}>Hal {num}</option>
-                            ))}
-                          </select>
-                        )}
-
-                        <input
-                          type="text"
-                          value={formValues.description}
-                          onChange={(e) => setMeterFormData({
-                            ...meterFormData,
-                            [groupNum]: { ...formValues, description: e.target.value }
-                          })}
-                          placeholder="Beschrijving (optioneel)"
-                          className="w-full bg-dark-900 border border-dark-600 rounded px-3 py-2 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
-                        />
                       </div>
                     </div>
                   );
@@ -730,26 +790,48 @@ export function BuildingInfo() {
           ) : (
             <div>
               {meterGroups.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                  {meterGroups.map((group) => {
-                    let locationLabel = '-';
-                    if (group.location_type === 'kantoor' && group.location_number) {
-                      locationLabel = `Kantoor ${group.location_number}`;
-                    } else if (group.location_type === 'bedrijfshal' && group.location_number) {
-                      locationLabel = `Hal ${group.location_number}`;
-                    } else if (group.location_type === 'eigen_gebruik') {
-                      locationLabel = 'Eigen gebruik';
-                    }
+                <div className="space-y-6">
+                  {Array.from(new Set(meterGroups.map(g => g.ala_group))).sort().map(alaGroup => {
+                    const alaGroups = meterGroups.filter(g => g.ala_group === alaGroup);
+                    const groupedByK = alaGroups.reduce((acc, group) => {
+                      if (!acc[group.group_number]) {
+                        acc[group.group_number] = [];
+                      }
+                      acc[group.group_number].push(group);
+                      return acc;
+                    }, {} as { [key: number]: MeterGroup[] });
 
                     return (
-                      <div key={group.id} className="bg-dark-800 rounded p-3 border border-dark-600">
-                        <p className="text-xs font-medium text-gray-400 mb-1">Groep K{group.group_number}</p>
-                        <p className="text-xs text-gray-200 font-medium">{locationLabel}</p>
-                        {group.description && (
-                          <p className="text-xs text-gray-400 mt-1 truncate" title={group.description}>
-                            {group.description}
-                          </p>
-                        )}
+                      <div key={alaGroup} className="border border-dark-700 rounded-lg p-4">
+                        <h4 className="text-sm font-semibold text-gold-500 mb-3">{alaGroup}</h4>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                          {Object.entries(groupedByK).sort(([a], [b]) => parseInt(a) - parseInt(b)).map(([groupNum, groups]) => (
+                            <div key={groupNum} className="bg-dark-800 rounded p-3 border border-dark-600">
+                              <p className="text-xs font-medium text-gray-400 mb-2">K{groupNum}</p>
+                              <div className="space-y-1">
+                                {groups.map(group => {
+                                  let locationLabel = '-';
+                                  if (group.location_type === 'kantoor' && group.location_number) {
+                                    locationLabel = `Kantoor ${group.location_number}`;
+                                  } else if (group.location_type === 'eigen_gebruik') {
+                                    locationLabel = 'Eigen gebruik';
+                                  }
+
+                                  return (
+                                    <div key={group.id}>
+                                      <p className="text-xs text-gray-200 font-medium">{locationLabel}</p>
+                                      {group.description && (
+                                        <p className="text-xs text-gray-400 truncate" title={group.description}>
+                                          {group.description}
+                                        </p>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     );
                   })}
