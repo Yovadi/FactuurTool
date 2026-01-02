@@ -1,5 +1,36 @@
 import jsPDF from 'jspdf';
 
+export interface BuildingInfoData {
+  company?: {
+    name: string;
+    address?: string;
+    postal_code?: string;
+    city?: string;
+  };
+  wifiNetworks: Array<{
+    network_number: number;
+    network_name: string;
+    password: string;
+    tenant_name?: string;
+  }>;
+  patchPorts: Array<{
+    switch_number: number;
+    port_number: number;
+    location_type?: string;
+    location_number?: number;
+    notes?: string;
+  }>;
+  meterGroups: Array<{
+    ala_group: string;
+    group_number: number;
+    location_type?: string;
+    location_number?: number;
+    description?: string;
+  }>;
+  meterCabinetInfo?: string;
+  buildingNotes?: string;
+}
+
 interface InvoiceData {
   invoice_number: string;
   tenant_name?: string;
@@ -753,4 +784,296 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
   } else {
     pdf.save(`${creditNote.credit_note_number}.pdf`);
   }
+}
+
+export async function generateBuildingInfoPDF(data: BuildingInfoData): Promise<void> {
+  const pdf = new jsPDF('p', 'mm', 'a4');
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const margin = 20;
+  let yPosition = 20;
+
+  try {
+    const logoBase64 = await loadImageAsBase64('/image copy copy copy copy.png');
+    const logoWidth = 60;
+    const logoHeight = 30;
+    const logoX = pageWidth - margin - logoWidth;
+    pdf.addImage(logoBase64, 'PNG', logoX, yPosition, logoWidth, logoHeight);
+  } catch (error) {
+    console.error('Failed to load logo:', error);
+  }
+
+  pdf.setFontSize(20);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setTextColor(40, 40, 40);
+  pdf.text('Pand Informatie', margin, yPosition + 10);
+
+  if (data.company) {
+    yPosition += 15;
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(80, 80, 80);
+    pdf.text(data.company.name, margin, yPosition);
+    if (data.company.address) {
+      yPosition += 5;
+      pdf.text(`${data.company.address}, ${data.company.postal_code || ''} ${data.company.city || ''}`, margin, yPosition);
+    }
+  }
+
+  yPosition += 15;
+
+  pdf.setFontSize(14);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setTextColor(234, 179, 8);
+  pdf.text('WiFi Netwerken', margin, yPosition);
+  yPosition += 8;
+
+  if (data.wifiNetworks.length > 0) {
+    pdf.setFontSize(9);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(60, 60, 60);
+    pdf.text('Netwerk', margin, yPosition);
+    pdf.text('Naam', margin + 25, yPosition);
+    pdf.text('Wachtwoord', margin + 80, yPosition);
+    pdf.text('Huurder', margin + 135, yPosition);
+    yPosition += 5;
+
+    pdf.setDrawColor(200, 200, 200);
+    pdf.line(margin, yPosition, pageWidth - margin, yPosition);
+    yPosition += 5;
+
+    pdf.setFont('helvetica', 'normal');
+    for (const network of data.wifiNetworks) {
+      if (yPosition > pageHeight - 30) {
+        pdf.addPage();
+        yPosition = 20;
+      }
+
+      pdf.text(`WiFi ${network.network_number}`, margin, yPosition);
+      pdf.text(network.network_name || '-', margin + 25, yPosition);
+      pdf.text(network.password || '-', margin + 80, yPosition);
+      pdf.text(network.tenant_name || '-', margin + 135, yPosition);
+      yPosition += 5;
+    }
+  } else {
+    pdf.setFontSize(9);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(120, 120, 120);
+    pdf.text('Geen netwerken geconfigureerd', margin, yPosition);
+    yPosition += 5;
+  }
+
+  yPosition += 10;
+
+  if (yPosition > pageHeight - 50) {
+    pdf.addPage();
+    yPosition = 20;
+  }
+
+  pdf.setFontSize(14);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setTextColor(234, 179, 8);
+  pdf.text('Patch Poorten', margin, yPosition);
+  yPosition += 8;
+
+  const configuredPorts = data.patchPorts.filter(p => p.location_type || p.notes);
+  if (configuredPorts.length > 0) {
+    pdf.setFontSize(9);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(60, 60, 60);
+    pdf.text('Switch', margin, yPosition);
+    pdf.text('Poort', margin + 20, yPosition);
+    pdf.text('Locatie', margin + 40, yPosition);
+    pdf.text('Notities', margin + 80, yPosition);
+    yPosition += 5;
+
+    pdf.setDrawColor(200, 200, 200);
+    pdf.line(margin, yPosition, pageWidth - margin, yPosition);
+    yPosition += 5;
+
+    pdf.setFont('helvetica', 'normal');
+    for (const port of configuredPorts) {
+      if (yPosition > pageHeight - 30) {
+        pdf.addPage();
+        yPosition = 20;
+      }
+
+      let locationText = '-';
+      if (port.location_type === 'kantoor' && port.location_number) {
+        locationText = `Kantoor ${port.location_number}`;
+      } else if (port.location_type === 'bedrijfshal' && port.location_number) {
+        locationText = `Hal ${port.location_number}`;
+      } else if (port.location_type === 'eigen_gebruik') {
+        locationText = 'Eigen gebruik';
+      }
+
+      pdf.text(`${port.switch_number}`, margin, yPosition);
+      pdf.text(`${port.port_number}`, margin + 20, yPosition);
+      pdf.text(locationText, margin + 40, yPosition);
+      pdf.text(port.notes || '-', margin + 80, yPosition);
+      yPosition += 5;
+    }
+  } else {
+    pdf.setFontSize(9);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(120, 120, 120);
+    pdf.text('Geen poorten geconfigureerd', margin, yPosition);
+    yPosition += 5;
+  }
+
+  yPosition += 10;
+
+  if (yPosition > pageHeight - 50) {
+    pdf.addPage();
+    yPosition = 20;
+  }
+
+  pdf.setFontSize(14);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setTextColor(234, 179, 8);
+  pdf.text('Meterkast Groepen', margin, yPosition);
+  yPosition += 8;
+
+  if (data.meterGroups.length > 0) {
+    const groupedByAla = data.meterGroups.reduce((acc, group) => {
+      if (!acc[group.ala_group]) {
+        acc[group.ala_group] = [];
+      }
+      acc[group.ala_group].push(group);
+      return acc;
+    }, {} as { [key: string]: typeof data.meterGroups });
+
+    for (const [alaGroup, groups] of Object.entries(groupedByAla).sort()) {
+      if (yPosition > pageHeight - 40) {
+        pdf.addPage();
+        yPosition = 20;
+      }
+
+      pdf.setFontSize(11);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(234, 179, 8);
+      pdf.text(alaGroup, margin, yPosition);
+      yPosition += 6;
+
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(60, 60, 60);
+      pdf.text('Groep', margin, yPosition);
+      pdf.text('Locatie', margin + 25, yPosition);
+      pdf.text('Beschrijving', margin + 80, yPosition);
+      yPosition += 5;
+
+      pdf.setDrawColor(200, 200, 200);
+      pdf.line(margin, yPosition, pageWidth - margin, yPosition);
+      yPosition += 5;
+
+      pdf.setFont('helvetica', 'normal');
+
+      const sortedGroups = groups.sort((a, b) => {
+        if (a.group_number !== b.group_number) {
+          return a.group_number - b.group_number;
+        }
+        return (a.location_number || 0) - (b.location_number || 0);
+      });
+
+      for (const group of sortedGroups) {
+        if (yPosition > pageHeight - 30) {
+          pdf.addPage();
+          yPosition = 20;
+        }
+
+        let locationText = '-';
+        if (group.location_type === 'kantoor' && group.location_number) {
+          locationText = `Kantoor ${group.location_number}`;
+        } else if (group.location_type === 'eigen_gebruik') {
+          locationText = 'Eigen gebruik';
+        }
+
+        pdf.text(`K${group.group_number}`, margin, yPosition);
+        pdf.text(locationText, margin + 25, yPosition);
+        pdf.text(group.description || '-', margin + 80, yPosition);
+        yPosition += 5;
+      }
+
+      yPosition += 5;
+    }
+  } else {
+    pdf.setFontSize(9);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(120, 120, 120);
+    pdf.text('Geen groepen geconfigureerd', margin, yPosition);
+    yPosition += 5;
+  }
+
+  yPosition += 10;
+
+  if (data.meterCabinetInfo && data.meterCabinetInfo.trim()) {
+    if (yPosition > pageHeight - 50) {
+      pdf.addPage();
+      yPosition = 20;
+    }
+
+    pdf.setFontSize(14);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(234, 179, 8);
+    pdf.text('Meterkast Indeling', margin, yPosition);
+    yPosition += 8;
+
+    pdf.setFontSize(9);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(60, 60, 60);
+    const lines = pdf.splitTextToSize(data.meterCabinetInfo, pageWidth - (2 * margin));
+    for (const line of lines) {
+      if (yPosition > pageHeight - 20) {
+        pdf.addPage();
+        yPosition = 20;
+      }
+      pdf.text(line, margin, yPosition);
+      yPosition += 5;
+    }
+    yPosition += 5;
+  }
+
+  if (data.buildingNotes && data.buildingNotes.trim()) {
+    if (yPosition > pageHeight - 50) {
+      pdf.addPage();
+      yPosition = 20;
+    }
+
+    pdf.setFontSize(14);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(234, 179, 8);
+    pdf.text('Pand Notities', margin, yPosition);
+    yPosition += 8;
+
+    pdf.setFontSize(9);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(60, 60, 60);
+    const lines = pdf.splitTextToSize(data.buildingNotes, pageWidth - (2 * margin));
+    for (const line of lines) {
+      if (yPosition > pageHeight - 20) {
+        pdf.addPage();
+        yPosition = 20;
+      }
+      pdf.text(line, margin, yPosition);
+      yPosition += 5;
+    }
+  }
+
+  pdf.setDrawColor(230, 230, 230);
+  pdf.setLineWidth(0.3);
+  pdf.line(margin, pageHeight - 25, pageWidth - margin, pageHeight - 25);
+
+  pdf.setFontSize(7);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(120, 120, 120);
+
+  if (data.company) {
+    const footerY = pageHeight - 18;
+    const footerLine = `${data.company.name || ''} | Gegenereerd op ${new Date().toLocaleDateString('nl-NL')}`;
+    pdf.text(footerLine, pageWidth / 2, footerY, { align: 'center' });
+  }
+
+  const fileName = `Pand_Informatie_${new Date().toISOString().split('T')[0]}.pdf`;
+  pdf.save(fileName);
 }

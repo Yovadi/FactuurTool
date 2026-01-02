@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase, type CompanySettings, type WifiNetwork, type PatchPort, type MeterGroup, type Tenant } from '../lib/supabase';
-import { Home, Edit2, Wifi, Network, FileText, Info, Save, X, Eye, EyeOff, User, Zap } from 'lucide-react';
+import { Home, Edit2, Wifi, Network, FileText, Info, Save, X, Eye, EyeOff, User, Zap, Download } from 'lucide-react';
+import { generateBuildingInfoPDF } from '../utils/pdfGenerator';
 
 export function BuildingInfo() {
   const [settings, setSettings] = useState<CompanySettings | null>(null);
@@ -310,6 +311,50 @@ export function BuildingInfo() {
     return tenant?.company_name || null;
   };
 
+  const handleExportPDF = async () => {
+    try {
+      const wifiData = wifiNetworks.map(network => ({
+        network_number: network.network_number,
+        network_name: network.network_name,
+        password: network.password,
+        tenant_name: getTenantName(network.tenant_id) || undefined,
+      }));
+
+      const patchData = patchPorts.map(port => ({
+        switch_number: port.switch_number,
+        port_number: port.port_number,
+        location_type: port.location_type || undefined,
+        location_number: port.location_number || undefined,
+        notes: port.notes || undefined,
+      }));
+
+      const meterData = meterGroups.map(group => ({
+        ala_group: group.ala_group,
+        group_number: group.group_number,
+        location_type: group.location_type || undefined,
+        location_number: group.location_number || undefined,
+        description: group.description || undefined,
+      }));
+
+      await generateBuildingInfoPDF({
+        company: settings ? {
+          name: settings.company_name || 'HAL5 Overloon',
+          address: settings.address,
+          postal_code: settings.postal_code,
+          city: settings.city,
+        } : undefined,
+        wifiNetworks: wifiData,
+        patchPorts: patchData,
+        meterGroups: meterData,
+        meterCabinetInfo: settings?.meter_cabinet_info,
+        buildingNotes: settings?.building_notes,
+      });
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      alert('Er is een fout opgetreden bij het exporteren');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -321,6 +366,22 @@ export function BuildingInfo() {
   return (
     <div className="h-full overflow-auto">
       <div className="space-y-6">
+        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-100">Pand Informatie</h2>
+              <p className="text-sm text-gray-400 mt-1">Beheer WiFi netwerken, patch poorten en meterkast groepen</p>
+            </div>
+            <button
+              onClick={handleExportPDF}
+              className="flex items-center gap-2 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors"
+            >
+              <Download size={18} />
+              Exporteer PDF
+            </button>
+          </div>
+        </div>
+
         <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
           <div className="flex justify-between items-start mb-6">
             <div className="flex items-center gap-3">
