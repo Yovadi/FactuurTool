@@ -53,7 +53,8 @@ function App() {
   });
 
   useEffect(() => {
-    setIsElectron(true);
+    const isElectronApp = !!(window as any).electronAPI;
+    setIsElectron(isElectronApp);
 
     if ((window as any).electron?.getAppVersion) {
       (window as any).electron.getAppVersion().then((version: string) => {
@@ -114,11 +115,17 @@ function App() {
       });
     }
 
-    syncFolders();
+    if (isElectronApp) {
+      setTimeout(() => {
+        syncFolders();
+      }, 1000);
+    }
   }, []);
 
   const syncFolders = async () => {
     try {
+      console.log('🔄 Starting folder sync...');
+
       const { data: settings } = await supabase
         .from('company_settings')
         .select('*')
@@ -126,7 +133,16 @@ function App() {
         .limit(1)
         .maybeSingle();
 
-      if (!settings?.root_folder_path || !(window as any).electronAPI?.createTenantFolder) {
+      console.log('📁 Root folder path:', settings?.root_folder_path);
+      console.log('🔌 electronAPI available:', !!(window as any).electronAPI?.createTenantFolder);
+
+      if (!settings?.root_folder_path) {
+        console.log('⚠️ No root folder path configured');
+        return;
+      }
+
+      if (!(window as any).electronAPI?.createTenantFolder) {
+        console.log('⚠️ electronAPI not available');
         return;
       }
 
@@ -143,14 +159,19 @@ function App() {
         ...(externalCustomers || []).map(c => c.company_name)
       ];
 
+      console.log(`📋 Syncing folders for ${allCustomers.length} customers...`);
+
       for (const companyName of allCustomers) {
-        await (window as any).electronAPI.createTenantFolder(
+        const result = await (window as any).electronAPI.createTenantFolder(
           settings.root_folder_path,
           companyName
         );
+        console.log(`✓ ${companyName}:`, result.success ? 'OK' : result.error);
       }
+
+      console.log('✅ Folder sync complete');
     } catch (error) {
-      console.error('Error syncing folders:', error);
+      console.error('❌ Error syncing folders:', error);
     }
   };
 
