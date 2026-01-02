@@ -162,3 +162,21 @@ export type SpaceTypeRate = {
   created_at: string;
   updated_at: string;
 };
+
+export type WifiNetwork = {
+  id: string;
+  network_name: string;
+  password: string;
+  network_number: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PatchPort = {
+  id: string;
+  switch_number: number;
+  port_number: number;
+  location_description: string;
+  created_at: string;
+  updated_at: string;
+};
