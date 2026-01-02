@@ -311,6 +311,22 @@ export function BuildingInfo() {
     return tenant?.company_name || null;
   };
 
+  const getGlobalKNumber = (alaGroup: string, groupNumber: number): number => {
+    const alaNumber = parseInt(alaGroup.replace('ALA', ''));
+    const previousALAs = Array.from({ length: alaNumber - 1 }, (_, i) => `ALA${i + 1}`);
+
+    let offset = 0;
+    for (const prevAla of previousALAs) {
+      const groupsInAla = meterGroups.filter(g => g.ala_group === prevAla);
+      if (groupsInAla.length > 0) {
+        const maxGroupInAla = Math.max(...groupsInAla.map(g => g.group_number));
+        offset += maxGroupInAla;
+      }
+    }
+
+    return offset + groupNumber;
+  };
+
   const handleExportPDF = async () => {
     try {
       const wifiData = wifiNetworks.map(network => ({
@@ -728,10 +744,12 @@ export function BuildingInfo() {
                     return null;
                   }
 
+                  const globalK = getGlobalKNumber(selectedAla, groupNum);
+
                   return (
                     <div key={groupNum} className="bg-dark-800 rounded-lg p-4 border border-dark-600">
                       <div className="flex justify-between items-center mb-3">
-                        <h4 className="text-sm font-medium text-gray-300">Groep K{groupNum}</h4>
+                        <h4 className="text-sm font-medium text-gray-300">Groep K{globalK}</h4>
                         <button
                           onClick={() => {
                             const newId = `new-${Date.now()}-${Math.random()}`;
@@ -866,9 +884,11 @@ export function BuildingInfo() {
                       <div key={alaGroup} className="border border-dark-700 rounded-lg p-4">
                         <h4 className="text-sm font-semibold text-gold-500 mb-3">{alaGroup}</h4>
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                          {Object.entries(groupedByK).sort(([a], [b]) => parseInt(a) - parseInt(b)).map(([groupNum, groups]) => (
+                          {Object.entries(groupedByK).sort(([a], [b]) => parseInt(a) - parseInt(b)).map(([groupNum, groups]) => {
+                            const globalK = getGlobalKNumber(alaGroup, parseInt(groupNum));
+                            return (
                             <div key={groupNum} className="bg-dark-800 rounded p-3 border border-dark-600">
-                              <p className="text-xs font-medium text-gray-400 mb-2">K{groupNum}</p>
+                              <p className="text-xs font-medium text-gray-400 mb-2">K{globalK}</p>
                               <div className="space-y-1">
                                 {groups.map(group => {
                                   let locationLabel = '-';
@@ -891,7 +911,8 @@ export function BuildingInfo() {
                                 })}
                               </div>
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     );

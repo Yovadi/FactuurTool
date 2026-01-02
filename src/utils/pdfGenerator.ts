@@ -943,6 +943,21 @@ export async function generateBuildingInfoPDF(data: BuildingInfoData): Promise<v
       return acc;
     }, {} as { [key: string]: typeof data.meterGroups });
 
+    const getGlobalKNumber = (alaGroup: string, groupNumber: number): number => {
+      const alaNumber = parseInt(alaGroup.replace('ALA', ''));
+      const previousALAs = Array.from({ length: alaNumber - 1 }, (_, i) => `ALA${i + 1}`);
+
+      let offset = 0;
+      for (const prevAla of previousALAs) {
+        if (groupedByAla[prevAla] && groupedByAla[prevAla].length > 0) {
+          const maxGroupInAla = Math.max(...groupedByAla[prevAla].map(g => g.group_number));
+          offset += maxGroupInAla;
+        }
+      }
+
+      return offset + groupNumber;
+    };
+
     for (const [alaGroup, groups] of Object.entries(groupedByAla).sort()) {
       if (yPosition > pageHeight - 40) {
         pdf.addPage();
@@ -989,7 +1004,8 @@ export async function generateBuildingInfoPDF(data: BuildingInfoData): Promise<v
           locationText = 'Eigen gebruik';
         }
 
-        pdf.text(`K${group.group_number}`, margin, yPosition);
+        const globalK = getGlobalKNumber(alaGroup, group.group_number);
+        pdf.text(`K${globalK}`, margin, yPosition);
         pdf.text(locationText, margin + 25, yPosition);
         pdf.text(group.description || '-', margin + 80, yPosition);
         yPosition += 5;
