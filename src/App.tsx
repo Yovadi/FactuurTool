@@ -9,7 +9,7 @@ const LeaseManagement = lazy(() => import('./components/LeaseManagement').then(m
 const SpaceManagement = lazy(() => import('./components/SpaceManagement').then(m => ({ default: m.SpaceManagement })));
 const SpaceTypeRates = lazy(() => import('./components/SpaceTypeRates').then(m => ({ default: m.SpaceTypeRates })));
 const FlexOccupancy = lazy(() => import('./components/FlexOccupancy').then(m => ({ default: m.FlexOccupancy })));
-const CompanySettings = lazy(() => import('./components/CompanySettings').then(m => ({ default: m.CompanySettings })));
+const VerhuurderTabs = lazy(() => import('./components/VerhuurderTabs').then(m => ({ default: m.VerhuurderTabs })));
 const MeetingRoomBookings = lazy(() => import('./components/MeetingRoomBookings').then(m => ({ default: m.MeetingRoomBookings })));
 const Analytics = lazy(() => import('./components/Analytics').then(m => ({ default: m.Analytics })));
 const DebiteurenTabs = lazy(() => import('./components/DebiteurenTabs').then(m => ({ default: m.DebiteurenTabs })));
@@ -375,7 +375,7 @@ function App() {
                 />
               )}
               {activeTab === 'analytics' && <Analytics />}
-              {activeTab === 'settings' && <CompanySettings />}
+              {activeTab === 'settings' && <VerhuurderTabs />}
             </Suspense>
           </main>
         </div>

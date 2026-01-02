@@ -132,6 +132,11 @@ export type CompanySettings = {
   root_folder_path: string | null;
   test_mode: boolean;
   test_date: string | null;
+  wifi_network_name: string | null;
+  wifi_password: string | null;
+  patch_points: string | null;
+  meter_cabinet_info: string | null;
+  building_notes: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -154,6 +159,38 @@ export type SpaceTypeRate = {
   is_annual: boolean;
   description: string;
   description_furnished: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type WifiNetwork = {
+  id: string;
+  network_name: string;
+  password: string;
+  network_number: number;
+  tenant_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PatchPort = {
+  id: string;
+  switch_number: number;
+  port_number: number;
+  location_type: 'kantoor' | 'bedrijfshal' | 'eigen_gebruik' | null;
+  location_number: number | null;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type MeterGroup = {
+  id: string;
+  ala_group: string;
+  group_number: number;
+  location_type: 'kantoor' | 'eigen_gebruik' | null;
+  location_number: number | null;
+  description: string;
   created_at: string;
   updated_at: string;
 };
