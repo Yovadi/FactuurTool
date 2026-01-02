@@ -168,6 +168,7 @@ export type WifiNetwork = {
   network_name: string;
   password: string;
   network_number: number;
+  tenant_id: string | null;
   created_at: string;
   updated_at: string;
 };

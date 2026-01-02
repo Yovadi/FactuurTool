@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react';
-import { supabase, type CompanySettings, type WifiNetwork, type PatchPort } from '../lib/supabase';
-import { Home, Edit2, Wifi, Network, FileText, Info, Save, X, Eye, EyeOff } from 'lucide-react';
+import { supabase, type CompanySettings, type WifiNetwork, type PatchPort, type Tenant } from '../lib/supabase';
+import { Home, Edit2, Wifi, Network, FileText, Info, Save, X, Eye, EyeOff, User } from 'lucide-react';
 
 export function BuildingInfo() {
   const [settings, setSettings] = useState<CompanySettings | null>(null);
   const [wifiNetworks, setWifiNetworks] = useState<WifiNetwork[]>([]);
   const [patchPorts, setPatchPorts] = useState<PatchPort[]>([]);
+  const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingSection, setEditingSection] = useState<'wifi' | 'patch' | 'building' | null>(null);
   const [showPasswords, setShowPasswords] = useState<{ [key: number]: boolean }>({});
 
-  const [wifiFormData, setWifiFormData] = useState<{ [key: number]: { network_name: string; password: string } }>({});
+  const [wifiFormData, setWifiFormData] = useState<{ [key: number]: { network_name: string; password: string; tenant_id: string | null } }>({});
   const [patchFormData, setPatchFormData] = useState<{ [key: string]: string }>({});
   const [buildingFormData, setBuildingFormData] = useState({
     meter_cabinet_info: '',
@@ -27,6 +28,7 @@ export function BuildingInfo() {
         fetchSettings(),
         fetchWifiNetworks(),
         fetchPatchPorts(),
+        fetchTenants(),
       ]);
       setLoading(false);
     } catch (error) {
@@ -51,6 +53,16 @@ export function BuildingInfo() {
     }
   };
 
+  const fetchTenants = async () => {
+    const { data, error } = await supabase
+      .from('tenants')
+      .select('*')
+      .order('company_name');
+
+    if (error) throw error;
+    setTenants(data || []);
+  };
+
   const fetchWifiNetworks = async () => {
     const { data, error } = await supabase
       .from('wifi_networks')
@@ -60,12 +72,13 @@ export function BuildingInfo() {
     if (error) throw error;
     setWifiNetworks(data || []);
 
-    const formData: { [key: number]: { network_name: string; password: string } } = {};
+    const formData: { [key: number]: { network_name: string; password: string; tenant_id: string | null } } = {};
     for (let i = 1; i <= 9; i++) {
       const network = data?.find(n => n.network_number === i);
       formData[i] = {
         network_name: network?.network_name || '',
         password: network?.password || '',
+        tenant_id: network?.tenant_id || null,
       };
     }
     setWifiFormData(formData);
@@ -103,6 +116,7 @@ export function BuildingInfo() {
             .update({
               network_name: formValues.network_name,
               password: formValues.password,
+              tenant_id: formValues.tenant_id || null,
               updated_at: new Date().toISOString(),
             })
             .eq('id', network.id);
@@ -113,6 +127,7 @@ export function BuildingInfo() {
               network_number: i,
               network_name: formValues.network_name,
               password: formValues.password,
+              tenant_id: formValues.tenant_id || null,
             }]);
         }
       }
@@ -189,6 +204,12 @@ export function BuildingInfo() {
     }));
   };
 
+  const getTenantName = (tenantId: string | null) => {
+    if (!tenantId) return null;
+    const tenant = tenants.find(t => t.id === tenantId);
+    return tenant?.company_name || null;
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -250,6 +271,24 @@ export function BuildingInfo() {
                           className="w-full bg-dark-900 border border-dark-600 rounded px-3 py-2 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
                         />
                       </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">Huurder</label>
+                        <select
+                          value={wifiFormData[num]?.tenant_id || ''}
+                          onChange={(e) => setWifiFormData({
+                            ...wifiFormData,
+                            [num]: { ...wifiFormData[num], tenant_id: e.target.value || null }
+                          })}
+                          className="w-full bg-dark-900 border border-dark-600 rounded px-3 py-2 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                        >
+                          <option value="">Geen huurder</option>
+                          {tenants.map(tenant => (
+                            <option key={tenant.id} value={tenant.id}>
+                              {tenant.company_name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -280,6 +319,7 @@ export function BuildingInfo() {
               {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => {
                 const network = wifiNetworks.find(n => n.network_number === num);
                 const hasData = network && (network.network_name || network.password);
+                const tenantName = network ? getTenantName(network.tenant_id) : null;
 
                 return (
                   <div key={num} className={`bg-dark-800 rounded-lg p-4 border ${hasData ? 'border-dark-600' : 'border-dark-700 opacity-60'}`}>
@@ -304,6 +344,15 @@ export function BuildingInfo() {
                             {showPasswords[num] ? (network.password || '-') : '•'.repeat(network.password?.length || 8)}
                           </p>
                         </div>
+                        {tenantName && (
+                          <div>
+                            <p className="text-xs text-gray-500">Huurder</p>
+                            <div className="flex items-center gap-1.5 mt-1">
+                              <User size={14} className="text-gold-500" />
+                              <p className="text-sm text-gray-200">{tenantName}</p>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <p className="text-xs text-gray-500">Geen gegevens</p>
