@@ -11,7 +11,6 @@ const SpaceTypeRates = lazy(() => import('./components/SpaceTypeRates').then(m =
 const FlexOccupancy = lazy(() => import('./components/FlexOccupancy').then(m => ({ default: m.FlexOccupancy })));
 const CompanySettings = lazy(() => import('./components/CompanySettings').then(m => ({ default: m.CompanySettings })));
 const MeetingRoomBookings = lazy(() => import('./components/MeetingRoomBookings').then(m => ({ default: m.MeetingRoomBookings })));
-const PinLogin = lazy(() => import('./components/PinLogin').then(m => ({ default: m.PinLogin })));
 const Analytics = lazy(() => import('./components/Analytics').then(m => ({ default: m.Analytics })));
 const DebiteurenTabs = lazy(() => import('./components/DebiteurenTabs').then(m => ({ default: m.DebiteurenTabs })));
 const CrediteurenTabs = lazy(() => import('./components/CrediteurenTabs').then(m => ({ default: m.CrediteurenTabs })));
@@ -43,8 +42,6 @@ type UpdateDialogState = {
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [isElectron, setIsElectron] = useState(false);
-  const [loggedInTenantId, setLoggedInTenantId] = useState<string | null>(null);
-  const [loggedInTenantName, setLoggedInTenantName] = useState<string>('');
   const [prefilledInvoiceData, setPrefilledInvoiceData] = useState<PrefilledInvoiceData | null>(null);
   const [appVersion, setAppVersion] = useState<string>('');
   const [updateDialog, setUpdateDialog] = useState<UpdateDialogState>({
@@ -213,18 +210,6 @@ function App() {
     return activeTab === itemId;
   };
 
-
-  const handleAuthenticated = (tenantId: string, tenantName: string) => {
-    setLoggedInTenantId(tenantId);
-    setLoggedInTenantName(tenantName);
-  };
-
-  const handleLogout = () => {
-    setLoggedInTenantId(null);
-    setLoggedInTenantName('');
-  };
-
-  // On production (Netlify), show PIN login then booking calendar
   const LoadingFallback = () => (
     <div className="h-full flex items-center justify-center bg-dark-950">
       <div className="flex flex-col items-center gap-3">
@@ -234,42 +219,6 @@ function App() {
     </div>
   );
 
-  if (!isElectron) {
-    if (!loggedInTenantId) {
-      return (
-        <Suspense fallback={<LoadingFallback />}>
-          <PinLogin onAuthenticated={handleAuthenticated} />
-        </Suspense>
-      );
-    }
-
-    return (
-      <div className="min-h-screen bg-dark-950">
-        <div className="bg-dark-900 border-b border-dark-700 px-4 py-3 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gold-500">HAL5 Overloon</h1>
-            <p className="text-sm text-gray-400">Vergaderruimte Boekingen</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="text-right">
-              <p className="text-sm text-gray-400">Ingelogd als</p>
-              <p className="text-base font-semibold text-gray-100">{loggedInTenantName}</p>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 px-4 py-2 bg-dark-800 hover:bg-dark-700 text-gray-300 rounded-lg transition-colors border border-dark-600"
-            >
-              <LogOut size={18} />
-              Uitloggen
-            </button>
-          </div>
-        </div>
-        <Suspense fallback={<LoadingFallback />}>
-          <MeetingRoomBookings loggedInTenantId={loggedInTenantId} />
-        </Suspense>
-      </div>
-    );
-  }
 
   const handleDownloadUpdate = async () => {
     if ((window as any).electron?.downloadUpdate) {
