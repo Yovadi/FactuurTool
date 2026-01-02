@@ -183,3 +183,13 @@ export type PatchPort = {
   created_at: string;
   updated_at: string;
 };
+
+export type MeterGroup = {
+  id: string;
+  group_number: number;
+  location_type: 'kantoor' | 'bedrijfshal' | 'eigen_gebruik' | null;
+  location_number: number | null;
+  description: string;
+  created_at: string;
+  updated_at: string;
+};

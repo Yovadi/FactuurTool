@@ -1,18 +1,20 @@
 import { useState, useEffect } from 'react';
-import { supabase, type CompanySettings, type WifiNetwork, type PatchPort, type Tenant } from '../lib/supabase';
-import { Home, Edit2, Wifi, Network, FileText, Info, Save, X, Eye, EyeOff, User } from 'lucide-react';
+import { supabase, type CompanySettings, type WifiNetwork, type PatchPort, type MeterGroup, type Tenant } from '../lib/supabase';
+import { Home, Edit2, Wifi, Network, FileText, Info, Save, X, Eye, EyeOff, User, Zap } from 'lucide-react';
 
 export function BuildingInfo() {
   const [settings, setSettings] = useState<CompanySettings | null>(null);
   const [wifiNetworks, setWifiNetworks] = useState<WifiNetwork[]>([]);
   const [patchPorts, setPatchPorts] = useState<PatchPort[]>([]);
+  const [meterGroups, setMeterGroups] = useState<MeterGroup[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingSection, setEditingSection] = useState<'wifi' | 'patch' | 'building' | null>(null);
+  const [editingSection, setEditingSection] = useState<'wifi' | 'patch' | 'meter' | 'building' | null>(null);
   const [showPasswords, setShowPasswords] = useState<{ [key: number]: boolean }>({});
 
   const [wifiFormData, setWifiFormData] = useState<{ [key: number]: { network_name: string; password: string; tenant_id: string | null } }>({});
   const [patchFormData, setPatchFormData] = useState<{ [key: string]: { location_type: string; location_number: string; notes: string } }>({});
+  const [meterFormData, setMeterFormData] = useState<{ [key: number]: { location_type: string; location_number: string; description: string } }>({});
   const [buildingFormData, setBuildingFormData] = useState({
     meter_cabinet_info: '',
     building_notes: '',
@@ -28,6 +30,7 @@ export function BuildingInfo() {
         fetchSettings(),
         fetchWifiNetworks(),
         fetchPatchPorts(),
+        fetchMeterGroups(),
         fetchTenants(),
       ]);
       setLoading(false);
@@ -106,6 +109,26 @@ export function BuildingInfo() {
       }
     }
     setPatchFormData(formData);
+  };
+
+  const fetchMeterGroups = async () => {
+    const { data, error } = await supabase
+      .from('meter_groups')
+      .select('*')
+      .order('group_number');
+
+    if (error) throw error;
+    setMeterGroups(data || []);
+
+    const formData: { [key: number]: { location_type: string; location_number: string; description: string } } = {};
+    data?.forEach(group => {
+      formData[group.group_number] = {
+        location_type: group.location_type || '',
+        location_number: group.location_number?.toString() || '',
+        description: group.description || '',
+      };
+    });
+    setMeterFormData(formData);
   };
 
   const handleSaveWifi = async () => {
@@ -189,6 +212,52 @@ export function BuildingInfo() {
       setEditingSection(null);
     } catch (error) {
       console.error('Error saving patch ports:', error);
+      alert('Er is een fout opgetreden bij het opslaan');
+    }
+  };
+
+  const handleSaveMeter = async () => {
+    try {
+      const existingGroupNumbers = Object.keys(meterFormData).map(k => parseInt(k));
+
+      for (const groupNum of existingGroupNumbers) {
+        const formValues = meterFormData[groupNum];
+        const existingGroup = meterGroups.find(g => g.group_number === groupNum);
+        const hasData = formValues?.location_type || formValues?.description?.trim();
+
+        if (existingGroup) {
+          if (hasData) {
+            await supabase
+              .from('meter_groups')
+              .update({
+                location_type: formValues.location_type || null,
+                location_number: formValues.location_number ? parseInt(formValues.location_number) : null,
+                description: formValues.description,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', existingGroup.id);
+          } else {
+            await supabase
+              .from('meter_groups')
+              .delete()
+              .eq('id', existingGroup.id);
+          }
+        } else if (hasData) {
+          await supabase
+            .from('meter_groups')
+            .insert([{
+              group_number: groupNum,
+              location_type: formValues.location_type || null,
+              location_number: formValues.location_number ? parseInt(formValues.location_number) : null,
+              description: formValues.description,
+            }]);
+        }
+      }
+
+      await fetchMeterGroups();
+      setEditingSection(null);
+    } catch (error) {
+      console.error('Error saving meter groups:', error);
       alert('Er is een fout opgetreden bij het opslaan');
     }
   };
@@ -538,6 +607,156 @@ export function BuildingInfo() {
                   </div>
                 );
               })}
+            </div>
+          )}
+        </div>
+
+        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
+          <div className="flex justify-between items-start mb-6">
+            <div className="flex items-center gap-3">
+              <Zap size={24} className="text-gold-500" />
+              <h3 className="text-xl font-semibold text-gray-100">Meterkast Groepen</h3>
+            </div>
+            {editingSection !== 'meter' && (
+              <button
+                onClick={() => setEditingSection('meter')}
+                className="flex items-center gap-2 text-gold-500 hover:text-gold-400 transition-colors"
+              >
+                <Edit2 size={18} />
+                Bewerken
+              </button>
+            )}
+          </div>
+
+          {editingSection === 'meter' ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {Array.from({ length: 30 }, (_, i) => i + 1).map((groupNum) => {
+                  const formValues = meterFormData[groupNum] || { location_type: '', location_number: '', description: '' };
+                  const hasData = formValues.location_type || formValues.description;
+
+                  if (!hasData && !Object.keys(meterFormData).includes(groupNum.toString()) && groupNum > Math.max(0, ...Object.keys(meterFormData).map(k => parseInt(k))) + 3) {
+                    return null;
+                  }
+
+                  return (
+                    <div key={groupNum} className="bg-dark-800 rounded-lg p-4 border border-dark-600">
+                      <label className="block text-sm font-medium text-gray-300 mb-3">
+                        Groep K{groupNum}
+                      </label>
+                      <div className="space-y-2">
+                        <select
+                          value={formValues.location_type}
+                          onChange={(e) => setMeterFormData({
+                            ...meterFormData,
+                            [groupNum]: { ...formValues, location_type: e.target.value, location_number: '' }
+                          })}
+                          className="w-full bg-dark-900 border border-dark-600 rounded px-3 py-2 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                        >
+                          <option value="">Geen toewijzing</option>
+                          <option value="kantoor">Kantoor</option>
+                          <option value="bedrijfshal">Bedrijfshal</option>
+                          <option value="eigen_gebruik">Eigen gebruik</option>
+                        </select>
+
+                        {formValues.location_type === 'kantoor' && (
+                          <select
+                            value={formValues.location_number}
+                            onChange={(e) => setMeterFormData({
+                              ...meterFormData,
+                              [groupNum]: { ...formValues, location_number: e.target.value }
+                            })}
+                            className="w-full bg-dark-900 border border-dark-600 rounded px-3 py-2 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                          >
+                            <option value="">Selecteer kantoor</option>
+                            {[1, 2, 3, 4, 5, 6, 7, 8].map(num => (
+                              <option key={num} value={num}>Kantoor {num}</option>
+                            ))}
+                          </select>
+                        )}
+
+                        {formValues.location_type === 'bedrijfshal' && (
+                          <select
+                            value={formValues.location_number}
+                            onChange={(e) => setMeterFormData({
+                              ...meterFormData,
+                              [groupNum]: { ...formValues, location_number: e.target.value }
+                            })}
+                            className="w-full bg-dark-900 border border-dark-600 rounded px-3 py-2 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                          >
+                            <option value="">Selecteer hal</option>
+                            {[1, 2, 3, 4].map(num => (
+                              <option key={num} value={num}>Hal {num}</option>
+                            ))}
+                          </select>
+                        )}
+
+                        <input
+                          type="text"
+                          value={formValues.description}
+                          onChange={(e) => setMeterFormData({
+                            ...meterFormData,
+                            [groupNum]: { ...formValues, description: e.target.value }
+                          })}
+                          placeholder="Beschrijving (optioneel)"
+                          className="w-full bg-dark-900 border border-dark-600 rounded px-3 py-2 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-dark-700">
+                <button
+                  onClick={() => {
+                    setEditingSection(null);
+                    fetchMeterGroups();
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 text-gray-300 hover:text-gray-100 transition-colors"
+                >
+                  <X size={18} />
+                  Annuleren
+                </button>
+                <button
+                  onClick={handleSaveMeter}
+                  className="flex items-center gap-2 bg-gold-500 text-white px-6 py-2 rounded-lg hover:bg-gold-600 transition-colors"
+                >
+                  <Save size={18} />
+                  Opslaan
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              {meterGroups.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                  {meterGroups.map((group) => {
+                    let locationLabel = '-';
+                    if (group.location_type === 'kantoor' && group.location_number) {
+                      locationLabel = `Kantoor ${group.location_number}`;
+                    } else if (group.location_type === 'bedrijfshal' && group.location_number) {
+                      locationLabel = `Hal ${group.location_number}`;
+                    } else if (group.location_type === 'eigen_gebruik') {
+                      locationLabel = 'Eigen gebruik';
+                    }
+
+                    return (
+                      <div key={group.id} className="bg-dark-800 rounded p-3 border border-dark-600">
+                        <p className="text-xs font-medium text-gray-400 mb-1">Groep K{group.group_number}</p>
+                        <p className="text-xs text-gray-200 font-medium">{locationLabel}</p>
+                        {group.description && (
+                          <p className="text-xs text-gray-400 mt-1 truncate" title={group.description}>
+                            {group.description}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">Geen groepen geconfigureerd</p>
+              )}
             </div>
           )}
         </div>
