@@ -722,14 +722,14 @@ export function BuildingInfo() {
           {editingSection === 'meter' ? (
             <div className="space-y-6">
               <div className="flex items-center gap-3 pb-4 border-b border-dark-700">
-                <label className="text-sm font-medium text-gray-300">ALA Groep:</label>
+                <label className="text-sm font-medium text-gray-300">Aardlek:</label>
                 <select
                   value={selectedAla}
                   onChange={(e) => setSelectedAla(e.target.value)}
                   className="bg-dark-800 border border-dark-600 rounded px-3 py-2 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
                 >
                   {Array.from({ length: 10 }, (_, i) => `ALA${i + 1}`).map(ala => (
-                    <option key={ala} value={ala}>{ala}</option>
+                    <option key={ala} value={ala}>Aardlek {ala.replace('ALA', '')}</option>
                   ))}
                 </select>
               </div>
@@ -882,7 +882,7 @@ export function BuildingInfo() {
 
                     return (
                       <div key={alaGroup} className="border border-dark-700 rounded-lg p-4">
-                        <h4 className="text-sm font-semibold text-gold-500 mb-3">{alaGroup}</h4>
+                        <h4 className="text-sm font-semibold text-gold-500 mb-3">Aardlek {alaGroup.replace('ALA', '')}</h4>
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                           {Object.entries(groupedByK).sort(([a], [b]) => parseInt(a) - parseInt(b)).map(([groupNum, groups]) => {
                             const globalK = getGlobalKNumber(alaGroup, parseInt(groupNum));

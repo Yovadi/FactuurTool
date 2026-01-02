@@ -967,7 +967,7 @@ export async function generateBuildingInfoPDF(data: BuildingInfoData): Promise<v
       pdf.setFontSize(11);
       pdf.setFont('helvetica', 'bold');
       pdf.setTextColor(234, 179, 8);
-      pdf.text(alaGroup, margin, yPosition);
+      pdf.text(`Aardlek ${alaGroup.replace('ALA', '')}`, margin, yPosition);
       yPosition += 6;
 
       pdf.setFontSize(9);
