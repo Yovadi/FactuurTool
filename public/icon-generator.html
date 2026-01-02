@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HAL5 App Icoon Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            color: #fff;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, #D4AF37 0%, #F4E5A5 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #999;
+            margin-bottom: 40px;
+            font-size: 1.1rem;
+        }
+
+        .preview-section {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 40px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .preview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .preview-item {
+            text-align: center;
+        }
+
+        .preview-item h3 {
+            color: #D4AF37;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .icon-preview {
+            background: #2d2d2d;
+            border-radius: 15px;
+            padding: 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            border: 2px solid rgba(212, 175, 55, 0.2);
+        }
+
+        canvas {
+            display: block;
+            image-rendering: crisp-edges;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: -webkit-optimize-contrast;
+        }
+
+        .controls {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .control-group {
+            margin-bottom: 25px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 10px;
+            color: #D4AF37;
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        button {
+            background: linear-gradient(135deg, #D4AF37 0%, #F4E5A5 100%);
+            color: #1a1a1a;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(212, 175, 55, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .info-box {
+            background: rgba(212, 175, 55, 0.1);
+            border-left: 4px solid #D4AF37;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 30px;
+        }
+
+        .info-box h3 {
+            color: #D4AF37;
+            margin-bottom: 10px;
+        }
+
+        .info-box p {
+            color: #ccc;
+            line-height: 1.6;
+        }
+
+        .info-box ol {
+            color: #ccc;
+            margin-left: 20px;
+            margin-top: 10px;
+            line-height: 1.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>HAL5 App Icoon Generator</h1>
+        <p class="subtitle">Factuur document met H5 branding</p>
+
+        <div class="preview-section">
+            <h2 style="margin-bottom: 30px; color: #D4AF37;">Voorbeeld Formaten</h2>
+            <div class="preview-grid">
+                <div class="preview-item">
+                    <h3>512x512 (Hoge Resolutie)</h3>
+                    <div class="icon-preview">
+                        <canvas id="canvas512" width="512" height="512"></canvas>
+                    </div>
+                </div>
+                <div class="preview-item">
+                    <h3>256x256 (Standaard)</h3>
+                    <div class="icon-preview">
+                        <canvas id="canvas256" width="256" height="256"></canvas>
+                    </div>
+                </div>
+                <div class="preview-item">
+                    <h3>128x128 (Klein)</h3>
+                    <div class="icon-preview">
+                        <canvas id="canvas128" width="128" height="128"></canvas>
+                    </div>
+                </div>
+                <div class="preview-item">
+                    <h3>64x64 (Mini)</h3>
+                    <div class="icon-preview">
+                        <canvas id="canvas64" width="64" height="64"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label>Download Iconen</label>
+                <div class="button-grid">
+                    <button onclick="downloadIcon(512)">Download 512x512</button>
+                    <button onclick="downloadIcon(256)">Download 256x256</button>
+                    <button onclick="downloadIcon(128)">Download 128x128</button>
+                    <button onclick="downloadIcon(64)">Download 64x64</button>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <h3>Hoe te gebruiken:</h3>
+                <ol>
+                    <li>Download alle formaten (vooral 256x256 en 512x512)</li>
+                    <li>Gebruik een online converter zoals <strong>convertio.co</strong> of <strong>icoconvert.com</strong> om de PNG bestanden naar .ico te converteren</li>
+                    <li>Voeg het .ico bestand toe aan je project als <code>build/icon.ico</code></li>
+                    <li>Update <code>electron-builder.json</code> met: <code>"icon": "build/icon.ico"</code></li>
+                </ol>
+                <p style="margin-top: 15px;"><strong>Tip:</strong> Voor de beste kwaliteit, upload alle formaten naar de .ico converter zodat Windows het juiste formaat kan selecteren per situatie.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function drawIcon(canvas) {
+            const ctx = canvas.getContext('2d');
+            const size = canvas.width;
+            const scale = size / 512;
+
+            ctx.clearRect(0, 0, size, size);
+
+            const gradient = ctx.createLinearGradient(0, 0, size, size);
+            gradient.addColorStop(0, '#D4AF37');
+            gradient.addColorStop(1, '#F4E5A5');
+
+            ctx.save();
+            ctx.scale(scale, scale);
+
+            const docWidth = 320;
+            const docHeight = 400;
+            const docX = (512 - docWidth) / 2;
+            const docY = (512 - docHeight) / 2;
+            const cornerRadius = 15;
+
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+            ctx.shadowBlur = 30;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 10;
+
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.moveTo(docX + cornerRadius, docY);
+            ctx.lineTo(docX + docWidth - cornerRadius - 60, docY);
+            ctx.lineTo(docX + docWidth, docY + 60);
+            ctx.lineTo(docX + docWidth, docY + docHeight - cornerRadius);
+            ctx.arcTo(docX + docWidth, docY + docHeight, docX + docWidth - cornerRadius, docY + docHeight, cornerRadius);
+            ctx.lineTo(docX + cornerRadius, docY + docHeight);
+            ctx.arcTo(docX, docY + docHeight, docX, docY + docHeight - cornerRadius, cornerRadius);
+            ctx.lineTo(docX, docY + cornerRadius);
+            ctx.arcTo(docX, docY, docX + cornerRadius, docY, cornerRadius);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
+
+            ctx.strokeStyle = 'rgba(26, 26, 26, 0.3)';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(docX + docWidth - 60, docY);
+            ctx.lineTo(docX + docWidth - 60, docY + 60);
+            ctx.lineTo(docX + docWidth, docY + 60);
+            ctx.stroke();
+
+            ctx.fillStyle = 'rgba(26, 26, 26, 0.85)';
+            ctx.font = 'bold 140px Arial, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            const textX = 256;
+            const textY = 270;
+
+            ctx.strokeStyle = 'rgba(26, 26, 26, 0.3)';
+            ctx.lineWidth = 8;
+            ctx.strokeText('H5', textX, textY);
+            ctx.fillText('H5', textX, textY);
+
+            ctx.fillStyle = 'rgba(26, 26, 26, 0.4)';
+            const lineSpacing = 25;
+            const lineWidth = 180;
+            const lineX = docX + 70;
+            const startY = docY + 80;
+            const lineHeight = 3;
+
+            for (let i = 0; i < 3; i++) {
+                const y = startY + (i * lineSpacing);
+                ctx.fillRect(lineX, y, lineWidth, lineHeight);
+            }
+
+            const thinLineY = startY + (3 * lineSpacing) + 15;
+            for (let i = 0; i < 5; i++) {
+                const y = thinLineY + (i * 18);
+                ctx.fillRect(lineX, y, lineWidth - 30, 2);
+            }
+
+            ctx.restore();
+        }
+
+        function downloadIcon(size) {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            drawIcon(canvas);
+
+            canvas.toBlob(function(blob) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `hal5-icon-${size}x${size}.png`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            });
+        }
+
+        ['512', '256', '128', '64'].forEach(size => {
+            const canvas = document.getElementById(`canvas${size}`);
+            drawIcon(canvas);
+        });
+    </script>
+</body>
+</html>
