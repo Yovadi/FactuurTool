@@ -1,6 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { UpdateDialog } from './components/UpdateDialog';
 import { LayoutDashboard, Users, Building, Settings, CalendarClock, LogOut, TrendingUp, FileText, Building2, Calculator, Euro, UserCheck, UserMinus, BarChart3, Loader2 } from 'lucide-react';
+import { supabase } from './lib/supabase';
 
 const Dashboard = lazy(() => import('./components/Dashboard').then(m => ({ default: m.Dashboard })));
 const TenantManagement = lazy(() => import('./components/TenantManagement').then(m => ({ default: m.TenantManagement })));
@@ -112,7 +113,46 @@ function App() {
         }));
       });
     }
+
+    syncFolders();
   }, []);
+
+  const syncFolders = async () => {
+    try {
+      const { data: settings } = await supabase
+        .from('company_settings')
+        .select('*')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!settings?.root_folder_path || !(window as any).electronAPI?.createTenantFolder) {
+        return;
+      }
+
+      const { data: tenants } = await supabase
+        .from('tenants')
+        .select('company_name');
+
+      const { data: externalCustomers } = await supabase
+        .from('external_customers')
+        .select('company_name');
+
+      const allCustomers = [
+        ...(tenants || []).map(t => t.company_name),
+        ...(externalCustomers || []).map(c => c.company_name)
+      ];
+
+      for (const companyName of allCustomers) {
+        await (window as any).electronAPI.createTenantFolder(
+          settings.root_folder_path,
+          companyName
+        );
+      }
+    } catch (error) {
+      console.error('Error syncing folders:', error);
+    }
+  };
 
   const navigation: MenuSection[] = [
     { id: 'dashboard', label: 'Overzicht', icon: LayoutDashboard },
