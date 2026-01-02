@@ -12,7 +12,7 @@ export function BuildingInfo() {
   const [showPasswords, setShowPasswords] = useState<{ [key: number]: boolean }>({});
 
   const [wifiFormData, setWifiFormData] = useState<{ [key: number]: { network_name: string; password: string; tenant_id: string | null } }>({});
-  const [patchFormData, setPatchFormData] = useState<{ [key: string]: string }>({});
+  const [patchFormData, setPatchFormData] = useState<{ [key: string]: { location_type: string; location_number: string; notes: string } }>({});
   const [buildingFormData, setBuildingFormData] = useState({
     meter_cabinet_info: '',
     building_notes: '',
@@ -93,12 +93,16 @@ export function BuildingInfo() {
     if (error) throw error;
     setPatchPorts(data || []);
 
-    const formData: { [key: string]: string } = {};
+    const formData: { [key: string]: { location_type: string; location_number: string; notes: string } } = {};
     for (let switchNum = 1; switchNum <= 2; switchNum++) {
       for (let portNum = 1; portNum <= 24; portNum++) {
         const key = `${switchNum}-${portNum}`;
         const port = data?.find(p => p.switch_number === switchNum && p.port_number === portNum);
-        formData[key] = port?.location_description || '';
+        formData[key] = {
+          location_type: port?.location_type || '',
+          location_number: port?.location_number?.toString() || '',
+          notes: port?.notes || '',
+        };
       }
     }
     setPatchFormData(formData);
@@ -146,23 +150,36 @@ export function BuildingInfo() {
         for (let portNum = 1; portNum <= 24; portNum++) {
           const key = `${switchNum}-${portNum}`;
           const port = patchPorts.find(p => p.switch_number === switchNum && p.port_number === portNum);
-          const locationDesc = patchFormData[key];
+          const formValues = patchFormData[key];
+
+          const hasData = formValues.location_type || formValues.notes.trim();
 
           if (port) {
-            await supabase
-              .from('patch_ports')
-              .update({
-                location_description: locationDesc,
-                updated_at: new Date().toISOString(),
-              })
-              .eq('id', port.id);
-          } else if (locationDesc.trim()) {
+            if (hasData) {
+              await supabase
+                .from('patch_ports')
+                .update({
+                  location_type: formValues.location_type || null,
+                  location_number: formValues.location_number ? parseInt(formValues.location_number) : null,
+                  notes: formValues.notes,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('id', port.id);
+            } else {
+              await supabase
+                .from('patch_ports')
+                .delete()
+                .eq('id', port.id);
+            }
+          } else if (hasData) {
             await supabase
               .from('patch_ports')
               .insert([{
                 switch_number: switchNum,
                 port_number: portNum,
-                location_description: locationDesc,
+                location_type: formValues.location_type || null,
+                location_number: formValues.location_number ? parseInt(formValues.location_number) : null,
+                notes: formValues.notes,
               }]);
           }
         }
@@ -383,21 +400,73 @@ export function BuildingInfo() {
               {[1, 2].map((switchNum) => (
                 <div key={switchNum} className="bg-dark-800 rounded-lg p-6 border border-dark-700">
                   <h4 className="text-lg font-semibold text-gray-200 mb-4">Switch {switchNum}</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {Array.from({ length: 24 }, (_, i) => i + 1).map((portNum) => {
                       const key = `${switchNum}-${portNum}`;
+                      const formValues = patchFormData[key] || { location_type: '', location_number: '', notes: '' };
                       return (
                         <div key={key} className="bg-dark-900 rounded p-3 border border-dark-600">
                           <label className="block text-xs font-medium text-gray-400 mb-2">
                             Poort {portNum}
                           </label>
-                          <input
-                            type="text"
-                            value={patchFormData[key] || ''}
-                            onChange={(e) => setPatchFormData({ ...patchFormData, [key]: e.target.value })}
-                            placeholder="Locatie"
-                            className="w-full bg-dark-800 border border-dark-600 rounded px-2 py-1.5 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
-                          />
+                          <div className="space-y-2">
+                            <select
+                              value={formValues.location_type}
+                              onChange={(e) => setPatchFormData({
+                                ...patchFormData,
+                                [key]: { ...formValues, location_type: e.target.value, location_number: '' }
+                              })}
+                              className="w-full bg-dark-800 border border-dark-600 rounded px-2 py-1.5 text-gray-100 text-xs focus:outline-none focus:ring-2 focus:ring-gold-500"
+                            >
+                              <option value="">Geen toewijzing</option>
+                              <option value="kantoor">Kantoor</option>
+                              <option value="bedrijfshal">Bedrijfshal</option>
+                              <option value="eigen_gebruik">Eigen gebruik</option>
+                            </select>
+
+                            {formValues.location_type === 'kantoor' && (
+                              <select
+                                value={formValues.location_number}
+                                onChange={(e) => setPatchFormData({
+                                  ...patchFormData,
+                                  [key]: { ...formValues, location_number: e.target.value }
+                                })}
+                                className="w-full bg-dark-800 border border-dark-600 rounded px-2 py-1.5 text-gray-100 text-xs focus:outline-none focus:ring-2 focus:ring-gold-500"
+                              >
+                                <option value="">Selecteer kantoor</option>
+                                {[1, 2, 3, 4, 5, 6, 7, 8].map(num => (
+                                  <option key={num} value={num}>Kantoor {num}</option>
+                                ))}
+                              </select>
+                            )}
+
+                            {formValues.location_type === 'bedrijfshal' && (
+                              <select
+                                value={formValues.location_number}
+                                onChange={(e) => setPatchFormData({
+                                  ...patchFormData,
+                                  [key]: { ...formValues, location_number: e.target.value }
+                                })}
+                                className="w-full bg-dark-800 border border-dark-600 rounded px-2 py-1.5 text-gray-100 text-xs focus:outline-none focus:ring-2 focus:ring-gold-500"
+                              >
+                                <option value="">Selecteer hal</option>
+                                {[1, 2, 3, 4].map(num => (
+                                  <option key={num} value={num}>Hal {num}</option>
+                                ))}
+                              </select>
+                            )}
+
+                            <input
+                              type="text"
+                              value={formValues.notes}
+                              onChange={(e) => setPatchFormData({
+                                ...patchFormData,
+                                [key]: { ...formValues, notes: e.target.value }
+                              })}
+                              placeholder="Notities (optioneel)"
+                              className="w-full bg-dark-800 border border-dark-600 rounded px-2 py-1.5 text-gray-100 text-xs focus:outline-none focus:ring-2 focus:ring-gold-500"
+                            />
+                          </div>
                         </div>
                       );
                     })}
@@ -428,21 +497,37 @@ export function BuildingInfo() {
           ) : (
             <div className="space-y-6">
               {[1, 2].map((switchNum) => {
-                const switchPorts = patchPorts.filter(p => p.switch_number === switchNum && p.location_description);
+                const switchPorts = patchPorts.filter(p => p.switch_number === switchNum && (p.location_type || p.notes));
 
                 return (
                   <div key={switchNum} className="bg-dark-800 rounded-lg p-6 border border-dark-700">
                     <h4 className="text-lg font-semibold text-gray-200 mb-4">Switch {switchNum}</h4>
                     {switchPorts.length > 0 ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                         {Array.from({ length: 24 }, (_, i) => i + 1).map((portNum) => {
                           const port = patchPorts.find(p => p.switch_number === switchNum && p.port_number === portNum);
-                          const hasLocation = port?.location_description;
+                          const hasData = port && (port.location_type || port.notes);
+
+                          let locationLabel = '-';
+                          if (port?.location_type === 'kantoor' && port.location_number) {
+                            locationLabel = `Kantoor ${port.location_number}`;
+                          } else if (port?.location_type === 'bedrijfshal' && port.location_number) {
+                            locationLabel = `Hal ${port.location_number}`;
+                          } else if (port?.location_type === 'eigen_gebruik') {
+                            locationLabel = 'Eigen gebruik';
+                          } else if (port?.notes) {
+                            locationLabel = 'Notitie';
+                          }
 
                           return (
-                            <div key={portNum} className={`bg-dark-900 rounded p-3 border ${hasLocation ? 'border-dark-600' : 'border-dark-700 opacity-40'}`}>
+                            <div key={portNum} className={`bg-dark-900 rounded p-2 border ${hasData ? 'border-dark-600' : 'border-dark-700 opacity-40'}`}>
                               <p className="text-xs font-medium text-gray-400 mb-1">Poort {portNum}</p>
-                              <p className="text-sm text-gray-200">{hasLocation || '-'}</p>
+                              <p className="text-xs text-gray-200 font-medium">{locationLabel}</p>
+                              {port?.notes && (
+                                <p className="text-xs text-gray-400 mt-1 truncate" title={port.notes}>
+                                  {port.notes}
+                                </p>
+                              )}
                             </div>
                           );
                         })}

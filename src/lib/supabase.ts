@@ -177,7 +177,9 @@ export type PatchPort = {
   id: string;
   switch_number: number;
   port_number: number;
-  location_description: string;
+  location_type: 'kantoor' | 'bedrijfshal' | 'eigen_gebruik' | null;
+  location_number: number | null;
+  notes: string;
   created_at: string;
   updated_at: string;
 };
