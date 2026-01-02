@@ -240,11 +240,11 @@ export function BuildingInfo() {
 
           {editingSection === 'wifi' ? (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-                  <div key={num} className="bg-dark-800 rounded-lg p-4 border border-dark-700">
-                    <h4 className="text-sm font-semibold text-gray-300 mb-3">Netwerk {num}</h4>
-                    <div className="space-y-3">
+                  <div key={num} className="bg-dark-800 rounded-lg p-3 border border-dark-700">
+                    <h4 className="text-xs font-semibold text-gray-300 mb-2">Netwerk {num}</h4>
+                    <div className="space-y-2">
                       <div>
                         <label className="block text-xs text-gray-400 mb-1">Netwerk Naam</label>
                         <input
@@ -255,7 +255,7 @@ export function BuildingInfo() {
                             [num]: { ...wifiFormData[num], network_name: e.target.value }
                           })}
                           placeholder="Bijv. HAL5-Kantoor"
-                          className="w-full bg-dark-900 border border-dark-600 rounded px-3 py-2 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                          className="w-full bg-dark-900 border border-dark-600 rounded px-2 py-1.5 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
                         />
                       </div>
                       <div>
@@ -268,7 +268,7 @@ export function BuildingInfo() {
                             [num]: { ...wifiFormData[num], password: e.target.value }
                           })}
                           placeholder="Wachtwoord"
-                          className="w-full bg-dark-900 border border-dark-600 rounded px-3 py-2 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                          className="w-full bg-dark-900 border border-dark-600 rounded px-2 py-1.5 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
                         />
                       </div>
                       <div>
@@ -279,7 +279,7 @@ export function BuildingInfo() {
                             ...wifiFormData,
                             [num]: { ...wifiFormData[num], tenant_id: e.target.value || null }
                           })}
-                          className="w-full bg-dark-900 border border-dark-600 rounded px-3 py-2 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                          className="w-full bg-dark-900 border border-dark-600 rounded px-2 py-1.5 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
                         >
                           <option value="">Geen huurder</option>
                           {tenants.map(tenant => (
@@ -315,42 +315,39 @@ export function BuildingInfo() {
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
               {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => {
                 const network = wifiNetworks.find(n => n.network_number === num);
                 const hasData = network && (network.network_name || network.password);
                 const tenantName = network ? getTenantName(network.tenant_id) : null;
 
                 return (
-                  <div key={num} className={`bg-dark-800 rounded-lg p-4 border ${hasData ? 'border-dark-600' : 'border-dark-700 opacity-60'}`}>
-                    <h4 className="text-sm font-semibold text-gray-400 mb-3">Netwerk {num}</h4>
+                  <div key={num} className={`bg-dark-800 rounded-lg p-3 border ${hasData ? 'border-dark-600' : 'border-dark-700 opacity-60'}`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-xs font-semibold text-gray-400">Netwerk {num}</h4>
+                      {hasData && (
+                        <button
+                          onClick={() => togglePasswordVisibility(num)}
+                          className="text-gray-400 hover:text-gray-300"
+                        >
+                          {showPasswords[num] ? <EyeOff size={12} /> : <Eye size={12} />}
+                        </button>
+                      )}
+                    </div>
                     {hasData ? (
-                      <div className="space-y-2">
+                      <div className="space-y-1.5">
                         <div>
-                          <p className="text-xs text-gray-500">Naam</p>
-                          <p className="text-sm text-gray-200">{network.network_name || '-'}</p>
+                          <p className="text-xs font-medium text-gray-200 truncate">{network.network_name || '-'}</p>
                         </div>
                         <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <p className="text-xs text-gray-500">Wachtwoord</p>
-                            <button
-                              onClick={() => togglePasswordVisibility(num)}
-                              className="text-gray-400 hover:text-gray-300"
-                            >
-                              {showPasswords[num] ? <EyeOff size={14} /> : <Eye size={14} />}
-                            </button>
-                          </div>
-                          <p className="text-sm text-gray-200 font-mono">
-                            {showPasswords[num] ? (network.password || '-') : '•'.repeat(network.password?.length || 8)}
+                          <p className="text-xs text-gray-200 font-mono truncate">
+                            {showPasswords[num] ? (network.password || '-') : '•'.repeat(Math.min(network.password?.length || 8, 12))}
                           </p>
                         </div>
                         {tenantName && (
-                          <div>
-                            <p className="text-xs text-gray-500">Huurder</p>
-                            <div className="flex items-center gap-1.5 mt-1">
-                              <User size={14} className="text-gold-500" />
-                              <p className="text-sm text-gray-200">{tenantName}</p>
-                            </div>
+                          <div className="flex items-center gap-1 pt-1 border-t border-dark-700">
+                            <User size={10} className="text-gold-500 flex-shrink-0" />
+                            <p className="text-xs text-gray-300 truncate">{tenantName}</p>
                           </div>
                         )}
                       </div>
