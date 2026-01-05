@@ -77,9 +77,7 @@ function convertLineItemsToSpaces(items: InvoiceLineItem[]) {
       square_footage: squareFootage,
       price_per_sqm: pricePerSqm,
       hours: hours,
-      hourly_rate: hourlyRate,
-      calculation_type: item.calculation_type,
-      quantity_label: item.quantity_label
+      hourly_rate: hourlyRate
     };
   });
 }
@@ -217,8 +215,6 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
     description: string;
     unit_price: string;
     quantity?: string;
-    calculation_type?: 'quantity_price' | 'fixed';
-    quantity_label?: string;
     space_type?: string;
     bookingId?: string;
   }>>([]);
@@ -342,10 +338,8 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
     if (items) {
       setLineItems(items.map(item => ({
         description: item.description,
-        unit_price: item.unit_price.toString(),
-        quantity: item.quantity?.toString() || '',
-        calculation_type: item.calculation_type || 'fixed',
-        quantity_label: item.quantity_label || 'Aantal',
+        unit_price: item.amount.toString(),
+        quantity: '1',
         bookingId: item.booking_id || undefined
       })));
     }
@@ -445,21 +439,14 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
         .eq('invoice_id', editingInvoiceId);
 
       const lineItemsToInsert = lineItems.map(item => {
-        const calculationType = item.calculation_type || 'fixed';
-        const quantity = item.quantity ? parseFloat(item.quantity) : null;
+        const quantity = item.quantity ? parseFloat(item.quantity) : 1;
         const unitPrice = parseFloat(item.unit_price);
-        const amount = calculationType === 'quantity_price' && quantity
-          ? quantity * unitPrice
-          : unitPrice;
-
         return {
           invoice_id: editingInvoiceId,
           description: item.description,
-          quantity: calculationType === 'quantity_price' ? quantity : null,
+          quantity: quantity,
           unit_price: unitPrice,
-          amount: amount,
-          calculation_type: calculationType,
-          quantity_label: item.quantity_label || null,
+          amount: quantity * unitPrice,
           booking_id: item.bookingId || null
         };
       });
@@ -533,21 +520,14 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
       }
 
       const lineItemsToInsert = lineItems.map(item => {
-        const calculationType = item.calculation_type || 'fixed';
-        const quantity = item.quantity ? parseFloat(item.quantity) : null;
+        const quantity = item.quantity ? parseFloat(item.quantity) : 1;
         const unitPrice = parseFloat(item.unit_price);
-        const amount = calculationType === 'quantity_price' && quantity
-          ? quantity * unitPrice
-          : unitPrice;
-
         return {
           invoice_id: newInvoice.id,
           description: item.description,
-          quantity: calculationType === 'quantity_price' ? quantity : null,
+          quantity: quantity,
           unit_price: unitPrice,
-          amount: amount,
-          calculation_type: calculationType,
-          quantity_label: item.quantity_label || null,
+          amount: quantity * unitPrice,
           booking_id: item.bookingId || null
         };
       });
@@ -649,13 +629,7 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
   };
 
   const addLineItem = () => {
-    setLineItems([...lineItems, {
-      description: '',
-      unit_price: '0',
-      quantity: '1',
-      calculation_type: 'fixed',
-      quantity_label: 'Aantal'
-    }]);
+    setLineItems([...lineItems, { description: '', unit_price: '0', quantity: '' }]);
   };
 
   const removeLineItem = (index: number) => {
@@ -1404,15 +1378,9 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
   const getTotalAmount = () => {
     const baseAmount = lineItems.reduce((sum, item) => {
+      const quantity = item.quantity ? parseFloat(item.quantity) : 1;
       const unitPrice = parseFloat(item.unit_price || '0');
-      const calculationType = item.calculation_type || 'fixed';
-
-      if (calculationType === 'quantity_price') {
-        const quantity = item.quantity ? parseFloat(item.quantity) : 1;
-        return sum + (quantity * unitPrice);
-      } else {
-        return sum + unitPrice;
-      }
+      return sum + (quantity * unitPrice);
     }, 0);
 
     let vatRate: number;
@@ -1609,13 +1577,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                   type="button"
                   onClick={() => {
                     setInvoiceMode('manual');
-                    setLineItems([{
-                      description: '',
-                      unit_price: '0',
-                      quantity: '1',
-                      calculation_type: 'fixed',
-                      quantity_label: 'Aantal'
-                    }]);
+                    setLineItems([{ description: '', unit_price: '0', quantity: '' }]);
                   }}
                   className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
                     invoiceMode === 'manual'
@@ -1849,42 +1811,12 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                   </div>
                   <div className="space-y-2">
                     {lineItems.map((item, index) => (
-                      <div key={index} className="space-y-2">
+                      <div key={index} className="space-y-1">
                         {item.space_type === 'Meeting Room' && (
                           <div className="flex items-center gap-2 text-xs text-blue-400">
                             <span className="bg-blue-900/30 px-2 py-0.5 rounded">Vergaderruimte boekingen</span>
                           </div>
                         )}
-
-                        {invoiceMode === 'manual' && item.space_type !== 'Meeting Room' && (
-                          <div className="flex gap-2">
-                            <select
-                              value={item.calculation_type || 'fixed'}
-                              onChange={(e) => {
-                                updateLineItem(index, 'calculation_type', e.target.value);
-                                if (e.target.value === 'fixed') {
-                                  updateLineItem(index, 'quantity', '');
-                                } else if (!item.quantity) {
-                                  updateLineItem(index, 'quantity', '1');
-                                }
-                              }}
-                              className="px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                            >
-                              <option value="fixed">Vaste prijs</option>
-                              <option value="quantity_price">Aantal × Prijs</option>
-                            </select>
-                            {item.calculation_type === 'quantity_price' && (
-                              <input
-                                type="text"
-                                placeholder="Label (bijv. m², Aantal, Uren)"
-                                value={item.quantity_label || ''}
-                                onChange={(e) => updateLineItem(index, 'quantity_label', e.target.value)}
-                                className="flex-1 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                              />
-                            )}
-                          </div>
-                        )}
-
                         <div className="flex gap-2">
                           <input
                             type="text"
@@ -1895,46 +1827,45 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                             className="flex-1 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                             readOnly={item.space_type === 'Meeting Room'}
                           />
-                          {(item.calculation_type === 'quantity_price' || item.space_type === 'Meeting Room') && (
-                            <input
-                              type="text"
-                              inputMode="decimal"
-                              placeholder={item.quantity_label || 'Aantal'}
-                              value={item.quantity || ''}
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                                  updateLineItem(index, 'quantity', value);
-                                }
-                              }}
-                              className="w-32 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                              readOnly={item.space_type === 'Meeting Room'}
-                            />
-                          )}
+                        {invoiceMode === 'manual' && (
                           <input
                             type="text"
                             inputMode="decimal"
-                            required
-                            placeholder={item.calculation_type === 'quantity_price' ? 'Prijs per eenheid' : 'Bedrag'}
-                            value={item.unit_price}
+                            placeholder="Aantal (optioneel)"
+                            value={item.quantity || ''}
                             onChange={(e) => {
                               const value = e.target.value;
                               if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                                updateLineItem(index, 'unit_price', value);
+                                updateLineItem(index, 'quantity', value);
                               }
                             }}
                             className="w-32 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                            readOnly={item.space_type === 'Meeting Room'}
                           />
-                          {lineItems.length > 1 && item.space_type !== 'Meeting Room' && (
-                            <button
-                              type="button"
-                              onClick={() => removeLineItem(index)}
-                              className="text-red-400 hover:text-red-300"
-                            >
-                              ×
-                            </button>
-                          )}
+                        )}
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          required
+                          placeholder="Prijs"
+                          value={item.unit_price}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                              updateLineItem(index, 'unit_price', value);
+                            }
+                          }}
+                          className="w-32 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                          readOnly={item.space_type === 'Meeting Room'}
+                        />
+                        {lineItems.length > 1 && item.space_type !== 'Meeting Room' && (
+                          <button
+                            type="button"
+                            onClick={() => removeLineItem(index)}
+                            className="text-red-400 hover:text-red-300"
+                          >
+                            ×
+                          </button>
+                        )}
                         </div>
                       </div>
                     ))}

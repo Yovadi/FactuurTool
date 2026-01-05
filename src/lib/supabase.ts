@@ -109,11 +109,9 @@ export type InvoiceLineItem = {
   id: string;
   invoice_id: string;
   description: string;
-  quantity: number | null;
+  quantity: number;
   unit_price: number;
   amount: number;
-  calculation_type: 'quantity_price' | 'fixed';
-  quantity_label: string | null;
   booking_id?: string | null;
   created_at: string;
 };
