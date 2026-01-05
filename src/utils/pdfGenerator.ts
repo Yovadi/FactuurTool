@@ -1,4 +1,5 @@
 import jsPDF from 'jspdf';
+import { LOGO_BASE64 } from './logoBase64';
 
 export interface BuildingInfoData {
   company?: {
@@ -77,32 +78,6 @@ interface InvoiceData {
   };
 }
 
-function loadImageAsBase64(url: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        reject(new Error('Failed to get canvas context'));
-        return;
-      }
-      ctx.drawImage(img, 0, 0);
-      try {
-        const dataURL = canvas.toDataURL('image/png');
-        resolve(dataURL);
-      } catch (error) {
-        reject(error);
-      }
-    };
-    img.onerror = () => reject(new Error('Failed to load image'));
-    img.src = url;
-  });
-}
-
 export async function generateInvoicePDFBase64(invoice: InvoiceData): Promise<string> {
   const pdf = await generateInvoicePDFDocument(invoice);
   return pdf.output('datauristring').split(',')[1];
@@ -137,12 +112,11 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
 
   if (invoice.company) {
     try {
-      const logoBase64 = await loadImageAsBase64('/image copy copy copy copy.png');
       const logoWidth = 60;
       const logoHeight = 30;
       const logoX = pageWidth - margin - logoWidth;
       const logoY = yPosition;
-      pdf.addImage(logoBase64, 'PNG', logoX, logoY, logoWidth, logoHeight);
+      pdf.addImage(LOGO_BASE64, 'PNG', logoX, logoY, logoWidth, logoHeight);
     } catch (error) {
       console.error('Failed to load logo:', error);
     }
@@ -518,12 +492,11 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
   let yPosition = 20;
 
   try {
-    const logoBase64 = await loadImageAsBase64('/image copy copy copy copy.png');
     const logoWidth = 60;
     const logoHeight = 30;
     const logoX = pageWidth - margin - logoWidth;
     const logoY = yPosition;
-    pdf.addImage(logoBase64, 'PNG', logoX, logoY, logoWidth, logoHeight);
+    pdf.addImage(LOGO_BASE64, 'PNG', logoX, logoY, logoWidth, logoHeight);
   } catch (error) {
     console.error('Failed to load logo:', error);
   }
@@ -794,11 +767,10 @@ export async function generateBuildingInfoPDF(data: BuildingInfoData): Promise<v
   let yPosition = 20;
 
   try {
-    const logoBase64 = await loadImageAsBase64('/image copy copy copy copy.png');
     const logoWidth = 60;
     const logoHeight = 30;
     const logoX = pageWidth - margin - logoWidth;
-    pdf.addImage(logoBase64, 'PNG', logoX, yPosition, logoWidth, logoHeight);
+    pdf.addImage(LOGO_BASE64, 'PNG', logoX, yPosition, logoWidth, logoHeight);
   } catch (error) {
     console.error('Failed to load logo:', error);
   }
