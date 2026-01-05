@@ -876,7 +876,22 @@ export function SpaceManagement() {
                             : space.space_type === 'Flexplek'
                             ? `Flexplek (${(space as any).flex_capacity} pers.)`
                             : space.space_type === 'diversen'
-                            ? `€ ${space.square_footage?.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}`
+                            ? (() => {
+                                const calculation = (space as any).diversen_calculation;
+                                if (calculation === 'quantity_price') {
+                                  const quantity = (space as any).diversen_quantity || 0;
+                                  const unitPrice = (space as any).diversen_unit_price || 0;
+                                  const total = quantity * unitPrice;
+                                  return `€ ${total.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                                } else if (calculation === 'per_sqm') {
+                                  const sqm = space.square_footage || 0;
+                                  const ratePerSqm = space.rate_per_sqm || 0;
+                                  const total = sqm * ratePerSqm;
+                                  return `€ ${total.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                                } else {
+                                  return `€ ${space.square_footage?.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}`;
+                                }
+                              })()
                             : `${space.square_footage?.toLocaleString('nl-NL', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) || '0'} m²`
                           }
                         </td>

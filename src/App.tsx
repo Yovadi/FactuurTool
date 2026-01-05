@@ -177,10 +177,10 @@ function App() {
     { id: 'tenants', label: 'Huurders', icon: Users },
     {
       id: 'spaces',
-      label: 'Ruimtes',
+      label: 'Objecten',
       icon: Building,
       children: [
-        { id: 'spaces-spaces' as Tab, label: 'Ruimtes', icon: Building2 },
+        { id: 'spaces-spaces' as Tab, label: 'Objecten', icon: Building2 },
         { id: 'spaces-rates' as Tab, label: 'Tarieven', icon: Calculator },
       ],
     },
