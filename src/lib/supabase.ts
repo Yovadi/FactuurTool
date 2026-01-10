@@ -112,6 +112,7 @@ export type InvoiceLineItem = {
   quantity: number;
   unit_price: number;
   amount: number;
+  booking_id?: string | null;
   created_at: string;
 };
 

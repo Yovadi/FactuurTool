@@ -39,6 +39,9 @@ contextBridge.exposeInMainWorld('electron', {
   },
   installUpdate: () => {
     return ipcRenderer.invoke('install-update');
+  },
+  getLogoBase64: () => {
+    return ipcRenderer.invoke('get-logo-base64');
   }
 });
 
@@ -81,5 +84,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   installUpdate: () => {
     return ipcRenderer.invoke('install-update');
+  },
+  getLogoBase64: () => {
+    return ipcRenderer.invoke('get-logo-base64');
   }
 });

@@ -251,6 +251,45 @@ ipcMain.handle('get-app-version', () => {
   return app.getVersion();
 });
 
+ipcMain.handle('get-logo-base64', () => {
+  try {
+    const fs = require('fs');
+    const isDev = process.env.NODE_ENV === 'development';
+
+    let logoPath;
+    if (isDev) {
+      logoPath = path.join(__dirname, '../public/Logo.png');
+    } else {
+      const possiblePaths = [
+        path.join(__dirname, '../public/Logo.png'),
+        path.join(process.resourcesPath, 'public/Logo.png'),
+        path.join(process.resourcesPath, 'app/public/Logo.png'),
+        path.join(app.getAppPath(), 'public/Logo.png')
+      ];
+
+      for (const p of possiblePaths) {
+        if (fs.existsSync(p)) {
+          logoPath = p;
+          console.log('Logo found at:', p);
+          break;
+        }
+      }
+    }
+
+    if (logoPath && fs.existsSync(logoPath)) {
+      const logoBuffer = fs.readFileSync(logoPath);
+      const base64 = logoBuffer.toString('base64');
+      return `data:image/png;base64,${base64}`;
+    }
+
+    console.error('Logo file not found in any expected location');
+    return null;
+  } catch (error) {
+    console.error('Error loading logo:', error);
+    return null;
+  }
+});
+
 ipcMain.handle('check-for-updates', async () => {
   try {
     if (process.env.NODE_ENV === 'development') {
