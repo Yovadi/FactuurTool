@@ -113,13 +113,15 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
   if (invoice.company) {
     try {
       const logoBase64 = await getLogoBase64();
+      console.log('[PDF] Logo loaded, length:', logoBase64?.length, 'starts with:', logoBase64?.substring(0, 50));
       const logoWidth = 60;
       const logoHeight = 30;
       const logoX = pageWidth - margin - logoWidth;
       const logoY = yPosition;
       pdf.addImage(logoBase64, 'PNG', logoX, logoY, logoWidth, logoHeight);
+      console.log('[PDF] Logo added to PDF at position:', logoX, logoY);
     } catch (error) {
-      console.error('Failed to load logo:', error);
+      console.error('[PDF] Failed to load logo:', error);
     }
   }
 
