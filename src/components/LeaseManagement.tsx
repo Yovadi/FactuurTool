@@ -960,24 +960,26 @@ export function LeaseManagement() {
                             <option value="">Selecteer een ruimte...</option>
                             {space.space_id && selectedSpace && (
                               <option value={space.space_id}>
-                                {selectedSpace.space_number} - {selectedSpace.space_type === 'kantoor' ? 'Kantoor' : selectedSpace.space_type === 'buitenterrein' ? 'Buitenterrein' : selectedSpace.space_type === 'bedrijfsruimte' ? 'Bedrijfsruimte' : selectedSpace.space_type === 'meeting_room' ? 'Vergaderruimte' : 'Overig'} ({selectedSpace.square_footage} m²)
+                                {selectedSpace.space_number} - {selectedSpace.space_type === 'kantoor' ? 'Kantoor' : selectedSpace.space_type === 'buitenterrein' ? 'Buitenterrein' : selectedSpace.space_type === 'bedrijfsruimte' ? 'Bedrijfsruimte' : selectedSpace.space_type === 'meeting_room' ? 'Vergaderruimte' : 'Overig'}{selectedSpace.square_footage && selectedSpace.square_footage > 0 ? ` (${selectedSpace.square_footage} m²)` : ''}
                               </option>
                             )}
                             {availableSpaces.map((s) => (
                               <option key={s.id} value={s.id}>
-                                {s.space_number} - {s.space_type === 'kantoor' ? 'Kantoor' : s.space_type === 'buitenterrein' ? 'Buitenterrein' : s.space_type === 'bedrijfsruimte' ? 'Bedrijfsruimte' : s.space_type === 'meeting_room' ? 'Vergaderruimte' : 'Overig'} ({s.square_footage} m²)
+                                {s.space_number} - {s.space_type === 'kantoor' ? 'Kantoor' : s.space_type === 'buitenterrein' ? 'Buitenterrein' : s.space_type === 'bedrijfsruimte' ? 'Bedrijfsruimte' : s.space_type === 'meeting_room' ? 'Vergaderruimte' : 'Overig'}{s.square_footage && s.square_footage > 0 ? ` (${s.square_footage} m²)` : ''}
                               </option>
                             ))}
                           </select>
                           {space.space_id && selectedSpace && (
                             <div className="flex gap-2 items-center bg-dark-950 p-3 rounded-lg">
                               <div className="flex-1">
-                                <div className="text-sm text-gray-400 mb-1">Tarief per m²</div>
+                                <div className="text-sm text-gray-400 mb-1">
+                                  {selectedSpace.square_footage && selectedSpace.square_footage > 0 ? 'Tarief per m²' : 'Tarief'}
+                                </div>
                                 <div className="text-lg font-bold text-gold-500">
                                   €{(() => {
                                     const effectivePrice = space.price_per_sqm || getDefaultRate(space.space_id);
                                     return effectivePrice ? parseFloat(effectivePrice).toFixed(2) : '0.00';
-                                  })()}/m²
+                                  })()}{selectedSpace.square_footage && selectedSpace.square_footage > 0 ? '/m²' : ''}
                                 </div>
                                 {space.space_id && getDefaultRate(space.space_id) && (
                                   <div className="text-xs text-emerald-500 flex items-center gap-1 mt-1">
@@ -997,12 +999,16 @@ export function LeaseManagement() {
                                       : `€${monthlyRent.toFixed(2)}/mnd`;
                                   })()}
                                 </div>
-                                <div className="text-xs text-gray-500 mt-1">
-                                  {selectedSpace.space_type === 'bedrijfsruimte' || selectedSpace.space_type === 'buitenterrein'
-                                    ? `${selectedSpace.square_footage} m² × tarief / 12`
-                                    : `${selectedSpace.square_footage} m² × tarief`
-                                  }
-                                </div>
+                                {selectedSpace.square_footage && selectedSpace.square_footage > 0 ? (
+                                  <div className="text-xs text-gray-500 mt-1">
+                                    {selectedSpace.space_type === 'bedrijfsruimte' || selectedSpace.space_type === 'buitenterrein'
+                                      ? `${selectedSpace.square_footage} m² × tarief / 12`
+                                      : `${selectedSpace.square_footage} m² × tarief`
+                                    }
+                                  </div>
+                                ) : (
+                                  <div className="text-xs text-gray-500 mt-1">Vast bedrag</div>
+                                )}
                               </div>
                             </div>
                           )}
