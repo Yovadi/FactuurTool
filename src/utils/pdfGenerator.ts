@@ -114,46 +114,16 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
     try {
       const logoBase64 = await getLogoBase64();
       console.log('[PDF] Logo loaded, length:', logoBase64?.length);
-
       if (logoBase64 && logoBase64.length > 100) {
         const logoWidth = 60;
         const logoHeight = 30;
         const logoX = pageWidth - margin - logoWidth;
         const logoY = yPosition;
-
-        try {
-          await new Promise<void>((resolve, reject) => {
-            const img = new Image();
-            img.onload = () => {
-              try {
-                const canvas = document.createElement('canvas');
-                canvas.width = img.width;
-                canvas.height = img.height;
-                const ctx = canvas.getContext('2d');
-                if (ctx) {
-                  ctx.drawImage(img, 0, 0);
-                  const dataUrl = canvas.toDataURL('image/png');
-                  pdf.addImage(dataUrl, 'PNG', logoX, logoY, logoWidth, logoHeight);
-                  console.log('[PDF] Logo successfully added');
-                  resolve();
-                } else {
-                  reject(new Error('Canvas context not available'));
-                }
-              } catch (e) {
-                reject(e);
-              }
-            };
-            img.onerror = (e) => {
-              reject(new Error('Image loading failed'));
-            };
-            img.src = logoBase64;
-          });
-        } catch (imgError) {
-          console.error('[PDF] Failed to add logo:', imgError);
-        }
+        pdf.addImage(logoBase64, 'PNG', logoX, logoY, logoWidth, logoHeight);
+        console.log('[PDF] Logo added at position:', logoX, logoY);
       }
     } catch (error) {
-      console.error('[PDF] Failed to load logo:', error);
+      console.error('[PDF] Failed to add logo:', error);
     }
   }
 
@@ -533,34 +503,11 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
       const logoHeight = 30;
       const logoX = pageWidth - margin - logoWidth;
       const logoY = yPosition;
-
-      await new Promise<void>((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => {
-          try {
-            const canvas = document.createElement('canvas');
-            canvas.width = img.width;
-            canvas.height = img.height;
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-              ctx.drawImage(img, 0, 0);
-              const dataUrl = canvas.toDataURL('image/png');
-              pdf.addImage(dataUrl, 'PNG', logoX, logoY, logoWidth, logoHeight);
-              console.log('[PDF Credit Note] Logo successfully added');
-              resolve();
-            } else {
-              reject(new Error('Canvas context not available'));
-            }
-          } catch (e) {
-            reject(e);
-          }
-        };
-        img.onerror = () => reject(new Error('Image loading failed'));
-        img.src = logoBase64;
-      });
+      pdf.addImage(logoBase64, 'PNG', logoX, logoY, logoWidth, logoHeight);
+      console.log('[PDF Credit Note] Logo added');
     }
   } catch (error) {
-    console.error('[PDF Credit Note] Failed to load logo:', error);
+    console.error('[PDF Credit Note] Failed to add logo:', error);
   }
 
   pdf.setFontSize(18);
@@ -834,34 +781,11 @@ export async function generateBuildingInfoPDF(data: BuildingInfoData): Promise<v
       const logoWidth = 60;
       const logoHeight = 30;
       const logoX = pageWidth - margin - logoWidth;
-
-      await new Promise<void>((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => {
-          try {
-            const canvas = document.createElement('canvas');
-            canvas.width = img.width;
-            canvas.height = img.height;
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-              ctx.drawImage(img, 0, 0);
-              const dataUrl = canvas.toDataURL('image/png');
-              pdf.addImage(dataUrl, 'PNG', logoX, yPosition, logoWidth, logoHeight);
-              console.log('[PDF Building Info] Logo successfully added');
-              resolve();
-            } else {
-              reject(new Error('Canvas context not available'));
-            }
-          } catch (e) {
-            reject(e);
-          }
-        };
-        img.onerror = () => reject(new Error('Image loading failed'));
-        img.src = logoBase64;
-      });
+      pdf.addImage(logoBase64, 'PNG', logoX, yPosition, logoWidth, logoHeight);
+      console.log('[PDF Building Info] Logo added');
     }
   } catch (error) {
-    console.error('[PDF Building Info] Failed to load logo:', error);
+    console.error('[PDF Building Info] Failed to add logo:', error);
   }
 
   pdf.setFontSize(20);
