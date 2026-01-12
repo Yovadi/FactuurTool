@@ -106,6 +106,13 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
   } | null>(null);
   const [selectedInvoices, setSelectedInvoices] = useState<Set<string>>(new Set());
   const [invoiceMonth, setInvoiceMonth] = useState<string>('');
+  const [invoicedMonths, setInvoicedMonths] = useState<{
+    leaseCount: Map<string, number>;
+    meetingRoomCount: Map<string, number>;
+  }>({
+    leaseCount: new Map(),
+    meetingRoomCount: new Map()
+  });
 
   const getNextMonthString = async () => {
     const { data: settings } = await supabase
@@ -256,6 +263,10 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    updateInvoicedMonthsCounts();
+  }, [invoices]);
+
   const loadData = async () => {
     setLoading(true);
 
@@ -329,6 +340,26 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
       const total = Math.round((baseAmount + vatAmount) * 100) / 100;
       return { subtotal, vatAmount, total };
     }
+  };
+
+  const updateInvoicedMonthsCounts = () => {
+    const leaseMonthCounts = new Map<string, number>();
+    const meetingRoomMonthCounts = new Map<string, number>();
+
+    invoices.forEach(inv => {
+      if (inv.invoice_month) {
+        if (inv.lease_id) {
+          leaseMonthCounts.set(inv.invoice_month, (leaseMonthCounts.get(inv.invoice_month) || 0) + 1);
+        } else {
+          meetingRoomMonthCounts.set(inv.invoice_month, (meetingRoomMonthCounts.get(inv.invoice_month) || 0) + 1);
+        }
+      }
+    });
+
+    setInvoicedMonths({
+      leaseCount: leaseMonthCounts,
+      meetingRoomCount: meetingRoomMonthCounts
+    });
   };
 
   const startEditInvoice = async (invoice: InvoiceWithDetails) => {
@@ -1132,8 +1163,13 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
         }
 
         console.log('Successfully created invoice for customer:', customer.company_name);
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error generating meeting room invoice:', err);
+        if (err?.message?.includes('duplicate') || err?.code === '23505') {
+          console.log('Skipped - duplicate invoice for customer:', customer.company_name);
+        } else {
+          console.error('Unexpected error for customer:', customer.company_name, err);
+        }
         failCount++;
       }
     }
@@ -1144,7 +1180,10 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
     console.log(`Success: ${successCount}, Failed: ${failCount}`);
 
     if (successCount > 0) {
-      await loadInvoices();
+      alert(`✓ ${successCount} vergaderruimte factuur${successCount > 1 ? 'en' : ''} aangemaakt voor ${new Date(targetMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}`);
+    }
+    if (failCount > 0) {
+      console.log(`${failCount} facturen overgeslagen (bestaan al of fout)`);
     }
   };
 
@@ -1352,13 +1391,25 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             setInvoices(prev => [fullInvoice as InvoiceWithDetails, ...prev]);
           }
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error processing lease:', error);
+        if (error?.message?.includes('duplicate') || error?.code === '23505') {
+          console.log('Skipped - duplicate invoice for lease:', lease.id);
+        } else {
+          console.error('Unexpected error for lease:', lease.id, error);
+        }
         failCount++;
       }
     }
 
     setGeneratingBulk(false);
+
+    if (successCount > 0) {
+      alert(`✓ ${successCount} huur factuur${successCount > 1 ? 'en' : ''} aangemaakt voor ${new Date(targetMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}`);
+    }
+    if (failCount > 0) {
+      console.log(`${failCount} facturen overgeslagen (bestaan al of fout)`);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -2194,17 +2245,35 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                   <div className="flex-shrink-0 pt-6">
                     <div className="text-sm text-gray-400">
                       {invoiceMonth && (
-                        <div>
-                          Facturen worden aangemaakt voor <span className="font-bold text-gold-500">
-                            {new Date(invoiceMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}
-                          </span>
+                        <div className="space-y-1">
+                          <div>
+                            Facturen worden aangemaakt voor <span className="font-bold text-gold-500">
+                              {new Date(invoiceMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}
+                            </span>
+                          </div>
+                          {(invoicedMonths.leaseCount.get(invoiceMonth) || 0) > 0 && (
+                            <div className="flex items-center gap-1 text-amber-500">
+                              <AlertCircle size={14} />
+                              <span className="text-xs">
+                                {invoicedMonths.leaseCount.get(invoiceMonth)} huur factuur{(invoicedMonths.leaseCount.get(invoiceMonth) || 0) > 1 ? 'en' : ''} bestaat al
+                              </span>
+                            </div>
+                          )}
+                          {(invoicedMonths.meetingRoomCount.get(invoiceMonth) || 0) > 0 && (
+                            <div className="flex items-center gap-1 text-amber-500">
+                              <AlertCircle size={14} />
+                              <span className="text-xs">
+                                {invoicedMonths.meetingRoomCount.get(invoiceMonth)} vergaderruimte factuur{(invoicedMonths.meetingRoomCount.get(invoiceMonth) || 0) > 1 ? 'en' : ''} bestaat al
+                              </span>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
                   </div>
                 </div>
                 <p className="text-xs text-gray-400 mt-2">
-                  Tip: Je kunt ook facturen achteraf maken door een eerdere maand te selecteren
+                  Tip: Je kunt ook facturen achteraf maken door een eerdere maand te selecteren. Het systeem voorkomt automatisch dubbele facturen.
                 </p>
               </div>
 
