@@ -115,6 +115,7 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
   });
   const [selectedLeases, setSelectedLeases] = useState<Set<string>>(new Set());
   const [selectedCustomers, setSelectedCustomers] = useState<Set<string>>(new Set());
+  const [meetingRoomBookings, setMeetingRoomBookings] = useState<any[]>([]);
 
   const getNextMonthString = async () => {
     const { data: settings } = await supabase
@@ -327,6 +328,25 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
       .order('created_at', { ascending: false });
 
     setInvoices(invoicesData as InvoiceWithDetails[] || []);
+
+    const { data: bookingsData } = await supabase
+      .from('meeting_room_bookings')
+      .select(`
+        id,
+        booking_date,
+        start_time,
+        end_time,
+        total_hours,
+        total_price,
+        status,
+        invoice_id,
+        tenant_id,
+        external_customer_id,
+        space:office_spaces(name)
+      `)
+      .order('booking_date', { ascending: false });
+
+    setMeetingRoomBookings(bookingsData || []);
     setLoading(false);
   };
 
@@ -1228,6 +1248,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
     console.log(`Success: ${successCount}, Failed: ${failCount}`);
 
     if (successCount > 0) {
+      await loadData();
       alert(`✓ ${successCount} vergaderruimte factuur${successCount > 1 ? 'en' : ''} aangemaakt voor ${new Date(targetMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}`);
       setSelectedCustomers(new Set());
     }
@@ -1461,6 +1482,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
     setGeneratingBulk(false);
 
     if (successCount > 0) {
+      await loadData();
       alert(`✓ ${successCount} huur factuur${successCount > 1 ? 'en' : ''} aangemaakt voor ${new Date(targetMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}`);
       setSelectedLeases(new Set());
     }
