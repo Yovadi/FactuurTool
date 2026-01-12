@@ -593,6 +593,7 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
           const spaceName = ls.space.space_number;
           const spaceType = ls.space.space_type;
           const squareFootage = ls.space.square_footage;
+          const diversenCalc = (ls.space as any).diversen_calculation;
 
           let displayName = spaceName;
           if (spaceType === 'bedrijfsruimte') {
@@ -602,10 +603,13 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
             }
           }
 
+          const isDiversenFixed = spaceType === 'diversen' && (!diversenCalc || diversenCalc === 'fixed');
+          const quantity = isDiversenFixed ? 1 : (squareFootage || 1);
+
           return {
             description: displayName,
             unit_price: ls.price_per_sqm.toFixed(2),
-            quantity: squareFootage || 1,
+            quantity: quantity,
             space_type: spaceType
           };
         }));
@@ -1278,6 +1282,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             const spaceName = ls.space.space_number;
             const spaceType = ls.space.space_type;
             const squareFootage = ls.space.square_footage;
+            const diversenCalc = (ls.space as any).diversen_calculation;
 
             let displayName = spaceName;
             if (spaceType === 'bedrijfsruimte') {
@@ -1287,10 +1292,13 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               }
             }
 
+            const isDiversenFixed = spaceType === 'diversen' && (!diversenCalc || diversenCalc === 'fixed');
+            const quantity = isDiversenFixed ? 1 : (squareFootage || 1);
+
             lineItemsToInsert.push({
               invoice_id: newInvoice.id,
               description: displayName,
-              quantity: squareFootage || 1,
+              quantity: quantity,
               unit_price: ls.price_per_sqm,
               amount: ls.monthly_rent
             });

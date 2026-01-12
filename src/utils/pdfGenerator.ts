@@ -329,9 +329,15 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
             rate = `€ ${space.price_per_sqm.toFixed(2)} / dag`;
           }
         } else if (space.space_type === 'diversen') {
-          quantity = sqm.toFixed(0);
-          if (space.price_per_sqm && space.price_per_sqm > 0) {
+          const isDiversenFixed = space.price_per_sqm && Math.abs(sqm - space.price_per_sqm) < 0.01;
+          if (isDiversenFixed) {
+            quantity = '1';
             rate = `€ ${space.price_per_sqm.toFixed(2)}`;
+          } else {
+            quantity = sqm.toFixed(0);
+            if (space.price_per_sqm && space.price_per_sqm > 0) {
+              rate = `€ ${space.price_per_sqm.toFixed(2)}`;
+            }
           }
         } else {
           quantity = `${sqm.toFixed(0)} m²`;
