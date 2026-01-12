@@ -116,6 +116,7 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
   const [selectedLeases, setSelectedLeases] = useState<Set<string>>(new Set());
   const [selectedCustomers, setSelectedCustomers] = useState<Set<string>>(new Set());
   const [meetingRoomBookings, setMeetingRoomBookings] = useState<any[]>([]);
+  const [showGenerateModal, setShowGenerateModal] = useState(false);
 
   const getNextMonthString = async () => {
     const { data: settings } = await supabase
@@ -1491,6 +1492,266 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
     }
   };
 
+  const generateAllInvoices = async () => {
+    if (selectedLeases.size === 0 && selectedCustomers.size === 0) {
+      alert('Selecteer eerst de huurcontracten en/of klanten waarvoor je facturen wilt genereren.');
+      return;
+    }
+
+    setGeneratingBulk(true);
+
+    let totalSuccess = 0;
+    let totalFail = 0;
+
+    if (selectedLeases.size > 0) {
+      const { data: settings } = await supabase
+        .from('company_settings')
+        .select('*')
+        .maybeSingle();
+
+      let currentDate = new Date();
+      if (settings?.test_mode === true && settings?.test_date) {
+        currentDate = new Date(settings.test_date);
+      }
+
+      const targetMonth = invoiceMonth || await getNextMonthString();
+      const invoiceDate = currentDate.toISOString().split('T')[0];
+      const dueDateObj = new Date(currentDate);
+      dueDateObj.setDate(dueDateObj.getDate() + 14);
+      const dueDate = dueDateObj.toISOString().split('T')[0];
+
+      let leaseSuccess = 0;
+      let leaseFail = 0;
+
+      const selectedLeasesArray = Array.from(selectedLeases);
+      for (const leaseId of selectedLeasesArray) {
+        const lease = leases.find(l => l.id === leaseId);
+        if (!lease) continue;
+
+        const existingInvoice = invoices.find(
+          inv => inv.lease_id === lease.id && inv.invoice_month === targetMonth
+        );
+
+        if (existingInvoice) {
+          console.log(`Skipping duplicate invoice for lease ${lease.id} for month ${targetMonth}`);
+          leaseFail++;
+          continue;
+        }
+
+        try {
+          const invoiceNumber = await generateInvoiceNumber();
+
+          const rentAmount = lease.lease_type === 'flex'
+            ? (lease.flex_monthly_rate || 0)
+            : lease.lease_spaces.reduce((sum, ls) => sum + ls.monthly_rent, 0);
+
+          const invoiceAmount = Math.round((rentAmount + lease.security_deposit) * 100) / 100;
+
+          const { data: newInvoice, error: invoiceError } = await supabase
+            .from('invoices')
+            .insert({
+              invoice_number: invoiceNumber,
+              lease_id: lease.id,
+              tenant_id: lease.tenant_id,
+              invoice_date: invoiceDate,
+              due_date: dueDate,
+              amount: invoiceAmount,
+              status: 'draft',
+              invoice_month: targetMonth,
+              notes: lease.lease_type === 'flex'
+                ? `Flexplek huur voor ${new Date(targetMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}`
+                : `Huur voor ${new Date(targetMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}`
+            })
+            .select()
+            .single();
+
+          if (invoiceError || !newInvoice) {
+            console.error('Error creating invoice:', invoiceError);
+            leaseFail++;
+            continue;
+          }
+
+          const lineItems = lease.lease_type === 'flex'
+            ? [
+                {
+                  invoice_id: newInvoice.id,
+                  description: `Flexplek huur ${new Date(targetMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}`,
+                  quantity: 1,
+                  unit_price: lease.flex_monthly_rate || 0,
+                  vat_rate: 21,
+                  amount: lease.flex_monthly_rate || 0
+                }
+              ]
+            : lease.lease_spaces.map(ls => ({
+                invoice_id: newInvoice.id,
+                description: `Huur ${ls.space.name} - ${new Date(targetMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}`,
+                quantity: 1,
+                unit_price: ls.monthly_rent,
+                vat_rate: 21,
+                amount: ls.monthly_rent
+              }));
+
+          if (lease.security_deposit > 0) {
+            lineItems.push({
+              invoice_id: newInvoice.id,
+              description: 'Borgsom',
+              quantity: 1,
+              unit_price: lease.security_deposit,
+              vat_rate: 21,
+              amount: lease.security_deposit
+            });
+          }
+
+          const { error: lineItemsError } = await supabase
+            .from('invoice_line_items')
+            .insert(lineItems);
+
+          if (lineItemsError) {
+            console.error('Error creating line items:', lineItemsError);
+            await supabase.from('invoices').delete().eq('id', newInvoice.id);
+            leaseFail++;
+            continue;
+          }
+
+          leaseSuccess++;
+        } catch (err) {
+          console.error('Unexpected error generating invoice:', err);
+          leaseFail++;
+        }
+      }
+
+      totalSuccess += leaseSuccess;
+      totalFail += leaseFail;
+    }
+
+    if (selectedCustomers.size > 0) {
+      const { data: settings } = await supabase
+        .from('company_settings')
+        .select('*')
+        .maybeSingle();
+
+      let currentDate = new Date();
+      if (settings?.test_mode === true && settings?.test_date) {
+        currentDate = new Date(settings.test_date);
+      }
+
+      const targetMonth = invoiceMonth || await getNextMonthString();
+
+      let meetingSuccess = 0;
+      let meetingFail = 0;
+
+      const selectedCustomersArray = Array.from(selectedCustomers);
+      for (const customerId of selectedCustomersArray) {
+        const customer = [...tenants, ...externalCustomers].find(c => c.id === customerId);
+        if (!customer) continue;
+
+        const isExternal = externalCustomers.some(ec => ec.id === customerId);
+
+        const existingInvoice = invoices.find(inv => {
+          const matchesCustomer = isExternal
+            ? inv.external_customer_id === customerId
+            : inv.tenant_id === customerId;
+          return matchesCustomer && inv.invoice_month === targetMonth && !inv.lease_id;
+        });
+
+        if (existingInvoice) {
+          console.log(`Skipping duplicate meeting room invoice for customer ${customerId} for month ${targetMonth}`);
+          meetingFail++;
+          continue;
+        }
+
+        try {
+          const bookings = await fetchMeetingRoomBookingsForMonth(
+            customerId,
+            targetMonth,
+            isExternal ? 'external' : 'tenant'
+          );
+
+          if (bookings.length === 0) {
+            meetingFail++;
+            continue;
+          }
+
+          const invoiceNumber = await generateInvoiceNumber();
+          const totalAmount = bookings.reduce((sum, booking) => sum + booking.total_amount, 0);
+
+          const { data: newInvoice, error: invoiceError } = await supabase
+            .from('invoices')
+            .insert({
+              invoice_number: invoiceNumber,
+              tenant_id: isExternal ? null : customerId,
+              external_customer_id: isExternal ? customerId : null,
+              invoice_date: currentDate.toISOString().split('T')[0],
+              due_date: new Date(currentDate.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              amount: totalAmount,
+              status: 'draft',
+              invoice_month: targetMonth,
+              notes: `Vergaderruimte gebruik ${new Date(targetMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}`
+            })
+            .select()
+            .single();
+
+          if (invoiceError || !newInvoice) {
+            console.error('Error creating meeting room invoice:', invoiceError);
+            meetingFail++;
+            continue;
+          }
+
+          const lineItems = bookings.map(booking => ({
+            invoice_id: newInvoice.id,
+            description: `${booking.space?.name || 'Vergaderruimte'} - ${new Date(booking.booking_date).toLocaleDateString('nl-NL')} ${booking.start_time}-${booking.end_time}`,
+            quantity: booking.total_hours,
+            unit_price: booking.hourly_rate,
+            vat_rate: 21,
+            amount: booking.total_amount,
+            booking_id: booking.id
+          }));
+
+          const { error: lineItemsError } = await supabase
+            .from('invoice_line_items')
+            .insert(lineItems);
+
+          if (lineItemsError) {
+            console.error('Error creating line items:', lineItemsError);
+            await supabase.from('invoices').delete().eq('id', newInvoice.id);
+            meetingFail++;
+            continue;
+          }
+
+          const allBookingIds = bookings.map(b => b.id);
+          if (allBookingIds.length > 0) {
+            await supabase
+              .from('meeting_room_bookings')
+              .update({ invoice_id: newInvoice.id })
+              .in('id', allBookingIds);
+          }
+
+          meetingSuccess++;
+        } catch (err) {
+          console.error('Unexpected error generating meeting room invoice:', err);
+          meetingFail++;
+        }
+      }
+
+      totalSuccess += meetingSuccess;
+      totalFail += meetingFail;
+    }
+
+    setGeneratingBulk(false);
+
+    if (totalSuccess > 0) {
+      await loadData();
+      setShowGenerateModal(false);
+      setInvoiceMonth('');
+      setSelectedLeases(new Set());
+      setSelectedCustomers(new Set());
+      alert(`✓ ${totalSuccess} factuur${totalSuccess > 1 ? 'en' : ''} aangemaakt voor ${new Date((invoiceMonth || await getNextMonthString()) + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}`);
+    }
+    if (totalFail > 0) {
+      console.log(`${totalFail} facturen overgeslagen (bestaan al of fout)`);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'paid': return 'bg-green-900 text-green-400';
@@ -2307,106 +2568,133 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
           return (
             <div className="p-6 space-y-8">
-              {/* Factuurmaand Selector */}
-              <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4">
-                <div className="flex items-center gap-4">
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-200 mb-2">
-                      Factureren voor maand
-                    </label>
-                    <input
-                      type="month"
-                      value={invoiceMonth}
-                      onChange={(e) => setInvoiceMonth(e.target.value)}
-                      className="px-4 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                    />
-                  </div>
-                  <div className="flex-shrink-0 pt-6">
-                    <div className="text-sm text-gray-400">
-                      {invoiceMonth && (
-                        <div className="space-y-1">
-                          <div>
-                            Facturen worden aangemaakt voor <span className="font-bold text-gold-500">
-                              {new Date(invoiceMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}
-                            </span>
-                          </div>
-                          {(invoicedMonths.leaseCount.get(invoiceMonth) || 0) > 0 && (
-                            <div className="flex items-center gap-1 text-amber-500">
-                              <AlertCircle size={14} />
-                              <span className="text-xs">
-                                {invoicedMonths.leaseCount.get(invoiceMonth)} huur factuur{(invoicedMonths.leaseCount.get(invoiceMonth) || 0) > 1 ? 'en' : ''} bestaat al
-                              </span>
-                            </div>
-                          )}
-                          {(invoicedMonths.meetingRoomCount.get(invoiceMonth) || 0) > 0 && (
-                            <div className="flex items-center gap-1 text-amber-500">
-                              <AlertCircle size={14} />
-                              <span className="text-xs">
-                                {invoicedMonths.meetingRoomCount.get(invoiceMonth)} vergaderruimte factuur{(invoicedMonths.meetingRoomCount.get(invoiceMonth) || 0) > 1 ? 'en' : ''} bestaat al
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <p className="text-xs text-gray-400 mt-2">
-                  Tip: Je kunt ook facturen achteraf maken door een eerdere maand te selecteren. Het systeem voorkomt automatisch dubbele facturen.
-                </p>
+              {/* Genereer Facturen Knop */}
+              <div className="flex justify-end">
+                <button
+                  onClick={() => setShowGenerateModal(true)}
+                  className="px-6 py-3 bg-gold-500 text-dark-900 font-medium rounded-lg hover:bg-gold-400 transition-colors flex items-center gap-2"
+                >
+                  <Plus size={20} />
+                  Genereer Facturen
+                </button>
               </div>
 
-              {/* Te genereren facturen */}
-              {invoiceMonth && (() => {
-                const targetMonth = invoiceMonth;
-                const leasesToGenerate = leases.filter(lease => {
-                  const existingInvoice = invoices.find(
-                    inv => inv.lease_id === lease.id && inv.invoice_month === targetMonth
-                  );
-                  return !existingInvoice;
-                });
-
-                const customersWithBookings = [...tenants, ...externalCustomers.map(ec => ({
-                  ...ec,
-                  isExternal: true
-                }))].filter(customer => {
-                  const bookings = meetingRoomBookings.filter(booking => {
-                    const bookingDate = new Date(booking.booking_date);
-                    const bookingYearMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
-                    const isForSelectedMonth = bookingYearMonth === targetMonth;
-                    const isUnbilled = !booking.invoice_id;
-                    const isForCustomer = (customer as any).isExternal
-                      ? booking.external_customer_id === customer.id
-                      : booking.tenant_id === customer.id;
-                    return isForSelectedMonth && isUnbilled && isForCustomer;
-                  });
-
-                  if (bookings.length === 0) return false;
-
-                  const existingInvoice = invoices.find(inv => {
-                    const matchesCustomer = (customer as any).isExternal
-                      ? inv.external_customer_id === customer.id
-                      : inv.tenant_id === customer.id;
-                    return matchesCustomer && inv.invoice_month === targetMonth && !inv.lease_id;
-                  });
-
-                  return !existingInvoice;
-                });
-
-                if (leasesToGenerate.length === 0 && customersWithBookings.length === 0) {
-                  return null;
-                }
-
-                return (
-                  <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4 space-y-6">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-semibold text-gray-100">
-                        Te genereren facturen voor {new Date(targetMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}
-                      </h3>
-                      <div className="text-sm text-gray-400">
-                        {selectedLeases.size + selectedCustomers.size} geselecteerd
-                      </div>
+              {/* Genereer Facturen Modal */}
+              {showGenerateModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                  <div className="bg-dark-900 rounded-lg shadow-xl border border-dark-700 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                    <div className="sticky top-0 bg-dark-800 px-6 py-4 border-b border-dark-700 flex items-center justify-between">
+                      <h2 className="text-xl font-bold text-gray-100">Facturen Genereren</h2>
+                      <button
+                        onClick={() => {
+                          setShowGenerateModal(false);
+                          setInvoiceMonth('');
+                          setSelectedLeases(new Set());
+                          setSelectedCustomers(new Set());
+                        }}
+                        className="text-gray-400 hover:text-gray-200 transition-colors"
+                      >
+                        <X size={24} />
+                      </button>
                     </div>
+
+                    <div className="p-6 space-y-6">
+                      {/* Maandkeuze */}
+                      <div className="bg-dark-800 rounded-lg p-4">
+                        <label className="block text-sm font-medium text-gray-200 mb-2">
+                          Factureren voor maand
+                        </label>
+                        <input
+                          type="month"
+                          value={invoiceMonth}
+                          onChange={(e) => setInvoiceMonth(e.target.value)}
+                          className="w-full px-4 py-2 bg-dark-700 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                        />
+                        {invoiceMonth && (
+                          <div className="mt-3 space-y-2">
+                            <div className="text-sm text-gray-300">
+                              Facturen worden aangemaakt voor <span className="font-bold text-gold-500">
+                                {new Date(invoiceMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}
+                              </span>
+                            </div>
+                            {(invoicedMonths.leaseCount.get(invoiceMonth) || 0) > 0 && (
+                              <div className="flex items-center gap-1 text-amber-500">
+                                <AlertCircle size={14} />
+                                <span className="text-xs">
+                                  {invoicedMonths.leaseCount.get(invoiceMonth)} huur factuur{(invoicedMonths.leaseCount.get(invoiceMonth) || 0) > 1 ? 'en' : ''} bestaat al
+                                </span>
+                              </div>
+                            )}
+                            {(invoicedMonths.meetingRoomCount.get(invoiceMonth) || 0) > 0 && (
+                              <div className="flex items-center gap-1 text-amber-500">
+                                <AlertCircle size={14} />
+                                <span className="text-xs">
+                                  {invoicedMonths.meetingRoomCount.get(invoiceMonth)} vergaderruimte factuur{(invoicedMonths.meetingRoomCount.get(invoiceMonth) || 0) > 1 ? 'en' : ''} bestaat al
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        <p className="text-xs text-gray-400 mt-2">
+                          Tip: Je kunt ook facturen achteraf maken door een eerdere maand te selecteren.
+                        </p>
+                      </div>
+
+                      {/* Te genereren facturen */}
+                      {invoiceMonth && (() => {
+                        const targetMonth = invoiceMonth;
+                        const leasesToGenerate = leases.filter(lease => {
+                          const existingInvoice = invoices.find(
+                            inv => inv.lease_id === lease.id && inv.invoice_month === targetMonth
+                          );
+                          return !existingInvoice;
+                        });
+
+                        const customersWithBookings = [...tenants, ...externalCustomers.map(ec => ({
+                          ...ec,
+                          isExternal: true
+                        }))].filter(customer => {
+                          const bookings = meetingRoomBookings.filter(booking => {
+                            const bookingDate = new Date(booking.booking_date);
+                            const bookingYearMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
+                            const isForSelectedMonth = bookingYearMonth === targetMonth;
+                            const isUnbilled = !booking.invoice_id;
+                            const isForCustomer = (customer as any).isExternal
+                              ? booking.external_customer_id === customer.id
+                              : booking.tenant_id === customer.id;
+                            return isForSelectedMonth && isUnbilled && isForCustomer;
+                          });
+
+                          if (bookings.length === 0) return false;
+
+                          const existingInvoice = invoices.find(inv => {
+                            const matchesCustomer = (customer as any).isExternal
+                              ? inv.external_customer_id === customer.id
+                              : inv.tenant_id === customer.id;
+                            return matchesCustomer && inv.invoice_month === targetMonth && !inv.lease_id;
+                          });
+
+                          return !existingInvoice;
+                        });
+
+                        if (leasesToGenerate.length === 0 && customersWithBookings.length === 0) {
+                          return (
+                            <div className="text-center py-8 text-gray-400">
+                              Geen facturen te genereren voor deze maand
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div className="space-y-6">
+                            <div className="flex items-center justify-between">
+                              <h3 className="text-lg font-semibold text-gray-100">
+                                Te genereren facturen
+                              </h3>
+                              <div className="text-sm text-gray-400">
+                                {selectedLeases.size + selectedCustomers.size} geselecteerd
+                              </div>
+                            </div>
 
                     {/* Huurcontracten */}
                     {leasesToGenerate.length > 0 && (
@@ -2548,38 +2836,29 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                       </div>
                     )}
 
-                    {/* Genereer knop */}
-                    <div className="flex gap-3 pt-4 border-t border-dark-700">
-                      <button
-                        onClick={() => generateBulkInvoices()}
-                        disabled={selectedLeases.size === 0 || generatingBulk}
-                        className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        {generatingBulk ? 'Bezig...' : `Genereer ${selectedLeases.size} huur factuur${selectedLeases.size !== 1 ? 'en' : ''}`}
-                      </button>
-                      <button
-                        onClick={() => generateMeetingRoomInvoices()}
-                        disabled={selectedCustomers.size === 0 || generatingBulk}
-                        className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        {generatingBulk ? 'Bezig...' : `Genereer ${selectedCustomers.size} vergaderruimte factuur${selectedCustomers.size !== 1 ? 'en' : ''}`}
-                      </button>
+                            {/* Genereer knop */}
+                            <div className="pt-4 border-t border-dark-700">
+                              <button
+                                onClick={() => generateAllInvoices()}
+                                disabled={(selectedLeases.size === 0 && selectedCustomers.size === 0) || generatingBulk}
+                                className="w-full px-6 py-3 bg-gold-500 text-dark-900 font-medium rounded-lg hover:bg-gold-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                              >
+                                {generatingBulk ? 'Facturen worden gegenereerd...' : `Genereer ${selectedLeases.size + selectedCustomers.size} factuur${(selectedLeases.size + selectedCustomers.size) !== 1 ? 'en' : ''}`}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
-                );
-              })()}
+                </div>
+              )}
 
               {/* Concept Huur Facturen */}
               {renderInvoiceTable(
                 draftLeaseInvoices,
                 'Concept Huur Facturen',
-                '#10b981',
-                {
-                  label: generatingBulk ? 'Bezig...' : 'Genereer factuur',
-                  onClick: generateBulkInvoices,
-                  color: 'bg-emerald-600',
-                  disabled: generatingBulk
-                }
+                '#10b981'
               )}
 
               {/* Concept Vergaderruimte Facturen */}
@@ -2587,13 +2866,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                 {renderInvoiceTable(
                   draftMeetingRoomInvoices,
                   'Concept Vergaderruimte Facturen',
-                  '#3b82f6',
-                  {
-                    label: generatingBulk ? 'Bezig...' : 'Genereer factuur',
-                    onClick: generateMeetingRoomInvoices,
-                    color: 'bg-blue-600',
-                    disabled: generatingBulk
-                  }
+                  '#3b82f6'
                 )}
               </div>
 
