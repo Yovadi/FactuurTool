@@ -347,7 +347,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         invoice_id,
         tenant_id,
         external_customer_id,
-        space:office_spaces(name)
+        space:office_spaces(space_number)
       `)
       .order('booking_date', { ascending: false });
 
@@ -1543,7 +1543,13 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
         }
 
         try {
-          const invoiceNumber = await generateInvoiceNumber();
+          const { data: invoiceNumber, error: invoiceNumberError } = await supabase.rpc('generate_invoice_number');
+
+          if (invoiceNumberError || !invoiceNumber) {
+            console.error('Error generating invoice number:', invoiceNumberError);
+            leaseFail++;
+            continue;
+          }
 
           const rentAmount = lease.lease_type === 'flex'
             ? (lease.flex_monthly_rate || 0)
@@ -1588,7 +1594,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               ]
             : lease.lease_spaces.map(ls => ({
                 invoice_id: newInvoice.id,
-                description: `Huur ${ls.space.name} - ${new Date(targetMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}`,
+                description: `Huur ${ls.space.space_number} - ${new Date(targetMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}`,
                 quantity: 1,
                 unit_price: ls.monthly_rent,
                 vat_rate: 21,
@@ -1676,7 +1682,14 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             continue;
           }
 
-          const invoiceNumber = await generateInvoiceNumber();
+          const { data: invoiceNumber, error: invoiceNumberError } = await supabase.rpc('generate_invoice_number');
+
+          if (invoiceNumberError || !invoiceNumber) {
+            console.error('Error generating invoice number:', invoiceNumberError);
+            meetingFail++;
+            continue;
+          }
+
           const totalAmount = bookings.reduce((sum, booking) => sum + booking.total_amount, 0);
 
           const { data: newInvoice, error: invoiceError } = await supabase
