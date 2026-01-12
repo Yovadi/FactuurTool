@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { supabase, type Invoice, type Lease, type Tenant, type ExternalCustomer, type LeaseSpace, type OfficeSpace, type InvoiceLineItem } from '../lib/supabase';
 import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, CreditCard as Edit, Search, CreditCard as Edit2, AlertCircle, CheckSquare, Square, Check, X, Home } from 'lucide-react';
 import { generateInvoicePDF } from '../utils/pdfGenerator';
@@ -86,7 +86,7 @@ type InvoiceManagementProps = {
   onCreateCreditNote?: (invoice: any, tenant: any, spaces: any[]) => void;
 };
 
-export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps = {}) {
+export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCreateCreditNote }, ref) => {
   const [invoices, setInvoices] = useState<InvoiceWithDetails[]>([]);
   const [leases, setLeases] = useState<LeaseWithDetails[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -117,6 +117,10 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
   const [selectedCustomers, setSelectedCustomers] = useState<Set<string>>(new Set());
   const [meetingRoomBookings, setMeetingRoomBookings] = useState<any[]>([]);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
+
+  useImperativeHandle(ref, () => ({
+    openGenerateModal: () => setShowGenerateModal(true)
+  }));
 
   const getNextMonthString = async () => {
     const { data: settings } = await supabase
@@ -2327,19 +2331,6 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
         </div>
       )}
 
-      {/* Genereer Facturen Knop */}
-      <div className="p-6 pb-0">
-        <div className="flex justify-end">
-          <button
-            onClick={() => setShowGenerateModal(true)}
-            className="px-6 py-3 bg-gold-500 text-dark-900 font-medium rounded-lg hover:bg-gold-400 transition-colors flex items-center gap-2"
-          >
-            <Plus size={20} />
-            Genereer Facturen
-          </button>
-        </div>
-      </div>
-
       <div className="space-y-8">
         {(() => {
           const allDraftInvoices = invoices.filter(inv => inv.status === 'draft');
@@ -3137,4 +3128,4 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
       )}
     </div>
   );
-}
+});
