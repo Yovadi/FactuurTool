@@ -105,6 +105,7 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
     spaces: any[];
   } | null>(null);
   const [selectedInvoices, setSelectedInvoices] = useState<Set<string>>(new Set());
+  const [invoiceMonth, setInvoiceMonth] = useState<string>('');
 
   const getNextMonthString = async () => {
     const { data: settings } = await supabase
@@ -235,6 +236,7 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
       dueDateObj.setDate(dueDateObj.getDate() + 14);
 
       const nextMonth = await getNextMonthString();
+      setInvoiceMonth(nextMonth);
       setFormData(prev => ({
         ...prev,
         invoice_month: nextMonth,
@@ -940,14 +942,10 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
       currentDate = new Date(settings.test_date);
     }
 
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-
-    // Use current month instead of previous month for meeting room bookings
-    const invoiceMonthString = `${year}-${String(month + 1).padStart(2, '0')}`;
+    const targetMonth = invoiceMonth || await getNextMonthString();
 
     console.log('=== MEETING ROOM INVOICE GENERATION ===');
-    console.log('Generating meeting room invoices for month:', invoiceMonthString);
+    console.log('Generating meeting room invoices for month:', targetMonth);
     console.log('Current date:', currentDate.toISOString());
     console.log('Total tenants:', tenants.length);
     console.log('Test mode:', settings?.test_mode);
@@ -961,7 +959,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
     for (const tenant of tenants) {
       console.log('Checking tenant:', tenant.company_name, 'ID:', tenant.id);
-      const bookingItems = await fetchMeetingRoomBookingsForMonth(tenant.id, invoiceMonthString, 'tenant');
+      const bookingItems = await fetchMeetingRoomBookingsForMonth(tenant.id, targetMonth, 'tenant');
       console.log('Found bookings:', bookingItems.length, 'for tenant:', tenant.company_name);
 
       if (bookingItems.length > 0) {
@@ -981,7 +979,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
     for (const customer of externalCustomers || []) {
       console.log('Checking external customer:', customer.company_name, 'ID:', customer.id);
-      const bookingItems = await fetchMeetingRoomBookingsForMonth(customer.id, invoiceMonthString, 'external');
+      const bookingItems = await fetchMeetingRoomBookingsForMonth(customer.id, targetMonth, 'external');
       console.log('Found bookings:', bookingItems.length, 'for external customer:', customer.company_name);
 
       if (bookingItems.length > 0) {
@@ -1006,11 +1004,11 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
         let existingInvoice;
         if (customerType === 'tenant') {
           existingInvoice = invoices.find(
-            inv => inv.tenant_id === customer.id && inv.invoice_month === invoiceMonthString && inv.lease_id === null
+            inv => inv.tenant_id === customer.id && inv.invoice_month === targetMonth && inv.lease_id === null
           );
         } else {
           existingInvoice = invoices.find(
-            inv => inv.external_customer_id === customer.id && inv.invoice_month === invoiceMonthString && inv.lease_id === null
+            inv => inv.external_customer_id === customer.id && inv.invoice_month === targetMonth && inv.lease_id === null
           );
         }
 
@@ -1045,7 +1043,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
           invoice_number: invoiceNumber,
           invoice_date: invoiceDate,
           due_date: dueDate,
-          invoice_month: invoiceMonthString,
+          invoice_month: targetMonth,
           subtotal: subtotal,
           vat_amount: vatAmount,
           amount: total,
@@ -1163,13 +1161,13 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
       currentDate = new Date(settings.test_date);
     }
 
-    const nextMonth = await getNextMonthString();
+    const targetMonth = invoiceMonth || await getNextMonthString();
     const invoiceDate = currentDate.toISOString().split('T')[0];
     const dueDateObj = new Date(currentDate);
     dueDateObj.setDate(dueDateObj.getDate() + 14);
     const dueDate = dueDateObj.toISOString().split('T')[0];
 
-    console.log('Starting bulk invoice generation for month:', nextMonth);
+    console.log('Starting bulk invoice generation for month:', targetMonth);
     console.log('Total leases to process:', leases.length);
     console.log('Leases:', leases.map(l => ({ id: l.id, tenant: l.tenant?.company_name })));
 
@@ -1181,15 +1179,15 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
         console.log('Processing lease:', lease.id, 'Tenant:', lease.tenant?.company_name);
 
         const existingInvoice = invoices.find(
-          inv => inv.lease_id === lease.id && inv.invoice_month === nextMonth
+          inv => inv.lease_id === lease.id && inv.invoice_month === targetMonth
         );
 
         if (existingInvoice) {
-          console.log('Skipping - invoice already exists for', lease.tenant?.company_name, 'month:', nextMonth);
+          console.log('Skipping - invoice already exists for', lease.tenant?.company_name, 'month:', targetMonth);
           continue;
         }
 
-        console.log('Creating invoice for', lease.tenant?.company_name, 'for month:', nextMonth);
+        console.log('Creating invoice for', lease.tenant?.company_name, 'for month:', targetMonth);
 
         const { data: invoiceNumber, error: numberError } = await supabase.rpc('generate_invoice_number');
 
@@ -1259,7 +1257,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             invoice_number: invoiceNumber,
             invoice_date: invoiceDate,
             due_date: dueDate,
-            invoice_month: nextMonth,
+            invoice_month: targetMonth,
             subtotal: subtotal,
             vat_amount: vatAmount,
             amount: total,
@@ -2179,6 +2177,37 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
           return (
             <div className="p-6 space-y-8">
+              {/* Factuurmaand Selector */}
+              <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-200 mb-2">
+                      Factureren voor maand
+                    </label>
+                    <input
+                      type="month"
+                      value={invoiceMonth}
+                      onChange={(e) => setInvoiceMonth(e.target.value)}
+                      className="px-4 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                    />
+                  </div>
+                  <div className="flex-shrink-0 pt-6">
+                    <div className="text-sm text-gray-400">
+                      {invoiceMonth && (
+                        <div>
+                          Facturen worden aangemaakt voor <span className="font-bold text-gold-500">
+                            {new Date(invoiceMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-400 mt-2">
+                  Tip: Je kunt ook facturen achteraf maken door een eerdere maand te selecteren
+                </p>
+              </div>
+
               {/* Concept Huur Facturen */}
               {renderInvoiceTable(
                 draftLeaseInvoices,
