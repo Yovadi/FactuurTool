@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, type Invoice, type Lease, type Tenant, type ExternalCustomer, type LeaseSpace, type OfficeSpace, type InvoiceLineItem } from '../lib/supabase';
-import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, Edit, Search, CreditCard as Edit2, AlertCircle, CheckSquare, Square, Check, X } from 'lucide-react';
+import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, Edit, Search, CreditCard as Edit2, AlertCircle, CheckSquare, Square, Check, X, Home } from 'lucide-react';
 import { generateInvoicePDF } from '../utils/pdfGenerator';
 import { InvoicePreview } from './InvoicePreview';
 import { checkAndRunScheduledJobs } from '../utils/scheduledJobs';
@@ -113,6 +113,8 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
     leaseCount: new Map(),
     meetingRoomCount: new Map()
   });
+  const [selectedLeases, setSelectedLeases] = useState<Set<string>>(new Set());
+  const [selectedCustomers, setSelectedCustomers] = useState<Set<string>>(new Set());
 
   const getNextMonthString = async () => {
     const { data: settings } = await supabase
@@ -360,6 +362,46 @@ export function InvoiceManagement({ onCreateCreditNote }: InvoiceManagementProps
       leaseCount: leaseMonthCounts,
       meetingRoomCount: meetingRoomMonthCounts
     });
+  };
+
+  const toggleLeaseSelection = (leaseId: string) => {
+    setSelectedLeases(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(leaseId)) {
+        newSet.delete(leaseId);
+      } else {
+        newSet.add(leaseId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleCustomerSelection = (customerId: string) => {
+    setSelectedCustomers(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(customerId)) {
+        newSet.delete(customerId);
+      } else {
+        newSet.add(customerId);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAllLeases = (leaseIds: string[]) => {
+    setSelectedLeases(new Set(leaseIds));
+  };
+
+  const deselectAllLeases = () => {
+    setSelectedLeases(new Set());
+  };
+
+  const selectAllCustomers = (customerIds: string[]) => {
+    setSelectedCustomers(new Set(customerIds));
+  };
+
+  const deselectAllCustomers = () => {
+    setSelectedCustomers(new Set());
   };
 
   const startEditInvoice = async (invoice: InvoiceWithDetails) => {
@@ -961,6 +1003,11 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
   };
 
   const generateMeetingRoomInvoices = async () => {
+    if (selectedCustomers.size === 0) {
+      alert('Selecteer eerst de klanten waarvoor je facturen wilt genereren.');
+      return;
+    }
+
     setGeneratingBulk(true);
 
     const { data: settings } = await supabase
@@ -978,7 +1025,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
     console.log('=== MEETING ROOM INVOICE GENERATION ===');
     console.log('Generating meeting room invoices for month:', targetMonth);
     console.log('Current date:', currentDate.toISOString());
-    console.log('Total tenants:', tenants.length);
+    console.log('Selected customers:', selectedCustomers.size);
     console.log('Test mode:', settings?.test_mode);
 
     const invoiceDate = currentDate.toISOString().split('T')[0];
@@ -988,7 +1035,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
     const customersWithBookings = new Map<string, { customer: any; customerType: 'tenant' | 'external'; bookings: any[] }>();
 
-    for (const tenant of tenants) {
+    for (const tenant of tenants.filter(t => selectedCustomers.has(t.id))) {
       console.log('Checking tenant:', tenant.company_name, 'ID:', tenant.id);
       const bookingItems = await fetchMeetingRoomBookingsForMonth(tenant.id, targetMonth, 'tenant');
       console.log('Found bookings:', bookingItems.length, 'for tenant:', tenant.company_name);
@@ -1006,9 +1053,10 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
       .from('external_customers')
       .select('*');
 
-    console.log('External customers found:', externalCustomers?.length || 0);
+    const selectedExternalCustomers = (externalCustomers || []).filter(c => selectedCustomers.has(c.id));
+    console.log('Selected external customers:', selectedExternalCustomers.length);
 
-    for (const customer of externalCustomers || []) {
+    for (const customer of selectedExternalCustomers) {
       console.log('Checking external customer:', customer.company_name, 'ID:', customer.id);
       const bookingItems = await fetchMeetingRoomBookingsForMonth(customer.id, targetMonth, 'external');
       console.log('Found bookings:', bookingItems.length, 'for external customer:', customer.company_name);
@@ -1181,6 +1229,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
     if (successCount > 0) {
       alert(`✓ ${successCount} vergaderruimte factuur${successCount > 1 ? 'en' : ''} aangemaakt voor ${new Date(targetMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}`);
+      setSelectedCustomers(new Set());
     }
     if (failCount > 0) {
       console.log(`${failCount} facturen overgeslagen (bestaan al of fout)`);
@@ -1188,6 +1237,11 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
   };
 
   const generateBulkInvoices = async () => {
+    if (selectedLeases.size === 0) {
+      alert('Selecteer eerst de huurcontracten waarvoor je facturen wilt genereren.');
+      return;
+    }
+
     setGeneratingBulk(true);
 
     const { data: settings } = await supabase
@@ -1206,14 +1260,16 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
     dueDateObj.setDate(dueDateObj.getDate() + 14);
     const dueDate = dueDateObj.toISOString().split('T')[0];
 
+    const leasesToProcess = leases.filter(l => selectedLeases.has(l.id));
+
     console.log('Starting bulk invoice generation for month:', targetMonth);
-    console.log('Total leases to process:', leases.length);
-    console.log('Leases:', leases.map(l => ({ id: l.id, tenant: l.tenant?.company_name })));
+    console.log('Total leases to process:', leasesToProcess.length);
+    console.log('Leases:', leasesToProcess.map(l => ({ id: l.id, tenant: l.tenant?.company_name })));
 
     let successCount = 0;
     let failCount = 0;
 
-    for (const lease of leases) {
+    for (const lease of leasesToProcess) {
       try {
         console.log('Processing lease:', lease.id, 'Tenant:', lease.tenant?.company_name);
 
@@ -1406,6 +1462,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
     if (successCount > 0) {
       alert(`✓ ${successCount} huur factuur${successCount > 1 ? 'en' : ''} aangemaakt voor ${new Date(targetMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}`);
+      setSelectedLeases(new Set());
     }
     if (failCount > 0) {
       console.log(`${failCount} facturen overgeslagen (bestaan al of fout)`);
@@ -2276,6 +2333,219 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                   Tip: Je kunt ook facturen achteraf maken door een eerdere maand te selecteren. Het systeem voorkomt automatisch dubbele facturen.
                 </p>
               </div>
+
+              {/* Te genereren facturen */}
+              {invoiceMonth && (() => {
+                const targetMonth = invoiceMonth;
+                const leasesToGenerate = leases.filter(lease => {
+                  const existingInvoice = invoices.find(
+                    inv => inv.lease_id === lease.id && inv.invoice_month === targetMonth
+                  );
+                  return !existingInvoice;
+                });
+
+                const customersWithBookings = [...tenants, ...externalCustomers.map(ec => ({
+                  ...ec,
+                  isExternal: true
+                }))].filter(customer => {
+                  const bookings = meetingRoomBookings.filter(booking => {
+                    const bookingDate = new Date(booking.booking_date);
+                    const bookingYearMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
+                    const isForSelectedMonth = bookingYearMonth === targetMonth;
+                    const isUnbilled = !booking.invoice_id;
+                    const isForCustomer = (customer as any).isExternal
+                      ? booking.external_customer_id === customer.id
+                      : booking.tenant_id === customer.id;
+                    return isForSelectedMonth && isUnbilled && isForCustomer;
+                  });
+
+                  if (bookings.length === 0) return false;
+
+                  const existingInvoice = invoices.find(inv => {
+                    const matchesCustomer = (customer as any).isExternal
+                      ? inv.external_customer_id === customer.id
+                      : inv.tenant_id === customer.id;
+                    return matchesCustomer && inv.invoice_month === targetMonth && !inv.lease_id;
+                  });
+
+                  return !existingInvoice;
+                });
+
+                if (leasesToGenerate.length === 0 && customersWithBookings.length === 0) {
+                  return null;
+                }
+
+                return (
+                  <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4 space-y-6">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-gray-100">
+                        Te genereren facturen voor {new Date(targetMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}
+                      </h3>
+                      <div className="text-sm text-gray-400">
+                        {selectedLeases.size + selectedCustomers.size} geselecteerd
+                      </div>
+                    </div>
+
+                    {/* Huurcontracten */}
+                    {leasesToGenerate.length > 0 && (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                            <Home size={16} className="text-emerald-500" />
+                            Huurcontracten ({leasesToGenerate.length})
+                          </h4>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => selectAllLeases(leasesToGenerate.map(l => l.id))}
+                              className="text-xs text-gold-500 hover:text-gold-400"
+                            >
+                              Alles selecteren
+                            </button>
+                            <span className="text-gray-600">|</span>
+                            <button
+                              onClick={() => deselectAllLeases()}
+                              className="text-xs text-gray-500 hover:text-gray-400"
+                            >
+                              Alles deselecteren
+                            </button>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          {leasesToGenerate.map(lease => {
+                            const rentAmount = lease.lease_type === 'flex'
+                              ? (lease.flex_monthly_rate || 0)
+                              : lease.lease_spaces.reduce((sum, ls) => sum + ls.monthly_rent, 0);
+                            const total = Math.round((rentAmount + lease.security_deposit) * 100) / 100;
+
+                            return (
+                              <div
+                                key={lease.id}
+                                onClick={() => toggleLeaseSelection(lease.id)}
+                                className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                                  selectedLeases.has(lease.id)
+                                    ? 'bg-emerald-900/20 border-emerald-700'
+                                    : 'bg-dark-800 border-dark-700 hover:border-dark-600'
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selectedLeases.has(lease.id)}
+                                  onChange={() => {}}
+                                  className="w-4 h-4 rounded border-dark-600 text-emerald-600 focus:ring-emerald-500"
+                                />
+                                <div className="flex-1">
+                                  <div className="text-sm font-medium text-gray-200">
+                                    {lease.tenant?.company_name}
+                                  </div>
+                                  <div className="text-xs text-gray-400">
+                                    {lease.lease_type === 'flex' ? 'Flexplek' : `${lease.lease_spaces.length} ruimte(s)`}
+                                  </div>
+                                </div>
+                                <div className="text-sm font-medium text-gray-200">
+                                  €{total.toFixed(2)}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Vergaderruimte facturen */}
+                    {customersWithBookings.length > 0 && (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                            <Calendar size={16} className="text-blue-500" />
+                            Vergaderruimte boekingen ({customersWithBookings.length})
+                          </h4>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => selectAllCustomers(customersWithBookings.map(c => c.id))}
+                              className="text-xs text-gold-500 hover:text-gold-400"
+                            >
+                              Alles selecteren
+                            </button>
+                            <span className="text-gray-600">|</span>
+                            <button
+                              onClick={() => deselectAllCustomers()}
+                              className="text-xs text-gray-500 hover:text-gray-400"
+                            >
+                              Alles deselecteren
+                            </button>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          {customersWithBookings.map(customer => {
+                            const customerBookings = meetingRoomBookings.filter(booking => {
+                              const bookingDate = new Date(booking.booking_date);
+                              const bookingYearMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
+                              const isForSelectedMonth = bookingYearMonth === targetMonth;
+                              const isUnbilled = !booking.invoice_id;
+                              const isForCustomer = (customer as any).isExternal
+                                ? booking.external_customer_id === customer.id
+                                : booking.tenant_id === customer.id;
+                              return isForSelectedMonth && isUnbilled && isForCustomer;
+                            });
+
+                            const total = customerBookings.reduce((sum, booking) => {
+                              return sum + booking.total_price;
+                            }, 0);
+
+                            return (
+                              <div
+                                key={customer.id}
+                                onClick={() => toggleCustomerSelection(customer.id)}
+                                className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                                  selectedCustomers.has(customer.id)
+                                    ? 'bg-blue-900/20 border-blue-700'
+                                    : 'bg-dark-800 border-dark-700 hover:border-dark-600'
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selectedCustomers.has(customer.id)}
+                                  onChange={() => {}}
+                                  className="w-4 h-4 rounded border-dark-600 text-blue-600 focus:ring-blue-500"
+                                />
+                                <div className="flex-1">
+                                  <div className="text-sm font-medium text-gray-200">
+                                    {customer.company_name}
+                                  </div>
+                                  <div className="text-xs text-gray-400">
+                                    {customerBookings.length} boeking{customerBookings.length > 1 ? 'en' : ''}
+                                  </div>
+                                </div>
+                                <div className="text-sm font-medium text-gray-200">
+                                  €{total.toFixed(2)}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Genereer knop */}
+                    <div className="flex gap-3 pt-4 border-t border-dark-700">
+                      <button
+                        onClick={() => generateBulkInvoices()}
+                        disabled={selectedLeases.size === 0 || generatingBulk}
+                        className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {generatingBulk ? 'Bezig...' : `Genereer ${selectedLeases.size} huur factuur${selectedLeases.size !== 1 ? 'en' : ''}`}
+                      </button>
+                      <button
+                        onClick={() => generateMeetingRoomInvoices()}
+                        disabled={selectedCustomers.size === 0 || generatingBulk}
+                        className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {generatingBulk ? 'Bezig...' : `Genereer ${selectedCustomers.size} vergaderruimte factuur${selectedCustomers.size !== 1 ? 'en' : ''}`}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Concept Huur Facturen */}
               {renderInvoiceTable(
