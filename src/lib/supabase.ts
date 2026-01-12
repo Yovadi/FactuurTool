@@ -55,6 +55,9 @@ export type OfficeSpace = {
   daily_rate?: number | null;
   is_flex_space?: boolean;
   flex_capacity?: number;
+  diversen_calculation?: string | null;
+  diversen_quantity?: number | null;
+  diversen_unit_price?: number | null;
   created_at: string;
 };
 
