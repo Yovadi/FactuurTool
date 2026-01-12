@@ -1,14 +1,16 @@
-# Netlify Deployment - Boekingspagina
+# Netlify Deployment - Facturatie & Boekingssysteem
 
-Deze configuratie zorgt ervoor dat de **React boekingspagina** online komt op Netlify.
-De admin tool draait lokaal op je Windows PC als Electron app.
+Deze configuratie zorgt ervoor dat zowel de **admin app** als de **boekingspagina** online komen op Netlify.
+De admin tool kan ook lokaal draaien op je Windows PC als Electron app.
 
 ## Overzicht
 
-- **Admin tool** → Lokaal op Windows (Electron app via `npm run electron:build`)
-- **Boekingspagina** → Online op Netlify (React app met mooie calendar interface)
+- **Admin app** → Online op Netlify (React admin interface) én lokaal op Windows (Electron app via `npm run electron:build`)
+- **Boekingspagina** → Online op Netlify op `/booking.html` (standalone pagina met PIN-code login)
 - **Database** → Gedeelde Supabase database voor beide
-- **Automatische detectie** → Dezelfde code toont booking calendar op web en admin interface in Electron
+- **URLs**:
+  - `/` → Admin interface (facturatie, huurders, ruimtes, etc.)
+  - `/booking.html` → Publieke boekingspagina met PIN-code login voor huurders
 
 ## Stap 1: Netlify Account aanmaken
 
@@ -17,7 +19,7 @@ De admin tool draait lokaal op je Windows PC als Electron app.
 3. Kies **Sign up with GitHub** (makkelijkst)
 4. Geef Netlify toestemming om je repositories te zien
 
-## Stap 2: Boekingspagina deployen
+## Stap 2: Applicatie deployen
 
 ### Via Netlify Dashboard:
 
@@ -33,15 +35,16 @@ De admin tool draait lokaal op je Windows PC als Electron app.
    - `VITE_SUPABASE_ANON_KEY` = jouw Supabase anon key
 6. Klik op **Deploy site**
 
-Klaar! Na 2-3 minuten is de React booking calendar live.
+Klaar! Na 2-3 minuten is de applicatie live.
 
-## Stap 3: Je boekingspagina URL
+## Stap 3: Je applicatie URLs
 
 Na deployment:
 
-- **Boekingspagina**: `https://jouw-site-naam.netlify.app/`
+- **Admin interface**: `https://jouw-site-naam.netlify.app/`
+- **Boekingspagina**: `https://jouw-site-naam.netlify.app/booking.html`
 
-Let op: Netlify host **alleen** de boekingspagina, niet de admin tool!
+De admin interface is online beschikbaar voor beheer, en de boekingspagina voor huurders met PIN-code.
 
 ### Custom sitenaam instellen:
 
@@ -63,21 +66,24 @@ Dit maakt een Windows installer in de `dist` folder. Installeer deze op je Windo
 
 ## Hoe het werkt
 
-1. **Jij** gebruikt de lokale Electron app op je Windows PC voor:
-   - Facturen beheren
+1. **Jij** gebruikt de admin interface (online of lokaal via Electron) voor:
+   - Facturen beheren en genereren
    - Huurders beheren
    - Ruimtes beheren
-   - Boekingen bekijken
+   - Boekingen bekijken en beheren
+   - Financiële overzichten
 
-2. **Klanten** gebruiken de online boekingspagina voor:
+2. **Huurders** gebruiken de boekingspagina (`/booking.html`) voor:
+   - Inloggen met persoonlijke 4-cijferige PIN-code
    - Vergaderruimte boeken
    - Datum en tijd kiezen
-   - Automatisch in jouw systeem
+   - Boekingen worden automatisch in het systeem verwerkt
 
 3. **Database** (Supabase):
-   - Beide systemen gebruiken dezelfde database
-   - Boekingen van klanten verschijnen direct in jouw admin app
+   - Alle systemen gebruiken dezelfde database
+   - Boekingen van huurders verschijnen direct in de admin interface
    - Real-time synchronisatie
+   - Veilig met PIN-code authenticatie
 
 ## Updates maken
 
@@ -136,11 +142,12 @@ Netlify geeft automatisch:
 
 ## Belangrijke bestanden
 
-- **`src/App.tsx`** - Detecteert of app draait op web (booking only) of Electron (full admin)
-- **`src/components/BookingCalendar.tsx`** - De booking calendar component (gedeeld door web en Electron)
-- **`src/`** - Alle React components (gedeeld door beide platforms)
-- **`netlify.toml`** - Netlify configuratie (bouwt React app naar `dist`)
-- **`electron/`** - Electron configuratie voor Windows app
+- **`src/App.tsx`** - Hoofdapplicatie met alle admin functionaliteit
+- **`src/components/BookingCalendar.tsx`** - De booking calendar component (gebruikt in admin interface)
+- **`public/booking.html`** - Standalone boekingspagina met PIN-code login voor huurders
+- **`src/`** - Alle React components voor de admin interface
+- **`netlify.toml`** - Netlify configuratie (zorgt dat booking.html bereikbaar blijft)
+- **`electron/`** - Electron configuratie voor lokale Windows app
 
 ## Troubleshooting
 
@@ -168,6 +175,21 @@ Netlify geeft automatisch:
 - Beide systemen gebruiken dezelfde Supabase database
 - Check of je Supabase credentials correct zijn in `.env`
 - Herstart je Electron app
+
+### Boekingspagina toont admin interface
+
+Als je naar `/booking.html` gaat en je ziet de volledige admin interface in plaats van de booking pagina:
+
+1. Controleer of `netlify.toml` de juiste redirect heeft:
+   ```toml
+   [[redirects]]
+   from = "/booking.html"
+   to = "/booking.html"
+   status = 200
+   ```
+2. Push deze wijziging naar GitHub
+3. Wacht tot Netlify opnieuw heeft gebouwd
+4. Hard refresh de browser (Ctrl+F5)
 
 ## Handige links
 

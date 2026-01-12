@@ -721,11 +721,8 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     return <div className="text-center py-8">Boekingen laden...</div>;
   }
 
-  // Check if running in production (Netlify) - only show calendar view
-  const isProduction = !import.meta.env.DEV && typeof window !== 'undefined' && !(window as any).electron;
-
   return (
-    <div className={isProduction ? 'min-h-screen bg-dark-950 flex items-start justify-center p-4' : ''}>
+    <div>
       <div className="fixed top-4 right-4 z-50 space-y-2 max-w-md">
         {notifications.map((notification) => (
           <div
@@ -752,41 +749,37 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
         ))}
       </div>
 
-      {!isProduction && (
-        <>
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-gray-100 mb-4">Vergaderruimte Boekingen</h1>
-            <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2">
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setSelectedView('list')}
-                  className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
-                    selectedView === 'list'
-                      ? 'bg-gold-500 text-dark-950'
-                      : 'text-gray-300 hover:bg-dark-800'
-                  }`}
-                >
-                  <AlertCircle size={18} />
-                  Lijst
-                </button>
-                <button
-                  onClick={() => setSelectedView('calendar')}
-                  className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
-                    selectedView === 'calendar'
-                      ? 'bg-gold-500 text-dark-950'
-                      : 'text-gray-300 hover:bg-dark-800'
-                  }`}
-                >
-                  <CalendarDays size={18} />
-                  Kalender
-                </button>
-              </div>
-            </div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-100 mb-4">Vergaderruimte Boekingen</h1>
+        <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2">
+          <div className="flex gap-2">
+            <button
+              onClick={() => setSelectedView('list')}
+              className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
+                selectedView === 'list'
+                  ? 'bg-gold-500 text-dark-950'
+                  : 'text-gray-300 hover:bg-dark-800'
+              }`}
+            >
+              <AlertCircle size={18} />
+              Lijst
+            </button>
+            <button
+              onClick={() => setSelectedView('calendar')}
+              className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
+                selectedView === 'calendar'
+                  ? 'bg-gold-500 text-dark-950'
+                  : 'text-gray-300 hover:bg-dark-800'
+              }`}
+            >
+              <CalendarDays size={18} />
+              Kalender
+            </button>
           </div>
-        </>
-      )}
+        </div>
+      </div>
 
-      {!isProduction && showForm && (
+      {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
           <div className="bg-dark-900 rounded-lg p-6 w-full max-w-2xl my-8 mx-4 border border-dark-700">
             <h3 className="text-xl font-bold text-gray-100 mb-4">Nieuwe Boeking</h3>
@@ -1023,8 +1016,8 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
         </div>
       )}
 
-      {(isProduction || selectedView === 'calendar') ? (
-        <div className={isProduction ? 'w-full max-w-7xl' : ''}>
+      {selectedView === 'calendar' ? (
+        <div>
           <BookingCalendar
             loggedInTenantId={loggedInTenantId}
             onBookingChange={async (action, bookingId) => {
