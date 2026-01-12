@@ -494,6 +494,10 @@ export function LeaseManagement() {
     const space = spaces.find(s => s.id === spaceId);
     if (!space) return '';
 
+    if (space.space_type === 'diversen' && (!space.diversen_calculation || space.diversen_calculation === 'fixed')) {
+      return space.square_footage ? space.square_footage.toFixed(2) : '';
+    }
+
     if (space.rate_per_sqm) {
       return space.rate_per_sqm.toFixed(2);
     }
