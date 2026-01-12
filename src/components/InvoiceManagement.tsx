@@ -2327,6 +2327,18 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
         </div>
       )}
 
+      {/* Genereer Facturen Knop */}
+      <div className="p-6 pb-0">
+        <div className="flex justify-end">
+          <button
+            onClick={() => setShowGenerateModal(true)}
+            className="px-6 py-3 bg-gold-500 text-dark-900 font-medium rounded-lg hover:bg-gold-400 transition-colors flex items-center gap-2"
+          >
+            <Plus size={20} />
+            Genereer Facturen
+          </button>
+        </div>
+      </div>
 
       <div className="space-y-8">
         {(() => {
@@ -2568,292 +2580,6 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
           return (
             <div className="p-6 space-y-8">
-              {/* Genereer Facturen Knop */}
-              <div className="flex justify-end">
-                <button
-                  onClick={() => setShowGenerateModal(true)}
-                  className="px-6 py-3 bg-gold-500 text-dark-900 font-medium rounded-lg hover:bg-gold-400 transition-colors flex items-center gap-2"
-                >
-                  <Plus size={20} />
-                  Genereer Facturen
-                </button>
-              </div>
-
-              {/* Genereer Facturen Modal */}
-              {showGenerateModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                  <div className="bg-dark-900 rounded-lg shadow-xl border border-dark-700 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-                    <div className="sticky top-0 bg-dark-800 px-6 py-4 border-b border-dark-700 flex items-center justify-between">
-                      <h2 className="text-xl font-bold text-gray-100">Facturen Genereren</h2>
-                      <button
-                        onClick={() => {
-                          setShowGenerateModal(false);
-                          setInvoiceMonth('');
-                          setSelectedLeases(new Set());
-                          setSelectedCustomers(new Set());
-                        }}
-                        className="text-gray-400 hover:text-gray-200 transition-colors"
-                      >
-                        <X size={24} />
-                      </button>
-                    </div>
-
-                    <div className="p-6 space-y-6">
-                      {/* Maandkeuze */}
-                      <div className="bg-dark-800 rounded-lg p-4">
-                        <label className="block text-sm font-medium text-gray-200 mb-2">
-                          Factureren voor maand
-                        </label>
-                        <input
-                          type="month"
-                          value={invoiceMonth}
-                          onChange={(e) => setInvoiceMonth(e.target.value)}
-                          className="w-full px-4 py-2 bg-dark-700 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                        />
-                        {invoiceMonth && (
-                          <div className="mt-3 space-y-2">
-                            <div className="text-sm text-gray-300">
-                              Facturen worden aangemaakt voor <span className="font-bold text-gold-500">
-                                {new Date(invoiceMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}
-                              </span>
-                            </div>
-                            {(invoicedMonths.leaseCount.get(invoiceMonth) || 0) > 0 && (
-                              <div className="flex items-center gap-1 text-amber-500">
-                                <AlertCircle size={14} />
-                                <span className="text-xs">
-                                  {invoicedMonths.leaseCount.get(invoiceMonth)} huur factuur{(invoicedMonths.leaseCount.get(invoiceMonth) || 0) > 1 ? 'en' : ''} bestaat al
-                                </span>
-                              </div>
-                            )}
-                            {(invoicedMonths.meetingRoomCount.get(invoiceMonth) || 0) > 0 && (
-                              <div className="flex items-center gap-1 text-amber-500">
-                                <AlertCircle size={14} />
-                                <span className="text-xs">
-                                  {invoicedMonths.meetingRoomCount.get(invoiceMonth)} vergaderruimte factuur{(invoicedMonths.meetingRoomCount.get(invoiceMonth) || 0) > 1 ? 'en' : ''} bestaat al
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        <p className="text-xs text-gray-400 mt-2">
-                          Tip: Je kunt ook facturen achteraf maken door een eerdere maand te selecteren.
-                        </p>
-                      </div>
-
-                      {/* Te genereren facturen */}
-                      {invoiceMonth && (() => {
-                        const targetMonth = invoiceMonth;
-                        const leasesToGenerate = leases.filter(lease => {
-                          const existingInvoice = invoices.find(
-                            inv => inv.lease_id === lease.id && inv.invoice_month === targetMonth
-                          );
-                          return !existingInvoice;
-                        });
-
-                        const customersWithBookings = [...tenants, ...externalCustomers.map(ec => ({
-                          ...ec,
-                          isExternal: true
-                        }))].filter(customer => {
-                          const bookings = meetingRoomBookings.filter(booking => {
-                            const bookingDate = new Date(booking.booking_date);
-                            const bookingYearMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
-                            const isForSelectedMonth = bookingYearMonth === targetMonth;
-                            const isUnbilled = !booking.invoice_id;
-                            const isForCustomer = (customer as any).isExternal
-                              ? booking.external_customer_id === customer.id
-                              : booking.tenant_id === customer.id;
-                            return isForSelectedMonth && isUnbilled && isForCustomer;
-                          });
-
-                          if (bookings.length === 0) return false;
-
-                          const existingInvoice = invoices.find(inv => {
-                            const matchesCustomer = (customer as any).isExternal
-                              ? inv.external_customer_id === customer.id
-                              : inv.tenant_id === customer.id;
-                            return matchesCustomer && inv.invoice_month === targetMonth && !inv.lease_id;
-                          });
-
-                          return !existingInvoice;
-                        });
-
-                        if (leasesToGenerate.length === 0 && customersWithBookings.length === 0) {
-                          return (
-                            <div className="text-center py-8 text-gray-400">
-                              Geen facturen te genereren voor deze maand
-                            </div>
-                          );
-                        }
-
-                        return (
-                          <div className="space-y-6">
-                            <div className="flex items-center justify-between">
-                              <h3 className="text-lg font-semibold text-gray-100">
-                                Te genereren facturen
-                              </h3>
-                              <div className="text-sm text-gray-400">
-                                {selectedLeases.size + selectedCustomers.size} geselecteerd
-                              </div>
-                            </div>
-
-                    {/* Huurcontracten */}
-                    {leasesToGenerate.length > 0 && (
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <h4 className="text-sm font-medium text-gray-300 flex items-center gap-2">
-                            <Home size={16} className="text-emerald-500" />
-                            Huurcontracten ({leasesToGenerate.length})
-                          </h4>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => selectAllLeases(leasesToGenerate.map(l => l.id))}
-                              className="text-xs text-gold-500 hover:text-gold-400"
-                            >
-                              Alles selecteren
-                            </button>
-                            <span className="text-gray-600">|</span>
-                            <button
-                              onClick={() => deselectAllLeases()}
-                              className="text-xs text-gray-500 hover:text-gray-400"
-                            >
-                              Alles deselecteren
-                            </button>
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          {leasesToGenerate.map(lease => {
-                            const rentAmount = lease.lease_type === 'flex'
-                              ? (lease.flex_monthly_rate || 0)
-                              : lease.lease_spaces.reduce((sum, ls) => sum + ls.monthly_rent, 0);
-                            const total = Math.round((rentAmount + lease.security_deposit) * 100) / 100;
-
-                            return (
-                              <div
-                                key={lease.id}
-                                onClick={() => toggleLeaseSelection(lease.id)}
-                                className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                                  selectedLeases.has(lease.id)
-                                    ? 'bg-emerald-900/20 border-emerald-700'
-                                    : 'bg-dark-800 border-dark-700 hover:border-dark-600'
-                                }`}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={selectedLeases.has(lease.id)}
-                                  onChange={() => {}}
-                                  className="w-4 h-4 rounded border-dark-600 text-emerald-600 focus:ring-emerald-500"
-                                />
-                                <div className="flex-1">
-                                  <div className="text-sm font-medium text-gray-200">
-                                    {lease.tenant?.company_name}
-                                  </div>
-                                  <div className="text-xs text-gray-400">
-                                    {lease.lease_type === 'flex' ? 'Flexplek' : `${lease.lease_spaces.length} ruimte(s)`}
-                                  </div>
-                                </div>
-                                <div className="text-sm font-medium text-gray-200">
-                                  €{total.toFixed(2)}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Vergaderruimte facturen */}
-                    {customersWithBookings.length > 0 && (
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <h4 className="text-sm font-medium text-gray-300 flex items-center gap-2">
-                            <Calendar size={16} className="text-blue-500" />
-                            Vergaderruimte boekingen ({customersWithBookings.length})
-                          </h4>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => selectAllCustomers(customersWithBookings.map(c => c.id))}
-                              className="text-xs text-gold-500 hover:text-gold-400"
-                            >
-                              Alles selecteren
-                            </button>
-                            <span className="text-gray-600">|</span>
-                            <button
-                              onClick={() => deselectAllCustomers()}
-                              className="text-xs text-gray-500 hover:text-gray-400"
-                            >
-                              Alles deselecteren
-                            </button>
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          {customersWithBookings.map(customer => {
-                            const customerBookings = meetingRoomBookings.filter(booking => {
-                              const bookingDate = new Date(booking.booking_date);
-                              const bookingYearMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
-                              const isForSelectedMonth = bookingYearMonth === targetMonth;
-                              const isUnbilled = !booking.invoice_id;
-                              const isForCustomer = (customer as any).isExternal
-                                ? booking.external_customer_id === customer.id
-                                : booking.tenant_id === customer.id;
-                              return isForSelectedMonth && isUnbilled && isForCustomer;
-                            });
-
-                            const total = customerBookings.reduce((sum, booking) => {
-                              return sum + booking.total_price;
-                            }, 0);
-
-                            return (
-                              <div
-                                key={customer.id}
-                                onClick={() => toggleCustomerSelection(customer.id)}
-                                className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                                  selectedCustomers.has(customer.id)
-                                    ? 'bg-blue-900/20 border-blue-700'
-                                    : 'bg-dark-800 border-dark-700 hover:border-dark-600'
-                                }`}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={selectedCustomers.has(customer.id)}
-                                  onChange={() => {}}
-                                  className="w-4 h-4 rounded border-dark-600 text-blue-600 focus:ring-blue-500"
-                                />
-                                <div className="flex-1">
-                                  <div className="text-sm font-medium text-gray-200">
-                                    {customer.company_name}
-                                  </div>
-                                  <div className="text-xs text-gray-400">
-                                    {customerBookings.length} boeking{customerBookings.length > 1 ? 'en' : ''}
-                                  </div>
-                                </div>
-                                <div className="text-sm font-medium text-gray-200">
-                                  €{total.toFixed(2)}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                            {/* Genereer knop */}
-                            <div className="pt-4 border-t border-dark-700">
-                              <button
-                                onClick={() => generateAllInvoices()}
-                                disabled={(selectedLeases.size === 0 && selectedCustomers.size === 0) || generatingBulk}
-                                className="w-full px-6 py-3 bg-gold-500 text-dark-900 font-medium rounded-lg hover:bg-gold-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                              >
-                                {generatingBulk ? 'Facturen worden gegenereerd...' : `Genereer ${selectedLeases.size + selectedCustomers.size} factuur${(selectedLeases.size + selectedCustomers.size) !== 1 ? 'en' : ''}`}
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {/* Concept Huur Facturen */}
               {renderInvoiceTable(
                 draftLeaseInvoices,
@@ -2884,6 +2610,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                 )}
               </div>
 
+              {/* Open facturen */}
               <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700">
                 <div className="flex items-center justify-between px-4 py-3 bg-dark-800 border-b border-amber-500">
                   <h2 className="text-lg font-bold text-gray-100">
@@ -3043,6 +2770,280 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
           );
           })()}
       </div>
+
+      {/* Genereer Facturen Modal */}
+      {showGenerateModal && (() => {
+        const targetMonth = invoiceMonth;
+        const leasesToGenerate = targetMonth ? leases.filter(lease => {
+          const existingInvoice = invoices.find(
+            inv => inv.lease_id === lease.id && inv.invoice_month === targetMonth
+          );
+          return !existingInvoice;
+        }) : [];
+
+        const customersWithBookings = targetMonth ? [...tenants, ...externalCustomers.map(ec => ({
+          ...ec,
+          isExternal: true
+        }))].filter(customer => {
+          const bookings = meetingRoomBookings.filter(booking => {
+            const bookingDate = new Date(booking.booking_date);
+            const bookingYearMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
+            const isForSelectedMonth = bookingYearMonth === targetMonth;
+            const isUnbilled = !booking.invoice_id;
+            const isForCustomer = (customer as any).isExternal
+              ? booking.external_customer_id === customer.id
+              : booking.tenant_id === customer.id;
+            return isForSelectedMonth && isUnbilled && isForCustomer;
+          });
+
+          if (bookings.length === 0) return false;
+
+          const existingInvoice = invoices.find(inv => {
+            const matchesCustomer = (customer as any).isExternal
+              ? inv.external_customer_id === customer.id
+              : inv.tenant_id === customer.id;
+            return matchesCustomer && inv.invoice_month === targetMonth && !inv.lease_id;
+          });
+
+          return !existingInvoice;
+        }) : [];
+
+        return (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-dark-900 rounded-lg shadow-xl border border-dark-700 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="sticky top-0 bg-dark-800 px-6 py-4 border-b border-dark-700 flex items-center justify-between">
+                <h2 className="text-xl font-bold text-gray-100">Facturen Genereren</h2>
+                <button
+                  onClick={() => {
+                    setShowGenerateModal(false);
+                    setInvoiceMonth('');
+                    setSelectedLeases(new Set());
+                    setSelectedCustomers(new Set());
+                  }}
+                  className="text-gray-400 hover:text-gray-200 transition-colors"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-6">
+                {/* Maandkeuze */}
+                <div className="bg-dark-800 rounded-lg p-4">
+                  <label className="block text-sm font-medium text-gray-200 mb-2">
+                    Factureren voor maand
+                  </label>
+                  <input
+                    type="month"
+                    value={invoiceMonth}
+                    onChange={(e) => setInvoiceMonth(e.target.value)}
+                    className="w-full px-4 py-2 bg-dark-700 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                  />
+                  {invoiceMonth && (
+                    <div className="mt-3 space-y-2">
+                      <div className="text-sm text-gray-300">
+                        Facturen worden aangemaakt voor <span className="font-bold text-gold-500">
+                          {new Date(invoiceMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}
+                        </span>
+                      </div>
+                      {(invoicedMonths.leaseCount.get(invoiceMonth) || 0) > 0 && (
+                        <div className="flex items-center gap-1 text-amber-500">
+                          <AlertCircle size={14} />
+                          <span className="text-xs">
+                            {invoicedMonths.leaseCount.get(invoiceMonth)} huur factuur{(invoicedMonths.leaseCount.get(invoiceMonth) || 0) > 1 ? 'en' : ''} bestaat al
+                          </span>
+                        </div>
+                      )}
+                      {(invoicedMonths.meetingRoomCount.get(invoiceMonth) || 0) > 0 && (
+                        <div className="flex items-center gap-1 text-amber-500">
+                          <AlertCircle size={14} />
+                          <span className="text-xs">
+                            {invoicedMonths.meetingRoomCount.get(invoiceMonth)} vergaderruimte factuur{(invoicedMonths.meetingRoomCount.get(invoiceMonth) || 0) > 1 ? 'en' : ''} bestaat al
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <p className="text-xs text-gray-400 mt-2">
+                    Tip: Je kunt ook facturen achteraf maken door een eerdere maand te selecteren.
+                  </p>
+                </div>
+
+                {/* Te genereren facturen */}
+                {invoiceMonth && (leasesToGenerate.length > 0 || customersWithBookings.length > 0) && (
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-gray-100">
+                        Te genereren facturen
+                      </h3>
+                      <div className="text-sm text-gray-400">
+                        {selectedLeases.size + selectedCustomers.size} geselecteerd
+                      </div>
+                    </div>
+
+                    {/* Huurcontracten */}
+                    {leasesToGenerate.length > 0 && (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                            <Home size={16} className="text-emerald-500" />
+                            Huurcontracten ({leasesToGenerate.length})
+                          </h4>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => selectAllLeases(leasesToGenerate.map(l => l.id))}
+                              className="text-xs text-gold-500 hover:text-gold-400"
+                            >
+                              Alles selecteren
+                            </button>
+                            <span className="text-gray-600">|</span>
+                            <button
+                              onClick={() => deselectAllLeases()}
+                              className="text-xs text-gray-500 hover:text-gray-400"
+                            >
+                              Alles deselecteren
+                            </button>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          {leasesToGenerate.map(lease => {
+                            const rentAmount = lease.lease_type === 'flex'
+                              ? (lease.flex_monthly_rate || 0)
+                              : lease.lease_spaces.reduce((sum, ls) => sum + ls.monthly_rent, 0);
+                            const total = Math.round((rentAmount + lease.security_deposit) * 100) / 100;
+
+                            return (
+                              <div
+                                key={lease.id}
+                                onClick={() => toggleLeaseSelection(lease.id)}
+                                className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                                  selectedLeases.has(lease.id)
+                                    ? 'bg-emerald-900/20 border-emerald-700'
+                                    : 'bg-dark-800 border-dark-700 hover:border-dark-600'
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selectedLeases.has(lease.id)}
+                                  onChange={() => {}}
+                                  className="w-4 h-4 rounded border-dark-600 text-emerald-600 focus:ring-emerald-500"
+                                />
+                                <div className="flex-1">
+                                  <div className="text-sm font-medium text-gray-200">
+                                    {lease.tenant?.company_name}
+                                  </div>
+                                  <div className="text-xs text-gray-400">
+                                    {lease.lease_type === 'flex' ? 'Flexplek' : `${lease.lease_spaces.length} ruimte(s)`}
+                                  </div>
+                                </div>
+                                <div className="text-sm font-medium text-gray-200">
+                                  €{total.toFixed(2)}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Vergaderruimte facturen */}
+                    {customersWithBookings.length > 0 && (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                            <Calendar size={16} className="text-blue-500" />
+                            Vergaderruimte boekingen ({customersWithBookings.length})
+                          </h4>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => selectAllCustomers(customersWithBookings.map(c => c.id))}
+                              className="text-xs text-gold-500 hover:text-gold-400"
+                            >
+                              Alles selecteren
+                            </button>
+                            <span className="text-gray-600">|</span>
+                            <button
+                              onClick={() => deselectAllCustomers()}
+                              className="text-xs text-gray-500 hover:text-gray-400"
+                            >
+                              Alles deselecteren
+                            </button>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          {customersWithBookings.map(customer => {
+                            const customerBookings = meetingRoomBookings.filter(booking => {
+                              const bookingDate = new Date(booking.booking_date);
+                              const bookingYearMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
+                              const isForSelectedMonth = bookingYearMonth === targetMonth;
+                              const isUnbilled = !booking.invoice_id;
+                              const isForCustomer = (customer as any).isExternal
+                                ? booking.external_customer_id === customer.id
+                                : booking.tenant_id === customer.id;
+                              return isForSelectedMonth && isUnbilled && isForCustomer;
+                            });
+
+                            const total = customerBookings.reduce((sum, booking) => {
+                              return sum + booking.total_price;
+                            }, 0);
+
+                            return (
+                              <div
+                                key={customer.id}
+                                onClick={() => toggleCustomerSelection(customer.id)}
+                                className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                                  selectedCustomers.has(customer.id)
+                                    ? 'bg-blue-900/20 border-blue-700'
+                                    : 'bg-dark-800 border-dark-700 hover:border-dark-600'
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selectedCustomers.has(customer.id)}
+                                  onChange={() => {}}
+                                  className="w-4 h-4 rounded border-dark-600 text-blue-600 focus:ring-blue-500"
+                                />
+                                <div className="flex-1">
+                                  <div className="text-sm font-medium text-gray-200">
+                                    {customer.company_name}
+                                  </div>
+                                  <div className="text-xs text-gray-400">
+                                    {customerBookings.length} boeking{customerBookings.length > 1 ? 'en' : ''}
+                                  </div>
+                                </div>
+                                <div className="text-sm font-medium text-gray-200">
+                                  €{total.toFixed(2)}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Genereer knop */}
+                    <div className="pt-4 border-t border-dark-700">
+                      <button
+                        onClick={() => generateAllInvoices()}
+                        disabled={(selectedLeases.size === 0 && selectedCustomers.size === 0) || generatingBulk}
+                        className="w-full px-6 py-3 bg-gold-500 text-dark-900 font-medium rounded-lg hover:bg-gold-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {generatingBulk ? 'Facturen worden gegenereerd...' : `Genereer ${selectedLeases.size + selectedCustomers.size} factuur${(selectedLeases.size + selectedCustomers.size) !== 1 ? 'en' : ''}`}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {invoiceMonth && leasesToGenerate.length === 0 && customersWithBookings.length === 0 && (
+                  <div className="text-center py-8 text-gray-400">
+                    Geen facturen te genereren voor deze maand
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-dark-900 rounded-lg p-6 max-w-md w-full mx-4 border border-dark-700">
