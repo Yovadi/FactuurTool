@@ -578,6 +578,12 @@
         </div>
 
         <div id="content" style="display: none;">
+            <div style="background-color: #1A1A1C; border: 1px solid #3A3A3E; border-radius: 0.5rem; padding: 0.75rem; margin-bottom: 1rem;">
+                <p style="font-size: 0.8rem; color: #9CA3AF; text-align: center;">
+                    💡 <strong>Tip:</strong> Sleep om tijdblokken te selecteren. Houd <kbd style="background: #2A2A2D; padding: 0.125rem 0.375rem; border-radius: 0.25rem; font-family: monospace;">Ctrl</kbd> of <kbd style="background: #2A2A2D; padding: 0.125rem 0.375rem; border-radius: 0.25rem; font-family: monospace;">Cmd</kbd> ingedrukt om meerdere blokken te selecteren.
+                </p>
+            </div>
+
             <div class="week-nav">
                 <button onclick="previousWeek()">&lsaquo; Vorige week</button>
                 <h3 id="weekRange"></h3>
@@ -586,6 +592,23 @@
 
             <div class="schedule-container">
                 <div class="schedule-grid" id="scheduleGrid"></div>
+            </div>
+
+            <div id="selectionActions" style="display: none; margin-top: 1rem; padding: 1rem; background-color: #1A1A1C; border: 1px solid #3A3A3E; border-radius: 0.5rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
+                    <div>
+                        <p style="font-size: 0.875rem; color: #9CA3AF; margin-bottom: 0.25rem;">Geselecteerd</p>
+                        <p id="selectionSummary" style="font-size: 1rem; color: #F3F4F6; font-weight: 600;"></p>
+                    </div>
+                    <div style="display: flex; gap: 0.75rem;">
+                        <button onclick="clearSelection()" class="btn" style="background-color: #2A2A2D; color: #F3F4F6;">
+                            Wissen
+                        </button>
+                        <button onclick="confirmSelection()" class="btn btn-primary">
+                            Boeking aanvragen
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -700,6 +723,7 @@
         let isDragging = false;
         let dragStartCell = null;
         let dragCurrentDate = null;
+        let ctrlKeyPressed = false;
 
         const tenantColors = [
             { bg: '#CA8A04', border: '#EAB308' },
@@ -922,18 +946,34 @@
         }
 
         document.addEventListener('mouseup', endDrag);
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Control' || e.key === 'Meta') {
+                ctrlKeyPressed = true;
+            }
+        });
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'Control' || e.key === 'Meta') {
+                ctrlKeyPressed = false;
+            }
+        });
 
         function startDrag(e, date, time) {
             e.preventDefault();
             isDragging = true;
             dragStartCell = time;
             dragCurrentDate = date;
-            selectedCells = [];
+
+            if (!ctrlKeyPressed) {
+                selectedCells = [];
+            }
 
             const cellKey = `${date}-${time}`;
-            selectedCells.push({ key: cellKey, date, time });
+            if (!selectedCells.some(sc => sc.key === cellKey)) {
+                selectedCells.push({ key: cellKey, date, time });
+            }
 
             updateCellSelection();
+            updateSelectionSummary();
         }
 
         function continueDrag(date, time) {
@@ -945,14 +985,22 @@
             const minIndex = Math.min(startIndex, currentIndex);
             const maxIndex = Math.max(startIndex, currentIndex);
 
-            selectedCells = [];
+            if (!ctrlKeyPressed) {
+                selectedCells = [];
+            } else {
+                selectedCells = selectedCells.filter(sc => sc.date !== date || timeSlots.indexOf(sc.time) < minIndex || timeSlots.indexOf(sc.time) > maxIndex);
+            }
+
             for (let i = minIndex; i <= maxIndex; i++) {
                 const t = timeSlots[i];
                 const cellKey = `${date}-${t}`;
-                selectedCells.push({ key: cellKey, date, time: t });
+                if (!selectedCells.some(sc => sc.key === cellKey)) {
+                    selectedCells.push({ key: cellKey, date, time: t });
+                }
             }
 
             updateCellSelection();
+            updateSelectionSummary();
         }
 
         function endDrag() {
@@ -960,9 +1008,6 @@
                 isDragging = false;
                 dragStartCell = null;
                 dragCurrentDate = null;
-                if (selectedCells.length > 0) {
-                    openModal();
-                }
             }
         }
 
@@ -978,6 +1023,44 @@
                     cell.classList.remove('selected');
                 }
             });
+        }
+
+        function updateSelectionSummary() {
+            const actionsDiv = document.getElementById('selectionActions');
+            const summaryText = document.getElementById('selectionSummary');
+
+            if (selectedCells.length === 0) {
+                actionsDiv.style.display = 'none';
+                return;
+            }
+
+            actionsDiv.style.display = 'block';
+
+            const uniqueDates = [...new Set(selectedCells.map(sc => sc.date))];
+            const totalBlocks = selectedCells.length;
+            const totalHours = (totalBlocks * 0.5).toFixed(1);
+
+            if (uniqueDates.length === 1) {
+                const dateObj = new Date(uniqueDates[0] + 'T00:00:00');
+                const dateStr = dateObj.toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' });
+                summaryText.textContent = `${totalBlocks} blokken (${totalHours} uur) op ${dateStr}`;
+            } else {
+                summaryText.textContent = `${totalBlocks} blokken (${totalHours} uur) over ${uniqueDates.length} dagen`;
+            }
+        }
+
+        function clearSelection() {
+            selectedCells = [];
+            updateCellSelection();
+            updateSelectionSummary();
+        }
+
+        function confirmSelection() {
+            if (selectedCells.length === 0) {
+                showNotification('Selecteer eerst tijdsloten.', 'error');
+                return;
+            }
+            openModal();
         }
 
         function toggleRecurring() {
@@ -1033,47 +1116,62 @@
                 return a.time.localeCompare(b.time);
             });
 
-            const firstDate = selectedCells[0].date;
-            const allSameDate = selectedCells.every(sc => sc.date === firstDate);
-
-            if (!allSameDate) {
-                showNotification('Selecteer tijdsloten op dezelfde dag.', 'error');
-                selectedCells = [];
-                updateCellSelection();
-                return;
-            }
-
-            const times = selectedCells.map(sc => sc.time).sort();
-            const isConsecutive = times.every((time, i) => {
-                if (i === 0) return true;
-                const prevIndex = timeSlots.indexOf(times[i - 1]);
-                const currIndex = timeSlots.indexOf(time);
-                return currIndex === prevIndex + 1;
+            const groupedByDate = {};
+            selectedCells.forEach(sc => {
+                if (!groupedByDate[sc.date]) {
+                    groupedByDate[sc.date] = [];
+                }
+                groupedByDate[sc.date].push(sc);
             });
 
-            if (!isConsecutive) {
-                showNotification('Selecteer aaneengesloten tijdsloten.', 'error');
-                selectedCells = [];
-                updateCellSelection();
-                return;
+            for (const [date, cells] of Object.entries(groupedByDate)) {
+                const times = cells.map(sc => sc.time).sort();
+                const isConsecutive = times.every((time, i) => {
+                    if (i === 0) return true;
+                    const prevIndex = timeSlots.indexOf(times[i - 1]);
+                    const currIndex = timeSlots.indexOf(time);
+                    return currIndex === prevIndex + 1;
+                });
+
+                if (!isConsecutive) {
+                    showNotification('Alle tijdsloten op een dag moeten aaneengesloten zijn.', 'error');
+                    return;
+                }
             }
 
-            const startTime = times[0];
-            const endTimeIndex = timeSlots.indexOf(times[times.length - 1]) + 1;
-            const endTime = timeSlots[endTimeIndex] || '24:00';
+            let summaryHTML = '<div style="max-height: 200px; overflow-y: auto;">';
+            let totalHours = 0;
 
-            const dateObj = new Date(firstDate + 'T00:00:00');
-            document.getElementById('summaryDate').textContent = dateObj.toLocaleDateString('nl-NL', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
+            Object.entries(groupedByDate).forEach(([date, cells]) => {
+                const times = cells.map(sc => sc.time).sort();
+                const startTime = times[0];
+                const endTimeIndex = timeSlots.indexOf(times[times.length - 1]) + 1;
+                const endTime = timeSlots[endTimeIndex] || '24:00';
+
+                const dateObj = new Date(date + 'T00:00:00');
+                const dateStr = dateObj.toLocaleDateString('nl-NL', {
+                    weekday: 'short',
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric'
+                });
+
+                const hours = calculateHours(startTime, endTime);
+                totalHours += hours;
+
+                summaryHTML += `
+                    <div style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid #3A3A3E;">
+                        <span>${dateStr}</span>
+                        <span>${startTime} - ${endTime} (${hours.toFixed(1)}u)</span>
+                    </div>
+                `;
             });
 
-            document.getElementById('summaryTime').textContent = `${startTime} - ${endTime}`;
+            summaryHTML += '</div>';
 
-            const hours = calculateHours(startTime, endTime);
-            document.getElementById('summaryDuration').textContent = `${hours.toFixed(1)} uur`;
+            document.getElementById('summaryDate').innerHTML = summaryHTML;
+            document.getElementById('summaryTime').textContent = `${Object.keys(groupedByDate).length} dag(en) geselecteerd`;
+            document.getElementById('summaryDuration').textContent = `Totaal: ${totalHours.toFixed(1)} uur`;
 
             document.getElementById('modalSummary').style.display = 'block';
             document.getElementById('bookingModal').classList.add('show');
@@ -1092,6 +1190,7 @@
             document.getElementById('bookingModal').classList.remove('show');
             selectedCells = [];
             updateCellSelection();
+            updateSelectionSummary();
             document.getElementById('bookingForm').reset();
         }
 
@@ -1187,50 +1286,63 @@
                     return;
                 }
 
-                const times = selectedCells.map(sc => sc.time).sort();
-                const startTime = times[0];
-                const endTimeIndex = timeSlots.indexOf(times[times.length - 1]) + 1;
-                const endTime = timeSlots[endTimeIndex] || '24:00';
-                const bookingDate = selectedCells[0].date;
+                const groupedByDate = {};
+                selectedCells.forEach(sc => {
+                    if (!groupedByDate[sc.date]) {
+                        groupedByDate[sc.date] = [];
+                    }
+                    groupedByDate[sc.date].push(sc);
+                });
 
                 const isRecurring = document.getElementById('isRecurring').checked;
                 const selectedDays = getSelectedDays();
                 const recurringEndDate = document.getElementById('recurringEndDate').value;
 
                 try {
-                    const bookingDates = [bookingDate];
-
-                    if (isRecurring && selectedDays.length > 0 && recurringEndDate) {
-                        const endDate = new Date(recurringEndDate);
-                        const startDate = new Date(bookingDate);
-                        startDate.setDate(startDate.getDate() + 1);
-
-                        let currentDate = new Date(startDate);
-                        while (currentDate <= endDate) {
-                            if (selectedDays.includes(currentDate.getDay())) {
-                                bookingDates.push(formatDate(currentDate));
-                            }
-                            currentDate.setDate(currentDate.getDate() + 1);
-                        }
-                    }
-
-                    const hours = calculateHours(startTime, endTime);
+                    const bookingsToInsert = [];
                     const hourlyRate = selectedRoomData.hourly_rate || 25;
-                    const totalAmount = hours * hourlyRate;
 
-                    const bookingsToInsert = bookingDates.map(date => ({
-                        space_id: selectedRoomId,
-                        tenant_id: authenticatedUser.userType === 'tenant' ? authenticatedUser.id : null,
-                        external_customer_id: authenticatedUser.userType === 'external' ? authenticatedUser.id : null,
-                        booking_date: date,
-                        start_time: startTime,
-                        end_time: endTime,
-                        hourly_rate: hourlyRate,
-                        total_hours: hours,
-                        total_amount: totalAmount,
-                        status: 'confirmed',
-                        booking_type: authenticatedUser.userType === 'tenant' ? 'tenant' : 'external'
-                    }));
+                    for (const [date, cells] of Object.entries(groupedByDate)) {
+                        const times = cells.map(sc => sc.time).sort();
+                        const startTime = times[0];
+                        const endTimeIndex = timeSlots.indexOf(times[times.length - 1]) + 1;
+                        const endTime = timeSlots[endTimeIndex] || '24:00';
+
+                        const hours = calculateHours(startTime, endTime);
+                        const totalAmount = hours * hourlyRate;
+
+                        const bookingDates = [date];
+
+                        if (isRecurring && selectedDays.length > 0 && recurringEndDate) {
+                            const endDate = new Date(recurringEndDate);
+                            const startDate = new Date(date);
+                            startDate.setDate(startDate.getDate() + 1);
+
+                            let currentDate = new Date(startDate);
+                            while (currentDate <= endDate) {
+                                if (selectedDays.includes(currentDate.getDay())) {
+                                    bookingDates.push(formatDate(currentDate));
+                                }
+                                currentDate.setDate(currentDate.getDate() + 1);
+                            }
+                        }
+
+                        bookingDates.forEach(bookingDate => {
+                            bookingsToInsert.push({
+                                space_id: selectedRoomId,
+                                tenant_id: authenticatedUser.userType === 'tenant' ? authenticatedUser.id : null,
+                                external_customer_id: authenticatedUser.userType === 'external' ? authenticatedUser.id : null,
+                                booking_date: bookingDate,
+                                start_time: startTime,
+                                end_time: endTime,
+                                hourly_rate: hourlyRate,
+                                total_hours: hours,
+                                total_amount: totalAmount,
+                                status: 'confirmed',
+                                booking_type: authenticatedUser.userType === 'tenant' ? 'tenant' : 'external'
+                            });
+                        });
+                    }
 
                     const { error: bookingError } = await sb
                         .from('meeting_room_bookings')
