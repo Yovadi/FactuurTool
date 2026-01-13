@@ -19,7 +19,7 @@
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
             padding: 1rem;
         }
@@ -32,14 +32,14 @@
         }
 
         .header h1 {
-            font-size: 1.25rem;
+            font-size: 1.5rem;
             font-weight: bold;
             color: #D4AF37;
             margin-bottom: 0.25rem;
         }
 
         .header p {
-            font-size: 0.75rem;
+            font-size: 0.875rem;
             color: #9CA3AF;
         }
 
@@ -47,8 +47,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 0.5rem;
-            padding: 0.5rem;
+            margin-bottom: 0.75rem;
+            padding: 0.75rem 1rem;
             background-color: #1A1A1C;
             border-radius: 0.5rem;
             border: 1px solid #3A3A3E;
@@ -59,8 +59,8 @@
             border: 1px solid #4A4A4F;
             color: #D4AF37;
             cursor: pointer;
-            padding: 0.35rem 0.75rem;
-            font-size: 0.875rem;
+            padding: 0.5rem 1rem;
+            font-size: 1rem;
             border-radius: 0.5rem;
             transition: all 0.2s;
         }
@@ -71,7 +71,7 @@
         }
 
         .week-nav h3 {
-            font-size: 0.875rem;
+            font-size: 1rem;
             color: #F3F4F6;
         }
 
@@ -81,23 +81,23 @@
             border: 1px solid #3A3A3E;
             overflow-x: auto;
             overflow-y: auto;
-            max-height: 70vh;
+            max-height: 75vh;
             margin-bottom: 1rem;
             position: relative;
         }
 
         .schedule-grid {
             display: grid;
-            grid-template-columns: 45px repeat(7, 1fr);
-            min-width: 650px;
+            grid-template-columns: 70px repeat(7, 1fr);
+            min-width: 800px;
         }
 
         .schedule-header {
             background-color: #2A2A2D;
-            padding: 0.4rem 0.2rem;
+            padding: 0.75rem 0.5rem;
             text-align: center;
             border-bottom: 2px solid #4A4A4F;
-            font-size: 0.7rem;
+            font-size: 0.875rem;
             font-weight: 600;
             position: sticky;
             top: 0;
@@ -109,9 +109,9 @@
         }
 
         .time-label {
-            padding: 0.15rem;
+            padding: 0.25rem 0.5rem;
             text-align: center;
-            font-size: 0.6rem;
+            font-size: 0.75rem;
             color: #9CA3AF;
             border-right: 1px solid #3A3A3E;
             border-bottom: 1px solid #2A2A2D;
@@ -119,14 +119,17 @@
             position: sticky;
             left: 0;
             z-index: 15;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .schedule-cell {
             padding: 0;
             border-right: 1px solid #2A2A2D;
             border-bottom: 1px solid #2A2A2D;
-            min-height: 18px;
-            height: 18px;
+            min-height: 32px;
+            height: 32px;
             cursor: pointer;
             transition: background-color 0.1s;
             position: relative;
@@ -156,56 +159,24 @@
         }
 
         .booking {
-            padding: 0.15rem;
+            padding: 0.25rem 0.5rem;
             border-radius: 0.25rem;
-            font-size: 0.6rem;
+            font-size: 0.75rem;
             font-weight: 600;
             overflow: hidden;
             text-overflow: ellipsis;
             cursor: default;
             position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
+            top: 1px;
+            left: 1px;
+            right: 1px;
             display: flex;
             align-items: center;
             justify-content: center;
             border-width: 1px;
             border-style: solid;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
             pointer-events: none;
-        }
-
-        .room-selector {
-            display: flex;
-            gap: 0.5rem;
-            margin-bottom: 0.5rem;
-            flex-wrap: wrap;
-            background-color: #1A1A1C;
-            padding: 0.75rem;
-            border-radius: 0.5rem;
-            border: 1px solid #3A3A3E;
-        }
-
-        .room-btn {
-            padding: 0.4rem 0.75rem;
-            background-color: #2A2A2D;
-            border: 2px solid #4A4A4F;
-            border-radius: 0.5rem;
-            color: #F3F4F6;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-size: 0.8rem;
-        }
-
-        .room-btn:hover {
-            border-color: #D4AF37;
-        }
-
-        .room-btn.selected {
-            background-color: #D4AF37;
-            border-color: #D4AF37;
-            color: #0A0A0B;
         }
 
         .modal {
@@ -270,13 +241,6 @@
             color: #F3F4F6;
         }
 
-        .form-card h2 {
-            font-size: 1rem;
-            font-weight: 600;
-            margin-bottom: 0.75rem;
-            color: #F3F4F6;
-        }
-
         .form-group {
             margin-bottom: 1rem;
         }
@@ -304,12 +268,6 @@
             outline: none;
             border-color: #D4AF37;
             box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
-        }
-
-        .grid-2 {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1rem;
         }
 
         .btn {
@@ -388,7 +346,7 @@
             padding: 1rem;
             border-radius: 0.5rem;
             border-left: 4px solid #D4AF37;
-            margin-top: 1rem;
+            margin-bottom: 1rem;
         }
 
         .summary h3 {
@@ -405,9 +363,108 @@
             font-size: 0.875rem;
         }
 
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            background-color: #2A2A2D;
+            border-radius: 0.5rem;
+            cursor: pointer;
+        }
+
+        .checkbox-group:hover {
+            background-color: #3A3A3E;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            accent-color: #D4AF37;
+            cursor: pointer;
+        }
+
+        .checkbox-group label {
+            cursor: pointer;
+            font-size: 0.875rem;
+            color: #F3F4F6;
+        }
+
+        .recurring-options {
+            display: none;
+            margin-top: 0.5rem;
+            padding: 1rem;
+            background-color: #252528;
+            border-radius: 0.5rem;
+            border: 1px solid #3A3A3E;
+        }
+
+        .recurring-options.show {
+            display: block;
+        }
+
+        .recurring-options label {
+            font-size: 0.875rem;
+            color: #9CA3AF;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .recurring-options select,
+        .recurring-options input {
+            width: 100%;
+            padding: 0.5rem;
+            background-color: #2A2A2D;
+            border: 1px solid #4A4A4F;
+            border-radius: 0.375rem;
+            color: #F3F4F6;
+            font-size: 0.875rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .recurring-options select:focus,
+        .recurring-options input:focus {
+            outline: none;
+            border-color: #D4AF37;
+        }
+
+        .day-checkboxes {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .day-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.375rem 0.75rem;
+            background-color: #2A2A2D;
+            border: 1px solid #4A4A4F;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-size: 0.75rem;
+        }
+
+        .day-checkbox:hover {
+            border-color: #D4AF37;
+        }
+
+        .day-checkbox.selected {
+            background-color: #D4AF37;
+            border-color: #D4AF37;
+            color: #0A0A0B;
+        }
+
+        .day-checkbox input {
+            display: none;
+        }
+
         @media (max-width: 768px) {
             .header h1 {
-                font-size: 1.5rem;
+                font-size: 1.25rem;
             }
 
             .schedule-grid {
@@ -417,6 +474,11 @@
             .time-label {
                 font-size: 0.65rem;
                 padding: 0.25rem;
+            }
+
+            .schedule-cell {
+                min-height: 28px;
+                height: 28px;
             }
         }
     </style>
@@ -434,9 +496,9 @@
 
         <div id="content" style="display: none;">
             <div class="week-nav">
-                <button onclick="previousWeek()">&#8249; Vorige week</button>
+                <button onclick="previousWeek()">&lsaquo; Vorige week</button>
                 <h3 id="weekRange"></h3>
-                <button onclick="nextWeek()">Volgende week &#8250;</button>
+                <button onclick="nextWeek()">Volgende week &rsaquo;</button>
             </div>
 
             <div class="schedule-container">
@@ -475,8 +537,43 @@
                         <span id="summaryDuration"></span>
                     </div>
                 </div>
+
+                <div class="checkbox-group" onclick="toggleRecurring()">
+                    <input type="checkbox" id="isRecurring" onclick="event.stopPropagation(); toggleRecurring()">
+                    <label for="isRecurring">Terugkerende boeking</label>
+                </div>
+
+                <div class="recurring-options" id="recurringOptions">
+                    <label>Herhaal elke week op:</label>
+                    <div class="day-checkboxes" id="dayCheckboxes">
+                        <div class="day-checkbox" data-day="1" onclick="toggleDay(this)">
+                            <span>Ma</span>
+                        </div>
+                        <div class="day-checkbox" data-day="2" onclick="toggleDay(this)">
+                            <span>Di</span>
+                        </div>
+                        <div class="day-checkbox" data-day="3" onclick="toggleDay(this)">
+                            <span>Wo</span>
+                        </div>
+                        <div class="day-checkbox" data-day="4" onclick="toggleDay(this)">
+                            <span>Do</span>
+                        </div>
+                        <div class="day-checkbox" data-day="5" onclick="toggleDay(this)">
+                            <span>Vr</span>
+                        </div>
+                        <div class="day-checkbox" data-day="6" onclick="toggleDay(this)">
+                            <span>Za</span>
+                        </div>
+                        <div class="day-checkbox" data-day="0" onclick="toggleDay(this)">
+                            <span>Zo</span>
+                        </div>
+                    </div>
+                    <label for="recurringEndDate">Einddatum:</label>
+                    <input type="date" id="recurringEndDate" min="">
+                </div>
+
                 <div class="form-group">
-                    <label for="pinCode" style="font-size: 0.875rem; color: #F3F4F6; margin-bottom: 0.5rem; display: block;">PIN-code *</label>
+                    <label style="font-size: 0.875rem; color: #F3F4F6; margin-bottom: 0.5rem; display: block;">PIN-code *</label>
                     <p style="font-size: 0.8rem; color: #9CA3AF; margin-bottom: 0.75rem;">Voer uw persoonlijke 4-cijferige PIN-code in</p>
                     <input
                         type="password"
@@ -485,7 +582,7 @@
                         inputmode="numeric"
                         maxlength="4"
                         pattern="[0-9]{4}"
-                        placeholder="••••"
+                        placeholder="----"
                         style="text-align: center; font-size: 1.5rem; letter-spacing: 0.5rem; padding: 1rem;"
                         required
                         autocomplete="off">
@@ -493,12 +590,13 @@
                         Onjuiste PIN-code. Probeer opnieuw.
                     </div>
                 </div>
-                <div id="tenantInfo" style="display: none; background-color: #2A2A2D; border: 1px solid #4A4A4F; border-radius: 0.5rem; padding: 1rem; margin-top: 1rem;">
-                    <p style="font-size: 0.875rem; color: #9CA3AF; margin-bottom: 0.25rem;">Bedrijf:</p>
+
+                <div id="tenantInfo" style="display: none; background-color: #2A2A2D; border: 1px solid #4A4A4F; border-radius: 0.5rem; padding: 1rem; margin-bottom: 1rem;">
+                    <p style="font-size: 0.875rem; color: #9CA3AF; margin-bottom: 0.25rem;">Ingelogd als:</p>
                     <p id="tenantName" style="font-size: 1rem; color: #F3F4F6; font-weight: 600;"></p>
                 </div>
 
-                <div style="margin-top: 1.5rem; display: flex; gap: 1rem;">
+                <div style="display: flex; gap: 1rem;">
                     <button type="button" class="btn" onclick="closeModal()" style="background-color: #2A2A2D; color: #F3F4F6; flex: 1;">
                         Annuleren
                     </button>
@@ -526,7 +624,8 @@
         let existingBookings = [];
         let selectedCells = [];
         let tenants = [];
-        let authenticatedTenant = null;
+        let externalCustomers = [];
+        let authenticatedUser = null;
 
         const timeSlots = [];
         for (let hour = 0; hour < 24; hour++) {
@@ -551,11 +650,11 @@
             { bg: '#78350F', border: '#92400E' },
         ];
 
-        function getTenantColor(tenantId) {
-            if (!tenantId) return tenantColors[0];
+        function getTenantColor(id) {
+            if (!id) return tenantColors[0];
             let hash = 0;
-            for (let i = 0; i < tenantId.length; i++) {
-                hash += tenantId.charCodeAt(i);
+            for (let i = 0; i < id.length; i++) {
+                hash += id.charCodeAt(i);
             }
             return tenantColors[hash % tenantColors.length];
         }
@@ -580,24 +679,29 @@
 
         async function init() {
             try {
-                const [roomsResult, tenantsResult] = await Promise.all([
+                const [roomsResult, tenantsResult, externalResult] = await Promise.all([
                     sb.from('office_spaces')
                         .select('id, space_number, hourly_rate')
                         .eq('space_type', 'Meeting Room')
                         .order('space_number'),
                     sb.from('tenants')
                         .select('id, name, company_name, email, booking_pin_code')
+                        .order('name'),
+                    sb.from('external_customers')
+                        .select('id, name, company_name, email, booking_pin_code')
                         .order('name')
                 ]);
 
                 meetingRooms = roomsResult.data || [];
                 tenants = tenantsResult.data || [];
+                externalCustomers = externalResult.data || [];
 
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('content').style.display = 'block';
 
                 populateRoomDropdown();
                 setupBookingForm();
+                setupPinVerification();
                 await loadBookings();
                 renderSchedule();
             } catch (error) {
@@ -619,14 +723,13 @@
             });
         }
 
-
         async function loadBookings() {
             const weekEnd = new Date(currentWeekStart);
             weekEnd.setDate(weekEnd.getDate() + 6);
 
             const { data: bookings } = await sb
                 .from('meeting_room_bookings')
-                .select('booking_date, start_time, end_time, tenant_id, space_id, tenants(name, company_name)')
+                .select('booking_date, start_time, end_time, tenant_id, external_customer_id, space_id, tenants(name, company_name), external_customers(name, company_name)')
                 .gte('booking_date', formatDate(currentWeekStart))
                 .lte('booking_date', formatDate(weekEnd))
                 .neq('status', 'cancelled');
@@ -670,21 +773,6 @@
             const today = new Date();
             today.setHours(0, 0, 0, 0);
 
-            const bookingBlocks = {};
-
-            existingBookings.forEach(booking => {
-                const key = `${booking.booking_date}-${booking.start_time}`;
-                if (!bookingBlocks[key]) {
-                    bookingBlocks[key] = {
-                        date: booking.booking_date,
-                        startTime: booking.start_time,
-                        endTime: booking.end_time,
-                        name: booking.tenants?.company_name || booking.tenants?.name || 'Geboekt',
-                        tenantId: booking.tenant_id
-                    };
-                }
-            });
-
             timeSlots.forEach(time => {
                 const timeLabel = document.createElement('div');
                 timeLabel.className = 'time-label';
@@ -696,7 +784,7 @@
                     cell.className = 'schedule-cell';
 
                     const hour = parseInt(time.split(':')[0]);
-                    if (hour >= 8 && hour < 17) {
+                    if (hour >= 8 && hour < 18) {
                         cell.classList.add('business-hours');
                     } else {
                         cell.classList.add('outside-hours');
@@ -711,23 +799,30 @@
                         time < b.end_time
                     );
 
-
                     if (booking && time === booking.start_time) {
                         const startIndex = timeSlots.indexOf(booking.start_time);
                         const endIndex = timeSlots.indexOf(booking.end_time);
                         const duration = endIndex - startIndex;
 
-                        const colors = getTenantColor(booking.tenant_id);
+                        const colorId = booking.tenant_id || booking.external_customer_id;
+                        const colors = getTenantColor(colorId);
 
                         const bookingEl = document.createElement('div');
                         bookingEl.className = 'booking';
                         bookingEl.style.backgroundColor = colors.bg;
                         bookingEl.style.borderColor = colors.border;
                         bookingEl.style.color = '#FFFFFF';
-                        const displayName = booking.tenants?.company_name || booking.tenants?.name || 'Geboekt';
+
+                        let displayName = 'Geboekt';
+                        if (booking.tenants) {
+                            displayName = booking.tenants.company_name || booking.tenants.name;
+                        } else if (booking.external_customers) {
+                            displayName = booking.external_customers.company_name || booking.external_customers.name;
+                        }
+
                         bookingEl.textContent = displayName;
                         bookingEl.title = `${displayName}\n${booking.start_time} - ${booking.end_time}`;
-                        bookingEl.style.height = `${duration * 18}px`;
+                        bookingEl.style.height = `${duration * 32 - 2}px`;
                         bookingEl.style.zIndex = '10';
                         cell.appendChild(bookingEl);
                     }
@@ -754,14 +849,13 @@
             });
 
             const scheduleContainer = document.getElementById('scheduleGrid').parentElement;
-            scheduleContainer.scrollTop = 8 * 2 * 18;
+            scheduleContainer.scrollTop = 8 * 2 * 32;
         }
 
         document.addEventListener('mouseup', endDrag);
 
         function startDrag(e, date, time) {
             e.preventDefault();
-
             isDragging = true;
             dragStartCell = time;
             dragCurrentDate = date;
@@ -817,11 +911,49 @@
             });
         }
 
-        document.addEventListener('mouseup', endDrag);
+        function toggleRecurring() {
+            const checkbox = document.getElementById('isRecurring');
+            const options = document.getElementById('recurringOptions');
 
-        function getPreviousTimeSlot(time) {
-            const index = timeSlots.indexOf(time);
-            return index > 0 ? timeSlots[index - 1] : null;
+            checkbox.checked = !checkbox.checked;
+
+            if (checkbox.checked) {
+                options.classList.add('show');
+
+                if (selectedCells.length > 0) {
+                    const selectedDate = new Date(selectedCells[0].date);
+                    const dayOfWeek = selectedDate.getDay();
+
+                    document.querySelectorAll('.day-checkbox').forEach(el => {
+                        if (parseInt(el.dataset.day) === dayOfWeek) {
+                            el.classList.add('selected');
+                        }
+                    });
+
+                    const minEndDate = new Date(selectedDate);
+                    minEndDate.setDate(minEndDate.getDate() + 7);
+                    document.getElementById('recurringEndDate').min = formatDate(minEndDate);
+
+                    const defaultEndDate = new Date(selectedDate);
+                    defaultEndDate.setMonth(defaultEndDate.getMonth() + 3);
+                    document.getElementById('recurringEndDate').value = formatDate(defaultEndDate);
+                }
+            } else {
+                options.classList.remove('show');
+                document.querySelectorAll('.day-checkbox').forEach(el => el.classList.remove('selected'));
+            }
+        }
+
+        function toggleDay(element) {
+            element.classList.toggle('selected');
+        }
+
+        function getSelectedDays() {
+            const days = [];
+            document.querySelectorAll('.day-checkbox.selected').forEach(el => {
+                days.push(parseInt(el.dataset.day));
+            });
+            return days;
         }
 
         function openModal() {
@@ -859,7 +991,7 @@
 
             const startTime = times[0];
             const endTimeIndex = timeSlots.indexOf(times[times.length - 1]) + 1;
-            const endTime = timeSlots[endTimeIndex] || '18:00';
+            const endTime = timeSlots[endTimeIndex] || '24:00';
 
             const dateObj = new Date(firstDate + 'T00:00:00');
             document.getElementById('summaryDate').textContent = dateObj.toLocaleDateString('nl-NL', {
@@ -877,8 +1009,15 @@
             document.getElementById('modalSummary').style.display = 'block';
             document.getElementById('bookingModal').classList.add('show');
 
-            // Setup PIN verification when modal opens
-            setupPinVerification();
+            document.getElementById('pinCode').value = '';
+            document.getElementById('pinCode').style.borderColor = '';
+            authenticatedUser = null;
+            document.getElementById('tenantInfo').style.display = 'none';
+            document.getElementById('pinError').style.display = 'none';
+
+            document.getElementById('isRecurring').checked = false;
+            document.getElementById('recurringOptions').classList.remove('show');
+            document.querySelectorAll('.day-checkbox').forEach(el => el.classList.remove('selected'));
         }
 
         function closeModal() {
@@ -886,7 +1025,7 @@
             selectedCells = [];
             updateCellSelection();
             document.getElementById('bookingForm').reset();
-            authenticatedTenant = null;
+            authenticatedUser = null;
             document.getElementById('tenantInfo').style.display = 'none';
             document.getElementById('pinError').style.display = 'none';
             document.getElementById('pinCode').style.borderColor = '';
@@ -898,54 +1037,42 @@
             return (endDate - startDate) / (1000 * 60 * 60);
         }
 
-        let pinVerificationSetup = false;
-
         function setupPinVerification() {
             const pinInput = document.getElementById('pinCode');
-            if (!pinInput) {
-                console.error('PIN input element not found!');
-                return;
-            }
+            if (!pinInput) return;
 
-            // Avoid adding multiple event listeners
-            if (!pinVerificationSetup) {
-                console.log('PIN verification setup complete');
-                pinVerificationSetup = true;
+            pinInput.addEventListener('input', (e) => {
+                const pinValue = e.target.value.replace(/\D/g, '');
+                e.target.value = pinValue;
 
-                pinInput.addEventListener('input', (e) => {
-                    const pinValue = e.target.value.replace(/\D/g, '');
-                    e.target.value = pinValue;
+                document.getElementById('pinError').style.display = 'none';
 
-                    document.getElementById('pinError').style.display = 'none';
+                if (pinValue.length === 4) {
+                    let matchingUser = tenants.find(t => t.booking_pin_code === pinValue);
+                    let userType = 'tenant';
 
-                    if (pinValue.length === 4) {
-                        const matchingTenant = tenants.find(t => t.booking_pin_code === pinValue);
-
-                        if (matchingTenant) {
-                            authenticatedTenant = matchingTenant;
-                            document.getElementById('tenantName').textContent = matchingTenant.company_name || matchingTenant.name;
-                            document.getElementById('tenantInfo').style.display = 'block';
-                            e.target.style.borderColor = '#10B981';
-                        } else {
-                            authenticatedTenant = null;
-                            document.getElementById('tenantInfo').style.display = 'none';
-                            document.getElementById('pinError').style.display = 'block';
-                            e.target.style.borderColor = '#EF4444';
-                        }
-                    } else {
-                        authenticatedTenant = null;
-                        document.getElementById('tenantInfo').style.display = 'none';
-                        e.target.style.borderColor = '';
+                    if (!matchingUser) {
+                        matchingUser = externalCustomers.find(c => c.booking_pin_code === pinValue);
+                        userType = 'external';
                     }
-                });
-            }
 
-            // Reset PIN field and states when modal opens
-            pinInput.value = '';
-            pinInput.style.borderColor = '';
-            authenticatedTenant = null;
-            document.getElementById('tenantInfo').style.display = 'none';
-            document.getElementById('pinError').style.display = 'none';
+                    if (matchingUser) {
+                        authenticatedUser = { ...matchingUser, userType };
+                        document.getElementById('tenantName').textContent = matchingUser.company_name || matchingUser.name;
+                        document.getElementById('tenantInfo').style.display = 'block';
+                        e.target.style.borderColor = '#10B981';
+                    } else {
+                        authenticatedUser = null;
+                        document.getElementById('tenantInfo').style.display = 'none';
+                        document.getElementById('pinError').style.display = 'block';
+                        e.target.style.borderColor = '#EF4444';
+                    }
+                } else {
+                    authenticatedUser = null;
+                    document.getElementById('tenantInfo').style.display = 'none';
+                    e.target.style.borderColor = '';
+                }
+            });
         }
 
         function setupBookingForm() {
@@ -953,86 +1080,95 @@
             if (!form) return;
 
             form.onsubmit = async (e) => {
-            e.preventDefault();
+                e.preventDefault();
 
-            const roomSelect = document.getElementById('modalRoomSelect');
-            const selectedRoomId = roomSelect.value;
+                const roomSelect = document.getElementById('modalRoomSelect');
+                const selectedRoomId = roomSelect.value;
 
-            if (!selectedRoomId || selectedCells.length === 0) {
-                showNotification('Selecteer eerst een vergaderruimte.', 'error');
-                return;
-            }
-
-            const selectedRoomData = meetingRooms.find(r => r.id === selectedRoomId);
-
-            if (!selectedRoomData) {
-                showNotification('Geselecteerde ruimte niet gevonden.', 'error');
-                return;
-            }
-
-            const pinCode = document.getElementById('pinCode').value;
-
-            if (!authenticatedTenant || pinCode !== authenticatedTenant.booking_pin_code) {
-                document.getElementById('pinError').style.display = 'block';
-                showNotification('Voer een geldige PIN-code in.', 'error');
-                return;
-            }
-
-            const times = selectedCells.map(sc => sc.time).sort();
-            const startTime = times[0];
-            const endTimeIndex = timeSlots.indexOf(times[times.length - 1]) + 1;
-            const endTime = timeSlots[endTimeIndex] || '18:00';
-            const bookingDate = selectedCells[0].date;
-
-            try {
-                // Check if room is available
-                const conflictingBooking = existingBookings.find(b =>
-                    b.space_id === selectedRoomId &&
-                    b.booking_date === bookingDate &&
-                    ((startTime >= b.start_time && startTime < b.end_time) ||
-                     (endTime > b.start_time && endTime <= b.end_time) ||
-                     (startTime <= b.start_time && endTime >= b.end_time))
-                );
-
-                if (conflictingBooking) {
-                    showNotification('Deze ruimte is niet beschikbaar voor de geselecteerde tijd.', 'error');
+                if (!selectedRoomId || selectedCells.length === 0) {
+                    showNotification('Selecteer eerst een vergaderruimte.', 'error');
                     return;
                 }
 
-                const tenantId = authenticatedTenant.id;
-                const hours = calculateHours(startTime, endTime);
-                const hourlyRate = selectedRoomData.hourly_rate || 25;
-                const totalAmount = hours * hourlyRate;
+                const selectedRoomData = meetingRooms.find(r => r.id === selectedRoomId);
 
-                const { error: bookingError } = await sb
-                    .from('meeting_room_bookings')
-                    .insert({
+                if (!selectedRoomData) {
+                    showNotification('Geselecteerde ruimte niet gevonden.', 'error');
+                    return;
+                }
+
+                const pinCode = document.getElementById('pinCode').value;
+
+                if (!authenticatedUser) {
+                    document.getElementById('pinError').style.display = 'block';
+                    showNotification('Voer een geldige PIN-code in.', 'error');
+                    return;
+                }
+
+                const times = selectedCells.map(sc => sc.time).sort();
+                const startTime = times[0];
+                const endTimeIndex = timeSlots.indexOf(times[times.length - 1]) + 1;
+                const endTime = timeSlots[endTimeIndex] || '24:00';
+                const bookingDate = selectedCells[0].date;
+
+                const isRecurring = document.getElementById('isRecurring').checked;
+                const selectedDays = getSelectedDays();
+                const recurringEndDate = document.getElementById('recurringEndDate').value;
+
+                try {
+                    const bookingDates = [bookingDate];
+
+                    if (isRecurring && selectedDays.length > 0 && recurringEndDate) {
+                        const endDate = new Date(recurringEndDate);
+                        const startDate = new Date(bookingDate);
+                        startDate.setDate(startDate.getDate() + 1);
+
+                        let currentDate = new Date(startDate);
+                        while (currentDate <= endDate) {
+                            if (selectedDays.includes(currentDate.getDay())) {
+                                bookingDates.push(formatDate(currentDate));
+                            }
+                            currentDate.setDate(currentDate.getDate() + 1);
+                        }
+                    }
+
+                    const hours = calculateHours(startTime, endTime);
+                    const hourlyRate = selectedRoomData.hourly_rate || 25;
+                    const totalAmount = hours * hourlyRate;
+
+                    const bookingsToInsert = bookingDates.map(date => ({
                         space_id: selectedRoomId,
-                        tenant_id: tenantId,
-                        booking_date: bookingDate,
+                        tenant_id: authenticatedUser.userType === 'tenant' ? authenticatedUser.id : null,
+                        external_customer_id: authenticatedUser.userType === 'external' ? authenticatedUser.id : null,
+                        booking_date: date,
                         start_time: startTime,
                         end_time: endTime,
                         hourly_rate: hourlyRate,
                         total_hours: hours,
                         total_amount: totalAmount,
-                        status: 'confirmed'
-                    });
+                        status: 'confirmed',
+                        booking_type: authenticatedUser.userType === 'tenant' ? 'tenant' : 'external'
+                    }));
 
-                if (bookingError) throw bookingError;
+                    const { error: bookingError } = await sb
+                        .from('meeting_room_bookings')
+                        .insert(bookingsToInsert);
 
-                showNotification('Uw boeking is succesvol aangemaakt! We nemen zo spoedig mogelijk contact met u op.', 'success');
-                closeModal();
-                await loadBookings();
-                renderSchedule();
+                    if (bookingError) throw bookingError;
 
-                setTimeout(() => {
-                    location.reload();
-                }, 3000);
+                    const message = bookingsToInsert.length > 1
+                        ? `${bookingsToInsert.length} boekingen zijn succesvol aangemaakt!`
+                        : 'Uw boeking is succesvol aangemaakt!';
 
-            } catch (error) {
-                console.error('Booking error:', error);
-                showNotification('Er is een fout opgetreden. Probeer het later opnieuw.', 'error');
-            }
+                    showNotification(message, 'success');
+                    closeModal();
+                    await loadBookings();
+                    renderSchedule();
+
+                } catch (error) {
+                    console.error('Booking error:', error);
+                    showNotification('Er is een fout opgetreden. Probeer het later opnieuw.', 'error');
+                }
             };
         }
 
