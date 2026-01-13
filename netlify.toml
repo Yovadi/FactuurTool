@@ -1,16 +1,16 @@
 [build]
-publish = "dist"
-command = "npx vite build"
+publish = "public"
+command = "echo 'Deploying booking page only'"
 
 [build.environment]
 NODE_VERSION = "20"
 
 [[redirects]]
-from = "/booking.html"
+from = "/"
 to = "/booking.html"
 status = 200
 
 [[redirects]]
 from = "/*"
-to = "/index.html"
+to = "/booking.html"
 status = 200
