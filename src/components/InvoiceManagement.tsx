@@ -342,7 +342,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         start_time,
         end_time,
         total_hours,
-        total_price,
+        total_amount,
         status,
         invoice_id,
         tenant_id,
@@ -1588,7 +1588,6 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                   description: `Flexplek huur ${new Date(targetMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}`,
                   quantity: 1,
                   unit_price: lease.flex_monthly_rate || 0,
-                  vat_rate: 21,
                   amount: lease.flex_monthly_rate || 0
                 }
               ]
@@ -1597,7 +1596,6 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                 description: `Huur ${ls.space.space_number} - ${new Date(targetMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}`,
                 quantity: 1,
                 unit_price: ls.monthly_rent,
-                vat_rate: 21,
                 amount: ls.monthly_rent
               }));
 
@@ -1607,7 +1605,6 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               description: 'Borgsom',
               quantity: 1,
               unit_price: lease.security_deposit,
-              vat_rate: 21,
               amount: lease.security_deposit
             });
           }
@@ -1716,10 +1713,9 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
           const lineItems = bookings.map(booking => ({
             invoice_id: newInvoice.id,
-            description: `${booking.space?.name || 'Vergaderruimte'} - ${new Date(booking.booking_date).toLocaleDateString('nl-NL')} ${booking.start_time}-${booking.end_time}`,
+            description: `${booking.space?.space_number || 'Vergaderruimte'} - ${new Date(booking.booking_date).toLocaleDateString('nl-NL')} ${booking.start_time}-${booking.end_time}`,
             quantity: booking.total_hours,
             unit_price: booking.hourly_rate,
-            vat_rate: 21,
             amount: booking.total_amount,
             booking_id: booking.id
           }));
@@ -2987,7 +2983,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                             });
 
                             const total = customerBookings.reduce((sum, booking) => {
-                              return sum + booking.total_price;
+                              return sum + booking.total_amount;
                             }, 0);
 
                             return (
