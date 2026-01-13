@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vergaderruimte Boeken - HAL5 Overloon</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #0A0A0B;
+            color: #F3F4F6;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-size: 1.25rem;
+            color: #9CA3AF;
+        }
+
+        /* Toast notifications */
+        .toast-container {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            max-width: 24rem;
+        }
+
+        .toast {
+            display: flex;
+            align-items: start;
+            gap: 0.75rem;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            border: 1px solid;
+            backdrop-filter: blur(8px);
+            animation: slide-in 0.3s ease-out;
+        }
+
+        @keyframes slide-in {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .toast.success {
+            background-color: rgba(16, 185, 129, 0.9);
+            border-color: rgba(52, 211, 153, 0.5);
+        }
+
+        .toast.error {
+            background-color: rgba(239, 68, 68, 0.9);
+            border-color: rgba(252, 165, 165, 0.5);
+        }
+
+        .toast.info {
+            background-color: rgba(59, 130, 246, 0.9);
+            border-color: rgba(147, 197, 253, 0.5);
+        }
+
+        .toast-icon {
+            flex-shrink: 0;
+            width: 1.25rem;
+            height: 1.25rem;
+        }
+
+        .toast-message {
+            flex: 1;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: white;
+        }
+
+        .toast-close {
+            flex-shrink: 0;
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            padding: 0;
+            width: 1rem;
+            height: 1rem;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+
+        .toast-close:hover {
+            opacity: 1;
+        }
+
+        #app {
+            min-height: 100vh;
+        }
+
+        /* Import Tailwind-like utilities */
+        .container {
+            width: 100%;
+            margin-left: auto;
+            margin-right: auto;
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+
+        @media (min-width: 1536px) {
+            .container {
+                max-width: 1536px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="loading">
+            <p>Applicatie laden...</p>
+        </div>
+    </div>
+
+    <script>
+        // This is a placeholder page that informs the user to use the main Bolt app
+        // Since replicating the entire React BookingCalendar component in vanilla JS
+        // would be extremely complex and error-prone, we redirect to inform the user
+
+        document.getElementById('app').innerHTML = `
+            <div style="max-width: 800px; margin: 0 auto; padding: 2rem;">
+                <div style="background-color: #1A1A1C; border: 1px solid #3A3A3E; border-radius: 0.5rem; padding: 2rem; text-align: center;">
+                    <h1 style="font-size: 2rem; font-weight: bold; color: #D4AF37; margin-bottom: 1rem;">
+                        Welkom bij HAL5 Overloon
+                    </h1>
+                    <p style="font-size: 1.125rem; color: #9CA3AF; margin-bottom: 2rem;">
+                        De boekingskalender is verplaatst naar de hoofdapplicatie.
+                    </p>
+                    <p style="font-size: 1rem; color: #9CA3AF; margin-bottom: 2rem;">
+                        Gebruik de Bolt app om vergaderruimtes te boeken met de volledige kalenderweergave.
+                    </p>
+                    <div style="background-color: #0A0A0B; border: 1px solid #4A4A4F; border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 2rem; text-align: left;">
+                        <h2 style="font-size: 1.125rem; font-weight: 600; color: #F3F4F6; margin-bottom: 1rem;">
+                            Functionaliteit in de Bolt app:
+                        </h2>
+                        <ul style="list-style: none; color: #9CA3AF; font-size: 0.9375rem; line-height: 2;">
+                            <li>✓ Weekweergave met tijdslots</li>
+                            <li>✓ Maandkalenders voor snelle navigatie</li>
+                            <li>✓ Drag & drop voor boekingen</li>
+                            <li>✓ Touch support voor mobiele apparaten</li>
+                            <li>✓ Meerdere vergaderruimtes beheren</li>
+                            <li>✓ Terugkerende boekingen</li>
+                            <li>✓ Real-time beschikbaarheid</li>
+                        </ul>
+                    </div>
+                    <p style="font-size: 0.875rem; color: #6B7280;">
+                        Voor ondersteuning, neem contact op met de beheerder.
+                    </p>
+                </div>
+            </div>
+        `;
+    </script>
+</body>
+</html>

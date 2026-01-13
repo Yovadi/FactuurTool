@@ -2,8 +2,9 @@
 <html lang="nl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Vergaderruimte Boeken - HAL5 Overloon</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
         * {
             margin: 0;
@@ -16,196 +17,432 @@
             background-color: #0A0A0B;
             color: #F3F4F6;
             line-height: 1.6;
+            overflow-x: hidden;
         }
 
         .container {
-            max-width: 1400px;
-            margin: 0 auto;
             padding: 1rem;
+            max-width: 1800px;
+            margin: 0 auto;
         }
 
         .header {
             text-align: center;
             margin-bottom: 1.5rem;
-            padding-bottom: 1rem;
-            border-bottom: 1px solid #3A3A3E;
+            padding: 1rem;
+            background-color: #1A1A1C;
+            border-radius: 0.5rem;
+            border: 1px solid #3A3A3E;
         }
 
         .header h1 {
-            font-size: 1.5rem;
+            font-size: 1.875rem;
             font-weight: bold;
             color: #D4AF37;
-            margin-bottom: 0.25rem;
+            margin-bottom: 0.5rem;
         }
 
         .header p {
-            font-size: 0.875rem;
+            font-size: 1rem;
             color: #9CA3AF;
         }
 
-        .week-nav {
+        .user-info {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 0.75rem;
             padding: 0.75rem 1rem;
             background-color: #1A1A1C;
             border-radius: 0.5rem;
             border: 1px solid #3A3A3E;
+            margin-bottom: 1rem;
+        }
+
+        .user-info span {
+            color: #F3F4F6;
+            font-weight: 500;
+        }
+
+        .btn {
+            background: #D4AF37;
+            color: #0A0A0B;
+            border: none;
+            padding: 0.5rem 1.25rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background: #C19B2F;
+        }
+
+        .btn-secondary {
+            background: #2A2A2D;
+            color: #F3F4F6;
+            border: 1px solid #4A4A4F;
+        }
+
+        .btn-secondary:hover {
+            background: #3A3A3E;
+        }
+
+        .calendar-container {
+            display: flex;
+            gap: 1rem;
+            height: 720px;
+        }
+
+        /* Mini calendars sidebar */
+        .mini-calendars {
+            width: 280px;
+            flex-shrink: 0;
+            background-color: #1A1A1C;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            overflow-y: auto;
+            border: 1px solid #3A3A3E;
+        }
+
+        .mini-calendar {
+            margin-bottom: 1.5rem;
+        }
+
+        .mini-calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .mini-calendar-header h3 {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #F3F4F6;
+        }
+
+        .mini-nav {
+            display: flex;
+            gap: 0.25rem;
+        }
+
+        .mini-nav button {
+            background: transparent;
+            border: none;
+            color: #9CA3AF;
+            cursor: pointer;
+            padding: 0.25rem;
+            border-radius: 0.25rem;
+            transition: all 0.2s;
+        }
+
+        .mini-nav button:hover {
+            background: #2A2A2D;
+            color: #F3F4F6;
+        }
+
+        .mini-calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.125rem;
+        }
+
+        .mini-calendar-day-header {
+            text-align: center;
+            font-size: 0.625rem;
+            color: #6B7280;
+            font-weight: 600;
+            padding: 0.25rem 0;
+        }
+
+        .mini-calendar-day {
+            text-align: center;
+            font-size: 0.75rem;
+            padding: 0.375rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .mini-calendar-day.other-month {
+            color: #4B5563;
+        }
+
+        .mini-calendar-day.current-month {
+            color: #9CA3AF;
+        }
+
+        .mini-calendar-day.today {
+            background-color: rgba(251, 191, 36, 0.3);
+            color: #FCD34D;
+            font-weight: 600;
+        }
+
+        .mini-calendar-day.selected {
+            background-color: #D4AF37;
+            color: #0A0A0B;
+            font-weight: 600;
+        }
+
+        .mini-calendar-day.has-bookings {
+            border: 2px solid #FCD34D;
+        }
+
+        .mini-calendar-day:hover:not(.other-month) {
+            background-color: #2A2A2D;
+        }
+
+        .today-btn {
+            width: 100%;
+            margin-top: 1rem;
+            background: #2A2A2D;
+            color: #F3F4F6;
+            border: 1px solid #4A4A4F;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .today-btn:hover {
+            background: #3A3A3E;
+        }
+
+        /* Week view */
+        .week-view {
+            flex: 1;
+            background-color: #1A1A1C;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #3A3A3E;
+        }
+
+        .week-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background-color: #2A2A2D;
+            border-bottom: 1px solid #3A3A3E;
+        }
+
+        .week-nav {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
         }
 
         .week-nav button {
-            background: #2A2A2D;
-            border: 1px solid #4A4A4F;
-            color: #D4AF37;
+            background: transparent;
+            border: none;
+            color: #9CA3AF;
             cursor: pointer;
-            padding: 0.5rem 1rem;
-            font-size: 1rem;
-            border-radius: 0.5rem;
+            padding: 0.25rem;
+            border-radius: 0.25rem;
             transition: all 0.2s;
         }
 
         .week-nav button:hover {
-            background-color: #3A3A3E;
-            border-color: #D4AF37;
-        }
-
-        .week-nav h3 {
-            font-size: 1rem;
+            background: #3A3A3E;
             color: #F3F4F6;
         }
 
-        .schedule-container {
-            background-color: #1A1A1C;
-            border-radius: 0.5rem;
-            border: 1px solid #3A3A3E;
-            overflow-x: auto;
-            overflow-y: auto;
-            max-height: 75vh;
-            margin-bottom: 1rem;
-            position: relative;
-        }
-
-        .schedule-grid {
-            display: grid;
-            grid-template-columns: 70px repeat(7, 1fr);
-            min-width: 800px;
-        }
-
-        .schedule-header {
-            background-color: #2A2A2D;
-            padding: 0.75rem 0.5rem;
-            text-align: center;
-            border-bottom: 2px solid #4A4A4F;
-            font-size: 0.875rem;
+        .week-nav h2 {
+            font-size: 1rem;
             font-weight: 600;
-            position: sticky;
-            top: 0;
-            z-index: 20;
+            color: #F3F4F6;
         }
 
-        .schedule-header.corner {
-            background-color: #1A1A1C;
-        }
-
-        .time-label {
-            padding: 0.25rem 0.5rem;
-            text-align: center;
-            font-size: 0.75rem;
-            color: #9CA3AF;
-            border-right: 1px solid #3A3A3E;
-            border-bottom: 1px solid #2A2A2D;
-            background-color: #1A1A1C;
-            position: sticky;
-            left: 0;
-            z-index: 15;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .schedule-cell {
-            padding: 0;
-            border-right: 1px solid #2A2A2D;
-            border-bottom: 1px solid #2A2A2D;
-            min-height: 32px;
-            height: 32px;
-            cursor: pointer;
-            transition: background-color 0.1s;
-            position: relative;
-            user-select: none;
-        }
-
-        .schedule-cell.business-hours {
-            background-color: #1F1F21;
-        }
-
-        .schedule-cell.outside-hours {
+        .week-grid {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
             background-color: #0F0F10;
         }
 
-        .schedule-cell:hover:not(.has-booking):not(.past) {
+        .week-grid-inner {
+            min-width: 900px;
+            display: grid;
+            grid-template-columns: 60px repeat(7, 1fr);
+        }
+
+        .week-day-header {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            background-color: #2A2A2D;
+            border-bottom: 1px solid #3A3A3E;
+            border-left: 1px solid #3A3A3E;
+            padding: 0.75rem;
+            text-align: center;
+        }
+
+        .week-day-header.corner {
+            border-left: none;
+        }
+
+        .week-day-header.today {
+            background-color: rgba(251, 191, 36, 0.2);
+        }
+
+        .week-day-label {
+            font-size: 0.75rem;
+            color: #9CA3AF;
+            text-transform: uppercase;
+        }
+
+        .week-day-date {
+            font-size: 1.5rem;
+            font-weight: 300;
+            color: #F3F4F6;
+            margin-top: 0.25rem;
+        }
+
+        .week-day-date.today {
+            color: #FCD34D;
+        }
+
+        .time-column {
+            background-color: #1A1A1C;
+        }
+
+        .time-slot {
+            height: 50px;
+            font-size: 0.625rem;
+            color: #6B7280;
+            padding-right: 0.5rem;
+            text-align: right;
+            border-bottom: 1px solid #2A2A2D;
+            background-color: #1A1A1C;
+            line-height: 50px;
+        }
+
+        .time-slot.hour {
+            font-weight: 500;
+        }
+
+        .day-column {
+            position: relative;
+            border-left: 1px solid #3A3A3E;
+        }
+
+        .day-column.today {
+            background-color: rgba(251, 191, 36, 0.05);
+        }
+
+        .time-cell {
+            height: 50px;
+            border-bottom: 1px solid #2A2A2D;
+            cursor: pointer;
+            transition: background-color 0.1s;
+            user-select: none;
+            position: relative;
+        }
+
+        .time-cell.work-hours {
+            background-color: #1F1F21;
+        }
+
+        .time-cell.outside-hours {
+            background-color: #0F0F10;
+        }
+
+        .time-cell.past {
+            background-color: #141416;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .time-cell.selected {
+            background-color: rgba(251, 191, 36, 0.4);
+            border: 2px solid rgba(251, 191, 36, 0.6);
+        }
+
+        .time-cell:hover:not(.past):not(.has-booking) {
             background-color: rgba(212, 175, 55, 0.15);
         }
 
-        .schedule-cell.selected {
-            background-color: rgba(212, 175, 55, 0.4);
-            border: 1px solid rgba(212, 175, 55, 0.6);
+        .time-cell.dragging-over {
+            background-color: rgba(16, 185, 129, 0.2);
         }
 
-        .schedule-cell.past {
-            background-color: #141416;
-            cursor: not-allowed;
-        }
-
-        .booking {
-            padding: 0.25rem 0.5rem;
+        .booking-block {
+            position: absolute;
+            left: 2px;
+            right: 2px;
+            top: 2px;
             border-radius: 0.25rem;
+            padding: 0.375rem 0.5rem;
+            cursor: move;
+            z-index: 10;
+            overflow: hidden;
+            border-left: 4px solid;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            transition: box-shadow 0.2s;
+        }
+
+        .booking-block:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+        }
+
+        .booking-block.dragging {
+            opacity: 0.5;
+        }
+
+        .booking-name {
             font-size: 0.75rem;
             font-weight: 600;
+            line-height: 1.2;
+            margin-bottom: 0.125rem;
+            white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            cursor: default;
-            position: absolute;
-            top: 1px;
-            left: 1px;
-            right: 1px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-width: 1px;
-            border-style: solid;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-            pointer-events: none;
         }
 
-        .modal {
+        .booking-time {
+            font-size: 0.6875rem;
+            opacity: 0.9;
+            line-height: 1.2;
+        }
+
+        .booking-type-badge {
+            font-size: 0.625rem;
+            text-transform: uppercase;
+            font-weight: 700;
+            opacity: 0.75;
+            line-height: 1.2;
+        }
+
+        /* Modal */
+        .modal-overlay {
             display: none;
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            inset: 0;
             background-color: rgba(0, 0, 0, 0.7);
             z-index: 100;
             justify-content: center;
             align-items: center;
+            padding: 1rem;
         }
 
-        .modal.show {
+        .modal-overlay.show {
             display: flex;
         }
 
         .modal-content {
             background-color: #1A1A1C;
-            border-radius: 0.75rem;
+            border-radius: 0.5rem;
             padding: 1.5rem;
             max-width: 500px;
-            width: 90%;
+            width: 100%;
             max-height: 90vh;
             overflow-y: auto;
             border: 1px solid #3A3A3E;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
         }
 
         .modal-header {
@@ -215,160 +452,116 @@
             margin-bottom: 1.5rem;
         }
 
-        .modal-header h2 {
+        .modal-header h3 {
             font-size: 1.25rem;
+            font-weight: 700;
             color: #F3F4F6;
         }
 
         .close-btn {
-            background: none;
+            background: transparent;
             border: none;
             color: #9CA3AF;
-            font-size: 1.5rem;
             cursor: pointer;
-            padding: 0;
-            width: 30px;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 0.25rem;
-            transition: all 0.2s;
+            padding: 0.25rem;
+            font-size: 1.5rem;
+            line-height: 1;
+            transition: color 0.2s;
         }
 
         .close-btn:hover {
-            background-color: #2A2A2D;
             color: #F3F4F6;
         }
 
         .form-group {
-            margin-bottom: 1rem;
+            margin-bottom: 1.25rem;
         }
 
-        .form-group label {
+        .form-label {
             display: block;
             font-size: 0.875rem;
             font-weight: 500;
-            color: #E5E7EB;
+            color: #F3F4F6;
             margin-bottom: 0.5rem;
         }
 
-        .form-control {
+        .form-input, .form-select {
             width: 100%;
-            padding: 0.75rem 1rem;
+            padding: 0.625rem 0.75rem;
             background-color: #2A2A2D;
             border: 1px solid #4A4A4F;
-            border-radius: 0.5rem;
+            border-radius: 0.375rem;
             color: #F3F4F6;
-            font-size: 1rem;
-            transition: all 0.2s;
+            font-size: 0.9375rem;
+            transition: border-color 0.2s, background-color 0.2s;
         }
 
-        .form-control:focus {
+        .form-input:focus, .form-select:focus {
             outline: none;
             border-color: #D4AF37;
-            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
+            background-color: #3A3A3E;
         }
 
-        .btn {
-            padding: 0.75rem 1.5rem;
+        .info-box {
+            background-color: #2A2A2D;
             border-radius: 0.5rem;
-            font-weight: 500;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: all 0.2s;
-            border: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1.25rem;
         }
 
-        .btn-primary {
-            background-color: #D4AF37;
-            color: #0A0A0B;
-        }
-
-        .btn-primary:hover {
-            background-color: #C19A2E;
-        }
-
-        .btn-primary:disabled {
-            background-color: #4A4A4F;
-            cursor: not-allowed;
-        }
-
-        .login-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(10, 10, 11, 0.98);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-        }
-
-        .login-card {
-            background: #1A1A1C;
-            border: 1px solid #3A3A3E;
-            border-radius: 1rem;
-            padding: 2.5rem;
-            width: 100%;
-            max-width: 400px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-        }
-
-        .login-header {
-            text-align: center;
-            margin-bottom: 2rem;
-        }
-
-        .login-header h1 {
-            font-size: 1.75rem;
-            font-weight: bold;
+        .info-box h4 {
+            font-size: 0.9375rem;
             color: #D4AF37;
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+        }
+
+        .info-box p {
+            font-size: 0.875rem;
+            color: #9CA3AF;
             margin-bottom: 0.5rem;
         }
 
-        .login-header p {
-            font-size: 0.875rem;
-            color: #9CA3AF;
+        .info-box p:last-child {
+            margin-bottom: 0;
         }
 
-        .login-body {
-            text-align: left;
+        .info-box strong {
+            color: #F3F4F6;
         }
 
-        .notification {
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+
+        /* Toast notifications */
+        .toast-container {
             position: fixed;
             top: 1rem;
             right: 1rem;
-            padding: 1rem 1.5rem;
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            max-width: 24rem;
+        }
+
+        .toast {
+            display: flex;
+            align-items: start;
+            gap: 0.75rem;
+            padding: 1rem;
             border-radius: 0.5rem;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-            z-index: 1000;
-            display: none;
-            max-width: 400px;
+            border: 1px solid;
+            backdrop-filter: blur(8px);
+            animation: slide-in 0.3s ease-out;
         }
 
-        .notification.show {
-            display: block;
-            animation: slideIn 0.3s ease-out;
-        }
-
-        .notification.success {
-            background-color: rgba(16, 185, 129, 0.9);
-            border: 1px solid #059669;
-        }
-
-        .notification.error {
-            background-color: rgba(239, 68, 68, 0.9);
-            border: 1px solid #DC2626;
-        }
-
-        @keyframes slideIn {
+        @keyframes slide-in {
             from {
                 transform: translateX(100%);
                 opacity: 0;
@@ -379,1014 +572,1007 @@
             }
         }
 
+        .toast.success {
+            background-color: rgba(16, 185, 129, 0.95);
+            border-color: rgba(52, 211, 153, 0.5);
+            color: white;
+        }
+
+        .toast.error {
+            background-color: rgba(239, 68, 68, 0.95);
+            border-color: rgba(252, 165, 165, 0.5);
+            color: white;
+        }
+
+        .toast.info {
+            background-color: rgba(59, 130, 246, 0.95);
+            border-color: rgba(147, 197, 253, 0.5);
+            color: white;
+        }
+
+        .toast-message {
+            flex: 1;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .toast-close {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            padding: 0;
+            font-size: 1.25rem;
+            line-height: 1;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+
+        .toast-close:hover {
+            opacity: 1;
+        }
+
         .loading {
-            text-align: center;
-            padding: 2rem;
-            color: #9CA3AF;
-        }
-
-        .summary {
-            background-color: #2A2A2D;
-            padding: 1rem;
-            border-radius: 0.5rem;
-            border-left: 4px solid #D4AF37;
-            margin-bottom: 1rem;
-        }
-
-        .summary h3 {
-            font-size: 1rem;
-            margin-bottom: 0.75rem;
-            color: #F3F4F6;
-        }
-
-        .summary-row {
             display: flex;
-            justify-content: space-between;
-            margin-bottom: 0.5rem;
-            color: #9CA3AF;
-            font-size: 0.875rem;
-        }
-
-        .checkbox-group {
-            display: flex;
+            justify-content: center;
             align-items: center;
-            gap: 0.75rem;
-            margin-bottom: 1rem;
-            padding: 0.75rem;
-            background-color: #2A2A2D;
+            height: 100vh;
+            font-size: 1.25rem;
+            color: #9CA3AF;
+        }
+
+        /* Login overlay */
+        .login-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 150;
+        }
+
+        .login-box {
+            background-color: #1A1A1C;
             border-radius: 0.5rem;
-            cursor: pointer;
-        }
-
-        .checkbox-group:hover {
-            background-color: #3A3A3E;
-        }
-
-        .checkbox-group input[type="checkbox"] {
-            width: 20px;
-            height: 20px;
-            accent-color: #D4AF37;
-            cursor: pointer;
-        }
-
-        .checkbox-group label {
-            cursor: pointer;
-            font-size: 0.875rem;
-            color: #F3F4F6;
-        }
-
-        .recurring-options {
-            display: none;
-            margin-top: 0.5rem;
-            padding: 1rem;
-            background-color: #252528;
-            border-radius: 0.5rem;
+            padding: 2rem;
+            max-width: 400px;
+            width: 100%;
             border: 1px solid #3A3A3E;
         }
 
-        .recurring-options.show {
-            display: block;
+        .login-box h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #D4AF37;
+            margin-bottom: 1.5rem;
+            text-align: center;
         }
 
-        .recurring-options label {
-            font-size: 0.875rem;
-            color: #9CA3AF;
-            margin-bottom: 0.5rem;
-            display: block;
-        }
-
-        .recurring-options select,
-        .recurring-options input {
+        .pin-input {
             width: 100%;
-            padding: 0.5rem;
+            padding: 0.75rem;
             background-color: #2A2A2D;
-            border: 1px solid #4A4A4F;
-            border-radius: 0.375rem;
+            border: 2px solid #4A4A4F;
+            border-radius: 0.5rem;
             color: #F3F4F6;
-            font-size: 0.875rem;
-            margin-bottom: 0.75rem;
+            font-size: 1.5rem;
+            text-align: center;
+            letter-spacing: 0.5em;
+            font-weight: 600;
+            transition: border-color 0.2s;
         }
 
-        .recurring-options select:focus,
-        .recurring-options input:focus {
+        .pin-input:focus {
             outline: none;
             border-color: #D4AF37;
         }
 
-        .day-checkboxes {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-            margin-bottom: 0.75rem;
+        .pin-input.error {
+            border-color: #EF4444;
         }
 
-        .day-checkbox {
-            display: flex;
-            align-items: center;
-            gap: 0.25rem;
-            padding: 0.375rem 0.75rem;
+        .error-message {
+            color: #EF4444;
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+            text-align: center;
+        }
+
+        .user-info-display {
+            margin-top: 1rem;
+            padding: 0.75rem;
             background-color: #2A2A2D;
-            border: 1px solid #4A4A4F;
-            border-radius: 0.375rem;
-            cursor: pointer;
-            font-size: 0.75rem;
+            border-radius: 0.5rem;
+            text-align: center;
         }
 
-        .day-checkbox:hover {
-            border-color: #D4AF37;
+        .user-info-display p {
+            color: #9CA3AF;
+            font-size: 0.875rem;
+            margin-bottom: 0.25rem;
         }
 
-        .day-checkbox.selected {
-            background-color: #D4AF37;
-            border-color: #D4AF37;
-            color: #0A0A0B;
+        .user-info-display .user-name {
+            color: #D4AF37;
+            font-size: 1.125rem;
+            font-weight: 600;
         }
 
-        .day-checkbox input {
+        /* Touch device button */
+        .floating-action {
+            position: fixed;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            z-index: 50;
             display: none;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 0.5rem;
         }
 
-        @media (max-width: 768px) {
-            .header h1 {
-                font-size: 1.25rem;
+        .floating-action.show {
+            display: flex;
+        }
+
+        .selection-badge {
+            background-color: #CA8A04;
+            color: white;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .floating-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .floating-btn {
+            padding: 0.875rem 1.5rem;
+            border-radius: 9999px;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .floating-btn.cancel {
+            background-color: #2A2A2D;
+            color: white;
+        }
+
+        .floating-btn.cancel:hover {
+            background-color: #3A3A3E;
+        }
+
+        .floating-btn.confirm {
+            background-color: #CA8A04;
+            color: white;
+        }
+
+        .floating-btn.confirm:hover {
+            background-color: #A16207;
+        }
+
+        @media (max-width: 1024px) {
+            .calendar-container {
+                flex-direction: column;
+                height: auto;
             }
 
-            .schedule-grid {
-                grid-template-columns: 60px repeat(7, 1fr);
+            .mini-calendars {
+                width: 100%;
+                max-height: 300px;
             }
 
-            .time-label {
-                font-size: 0.65rem;
-                padding: 0.25rem;
-            }
-
-            .schedule-cell {
-                min-height: 28px;
-                height: 28px;
+            .week-view {
+                height: 600px;
             }
         }
     </style>
 </head>
 <body>
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Login Overlay -->
     <div id="loginOverlay" class="login-overlay">
-        <div class="login-card">
-            <div class="login-header">
-                <h1>HAL5 Overloon</h1>
-                <p>Vergaderruimte Reserveringssysteem</p>
+        <div class="login-box">
+            <h2>Inloggen</h2>
+            <p style="text-align: center; color: #9CA3AF; margin-bottom: 1rem; font-size: 0.875rem;">
+                Voer je pincode in om boekingen te maken
+            </p>
+            <input
+                type="password"
+                id="pinInput"
+                class="pin-input"
+                placeholder="****"
+                maxlength="4"
+                inputmode="numeric"
+                pattern="[0-9]*"
+            />
+            <div id="pinError" class="error-message" style="display: none;"></div>
+            <div id="userInfoDisplay" class="user-info-display" style="display: none;">
+                <p>Ingelogd als</p>
+                <p class="user-name" id="loggedInUserName"></p>
             </div>
-            <div class="login-body">
-                <label style="font-size: 0.875rem; color: #F3F4F6; margin-bottom: 0.5rem; display: block;">Voer uw PIN-code in</label>
-                <p style="font-size: 0.8rem; color: #9CA3AF; margin-bottom: 1rem;">Gebruik uw persoonlijke 4-cijferige PIN-code om in te loggen</p>
-                <input
-                    type="password"
-                    id="loginPinCode"
-                    class="form-control"
-                    inputmode="numeric"
-                    maxlength="4"
-                    pattern="[0-9]{4}"
-                    placeholder="----"
-                    style="text-align: center; font-size: 2rem; letter-spacing: 1rem; padding: 1.5rem; margin-bottom: 1rem;"
-                    autocomplete="off">
-                <div id="loginPinError" style="display: none; color: #EF4444; font-size: 0.875rem; margin-bottom: 1rem; text-align: center;">
-                    Onjuiste PIN-code. Probeer opnieuw.
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="loadingScreen" class="loading" style="display: none;">
+        <p>Laden...</p>
+    </div>
+
+    <!-- Main App -->
+    <div id="app" style="display: none;">
+        <div class="container">
+            <div class="header">
+                <h1>HAL5 Overloon - Vergaderruimte Boeken</h1>
+                <p>Selecteer tijdslots om een boeking te maken</p>
+            </div>
+
+            <div class="user-info">
+                <span id="loggedUserDisplay"></span>
+                <button class="btn btn-secondary" onclick="logout()">Uitloggen</button>
+            </div>
+
+            <div class="calendar-container">
+                <!-- Mini Calendars -->
+                <div class="mini-calendars">
+                    <div class="mini-calendar">
+                        <div class="mini-calendar-header">
+                            <h3 id="monthTitle1"></h3>
+                            <div class="mini-nav">
+                                <button onclick="previousMonth()">‹</button>
+                                <button onclick="nextMonth()">›</button>
+                            </div>
+                        </div>
+                        <div class="mini-calendar-grid">
+                            <div class="mini-calendar-day-header">MA</div>
+                            <div class="mini-calendar-day-header">DI</div>
+                            <div class="mini-calendar-day-header">WO</div>
+                            <div class="mini-calendar-day-header">DO</div>
+                            <div class="mini-calendar-day-header">VR</div>
+                            <div class="mini-calendar-day-header">ZA</div>
+                            <div class="mini-calendar-day-header">ZO</div>
+                            <div id="monthDays1"></div>
+                        </div>
+                    </div>
+                    <div class="mini-calendar">
+                        <div class="mini-calendar-header">
+                            <h3 id="monthTitle2"></h3>
+                        </div>
+                        <div class="mini-calendar-grid">
+                            <div class="mini-calendar-day-header">MA</div>
+                            <div class="mini-calendar-day-header">DI</div>
+                            <div class="mini-calendar-day-header">WO</div>
+                            <div class="mini-calendar-day-header">DO</div>
+                            <div class="mini-calendar-day-header">VR</div>
+                            <div class="mini-calendar-day-header">ZA</div>
+                            <div class="mini-calendar-day-header">ZO</div>
+                            <div id="monthDays2"></div>
+                        </div>
+                    </div>
+                    <div class="mini-calendar">
+                        <div class="mini-calendar-header">
+                            <h3 id="monthTitle3"></h3>
+                        </div>
+                        <div class="mini-calendar-grid">
+                            <div class="mini-calendar-day-header">MA</div>
+                            <div class="mini-calendar-day-header">DI</div>
+                            <div class="mini-calendar-day-header">WO</div>
+                            <div class="mini-calendar-day-header">DO</div>
+                            <div class="mini-calendar-day-header">VR</div>
+                            <div class="mini-calendar-day-header">ZA</div>
+                            <div class="mini-calendar-day-header">ZO</div>
+                            <div id="monthDays3"></div>
+                        </div>
+                    </div>
+                    <button class="today-btn" onclick="goToToday()">Vandaag</button>
                 </div>
-                <div id="loginUserInfo" style="display: none; background-color: #2A2A2D; border: 1px solid #10B981; border-radius: 0.5rem; padding: 1rem; margin-bottom: 1rem; text-align: center;">
-                    <p style="font-size: 0.875rem; color: #10B981; margin-bottom: 0.25rem;">Welkom</p>
-                    <p id="loginUserName" style="font-size: 1.125rem; color: #F3F4F6; font-weight: 600;"></p>
+
+                <!-- Week View -->
+                <div class="week-view">
+                    <div class="week-header">
+                        <div class="week-nav">
+                            <button onclick="previousWeek()">‹</button>
+                            <h2 id="weekRange"></h2>
+                            <button onclick="nextWeek()">›</button>
+                        </div>
+                    </div>
+                    <div class="week-grid" id="weekGrid">
+                        <div class="week-grid-inner" id="weekGridInner"></div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="container">
-        <div class="header">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <h1>Vergaderruimte Boeken</h1>
-                    <p>Reserveer eenvoudig een vergaderruimte voor uw zakelijke bijeenkomsten</p>
-                </div>
-                <div id="loggedInUser" style="display: none; text-align: right;">
-                    <p style="font-size: 0.75rem; color: #9CA3AF;">Ingelogd als:</p>
-                    <p id="headerUserName" style="font-size: 0.875rem; color: #D4AF37; font-weight: 600;"></p>
-                    <button onclick="logout()" style="font-size: 0.75rem; color: #9CA3AF; background: none; border: none; cursor: pointer; text-decoration: underline;">Uitloggen</button>
-                </div>
-            </div>
-        </div>
-
-        <div id="loading" class="loading">
-            <p>Gegevens laden...</p>
-        </div>
-
-        <div id="content" style="display: none;">
-            <div style="background-color: #1A1A1C; border: 1px solid #3A3A3E; border-radius: 0.5rem; padding: 0.75rem; margin-bottom: 1rem;">
-                <p style="font-size: 0.8rem; color: #9CA3AF; text-align: center;">
-                    💡 <strong>Tip:</strong> Sleep om tijdblokken te selecteren. Houd <kbd style="background: #2A2A2D; padding: 0.125rem 0.375rem; border-radius: 0.25rem; font-family: monospace;">Ctrl</kbd> of <kbd style="background: #2A2A2D; padding: 0.125rem 0.375rem; border-radius: 0.25rem; font-family: monospace;">Cmd</kbd> ingedrukt om meerdere blokken te selecteren.
-                </p>
-            </div>
-
-            <div class="week-nav">
-                <button onclick="previousWeek()">&lsaquo; Vorige week</button>
-                <h3 id="weekRange"></h3>
-                <button onclick="nextWeek()">Volgende week &rsaquo;</button>
-            </div>
-
-            <div class="schedule-container">
-                <div class="schedule-grid" id="scheduleGrid"></div>
-            </div>
-
-            <div id="selectionActions" style="display: none; margin-top: 1rem; padding: 1rem; background-color: #1A1A1C; border: 1px solid #3A3A3E; border-radius: 0.5rem;">
-                <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
-                    <div>
-                        <p style="font-size: 0.875rem; color: #9CA3AF; margin-bottom: 0.25rem;">Geselecteerd</p>
-                        <p id="selectionSummary" style="font-size: 1rem; color: #F3F4F6; font-weight: 600;"></p>
-                    </div>
-                    <div style="display: flex; gap: 0.75rem;">
-                        <button onclick="clearSelection()" class="btn" style="background-color: #2A2A2D; color: #F3F4F6;">
-                            Wissen
-                        </button>
-                        <button onclick="confirmSelection()" class="btn btn-primary">
-                            Boeking aanvragen
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div id="bookingModal" class="modal">
+    <!-- Booking Modal -->
+    <div id="bookingModal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Boeking aanvragen</h2>
-                <button class="close-btn" onclick="closeModal()">&times;</button>
+                <h3>Nieuwe Boeking</h3>
+                <button class="close-btn" onclick="closeBookingModal()">&times;</button>
             </div>
-
-            <form id="bookingForm">
+            <form id="bookingForm" onsubmit="submitBooking(event)">
+                <div id="selectionInfo" class="info-box"></div>
                 <div class="form-group">
-                    <label for="modalRoomSelect">Vergaderruimte *</label>
-                    <select id="modalRoomSelect" class="form-control" required>
-                        <option value="">Selecteer een vergaderruimte</option>
-                    </select>
+                    <label class="form-label">Vergaderruimte *</label>
+                    <select id="roomSelect" class="form-select" required></select>
                 </div>
-
-                <div class="summary" id="modalSummary" style="display: none;">
-                    <h3>Overzicht van uw boeking</h3>
-                    <div class="summary-row">
-                        <span>Datum:</span>
-                        <span id="summaryDate"></span>
-                    </div>
-                    <div class="summary-row">
-                        <span>Tijd:</span>
-                        <span id="summaryTime"></span>
-                    </div>
-                    <div class="summary-row">
-                        <span>Duur:</span>
-                        <span id="summaryDuration"></span>
-                    </div>
-                </div>
-
-                <div class="checkbox-group" onclick="toggleRecurring()">
-                    <input type="checkbox" id="isRecurring" onclick="event.stopPropagation(); toggleRecurring()">
-                    <label for="isRecurring">Terugkerende boeking</label>
-                </div>
-
-                <div class="recurring-options" id="recurringOptions">
-                    <label>Herhaal elke week op:</label>
-                    <div class="day-checkboxes" id="dayCheckboxes">
-                        <div class="day-checkbox" data-day="1" onclick="toggleDay(this)">
-                            <span>Ma</span>
-                        </div>
-                        <div class="day-checkbox" data-day="2" onclick="toggleDay(this)">
-                            <span>Di</span>
-                        </div>
-                        <div class="day-checkbox" data-day="3" onclick="toggleDay(this)">
-                            <span>Wo</span>
-                        </div>
-                        <div class="day-checkbox" data-day="4" onclick="toggleDay(this)">
-                            <span>Do</span>
-                        </div>
-                        <div class="day-checkbox" data-day="5" onclick="toggleDay(this)">
-                            <span>Vr</span>
-                        </div>
-                        <div class="day-checkbox" data-day="6" onclick="toggleDay(this)">
-                            <span>Za</span>
-                        </div>
-                        <div class="day-checkbox" data-day="0" onclick="toggleDay(this)">
-                            <span>Zo</span>
-                        </div>
-                    </div>
-                    <label for="recurringEndDate">Einddatum:</label>
-                    <input type="date" id="recurringEndDate" min="">
-                </div>
-
-                <div id="tenantInfo" style="background-color: #2A2A2D; border: 1px solid #10B981; border-radius: 0.5rem; padding: 1rem; margin-bottom: 1rem;">
-                    <p style="font-size: 0.875rem; color: #9CA3AF; margin-bottom: 0.25rem;">Boeking voor:</p>
-                    <p id="tenantName" style="font-size: 1rem; color: #F3F4F6; font-weight: 600;"></p>
-                </div>
-
-                <div style="display: flex; gap: 1rem;">
-                    <button type="button" class="btn" onclick="closeModal()" style="background-color: #2A2A2D; color: #F3F4F6; flex: 1;">
-                        Annuleren
-                    </button>
-                    <button type="submit" class="btn btn-primary" style="flex: 1;">
-                        Boeking Aanvragen
-                    </button>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeBookingModal()">Annuleren</button>
+                    <button type="submit" class="btn">Boeking Aanmaken</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <div id="notification" class="notification"></div>
+    <!-- Floating Action Button (Touch devices) -->
+    <div id="floatingAction" class="floating-action">
+        <div class="selection-badge" id="selectionBadge"></div>
+        <div class="floating-buttons">
+            <button class="floating-btn cancel" onclick="clearSelection()">Annuleren</button>
+            <button class="floating-btn confirm" onclick="openBookingModal()">Doorgaan →</button>
+        </div>
+    </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        const SUPABASE_URL = 'https://qlvndvpxhqmjljjpehkn.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFsdm5kdnB4aHFtamxqanBlaGtuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA5MjI1MzQsImV4cCI6MjA3NjQ5ODUzNH0.q1Kel_GCQqUx2J5Nd9WFOVz7okodFPcoAJkKL6YVkUk';
+        // Initialize Supabase
+        const SUPABASE_URL = 'https://lsvepdmsmvcgcfwqdnhw.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxzdmVwZG1zbXZjZ2Nmd3Fkbmh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mjk0MTQ5ODksImV4cCI6MjA0NDk5MDk4OX0.XINwO6k7rRzQuzr2ew_aEBj-7-y03H0ybr9SaV0wHOw';
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        const { createClient } = supabase;
-        const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-        let meetingRooms = [];
-        let selectedRoom = null;
-        let currentWeekStart = getMonday(new Date());
-        let existingBookings = [];
-        let selectedCells = [];
-        let tenants = [];
-        let externalCustomers = [];
+        // State
         let authenticatedUser = null;
+        let currentDate = new Date();
+        let baseMonth = new Date();
+        let selectedCells = [];
+        let isDragging = false;
+        let dragStart = null;
+        let meetingRooms = [];
+        let allBookings = [];
+        let weekBookings = [];
+        let isTouchDevice = false;
 
+        // Time slots from 6:00 to 21:30
         const timeSlots = [];
-        for (let hour = 0; hour < 24; hour++) {
+        for (let hour = 6; hour <= 21; hour++) {
             timeSlots.push(`${String(hour).padStart(2, '0')}:00`);
             timeSlots.push(`${String(hour).padStart(2, '0')}:30`);
         }
 
-        let isDragging = false;
-        let dragStartCell = null;
-        let dragCurrentDate = null;
-        let ctrlKeyPressed = false;
-
+        // Tenant colors
         const tenantColors = [
-            { bg: '#CA8A04', border: '#EAB308' },
-            { bg: '#D97706', border: '#F59E0B' },
-            { bg: '#EA580C', border: '#F97316' },
-            { bg: '#A16207', border: '#CA8A04' },
-            { bg: '#B45309', border: '#D97706' },
-            { bg: '#EAB308', border: '#FACC15' },
-            { bg: '#F59E0B', border: '#FCD34D' },
-            { bg: '#F97316', border: '#FDBA74' },
-            { bg: '#92400E', border: '#B45309' },
-            { bg: '#78350F', border: '#92400E' },
+            { bg: '#CA8A04', border: '#EAB308', text: '#FFFBEB' },
+            { bg: '#D97706', border: '#F59E0B', text: '#FFFBEB' },
+            { bg: '#DC2626', border: '#EF4444', text: '#FEF2F2' },
+            { bg: '#16A34A', border: '#22C55E', text: '#F0FDF4' },
+            { bg: '#2563EB', border: '#3B82F6', text: '#EFF6FF' },
+            { bg: '#9333EA', border: '#A855F7', text: '#FAF5FF' },
+            { bg: '#DB2777', border: '#EC4899', text: '#FDF2F8' },
+            { bg: '#0891B2', border: '#06B6D4', text: '#ECFEFF' },
         ];
 
-        function getTenantColor(id) {
-            if (!id) return tenantColors[0];
-            let hash = 0;
-            for (let i = 0; i < id.length; i++) {
-                hash += id.charCodeAt(i);
-            }
+        function getTenantColor(tenantId) {
+            if (!tenantId) return tenantColors[0];
+            const hash = tenantId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
             return tenantColors[hash % tenantColors.length];
         }
 
-        function getMonday(date) {
+        // Toast notification
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <div class="toast-message">${message}</div>
+                <button class="toast-close" onclick="this.parentElement.remove()">&times;</button>
+            `;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 5000);
+        }
+
+        // Format date
+        function formatDate(date) {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        // Get week start (Monday)
+        function getWeekStart(date) {
             const d = new Date(date);
+            d.setHours(0, 0, 0, 0);
             const day = d.getDay();
             const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-            const monday = new Date(d.setDate(diff));
-            monday.setHours(0, 0, 0, 0);
-            return monday;
+            d.setDate(diff);
+            return d;
         }
 
-        function formatDate(date) {
-            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        // Get week number
+        function getWeekNumber(date) {
+            const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+            const dayNum = d.getUTCDay() || 7;
+            d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+            const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+            return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
         }
 
-        function normalizeTime(timeStr) {
-            if (!timeStr) return timeStr;
-            return timeStr.substring(0, 5);
+        // Check if date is today
+        function isToday(date) {
+            const today = new Date();
+            return date.getDate() === today.getDate() &&
+                   date.getMonth() === today.getMonth() &&
+                   date.getFullYear() === today.getFullYear();
         }
 
-        async function init() {
-            try {
-                const [roomsResult, tenantsResult, externalResult] = await Promise.all([
-                    sb.from('office_spaces')
-                        .select('id, space_number, hourly_rate')
-                        .eq('space_type', 'Meeting Room')
-                        .order('space_number'),
-                    sb.from('tenants')
-                        .select('id, name, company_name, email, booking_pin_code')
-                        .not('booking_pin_code', 'is', null)
-                        .not('booking_pin_code', 'eq', '')
-                        .order('name'),
-                    sb.from('external_customers')
-                        .select('id, contact_name, company_name, email, booking_pin_code')
-                        .not('booking_pin_code', 'is', null)
-                        .not('booking_pin_code', 'eq', '')
-                        .order('company_name')
-                ]);
-
-                meetingRooms = roomsResult.data || [];
-                tenants = tenantsResult.data || [];
-                externalCustomers = externalResult.data || [];
-
-                console.log('Loaded tenants with PIN:', tenants.length);
-                console.log('Loaded external customers with PIN:', externalCustomers.length);
-
-                document.getElementById('loading').style.display = 'none';
-
-                setupLoginVerification();
-                populateRoomDropdown();
-                setupBookingForm();
-                await loadBookings();
-            } catch (error) {
-                console.error('Error loading data:', error);
-                showNotification('Er is een fout opgetreden bij het laden van de gegevens.', 'error');
-            }
-        }
-
-        function populateRoomDropdown() {
-            const select = document.getElementById('modalRoomSelect');
-            select.innerHTML = '<option value="">Selecteer een vergaderruimte</option>';
-
-            meetingRooms.forEach(room => {
-                const option = document.createElement('option');
-                option.value = room.id;
-                option.textContent = room.space_number;
-                option.dataset.hourlyRate = room.hourly_rate;
-                select.appendChild(option);
-            });
-        }
-
-        async function loadBookings() {
-            const weekEnd = new Date(currentWeekStart);
-            weekEnd.setDate(weekEnd.getDate() + 6);
-
-            const { data: bookings } = await sb
-                .from('meeting_room_bookings')
-                .select('booking_date, start_time, end_time, tenant_id, external_customer_id, space_id, tenants(name, company_name), external_customers(name, company_name)')
-                .gte('booking_date', formatDate(currentWeekStart))
-                .lte('booking_date', formatDate(weekEnd))
-                .neq('status', 'cancelled');
-
-            existingBookings = (bookings || []).map(b => ({
-                ...b,
-                start_time: normalizeTime(b.start_time),
-                end_time: normalizeTime(b.end_time)
-            }));
-        }
-
-        function renderSchedule() {
-            const grid = document.getElementById('scheduleGrid');
-            grid.innerHTML = '';
-
-            const weekEnd = new Date(currentWeekStart);
-            weekEnd.setDate(weekEnd.getDate() + 6);
-
-            const weekRangeEl = document.getElementById('weekRange');
-            weekRangeEl.textContent = `${currentWeekStart.toLocaleDateString('nl-NL', { day: '2-digit', month: 'short' })} - ${weekEnd.toLocaleDateString('nl-NL', { day: '2-digit', month: 'short', year: 'numeric' })}`;
-
-            const cornerCell = document.createElement('div');
-            cornerCell.className = 'schedule-header corner';
-            cornerCell.textContent = 'Tijd';
-            grid.appendChild(cornerCell);
-
-            const daysOfWeek = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'];
-            const weekDates = [];
-
-            for (let i = 0; i < 7; i++) {
-                const date = new Date(currentWeekStart);
-                date.setDate(date.getDate() + i);
-                weekDates.push(date);
-
-                const header = document.createElement('div');
-                header.className = 'schedule-header';
-                header.innerHTML = `${daysOfWeek[i]}<br>${date.getDate()}/${date.getMonth() + 1}`;
-                grid.appendChild(header);
-            }
-
+        // Check if date is past
+        function isPast(date) {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
+            const checkDate = new Date(date);
+            checkDate.setHours(0, 0, 0, 0);
+            return checkDate < today;
+        }
 
-            timeSlots.forEach(time => {
-                const timeLabel = document.createElement('div');
-                timeLabel.className = 'time-label';
-                timeLabel.textContent = time;
-                grid.appendChild(timeLabel);
+        // Login
+        document.getElementById('pinInput').addEventListener('input', async function(e) {
+            const pin = e.target.value;
+            if (pin.length === 4) {
+                await attemptLogin(pin);
+            }
+        });
 
-                weekDates.forEach(date => {
+        async function attemptLogin(pin) {
+            const pinInput = document.getElementById('pinInput');
+            const pinError = document.getElementById('pinError');
+
+            // Check tenants
+            const { data: tenants } = await sb
+                .from('tenants')
+                .select('id, name, company_name, booking_pin_code')
+                .eq('booking_pin_code', pin);
+
+            // Check external customers
+            const { data: externalCustomers } = await sb
+                .from('external_customers')
+                .select('id, company_name, contact_name, booking_pin_code')
+                .eq('booking_pin_code', pin);
+
+            if (tenants && tenants.length > 0) {
+                authenticatedUser = {
+                    ...tenants[0],
+                    userType: 'tenant'
+                };
+                showSuccess();
+            } else if (externalCustomers && externalCustomers.length > 0) {
+                authenticatedUser = {
+                    ...externalCustomers[0],
+                    userType: 'external'
+                };
+                showSuccess();
+            } else {
+                pinInput.classList.add('error');
+                pinError.textContent = 'Ongeldige pincode';
+                pinError.style.display = 'block';
+                pinInput.value = '';
+                setTimeout(() => {
+                    pinInput.classList.remove('error');
+                    pinError.style.display = 'none';
+                }, 2000);
+            }
+        }
+
+        function showSuccess() {
+            const userInfoDisplay = document.getElementById('userInfoDisplay');
+            const loggedInUserName = document.getElementById('loggedInUserName');
+            const displayName = authenticatedUser.userType === 'tenant'
+                ? (authenticatedUser.company_name || authenticatedUser.name)
+                : authenticatedUser.company_name;
+
+            loggedInUserName.textContent = displayName;
+            userInfoDisplay.style.display = 'block';
+
+            setTimeout(() => {
+                document.getElementById('loginOverlay').style.display = 'none';
+                document.getElementById('app').style.display = 'block';
+                document.getElementById('loggedUserDisplay').textContent = `Ingelogd als: ${displayName}`;
+                loadData();
+            }, 1000);
+        }
+
+        function logout() {
+            authenticatedUser = null;
+            document.getElementById('app').style.display = 'none';
+            document.getElementById('loginOverlay').style.display = 'flex';
+            document.getElementById('pinInput').value = '';
+            document.getElementById('userInfoDisplay').style.display = 'none';
+        }
+
+        // Load data
+        async function loadData() {
+            document.getElementById('loadingScreen').style.display = 'flex';
+
+            const weekStart = getWeekStart(currentDate);
+            const weekEnd = new Date(weekStart);
+            weekEnd.setDate(weekEnd.getDate() + 6);
+
+            // Load month range for mini calendars
+            const firstDay = new Date(baseMonth.getFullYear(), baseMonth.getMonth(), 1);
+            const lastDay = new Date(baseMonth.getFullYear(), baseMonth.getMonth() + 3, 0);
+
+            const [bookingsRes, spacesRes, allBookingsRes] = await Promise.all([
+                sb.from('meeting_room_bookings')
+                    .select(`
+                        id, booking_date, start_time, end_time, tenant_id, external_customer_id, status,
+                        tenants(name, company_name),
+                        external_customers(company_name, contact_name),
+                        office_spaces(space_number)
+                    `)
+                    .gte('booking_date', formatDate(weekStart))
+                    .lte('booking_date', formatDate(weekEnd))
+                    .neq('status', 'cancelled'),
+                sb.from('office_spaces')
+                    .select('id, space_number, hourly_rate, half_day_rate, full_day_rate')
+                    .eq('space_type', 'Meeting Room')
+                    .order('space_number'),
+                sb.from('meeting_room_bookings')
+                    .select('id, booking_date')
+                    .gte('booking_date', formatDate(firstDay))
+                    .lte('booking_date', formatDate(lastDay))
+                    .neq('status', 'cancelled')
+            ]);
+
+            meetingRooms = spacesRes.data || [];
+            weekBookings = bookingsRes.data || [];
+            allBookings = allBookingsRes.data || [];
+
+            renderCalendar();
+            renderMiniCalendars();
+
+            document.getElementById('loadingScreen').style.display = 'none';
+        }
+
+        // Render week calendar
+        function renderCalendar() {
+            const weekStart = getWeekStart(currentDate);
+            const weekEnd = new Date(weekStart);
+            weekEnd.setDate(weekEnd.getDate() + 6);
+
+            const weekRange = `Week ${getWeekNumber(weekStart)} - ${weekStart.getDate()} ${weekStart.toLocaleDateString('nl-NL', { month: 'short' })} - ${weekEnd.getDate()} ${weekEnd.toLocaleDateString('nl-NL', { month: 'short', year: 'numeric' })}`;
+            document.getElementById('weekRange').textContent = weekRange;
+
+            const gridInner = document.getElementById('weekGridInner');
+            gridInner.innerHTML = '';
+
+            // Header row
+            const cornerHeader = document.createElement('div');
+            cornerHeader.className = 'week-day-header corner';
+            gridInner.appendChild(cornerHeader);
+
+            const weekDays = [];
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(weekStart);
+                date.setDate(date.getDate() + i);
+                weekDays.push(date);
+
+                const header = document.createElement('div');
+                header.className = `week-day-header ${isToday(date) ? 'today' : ''}`;
+                header.innerHTML = `
+                    <div class="week-day-label">${date.toLocaleDateString('nl-NL', { weekday: 'short' })}</div>
+                    <div class="week-day-date ${isToday(date) ? 'today' : ''}">${date.getDate()}</div>
+                `;
+                gridInner.appendChild(header);
+            }
+
+            // Time column
+            const timeColumn = document.createElement('div');
+            timeColumn.className = 'time-column';
+            timeSlots.forEach((time, idx) => {
+                const slot = document.createElement('div');
+                slot.className = `time-slot ${time.endsWith(':00') ? 'hour' : ''}`;
+                slot.textContent = time.endsWith(':00') ? time : '';
+                timeColumn.appendChild(slot);
+            });
+            gridInner.appendChild(timeColumn);
+
+            // Day columns
+            weekDays.forEach(date => {
+                const dayColumn = document.createElement('div');
+                dayColumn.className = `day-column ${isToday(date) ? 'today' : ''}`;
+                const dateStr = formatDate(date);
+
+                timeSlots.forEach(time => {
                     const cell = document.createElement('div');
-                    cell.className = 'schedule-cell';
-
                     const hour = parseInt(time.split(':')[0]);
-                    if (hour >= 8 && hour < 18) {
-                        cell.classList.add('business-hours');
-                    } else {
-                        cell.classList.add('outside-hours');
-                    }
+                    const isWorkHours = hour >= 8 && hour < 17;
+                    const cellPast = isPast(date);
 
-                    const dateStr = formatDate(date);
-                    const isPast = date < today;
-
-                    const booking = existingBookings.find(b =>
-                        b.booking_date === dateStr &&
-                        time >= b.start_time &&
-                        time < b.end_time
-                    );
-
-                    if (booking && time === booking.start_time) {
-                        const startIndex = timeSlots.indexOf(booking.start_time);
-                        const endIndex = timeSlots.indexOf(booking.end_time);
-                        const duration = endIndex - startIndex;
-
-                        const colorId = booking.tenant_id || booking.external_customer_id;
-                        const colors = getTenantColor(colorId);
-
-                        const bookingEl = document.createElement('div');
-                        bookingEl.className = 'booking';
-                        bookingEl.style.backgroundColor = colors.bg;
-                        bookingEl.style.borderColor = colors.border;
-                        bookingEl.style.color = '#FFFFFF';
-
-                        let displayName = 'Geboekt';
-                        if (booking.tenants) {
-                            displayName = booking.tenants.company_name || booking.tenants.name;
-                        } else if (booking.external_customers) {
-                            displayName = booking.external_customers.company_name || booking.external_customers.name;
-                        }
-
-                        bookingEl.textContent = displayName;
-                        bookingEl.title = `${displayName}\n${booking.start_time} - ${booking.end_time}`;
-                        bookingEl.style.height = `${duration * 32 - 2}px`;
-                        bookingEl.style.zIndex = '10';
-                        cell.appendChild(bookingEl);
-                    }
-
-                    if (booking) {
-                        cell.classList.add('has-booking');
-                    } else if (isPast) {
-                        cell.classList.add('past');
-                    } else {
-                        cell.onmousedown = (e) => startDrag(e, dateStr, time);
-                        cell.onmouseenter = () => continueDrag(dateStr, time);
-                    }
-
-                    const cellKey = `${dateStr}-${time}`;
-                    if (selectedCells.some(sc => sc.key === cellKey)) {
-                        cell.classList.add('selected');
-                    }
-
+                    cell.className = `time-cell ${isWorkHours ? 'work-hours' : 'outside-hours'} ${cellPast ? 'past' : ''}`;
                     cell.dataset.date = dateStr;
                     cell.dataset.time = time;
 
-                    grid.appendChild(cell);
+                    if (!cellPast) {
+                        cell.addEventListener('mousedown', () => startDrag(dateStr, time));
+                        cell.addEventListener('mouseenter', () => continueDrag(dateStr, time));
+                        cell.addEventListener('click', () => {
+                            if (isTouchDevice) handleCellTap(dateStr, time);
+                        });
+                    }
+
+                    dayColumn.appendChild(cell);
                 });
+
+                // Add bookings
+                const dayBookings = weekBookings.filter(b => b.booking_date === dateStr);
+                dayBookings.forEach(booking => {
+                    const startIdx = timeSlots.indexOf(booking.start_time.substring(0, 5));
+                    const endIdx = timeSlots.indexOf(booking.end_time.substring(0, 5));
+                    if (startIdx >= 0 && endIdx >= 0) {
+                        const height = (endIdx - startIdx) * 50 - 4;
+                        const colors = getTenantColor(booking.tenant_id);
+
+                        const block = document.createElement('div');
+                        block.className = 'booking-block';
+                        block.style.top = `${startIdx * 50 + 2}px`;
+                        block.style.height = `${height}px`;
+                        block.style.backgroundColor = colors.bg;
+                        block.style.borderLeftColor = colors.border;
+                        block.style.color = colors.text;
+
+                        const displayName = booking.tenant_id
+                            ? (booking.tenants?.company_name || booking.tenants?.name || '')
+                            : booking.external_customers?.company_name || '';
+
+                        block.innerHTML = `
+                            ${booking.external_customer_id ? '<div class="booking-type-badge">EXTERN</div>' : ''}
+                            <div class="booking-name">${displayName}</div>
+                            <div class="booking-time">${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)}</div>
+                        `;
+
+                        dayColumn.appendChild(block);
+                    }
+                });
+
+                gridInner.appendChild(dayColumn);
             });
 
-            const scheduleContainer = document.getElementById('scheduleGrid').parentElement;
-            scheduleContainer.scrollTop = 8 * 2 * 32;
+            // Scroll to 8:00 AM
+            setTimeout(() => {
+                const weekGrid = document.getElementById('weekGrid');
+                weekGrid.scrollTop = 4 * 50; // 8:00 is at index 4
+            }, 100);
         }
 
-        document.addEventListener('mouseup', endDrag);
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Control' || e.key === 'Meta') {
-                ctrlKeyPressed = true;
-            }
-        });
-        document.addEventListener('keyup', (e) => {
-            if (e.key === 'Control' || e.key === 'Meta') {
-                ctrlKeyPressed = false;
-            }
-        });
-
-        function startDrag(e, date, time) {
-            e.preventDefault();
+        // Drag selection
+        function startDrag(dateStr, time) {
             isDragging = true;
-            dragStartCell = time;
-            dragCurrentDate = date;
+            dragStart = { date: dateStr, time };
+            selectedCells = [{ date: dateStr, time }];
+            updateCellSelection();
+        }
 
-            if (!ctrlKeyPressed) {
-                selectedCells = [];
-            }
+        function continueDrag(dateStr, time) {
+            if (!isDragging || !dragStart || dragStart.date !== dateStr) return;
 
-            const cellKey = `${date}-${time}`;
-            if (!selectedCells.some(sc => sc.key === cellKey)) {
-                selectedCells.push({ key: cellKey, date, time });
+            const startIdx = timeSlots.indexOf(dragStart.time);
+            const currentIdx = timeSlots.indexOf(time);
+            const minIdx = Math.min(startIdx, currentIdx);
+            const maxIdx = Math.max(startIdx, currentIdx);
+
+            selectedCells = [];
+            for (let i = minIdx; i <= maxIdx; i++) {
+                selectedCells.push({ date: dateStr, time: timeSlots[i] });
             }
 
             updateCellSelection();
-            updateSelectionSummary();
         }
 
-        function continueDrag(date, time) {
-            if (!isDragging || !dragStartCell || date !== dragCurrentDate) return;
-
-            const startIndex = timeSlots.indexOf(dragStartCell);
-            const currentIndex = timeSlots.indexOf(time);
-
-            const minIndex = Math.min(startIndex, currentIndex);
-            const maxIndex = Math.max(startIndex, currentIndex);
-
-            if (!ctrlKeyPressed) {
-                selectedCells = [];
-            } else {
-                selectedCells = selectedCells.filter(sc => sc.date !== date || timeSlots.indexOf(sc.time) < minIndex || timeSlots.indexOf(sc.time) > maxIndex);
-            }
-
-            for (let i = minIndex; i <= maxIndex; i++) {
-                const t = timeSlots[i];
-                const cellKey = `${date}-${t}`;
-                if (!selectedCells.some(sc => sc.key === cellKey)) {
-                    selectedCells.push({ key: cellKey, date, time: t });
-                }
-            }
-
-            updateCellSelection();
-            updateSelectionSummary();
-        }
-
-        function endDrag() {
+        document.addEventListener('mouseup', () => {
             if (isDragging) {
                 isDragging = false;
-                dragStartCell = null;
-                dragCurrentDate = null;
+                dragStart = null;
+                if (selectedCells.length > 0 && !isTouchDevice) {
+                    openBookingModal();
+                }
             }
+        });
+
+        // Touch device tap
+        function handleCellTap(dateStr, time) {
+            const cellIdx = selectedCells.findIndex(c => c.date === dateStr && c.time === time);
+
+            if (cellIdx !== -1) {
+                selectedCells.splice(cellIdx, 1);
+            } else {
+                if (selectedCells.length === 0) {
+                    selectedCells = [{ date: dateStr, time }];
+                } else if (selectedCells[0].date !== dateStr) {
+                    selectedCells = [{ date: dateStr, time }];
+                } else {
+                    const currentTimeIdx = timeSlots.indexOf(time);
+                    const timeIndices = selectedCells.map(c => timeSlots.indexOf(c.time));
+                    const minIdx = Math.min(...timeIndices);
+                    const maxIdx = Math.max(...timeIndices);
+
+                    if (currentTimeIdx === minIdx - 1 || currentTimeIdx === maxIdx + 1) {
+                        selectedCells.push({ date: dateStr, time });
+                    } else {
+                        showToast('Selecteer alleen aaneengesloten tijdslots', 'error');
+                        return;
+                    }
+                }
+            }
+
+            updateCellSelection();
         }
 
+        // Update cell selection
         function updateCellSelection() {
-            document.querySelectorAll('.schedule-cell').forEach(cell => {
+            document.querySelectorAll('.time-cell').forEach(cell => {
                 const date = cell.dataset.date;
                 const time = cell.dataset.time;
-                const cellKey = `${date}-${time}`;
-
-                if (selectedCells.some(sc => sc.key === cellKey)) {
-                    cell.classList.add('selected');
-                } else {
-                    cell.classList.remove('selected');
-                }
+                const isSelected = selectedCells.some(c => c.date === date && c.time === time);
+                cell.classList.toggle('selected', isSelected);
             });
-        }
 
-        function updateSelectionSummary() {
-            const actionsDiv = document.getElementById('selectionActions');
-            const summaryText = document.getElementById('selectionSummary');
+            // Update floating action button for touch devices
+            const floatingAction = document.getElementById('floatingAction');
+            const selectionBadge = document.getElementById('selectionBadge');
 
-            if (selectedCells.length === 0) {
-                actionsDiv.style.display = 'none';
-                return;
-            }
-
-            actionsDiv.style.display = 'block';
-
-            const uniqueDates = [...new Set(selectedCells.map(sc => sc.date))];
-            const totalBlocks = selectedCells.length;
-            const totalHours = (totalBlocks * 0.5).toFixed(1);
-
-            if (uniqueDates.length === 1) {
-                const dateObj = new Date(uniqueDates[0] + 'T00:00:00');
-                const dateStr = dateObj.toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' });
-                summaryText.textContent = `${totalBlocks} blokken (${totalHours} uur) op ${dateStr}`;
+            if (selectedCells.length > 0 && isTouchDevice) {
+                floatingAction.classList.add('show');
+                selectionBadge.textContent = `${selectedCells.length} tijdslot${selectedCells.length !== 1 ? 's' : ''} geselecteerd`;
             } else {
-                summaryText.textContent = `${totalBlocks} blokken (${totalHours} uur) over ${uniqueDates.length} dagen`;
+                floatingAction.classList.remove('show');
             }
         }
 
         function clearSelection() {
             selectedCells = [];
             updateCellSelection();
-            updateSelectionSummary();
         }
 
-        function confirmSelection() {
+        // Booking modal
+        function openBookingModal() {
             if (selectedCells.length === 0) {
-                showNotification('Selecteer eerst tijdsloten.', 'error');
+                showToast('Selecteer eerst tijdslots', 'error');
                 return;
             }
-            openModal();
+
+            // Check if all cells are on the same date
+            const firstDate = selectedCells[0].date;
+            if (!selectedCells.every(c => c.date === firstDate)) {
+                showToast('Selecteer tijdsloten op dezelfde dag', 'error');
+                return;
+            }
+
+            // Check if cells are consecutive
+            const times = selectedCells.map(c => c.time).sort();
+            const isConsecutive = times.every((time, i) => {
+                if (i === 0) return true;
+                const prevIdx = timeSlots.indexOf(times[i - 1]);
+                const currIdx = timeSlots.indexOf(time);
+                return currIdx === prevIdx + 1;
+            });
+
+            if (!isConsecutive) {
+                showToast('Selecteer aaneengesloten tijdsloten', 'error');
+                return;
+            }
+
+            // Fill info
+            const startTime = times[0];
+            const endIdx = timeSlots.indexOf(times[times.length - 1]) + 1;
+            const endTime = timeSlots[endIdx] || '22:00';
+            const bookingDate = new Date(firstDate + 'T00:00:00');
+
+            const [startHour, startMin] = startTime.split(':').map(Number);
+            const [endHour, endMin] = endTime.split(':').map(Number);
+            const totalHours = ((endHour * 60 + endMin) - (startHour * 60 + startMin)) / 60;
+
+            document.getElementById('selectionInfo').innerHTML = `
+                <h4>Geselecteerde tijd</h4>
+                <p><strong>Datum:</strong> ${bookingDate.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                <p><strong>Tijd:</strong> ${startTime} - ${endTime}</p>
+                <p><strong>Duur:</strong> ${totalHours.toFixed(1)} uur</p>
+            `;
+
+            // Fill rooms
+            const roomSelect = document.getElementById('roomSelect');
+            roomSelect.innerHTML = '<option value="">Selecteer een vergaderruimte</option>';
+            meetingRooms.forEach(room => {
+                const option = document.createElement('option');
+                option.value = room.id;
+                option.textContent = room.space_number;
+                roomSelect.appendChild(option);
+            });
+
+            document.getElementById('bookingModal').classList.add('show');
         }
 
-        function toggleRecurring() {
-            const checkbox = document.getElementById('isRecurring');
-            const options = document.getElementById('recurringOptions');
+        function closeBookingModal() {
+            document.getElementById('bookingModal').classList.remove('show');
+            clearSelection();
+        }
 
-            checkbox.checked = !checkbox.checked;
+        async function submitBooking(e) {
+            e.preventDefault();
 
-            if (checkbox.checked) {
-                options.classList.add('show');
+            if (!authenticatedUser) {
+                showToast('Je bent niet ingelogd', 'error');
+                return;
+            }
 
-                if (selectedCells.length > 0) {
-                    const selectedDate = new Date(selectedCells[0].date);
-                    const dayOfWeek = selectedDate.getDay();
+            const roomId = document.getElementById('roomSelect').value;
+            if (!roomId) {
+                showToast('Selecteer een vergaderruimte', 'error');
+                return;
+            }
 
-                    document.querySelectorAll('.day-checkbox').forEach(el => {
-                        if (parseInt(el.dataset.day) === dayOfWeek) {
-                            el.classList.add('selected');
-                        }
+            const selectedRoom = meetingRooms.find(r => r.id === roomId);
+            if (!selectedRoom) return;
+
+            const times = selectedCells.map(c => c.time).sort();
+            const startTime = times[0];
+            const endIdx = timeSlots.indexOf(times[times.length - 1]) + 1;
+            const endTime = timeSlots[endIdx] || '22:00';
+            const bookingDate = selectedCells[0].date;
+
+            const [startHour, startMin] = startTime.split(':').map(Number);
+            const [endHour, endMin] = endTime.split(':').map(Number);
+            const totalHours = ((endHour * 60 + endMin) - (startHour * 60 + startMin)) / 60;
+
+            const hourlyRate = selectedRoom.hourly_rate || 25;
+            const totalAmount = totalHours * hourlyRate;
+
+            const bookingData = {
+                space_id: roomId,
+                booking_date: bookingDate,
+                start_time: startTime,
+                end_time: endTime,
+                hourly_rate: hourlyRate,
+                total_hours: totalHours,
+                total_amount: totalAmount,
+                status: 'confirmed',
+                booking_type: authenticatedUser.userType
+            };
+
+            if (authenticatedUser.userType === 'tenant') {
+                bookingData.tenant_id = authenticatedUser.id;
+            } else {
+                bookingData.external_customer_id = authenticatedUser.id;
+            }
+
+            const { error } = await sb
+                .from('meeting_room_bookings')
+                .insert(bookingData);
+
+            if (error) {
+                console.error('Error creating booking:', error);
+                showToast('Er is een fout opgetreden bij het aanmaken van de boeking', 'error');
+                return;
+            }
+
+            showToast('Boeking succesvol aangemaakt!', 'success');
+            closeBookingModal();
+            await loadData();
+        }
+
+        // Render mini calendars
+        function renderMiniCalendars() {
+            for (let monthOffset = 0; monthOffset < 3; monthOffset++) {
+                const month = new Date(baseMonth.getFullYear(), baseMonth.getMonth() + monthOffset, 1);
+                const monthTitle = month.toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' });
+                document.getElementById(`monthTitle${monthOffset + 1}`).textContent = monthTitle;
+
+                const firstDay = new Date(month.getFullYear(), month.getMonth(), 1);
+                const lastDay = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+                const startDay = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
+
+                const weekStart = getWeekStart(currentDate);
+                const weekEnd = new Date(weekStart);
+                weekEnd.setDate(weekEnd.getDate() + 6);
+                weekEnd.setHours(23, 59, 59, 999);
+
+                const daysContainer = document.getElementById(`monthDays${monthOffset + 1}`);
+                daysContainer.innerHTML = '';
+
+                // Previous month days
+                const prevMonthDays = new Date(month.getFullYear(), month.getMonth(), 0).getDate();
+                for (let i = startDay - 1; i >= 0; i--) {
+                    const day = document.createElement('div');
+                    day.className = 'mini-calendar-day other-month';
+                    day.textContent = prevMonthDays - i;
+                    daysContainer.appendChild(day);
+                }
+
+                // Current month days
+                for (let i = 1; i <= lastDay.getDate(); i++) {
+                    const date = new Date(month.getFullYear(), month.getMonth(), i);
+                    const dateStr = formatDate(date);
+                    date.setHours(12, 0, 0, 0);
+
+                    const day = document.createElement('div');
+                    day.className = 'mini-calendar-day current-month';
+                    day.textContent = i;
+
+                    if (isToday(date)) {
+                        day.classList.add('today');
+                    }
+
+                    if (date >= weekStart && date <= weekEnd) {
+                        day.classList.add('selected');
+                    }
+
+                    if (allBookings.some(b => b.booking_date === dateStr)) {
+                        day.classList.add('has-bookings');
+                    }
+
+                    day.addEventListener('click', () => {
+                        currentDate = new Date(date);
+                        loadData();
                     });
 
-                    const minEndDate = new Date(selectedDate);
-                    minEndDate.setDate(minEndDate.getDate() + 7);
-                    document.getElementById('recurringEndDate').min = formatDate(minEndDate);
-
-                    const defaultEndDate = new Date(selectedDate);
-                    defaultEndDate.setMonth(defaultEndDate.getMonth() + 3);
-                    document.getElementById('recurringEndDate').value = formatDate(defaultEndDate);
+                    daysContainer.appendChild(day);
                 }
-            } else {
-                options.classList.remove('show');
-                document.querySelectorAll('.day-checkbox').forEach(el => el.classList.remove('selected'));
-            }
-        }
 
-        function toggleDay(element) {
-            element.classList.toggle('selected');
-        }
-
-        function getSelectedDays() {
-            const days = [];
-            document.querySelectorAll('.day-checkbox.selected').forEach(el => {
-                days.push(parseInt(el.dataset.day));
-            });
-            return days;
-        }
-
-        function openModal() {
-            if (selectedCells.length === 0) return;
-
-            selectedCells.sort((a, b) => {
-                if (a.date !== b.date) return a.date.localeCompare(b.date);
-                return a.time.localeCompare(b.time);
-            });
-
-            const groupedByDate = {};
-            selectedCells.forEach(sc => {
-                if (!groupedByDate[sc.date]) {
-                    groupedByDate[sc.date] = [];
-                }
-                groupedByDate[sc.date].push(sc);
-            });
-
-            for (const [date, cells] of Object.entries(groupedByDate)) {
-                const times = cells.map(sc => sc.time).sort();
-                const isConsecutive = times.every((time, i) => {
-                    if (i === 0) return true;
-                    const prevIndex = timeSlots.indexOf(times[i - 1]);
-                    const currIndex = timeSlots.indexOf(time);
-                    return currIndex === prevIndex + 1;
-                });
-
-                if (!isConsecutive) {
-                    showNotification('Alle tijdsloten op een dag moeten aaneengesloten zijn.', 'error');
-                    return;
+                // Next month days
+                const remainingDays = 42 - daysContainer.children.length;
+                for (let i = 1; i <= remainingDays; i++) {
+                    const day = document.createElement('div');
+                    day.className = 'mini-calendar-day other-month';
+                    day.textContent = i;
+                    daysContainer.appendChild(day);
                 }
             }
-
-            let summaryHTML = '<div style="max-height: 200px; overflow-y: auto;">';
-            let totalHours = 0;
-
-            Object.entries(groupedByDate).forEach(([date, cells]) => {
-                const times = cells.map(sc => sc.time).sort();
-                const startTime = times[0];
-                const endTimeIndex = timeSlots.indexOf(times[times.length - 1]) + 1;
-                const endTime = timeSlots[endTimeIndex] || '24:00';
-
-                const dateObj = new Date(date + 'T00:00:00');
-                const dateStr = dateObj.toLocaleDateString('nl-NL', {
-                    weekday: 'short',
-                    day: 'numeric',
-                    month: 'short',
-                    year: 'numeric'
-                });
-
-                const hours = calculateHours(startTime, endTime);
-                totalHours += hours;
-
-                summaryHTML += `
-                    <div style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid #3A3A3E;">
-                        <span>${dateStr}</span>
-                        <span>${startTime} - ${endTime} (${hours.toFixed(1)}u)</span>
-                    </div>
-                `;
-            });
-
-            summaryHTML += '</div>';
-
-            document.getElementById('summaryDate').innerHTML = summaryHTML;
-            document.getElementById('summaryTime').textContent = `${Object.keys(groupedByDate).length} dag(en) geselecteerd`;
-            document.getElementById('summaryDuration').textContent = `Totaal: ${totalHours.toFixed(1)} uur`;
-
-            document.getElementById('modalSummary').style.display = 'block';
-            document.getElementById('bookingModal').classList.add('show');
-
-            if (authenticatedUser) {
-                const displayName = authenticatedUser.company_name || authenticatedUser.name || authenticatedUser.contact_name;
-                document.getElementById('tenantName').textContent = displayName;
-            }
-
-            document.getElementById('isRecurring').checked = false;
-            document.getElementById('recurringOptions').classList.remove('show');
-            document.querySelectorAll('.day-checkbox').forEach(el => el.classList.remove('selected'));
         }
 
-        function closeModal() {
-            document.getElementById('bookingModal').classList.remove('show');
-            selectedCells = [];
-            updateCellSelection();
-            updateSelectionSummary();
-            document.getElementById('bookingForm').reset();
-        }
-
-        function calculateHours(start, end) {
-            const startDate = new Date(`2000-01-01T${start}`);
-            const endDate = new Date(`2000-01-01T${end}`);
-            return (endDate - startDate) / (1000 * 60 * 60);
-        }
-
-        function setupLoginVerification() {
-            const pinInput = document.getElementById('loginPinCode');
-            if (!pinInput) return;
-
-            pinInput.focus();
-
-            pinInput.addEventListener('input', (e) => {
-                const pinValue = e.target.value.replace(/\D/g, '');
-                e.target.value = pinValue;
-
-                document.getElementById('loginPinError').style.display = 'none';
-                document.getElementById('loginUserInfo').style.display = 'none';
-
-                if (pinValue.length === 4) {
-                    let matchingUser = tenants.find(t => t.booking_pin_code === pinValue);
-                    let userType = 'tenant';
-
-                    if (!matchingUser) {
-                        matchingUser = externalCustomers.find(c => c.booking_pin_code === pinValue);
-                        userType = 'external';
-                    }
-
-                    if (matchingUser) {
-                        authenticatedUser = { ...matchingUser, userType };
-                        const displayName = matchingUser.company_name || matchingUser.name || matchingUser.contact_name;
-                        document.getElementById('loginUserName').textContent = displayName;
-                        document.getElementById('loginUserInfo').style.display = 'block';
-                        e.target.style.borderColor = '#10B981';
-
-                        setTimeout(() => {
-                            document.getElementById('loginOverlay').style.display = 'none';
-                            document.getElementById('content').style.display = 'block';
-                            document.getElementById('loggedInUser').style.display = 'block';
-                            document.getElementById('headerUserName').textContent = displayName;
-                            renderSchedule();
-                        }, 800);
-                    } else {
-                        authenticatedUser = null;
-                        document.getElementById('loginPinError').style.display = 'block';
-                        e.target.style.borderColor = '#EF4444';
-                    }
-                } else {
-                    e.target.style.borderColor = '';
-                }
-            });
-        }
-
-        function logout() {
-            authenticatedUser = null;
-            document.getElementById('loginOverlay').style.display = 'flex';
-            document.getElementById('content').style.display = 'none';
-            document.getElementById('loggedInUser').style.display = 'none';
-            document.getElementById('loginPinCode').value = '';
-            document.getElementById('loginPinCode').style.borderColor = '';
-            document.getElementById('loginUserInfo').style.display = 'none';
-            document.getElementById('loginPinError').style.display = 'none';
-            document.getElementById('loginPinCode').focus();
-        }
-
-        function setupBookingForm() {
-            const form = document.getElementById('bookingForm');
-            if (!form) return;
-
-            form.onsubmit = async (e) => {
-                e.preventDefault();
-
-                const roomSelect = document.getElementById('modalRoomSelect');
-                const selectedRoomId = roomSelect.value;
-
-                if (!selectedRoomId || selectedCells.length === 0) {
-                    showNotification('Selecteer eerst een vergaderruimte.', 'error');
-                    return;
-                }
-
-                const selectedRoomData = meetingRooms.find(r => r.id === selectedRoomId);
-
-                if (!selectedRoomData) {
-                    showNotification('Geselecteerde ruimte niet gevonden.', 'error');
-                    return;
-                }
-
-                if (!authenticatedUser) {
-                    showNotification('U bent niet ingelogd. Vernieuw de pagina.', 'error');
-                    return;
-                }
-
-                const groupedByDate = {};
-                selectedCells.forEach(sc => {
-                    if (!groupedByDate[sc.date]) {
-                        groupedByDate[sc.date] = [];
-                    }
-                    groupedByDate[sc.date].push(sc);
-                });
-
-                const isRecurring = document.getElementById('isRecurring').checked;
-                const selectedDays = getSelectedDays();
-                const recurringEndDate = document.getElementById('recurringEndDate').value;
-
-                try {
-                    const bookingsToInsert = [];
-                    const hourlyRate = selectedRoomData.hourly_rate || 25;
-
-                    for (const [date, cells] of Object.entries(groupedByDate)) {
-                        const times = cells.map(sc => sc.time).sort();
-                        const startTime = times[0];
-                        const endTimeIndex = timeSlots.indexOf(times[times.length - 1]) + 1;
-                        const endTime = timeSlots[endTimeIndex] || '24:00';
-
-                        const hours = calculateHours(startTime, endTime);
-                        const totalAmount = hours * hourlyRate;
-
-                        const bookingDates = [date];
-
-                        if (isRecurring && selectedDays.length > 0 && recurringEndDate) {
-                            const endDate = new Date(recurringEndDate);
-                            const startDate = new Date(date);
-                            startDate.setDate(startDate.getDate() + 1);
-
-                            let currentDate = new Date(startDate);
-                            while (currentDate <= endDate) {
-                                if (selectedDays.includes(currentDate.getDay())) {
-                                    bookingDates.push(formatDate(currentDate));
-                                }
-                                currentDate.setDate(currentDate.getDate() + 1);
-                            }
-                        }
-
-                        bookingDates.forEach(bookingDate => {
-                            bookingsToInsert.push({
-                                space_id: selectedRoomId,
-                                tenant_id: authenticatedUser.userType === 'tenant' ? authenticatedUser.id : null,
-                                external_customer_id: authenticatedUser.userType === 'external' ? authenticatedUser.id : null,
-                                booking_date: bookingDate,
-                                start_time: startTime,
-                                end_time: endTime,
-                                hourly_rate: hourlyRate,
-                                total_hours: hours,
-                                total_amount: totalAmount,
-                                status: 'confirmed',
-                                booking_type: authenticatedUser.userType === 'tenant' ? 'tenant' : 'external'
-                            });
-                        });
-                    }
-
-                    const { error: bookingError } = await sb
-                        .from('meeting_room_bookings')
-                        .insert(bookingsToInsert);
-
-                    if (bookingError) throw bookingError;
-
-                    const message = bookingsToInsert.length > 1
-                        ? `${bookingsToInsert.length} boekingen zijn succesvol aangemaakt!`
-                        : 'Uw boeking is succesvol aangemaakt!';
-
-                    showNotification(message, 'success');
-                    closeModal();
-                    await loadBookings();
-                    renderSchedule();
-
-                } catch (error) {
-                    console.error('Booking error:', error);
-                    showNotification('Er is een fout opgetreden. Probeer het later opnieuw.', 'error');
-                }
-            };
-        }
-
+        // Navigation
         function previousWeek() {
-            currentWeekStart.setDate(currentWeekStart.getDate() - 7);
-            loadBookings().then(renderSchedule);
+            currentDate.setDate(currentDate.getDate() - 7);
+            loadData();
         }
 
         function nextWeek() {
-            currentWeekStart.setDate(currentWeekStart.getDate() + 7);
-            loadBookings().then(renderSchedule);
+            currentDate.setDate(currentDate.getDate() + 7);
+            loadData();
         }
 
-        function showNotification(message, type) {
-            const notification = document.getElementById('notification');
-            notification.textContent = message;
-            notification.className = `notification ${type} show`;
-
-            setTimeout(() => {
-                notification.classList.remove('show');
-            }, 5000);
+        function goToToday() {
+            currentDate = new Date();
+            baseMonth = new Date();
+            loadData();
         }
 
-        init();
+        function previousMonth() {
+            baseMonth.setMonth(baseMonth.getMonth() - 1);
+            currentDate = new Date(baseMonth);
+            loadData();
+        }
+
+        function nextMonth() {
+            baseMonth.setMonth(baseMonth.getMonth() + 1);
+            currentDate = new Date(baseMonth);
+            loadData();
+        }
+
+        // Detect touch device
+        isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('loginOverlay').style.display = 'flex';
+        });
     </script>
 </body>
 </html>
