@@ -297,6 +297,50 @@
             cursor: not-allowed;
         }
 
+        .login-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(10, 10, 11, 0.98);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .login-card {
+            background: #1A1A1C;
+            border: 1px solid #3A3A3E;
+            border-radius: 1rem;
+            padding: 2.5rem;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .login-header h1 {
+            font-size: 1.75rem;
+            font-weight: bold;
+            color: #D4AF37;
+            margin-bottom: 0.5rem;
+        }
+
+        .login-header p {
+            font-size: 0.875rem;
+            color: #9CA3AF;
+        }
+
+        .login-body {
+            text-align: left;
+        }
+
         .notification {
             position: fixed;
             top: 1rem;
@@ -484,10 +528,49 @@
     </style>
 </head>
 <body>
+    <div id="loginOverlay" class="login-overlay">
+        <div class="login-card">
+            <div class="login-header">
+                <h1>HAL5 Overloon</h1>
+                <p>Vergaderruimte Reserveringssysteem</p>
+            </div>
+            <div class="login-body">
+                <label style="font-size: 0.875rem; color: #F3F4F6; margin-bottom: 0.5rem; display: block;">Voer uw PIN-code in</label>
+                <p style="font-size: 0.8rem; color: #9CA3AF; margin-bottom: 1rem;">Gebruik uw persoonlijke 4-cijferige PIN-code om in te loggen</p>
+                <input
+                    type="password"
+                    id="loginPinCode"
+                    class="form-control"
+                    inputmode="numeric"
+                    maxlength="4"
+                    pattern="[0-9]{4}"
+                    placeholder="----"
+                    style="text-align: center; font-size: 2rem; letter-spacing: 1rem; padding: 1.5rem; margin-bottom: 1rem;"
+                    autocomplete="off">
+                <div id="loginPinError" style="display: none; color: #EF4444; font-size: 0.875rem; margin-bottom: 1rem; text-align: center;">
+                    Onjuiste PIN-code. Probeer opnieuw.
+                </div>
+                <div id="loginUserInfo" style="display: none; background-color: #2A2A2D; border: 1px solid #10B981; border-radius: 0.5rem; padding: 1rem; margin-bottom: 1rem; text-align: center;">
+                    <p style="font-size: 0.875rem; color: #10B981; margin-bottom: 0.25rem;">Welkom</p>
+                    <p id="loginUserName" style="font-size: 1.125rem; color: #F3F4F6; font-weight: 600;"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="container">
         <div class="header">
-            <h1>Vergaderruimte Boeken</h1>
-            <p>Reserveer eenvoudig een vergaderruimte voor uw zakelijke bijeenkomsten</p>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h1>Vergaderruimte Boeken</h1>
+                    <p>Reserveer eenvoudig een vergaderruimte voor uw zakelijke bijeenkomsten</p>
+                </div>
+                <div id="loggedInUser" style="display: none; text-align: right;">
+                    <p style="font-size: 0.75rem; color: #9CA3AF;">Ingelogd als:</p>
+                    <p id="headerUserName" style="font-size: 0.875rem; color: #D4AF37; font-weight: 600;"></p>
+                    <button onclick="logout()" style="font-size: 0.75rem; color: #9CA3AF; background: none; border: none; cursor: pointer; text-decoration: underline;">Uitloggen</button>
+                </div>
+            </div>
         </div>
 
         <div id="loading" class="loading">
@@ -572,27 +655,8 @@
                     <input type="date" id="recurringEndDate" min="">
                 </div>
 
-                <div class="form-group">
-                    <label style="font-size: 0.875rem; color: #F3F4F6; margin-bottom: 0.5rem; display: block;">PIN-code *</label>
-                    <p style="font-size: 0.8rem; color: #9CA3AF; margin-bottom: 0.75rem;">Voer uw persoonlijke 4-cijferige PIN-code in</p>
-                    <input
-                        type="password"
-                        id="pinCode"
-                        class="form-control"
-                        inputmode="numeric"
-                        maxlength="4"
-                        pattern="[0-9]{4}"
-                        placeholder="----"
-                        style="text-align: center; font-size: 1.5rem; letter-spacing: 0.5rem; padding: 1rem;"
-                        required
-                        autocomplete="off">
-                    <div id="pinError" style="display: none; color: #EF4444; font-size: 0.8rem; margin-top: 0.5rem;">
-                        Onjuiste PIN-code. Probeer opnieuw.
-                    </div>
-                </div>
-
-                <div id="tenantInfo" style="display: none; background-color: #2A2A2D; border: 1px solid #4A4A4F; border-radius: 0.5rem; padding: 1rem; margin-bottom: 1rem;">
-                    <p style="font-size: 0.875rem; color: #9CA3AF; margin-bottom: 0.25rem;">Ingelogd als:</p>
+                <div id="tenantInfo" style="background-color: #2A2A2D; border: 1px solid #10B981; border-radius: 0.5rem; padding: 1rem; margin-bottom: 1rem;">
+                    <p style="font-size: 0.875rem; color: #9CA3AF; margin-bottom: 0.25rem;">Boeking voor:</p>
                     <p id="tenantName" style="font-size: 1rem; color: #F3F4F6; font-weight: 600;"></p>
                 </div>
 
@@ -704,13 +768,11 @@
                 console.log('Loaded external customers with PIN:', externalCustomers.length);
 
                 document.getElementById('loading').style.display = 'none';
-                document.getElementById('content').style.display = 'block';
 
+                setupLoginVerification();
                 populateRoomDropdown();
                 setupBookingForm();
-                setupPinVerification();
                 await loadBookings();
-                renderSchedule();
             } catch (error) {
                 console.error('Error loading data:', error);
                 showNotification('Er is een fout opgetreden bij het laden van de gegevens.', 'error');
@@ -1016,11 +1078,10 @@
             document.getElementById('modalSummary').style.display = 'block';
             document.getElementById('bookingModal').classList.add('show');
 
-            document.getElementById('pinCode').value = '';
-            document.getElementById('pinCode').style.borderColor = '';
-            authenticatedUser = null;
-            document.getElementById('tenantInfo').style.display = 'none';
-            document.getElementById('pinError').style.display = 'none';
+            if (authenticatedUser) {
+                const displayName = authenticatedUser.company_name || authenticatedUser.name || authenticatedUser.contact_name;
+                document.getElementById('tenantName').textContent = displayName;
+            }
 
             document.getElementById('isRecurring').checked = false;
             document.getElementById('recurringOptions').classList.remove('show');
@@ -1032,10 +1093,6 @@
             selectedCells = [];
             updateCellSelection();
             document.getElementById('bookingForm').reset();
-            authenticatedUser = null;
-            document.getElementById('tenantInfo').style.display = 'none';
-            document.getElementById('pinError').style.display = 'none';
-            document.getElementById('pinCode').style.borderColor = '';
         }
 
         function calculateHours(start, end) {
@@ -1044,21 +1101,20 @@
             return (endDate - startDate) / (1000 * 60 * 60);
         }
 
-        function setupPinVerification() {
-            const pinInput = document.getElementById('pinCode');
+        function setupLoginVerification() {
+            const pinInput = document.getElementById('loginPinCode');
             if (!pinInput) return;
+
+            pinInput.focus();
 
             pinInput.addEventListener('input', (e) => {
                 const pinValue = e.target.value.replace(/\D/g, '');
                 e.target.value = pinValue;
 
-                document.getElementById('pinError').style.display = 'none';
+                document.getElementById('loginPinError').style.display = 'none';
+                document.getElementById('loginUserInfo').style.display = 'none';
 
                 if (pinValue.length === 4) {
-                    console.log('Checking PIN:', pinValue);
-                    console.log('Available tenants:', tenants.map(t => ({ name: t.name, pin: t.booking_pin_code })));
-                    console.log('Available external:', externalCustomers.map(c => ({ name: c.contact_name, pin: c.booking_pin_code })));
-
                     let matchingUser = tenants.find(t => t.booking_pin_code === pinValue);
                     let userType = 'tenant';
 
@@ -1067,26 +1123,41 @@
                         userType = 'external';
                     }
 
-                    console.log('Matching user:', matchingUser);
-
                     if (matchingUser) {
                         authenticatedUser = { ...matchingUser, userType };
                         const displayName = matchingUser.company_name || matchingUser.name || matchingUser.contact_name;
-                        document.getElementById('tenantName').textContent = displayName;
-                        document.getElementById('tenantInfo').style.display = 'block';
+                        document.getElementById('loginUserName').textContent = displayName;
+                        document.getElementById('loginUserInfo').style.display = 'block';
                         e.target.style.borderColor = '#10B981';
+
+                        setTimeout(() => {
+                            document.getElementById('loginOverlay').style.display = 'none';
+                            document.getElementById('content').style.display = 'block';
+                            document.getElementById('loggedInUser').style.display = 'block';
+                            document.getElementById('headerUserName').textContent = displayName;
+                            renderSchedule();
+                        }, 800);
                     } else {
                         authenticatedUser = null;
-                        document.getElementById('tenantInfo').style.display = 'none';
-                        document.getElementById('pinError').style.display = 'block';
+                        document.getElementById('loginPinError').style.display = 'block';
                         e.target.style.borderColor = '#EF4444';
                     }
                 } else {
-                    authenticatedUser = null;
-                    document.getElementById('tenantInfo').style.display = 'none';
                     e.target.style.borderColor = '';
                 }
             });
+        }
+
+        function logout() {
+            authenticatedUser = null;
+            document.getElementById('loginOverlay').style.display = 'flex';
+            document.getElementById('content').style.display = 'none';
+            document.getElementById('loggedInUser').style.display = 'none';
+            document.getElementById('loginPinCode').value = '';
+            document.getElementById('loginPinCode').style.borderColor = '';
+            document.getElementById('loginUserInfo').style.display = 'none';
+            document.getElementById('loginPinError').style.display = 'none';
+            document.getElementById('loginPinCode').focus();
         }
 
         function setupBookingForm() {
@@ -1111,11 +1182,8 @@
                     return;
                 }
 
-                const pinCode = document.getElementById('pinCode').value;
-
                 if (!authenticatedUser) {
-                    document.getElementById('pinError').style.display = 'block';
-                    showNotification('Voer een geldige PIN-code in.', 'error');
+                    showNotification('U bent niet ingelogd. Vernieuw de pagina.', 'error');
                     return;
                 }
 

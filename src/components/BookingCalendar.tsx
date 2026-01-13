@@ -164,7 +164,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
         const sortedCells = [...selectedCells].sort((a, b) => a.slotIndex - b.slotIndex);
         const startIndex = sortedCells[0].slotIndex;
         const endIndex = sortedCells[sortedCells.length - 1].slotIndex + 1;
-        const startTime = timeSlots[startIndex];
+        const startTime = timeSlots[startIndex] || '08:00';
         const endTime = timeSlots[endIndex] || '22:00';
 
         const [startHour, startMin] = startTime.split(':').map(Number);
