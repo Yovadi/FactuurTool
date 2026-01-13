@@ -1055,7 +1055,7 @@
                         <button onclick="nextWeek()">›</button>
                     </div>
                     <div class="week-actions">
-                        <button onclick="showToast('Terugkerende boekingen zijn nog niet beschikbaar in deze weergave', 'info')">
+                        <button onclick="openRecurringModal()">
                             <span>↻</span>
                             Terugkerende Boeking
                         </button>
@@ -1105,6 +1105,81 @@
         </div>
     </div>
 
+    <!-- Recurring Booking Modal -->
+    <div id="recurringModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3 class="modal-title">↻ Terugkerende Boeking</h3>
+                <button class="modal-close" onclick="closeRecurringModal()">&times;</button>
+            </div>
+            <form id="recurringForm" onsubmit="submitRecurringBooking(event)">
+                <div class="form-group">
+                    <label class="form-label">Vergaderruimte *</label>
+                    <select id="recurringRoomSelect" class="form-select" required></select>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label">Starttijd *</label>
+                        <input type="time" id="recurringStartTime" class="form-select" value="09:00" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Eindtijd *</label>
+                        <input type="time" id="recurringEndTime" class="form-select" value="10:00" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Herhaling *</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button type="button" class="btn" style="flex: 1;" onclick="setRecurrenceType('daily')" id="dailyBtn">Dagelijks</button>
+                        <button type="button" class="btn btn-primary" style="flex: 1;" onclick="setRecurrenceType('weekly')" id="weeklyBtn">Wekelijks</button>
+                        <button type="button" class="btn" style="flex: 1;" onclick="setRecurrenceType('monthly')" id="monthlyBtn">Maandelijks</button>
+                    </div>
+                </div>
+
+                <div class="form-group" id="weekdaysGroup" style="display: block;">
+                    <label class="form-label">Selecteer dagen</label>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <button type="button" class="btn" style="width: 3rem; height: 3rem; border-radius: 50%;" onclick="toggleWeekday('monday')" id="day-monday">Ma</button>
+                        <button type="button" class="btn" style="width: 3rem; height: 3rem; border-radius: 50%;" onclick="toggleWeekday('tuesday')" id="day-tuesday">Di</button>
+                        <button type="button" class="btn" style="width: 3rem; height: 3rem; border-radius: 50%;" onclick="toggleWeekday('wednesday')" id="day-wednesday">Wo</button>
+                        <button type="button" class="btn" style="width: 3rem; height: 3rem; border-radius: 50%;" onclick="toggleWeekday('thursday')" id="day-thursday">Do</button>
+                        <button type="button" class="btn" style="width: 3rem; height: 3rem; border-radius: 50%;" onclick="toggleWeekday('friday')" id="day-friday">Vr</button>
+                        <button type="button" class="btn" style="width: 3rem; height: 3rem; border-radius: 50%;" onclick="toggleWeekday('saturday')" id="day-saturday">Za</button>
+                        <button type="button" class="btn" style="width: 3rem; height: 3rem; border-radius: 50%;" onclick="toggleWeekday('sunday')" id="day-sunday">Zo</button>
+                    </div>
+                </div>
+
+                <div class="form-group" id="monthDayGroup" style="display: none;">
+                    <label class="form-label">Dag van de maand</label>
+                    <input type="number" id="recurringMonthDay" class="form-select" min="1" max="31" value="1">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label">Startdatum *</label>
+                        <input type="date" id="recurringStartDate" class="form-select" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Einddatum (optioneel)</label>
+                        <input type="date" id="recurringEndDate" class="form-select">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Notities (optioneel)</label>
+                    <textarea id="recurringNotes" class="form-select" rows="2" placeholder="Bijv. Team meeting"></textarea>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeRecurringModal()">Annuleren</button>
+                    <button type="submit" class="btn btn-primary" id="recurringSubmitBtn">Aanmaken</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         // Initialize Supabase
         const SUPABASE_URL = 'https://qlvndvpxhqmjljjpehkn.supabase.co';
@@ -1119,6 +1194,8 @@
         let meetingRooms = [];
         let weekBookings = [];
         let allBookings = [];
+        let recurringType = 'weekly';
+        let selectedWeekdays = [];
 
         // Time slots from 6:00 to 21:30
         const timeSlots = [];
@@ -1669,6 +1746,176 @@
             await loadData();
         }
 
+        // Recurring bookings
+        function openRecurringModal() {
+            if (!authenticatedUser || authenticatedUser.userType !== 'tenant') {
+                showToast('Alleen huurders kunnen terugkerende boekingen maken', 'error');
+                return;
+            }
+
+            const select = document.getElementById('recurringRoomSelect');
+            select.innerHTML = meetingRooms.map(room =>
+                `<option value="${room.id}">${room.space_number}</option>`
+            ).join('');
+
+            document.getElementById('recurringStartDate').valueAsDate = new Date();
+            document.getElementById('recurringModal').classList.add('show');
+        }
+
+        function closeRecurringModal() {
+            document.getElementById('recurringModal').classList.remove('show');
+            document.getElementById('recurringForm').reset();
+            selectedWeekdays = [];
+            recurringType = 'weekly';
+            updateRecurringUI();
+        }
+
+        function setRecurrenceType(type) {
+            recurringType = type;
+            updateRecurringUI();
+        }
+
+        function updateRecurringUI() {
+            document.getElementById('dailyBtn').classList.toggle('btn-primary', recurringType === 'daily');
+            document.getElementById('weeklyBtn').classList.toggle('btn-primary', recurringType === 'weekly');
+            document.getElementById('monthlyBtn').classList.toggle('btn-primary', recurringType === 'monthly');
+
+            document.getElementById('weekdaysGroup').style.display = recurringType === 'weekly' ? 'block' : 'none';
+            document.getElementById('monthDayGroup').style.display = recurringType === 'monthly' ? 'block' : 'none';
+
+            ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].forEach(day => {
+                document.getElementById(`day-${day}`).classList.toggle('btn-primary', selectedWeekdays.includes(day));
+            });
+        }
+
+        function toggleWeekday(day) {
+            if (selectedWeekdays.includes(day)) {
+                selectedWeekdays = selectedWeekdays.filter(d => d !== day);
+            } else {
+                selectedWeekdays.push(day);
+            }
+            updateRecurringUI();
+        }
+
+        async function submitRecurringBooking(e) {
+            e.preventDefault();
+
+            if (!authenticatedUser || authenticatedUser.userType !== 'tenant') {
+                showToast('Alleen huurders kunnen terugkerende boekingen maken', 'error');
+                return;
+            }
+
+            const spaceId = document.getElementById('recurringRoomSelect').value;
+            const startTime = document.getElementById('recurringStartTime').value;
+            const endTime = document.getElementById('recurringEndTime').value;
+            const startDate = document.getElementById('recurringStartDate').value;
+            const endDate = document.getElementById('recurringEndDate').value || null;
+            const notes = document.getElementById('recurringNotes').value;
+            const monthDay = document.getElementById('recurringMonthDay').value;
+
+            if (recurringType === 'weekly' && selectedWeekdays.length === 0) {
+                showToast('Selecteer minimaal één dag', 'error');
+                return;
+            }
+
+            document.getElementById('recurringSubmitBtn').disabled = true;
+            document.getElementById('recurringSubmitBtn').textContent = 'Aanmaken...';
+
+            try {
+                const { data: pattern, error: patternError } = await sb
+                    .from('recurring_booking_patterns')
+                    .insert({
+                        space_id: spaceId,
+                        tenant_id: authenticatedUser.id,
+                        start_time: startTime,
+                        end_time: endTime,
+                        recurrence_type: recurringType,
+                        recurrence_days: recurringType === 'weekly' ? selectedWeekdays : [],
+                        recurrence_date: recurringType === 'monthly' ? parseInt(monthDay) : null,
+                        start_date: startDate,
+                        end_date: endDate,
+                        notes: notes,
+                        is_active: true
+                    })
+                    .select()
+                    .single();
+
+                if (patternError) throw patternError;
+
+                await generateBookingsFromPattern(pattern);
+
+                showToast('Terugkerende boeking succesvol aangemaakt!', 'success');
+                closeRecurringModal();
+                await loadData();
+                if (document.getElementById('listView').classList.contains('active')) {
+                    loadBookingsList();
+                }
+            } catch (error) {
+                console.error('Error creating recurring booking:', error);
+                showToast('Er is een fout opgetreden: ' + error.message, 'error');
+            } finally {
+                document.getElementById('recurringSubmitBtn').disabled = false;
+                document.getElementById('recurringSubmitBtn').textContent = 'Aanmaken';
+            }
+        }
+
+        async function generateBookingsFromPattern(pattern) {
+            const bookings = [];
+            const startDate = new Date(pattern.start_date);
+            const endDate = pattern.end_date ? new Date(pattern.end_date) : new Date(startDate.getTime() + 365 * 24 * 60 * 60 * 1000);
+
+            const space = meetingRooms.find(s => s.id === pattern.space_id);
+            const hourlyRate = space ? space.hourly_rate || 0 : 0;
+
+            const [startHour, startMinute] = pattern.start_time.split(':').map(Number);
+            const [endHour, endMinute] = pattern.end_time.split(':').map(Number);
+            const totalHours = (endHour + endMinute / 60) - (startHour + startMinute / 60);
+            const totalAmount = totalHours * hourlyRate;
+
+            let currentDate = new Date(startDate);
+
+            while (currentDate <= endDate) {
+                let shouldBook = false;
+
+                if (pattern.recurrence_type === 'daily') {
+                    shouldBook = true;
+                } else if (pattern.recurrence_type === 'weekly') {
+                    const dayName = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][currentDate.getDay()];
+                    shouldBook = pattern.recurrence_days.includes(dayName);
+                } else if (pattern.recurrence_type === 'monthly') {
+                    shouldBook = currentDate.getDate() === pattern.recurrence_date;
+                }
+
+                if (shouldBook) {
+                    bookings.push({
+                        space_id: pattern.space_id,
+                        tenant_id: pattern.tenant_id,
+                        booking_date: currentDate.toISOString().split('T')[0],
+                        start_time: pattern.start_time,
+                        end_time: pattern.end_time,
+                        hourly_rate: hourlyRate,
+                        total_hours: totalHours,
+                        total_amount: totalAmount,
+                        status: 'confirmed',
+                        notes: pattern.notes || '',
+                        recurring_pattern_id: pattern.id,
+                        is_exception: false,
+                        booking_type: 'tenant'
+                    });
+                }
+
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+
+            if (bookings.length > 0) {
+                const { error } = await sb
+                    .from('meeting_room_bookings')
+                    .insert(bookings);
+
+                if (error) throw error;
+            }
+        }
+
         // Navigation
         function previousWeek() {
             currentDate.setDate(currentDate.getDate() - 7);
@@ -1736,18 +1983,11 @@
                     .from('meeting_room_bookings')
                     .select(`
                         *,
-                        office_space:office_spaces!meeting_room_bookings_space_id_fkey (
-                            name
-                        ),
-                        tenant:tenants!meeting_room_bookings_tenant_id_fkey (
-                            name,
-                            company_name
-                        ),
-                        external_customer:external_customers!meeting_room_bookings_external_customer_id_fkey (
-                            name,
-                            company_name
-                        )
-                    `);
+                        tenants(name, company_name),
+                        external_customers(company_name, contact_name),
+                        office_spaces(space_number)
+                    `)
+                    .neq('status', 'cancelled');
 
                 // Filter based on user type
                 if (authenticatedUser.userType === 'tenant') {
@@ -1759,8 +1999,8 @@
                 }
 
                 const { data: bookings, error } = await query
-                    .order('booking_date', { ascending: true })
-                    .order('start_time', { ascending: true });
+                    .order('booking_date', { ascending: false })
+                    .order('start_time', { ascending: false });
 
                 console.log('Bookings data:', bookings);
                 console.log('Bookings error:', error);
@@ -1813,8 +2053,8 @@
         }
 
         function renderBookingCard(booking, status) {
-            const room = booking.office_space;
-            const customer = booking.tenant || booking.external_customer;
+            const room = booking.office_spaces;
+            const customer = booking.tenants || booking.external_customers;
             const date = new Date(booking.booking_date);
             const dateStr = date.toLocaleDateString('nl-NL', {
                 weekday: 'long',
@@ -1828,7 +2068,7 @@
             return `
                 <div class="booking-card">
                     <div class="booking-card-header">
-                        <div class="booking-card-title">${room?.name || 'Onbekende ruimte'}</div>
+                        <div class="booking-card-title">${room?.space_number || 'Onbekende ruimte'}</div>
                         <div class="booking-card-status ${status}">
                             ${status === 'upcoming' ? 'Toekomstig' : 'Afgelopen'}
                         </div>
