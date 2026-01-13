@@ -22,6 +22,8 @@
         .app-container {
             position: relative;
             height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
         /* Toast notifications */
@@ -188,7 +190,8 @@
         .calendar-layout {
             display: flex;
             gap: 0;
-            height: 100vh;
+            flex: 1;
+            overflow: hidden;
         }
 
         /* Sidebar */
@@ -775,6 +778,171 @@
             font-size: 1.25rem;
             color: #9CA3AF;
         }
+
+        /* View Tabs */
+        .view-tabs {
+            display: flex;
+            gap: 0.5rem;
+            padding: 1rem;
+            background-color: #121214;
+            border-bottom: 1px solid #3A3A3E;
+        }
+
+        .view-tab {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background-color: #2A2A2D;
+            border: none;
+            border-radius: 0.375rem;
+            color: #9CA3AF;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .view-tab:hover {
+            background-color: #3A3A3E;
+            color: #E5E7EB;
+        }
+
+        .view-tab.active {
+            background-color: #CA8A04;
+            color: white;
+        }
+
+        .view-tab svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        /* List View */
+        .list-view {
+            display: none;
+            flex-direction: column;
+            flex: 1;
+            background-color: #121214;
+            overflow: hidden;
+        }
+
+        .list-view.active {
+            display: flex;
+        }
+
+        .list-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+        }
+
+        .bookings-section {
+            margin-bottom: 2rem;
+        }
+
+        .bookings-section h2 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #CA8A04;
+            margin-bottom: 1rem;
+        }
+
+        .booking-card {
+            background-color: #1A1A1C;
+            border: 1px solid #3A3A3E;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            transition: all 0.2s;
+        }
+
+        .booking-card:hover {
+            border-color: #CA8A04;
+        }
+
+        .booking-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 0.75rem;
+        }
+
+        .booking-card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #E5E7EB;
+        }
+
+        .booking-card-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .booking-card-status.upcoming {
+            background-color: rgba(202, 138, 4, 0.1);
+            color: #CA8A04;
+        }
+
+        .booking-card-status.past {
+            background-color: rgba(107, 114, 128, 0.1);
+            color: #9CA3AF;
+        }
+
+        .booking-card-details {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
+        }
+
+        .booking-card-detail {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            color: #9CA3AF;
+        }
+
+        .booking-card-detail svg {
+            width: 14px;
+            height: 14px;
+            flex-shrink: 0;
+        }
+
+        .booking-card-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #3A3A3E;
+        }
+
+        .booking-card-actions button {
+            flex: 1;
+            padding: 0.5rem;
+            border: none;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .booking-card-actions .btn-cancel {
+            background-color: #DC2626;
+            color: white;
+        }
+
+        .booking-card-actions .btn-cancel:hover {
+            background-color: #B91C1C;
+        }
+
+        .no-bookings {
+            text-align: center;
+            padding: 2rem;
+            color: #6B7280;
+            font-size: 0.875rem;
+        }
     </style>
 </head>
 <body>
@@ -809,7 +977,51 @@
 
     <!-- Main App -->
     <div id="app" class="app-container" style="display: none;">
-        <div class="calendar-layout">
+        <!-- Header with Title and Tabs -->
+        <div style="background-color: #121214; border-bottom: 1px solid #3A3A3E;">
+            <div style="padding: 1.5rem 1rem 0.5rem 1rem;">
+                <h1 style="font-size: 1.5rem; font-weight: 700; color: #E5E7EB; margin: 0;">Vergaderruimte Boekingen</h1>
+            </div>
+            <div class="view-tabs" style="border-bottom: none; padding: 0.5rem 1rem 1rem 1rem;">
+                <button class="view-tab" onclick="switchView('list')" id="listTab">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="8" y1="6" x2="21" y2="6"></line>
+                        <line x1="8" y1="12" x2="21" y2="12"></line>
+                        <line x1="8" y1="18" x2="21" y2="18"></line>
+                        <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                        <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                        <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                    </svg>
+                    Lijst
+                </button>
+                <button class="view-tab active" onclick="switchView('calendar')" id="calendarTab">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                    Kalender
+                </button>
+            </div>
+        </div>
+
+        <!-- List View -->
+        <div id="listView" class="list-view">
+            <div class="list-content" id="listContent">
+                <div class="bookings-section">
+                    <h2>Toekomstige Boekingen</h2>
+                    <div id="upcomingBookings"></div>
+                </div>
+                <div class="bookings-section">
+                    <h2>Afgelopen Boekingen</h2>
+                    <div id="pastBookings"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Calendar View -->
+        <div id="calendarView" class="calendar-layout">
             <!-- Sidebar with mini calendars -->
             <div class="calendar-sidebar">
                 <div id="miniCalendars"></div>
@@ -1504,6 +1716,172 @@
             baseMonth.setMonth(baseMonth.getMonth() + 1);
             currentDate = new Date(baseMonth);
             loadData();
+        }
+
+        // View switching
+        function switchView(view) {
+            const listView = document.getElementById('listView');
+            const calendarView = document.getElementById('calendarView');
+            const listTab = document.getElementById('listTab');
+            const calendarTab = document.getElementById('calendarTab');
+
+            if (view === 'list') {
+                listView.classList.add('active');
+                calendarView.style.display = 'none';
+                listTab.classList.add('active');
+                calendarTab.classList.remove('active');
+                loadBookingsList();
+            } else {
+                listView.classList.remove('active');
+                calendarView.style.display = 'flex';
+                listTab.classList.remove('active');
+                calendarTab.classList.add('active');
+            }
+        }
+
+        // Load bookings list
+        async function loadBookingsList() {
+            if (!authenticatedUser) return;
+
+            const upcomingDiv = document.getElementById('upcomingBookings');
+            const pastDiv = document.getElementById('pastBookings');
+
+            upcomingDiv.innerHTML = '<div class="no-bookings">Laden...</div>';
+            pastDiv.innerHTML = '<div class="no-bookings">Laden...</div>';
+
+            try {
+                const { data: bookings, error } = await supabase
+                    .from('meeting_room_bookings')
+                    .select(`
+                        *,
+                        office_space:office_spaces (
+                            name
+                        ),
+                        tenant:tenants (
+                            name,
+                            company_name
+                        ),
+                        external_customer:external_customers (
+                            name,
+                            company_name
+                        )
+                    `)
+                    .or(`tenant_id.eq.${authenticatedUser.id},external_customer_id.eq.${authenticatedUser.id}`)
+                    .order('booking_date', { ascending: true })
+                    .order('start_time', { ascending: true });
+
+                if (error) throw error;
+
+                const now = new Date();
+                const nowTime = now.toTimeString().split(' ')[0].substring(0, 5);
+                const todayStr = now.toISOString().split('T')[0];
+
+                const upcoming = bookings.filter(b => {
+                    const bookingDate = b.booking_date;
+                    if (bookingDate > todayStr) return true;
+                    if (bookingDate === todayStr && b.end_time > nowTime) return true;
+                    return false;
+                });
+
+                const past = bookings.filter(b => {
+                    const bookingDate = b.booking_date;
+                    if (bookingDate < todayStr) return true;
+                    if (bookingDate === todayStr && b.end_time <= nowTime) return true;
+                    return false;
+                }).reverse();
+
+                // Render upcoming bookings
+                if (upcoming.length === 0) {
+                    upcomingDiv.innerHTML = '<div class="no-bookings">Geen toekomstige boekingen</div>';
+                } else {
+                    upcomingDiv.innerHTML = upcoming.map(booking => renderBookingCard(booking, 'upcoming')).join('');
+                }
+
+                // Render past bookings
+                if (past.length === 0) {
+                    pastDiv.innerHTML = '<div class="no-bookings">Geen afgelopen boekingen</div>';
+                } else {
+                    pastDiv.innerHTML = past.map(booking => renderBookingCard(booking, 'past')).join('');
+                }
+            } catch (error) {
+                console.error('Error loading bookings:', error);
+                upcomingDiv.innerHTML = '<div class="no-bookings">Fout bij laden van boekingen</div>';
+                pastDiv.innerHTML = '<div class="no-bookings">Fout bij laden van boekingen</div>';
+            }
+        }
+
+        function renderBookingCard(booking, status) {
+            const room = booking.office_space;
+            const customer = booking.tenant || booking.external_customer;
+            const date = new Date(booking.booking_date);
+            const dateStr = date.toLocaleDateString('nl-NL', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+
+            const canCancel = status === 'upcoming';
+
+            return `
+                <div class="booking-card">
+                    <div class="booking-card-header">
+                        <div class="booking-card-title">${room?.name || 'Onbekende ruimte'}</div>
+                        <div class="booking-card-status ${status}">
+                            ${status === 'upcoming' ? 'Toekomstig' : 'Afgelopen'}
+                        </div>
+                    </div>
+                    <div class="booking-card-details">
+                        <div class="booking-card-detail">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                <line x1="16" y1="2" x2="16" y2="6"></line>
+                                <line x1="8" y1="2" x2="8" y2="6"></line>
+                                <line x1="3" y1="10" x2="21" y2="10"></line>
+                            </svg>
+                            ${dateStr}
+                        </div>
+                        <div class="booking-card-detail">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                            ${booking.start_time} - ${booking.end_time}
+                        </div>
+                    </div>
+                    ${canCancel ? `
+                        <div class="booking-card-actions">
+                            <button class="btn-cancel" onclick="cancelBooking('${booking.id}')">
+                                Annuleren
+                            </button>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        async function cancelBooking(bookingId) {
+            if (!confirm('Weet je zeker dat je deze boeking wilt annuleren?')) {
+                return;
+            }
+
+            try {
+                const { error } = await supabase
+                    .from('meeting_room_bookings')
+                    .delete()
+                    .eq('id', bookingId);
+
+                if (error) throw error;
+
+                showToast('Boeking succesvol geannuleerd', 'success');
+                loadBookingsList();
+                if (document.getElementById('calendarView').style.display !== 'none') {
+                    loadData();
+                }
+            } catch (error) {
+                console.error('Error canceling booking:', error);
+                showToast('Fout bij annuleren van boeking', 'error');
+            }
         }
 
         // Detect touch device
