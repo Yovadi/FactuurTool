@@ -1527,15 +1527,9 @@
 
         document.addEventListener('mouseup', (e) => {
             if (isDragging) {
-                const wasDragging = isDragging;
                 isDragging = false;
                 dragStart = null;
-
-                // Open modal for both single click and drag
-                if (wasDragging && selectedCells.length >= 1 && !isTouchDevice) {
-                    // Small delay to ensure state is updated
-                    setTimeout(() => openBookingModal(), 50);
-                }
+                // Don't auto-open modal - let user click the button instead
             }
         });
 
@@ -1580,7 +1574,8 @@
             const floatingAction = document.getElementById('floatingAction');
             const selectionBadge = document.getElementById('selectionBadge');
 
-            if (selectedCells.length > 0 && isTouchDevice) {
+            // Always show floating action when cells are selected
+            if (selectedCells.length > 0) {
                 floatingAction.classList.add('show');
                 selectionBadge.textContent = `${selectedCells.length} tijdslot${selectedCells.length !== 1 ? 's' : ''} geselecteerd`;
             } else {
@@ -1780,14 +1775,14 @@
                     .from('meeting_room_bookings')
                     .select(`
                         *,
-                        office_space:office_spaces (
+                        office_space:office_spaces!meeting_room_bookings_space_id_fkey (
                             name
                         ),
-                        tenant:tenants (
+                        tenant:tenants!meeting_room_bookings_tenant_id_fkey (
                             name,
                             company_name
                         ),
-                        external_customer:external_customers (
+                        external_customer:external_customers!meeting_room_bookings_external_customer_id_fkey (
                             name,
                             company_name
                         )
