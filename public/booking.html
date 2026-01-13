@@ -17,51 +17,16 @@
             background-color: #0A0A0B;
             color: #F3F4F6;
             line-height: 1.6;
-            overflow-x: hidden;
+            overflow: hidden;
         }
 
         .container {
-            padding: 1rem;
-            max-width: 1800px;
-            margin: 0 auto;
+            padding: 0;
+            max-width: 100%;
+            margin: 0;
+            height: 100vh;
         }
 
-        .header {
-            text-align: center;
-            margin-bottom: 1.5rem;
-            padding: 1rem;
-            background-color: #1A1A1C;
-            border-radius: 0.5rem;
-            border: 1px solid #3A3A3E;
-        }
-
-        .header h1 {
-            font-size: 1.875rem;
-            font-weight: bold;
-            color: #D4AF37;
-            margin-bottom: 0.5rem;
-        }
-
-        .header p {
-            font-size: 1rem;
-            color: #9CA3AF;
-        }
-
-        .user-info {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.75rem 1rem;
-            background-color: #1A1A1C;
-            border-radius: 0.5rem;
-            border: 1px solid #3A3A3E;
-            margin-bottom: 1rem;
-        }
-
-        .user-info span {
-            color: #F3F4F6;
-            font-weight: 500;
-        }
 
         .btn {
             background: #D4AF37;
@@ -91,8 +56,8 @@
 
         .calendar-container {
             display: flex;
-            gap: 1rem;
-            height: 720px;
+            gap: 0;
+            height: 100vh;
         }
 
         /* Mini calendars sidebar */
@@ -100,14 +65,21 @@
             width: 280px;
             flex-shrink: 0;
             background-color: #1A1A1C;
-            border-radius: 0.5rem;
+            border-radius: 0;
             padding: 1rem;
             overflow-y: auto;
-            border: 1px solid #3A3A3E;
+            border-right: 1px solid #3A3A3E;
+            display: flex;
+            flex-direction: column;
         }
 
         .mini-calendar {
-            margin-bottom: 1.5rem;
+            margin-bottom: 2rem;
+            flex-shrink: 0;
+        }
+
+        .mini-calendar:last-of-type {
+            margin-bottom: 1rem;
         }
 
         .mini-calendar-header {
@@ -196,7 +168,7 @@
 
         .today-btn {
             width: 100%;
-            margin-top: 1rem;
+            margin-top: auto;
             background: #2A2A2D;
             color: #F3F4F6;
             border: 1px solid #4A4A4F;
@@ -215,11 +187,11 @@
         .week-view {
             flex: 1;
             background-color: #1A1A1C;
-            border-radius: 0.5rem;
+            border-radius: 0;
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            border: 1px solid #3A3A3E;
+            border: none;
         }
 
         .week-header {
@@ -812,16 +784,6 @@
     <!-- Main App -->
     <div id="app" style="display: none;">
         <div class="container">
-            <div class="header">
-                <h1>HAL5 Overloon - Vergaderruimte Boeken</h1>
-                <p>Selecteer tijdslots om een boeking te maken</p>
-            </div>
-
-            <div class="user-info">
-                <span id="loggedUserDisplay"></span>
-                <button class="btn btn-secondary" onclick="logout()">Uitloggen</button>
-            </div>
-
             <div class="calendar-container">
                 <!-- Mini Calendars -->
                 <div class="mini-calendars">
@@ -885,6 +847,10 @@
                             <h2 id="weekRange"></h2>
                             <button onclick="nextWeek()">›</button>
                         </div>
+                        <button class="btn" style="display: none;">Terugkerende Boeking</button>
+                    </div>
+                    <div style="padding: 0.75rem 1rem; background-color: #2A2A2D; border-bottom: 1px solid #3A3A3E; text-align: center; color: #9CA3AF; font-size: 0.875rem;">
+                        Tik op tijdslots om te selecteren. Tik nogmaals om de selectie ongedaan te maken.
                     </div>
                     <div class="week-grid" id="weekGrid">
                         <div class="week-grid-inner" id="weekGridInner"></div>
@@ -1090,7 +1056,6 @@
             setTimeout(() => {
                 document.getElementById('loginOverlay').style.display = 'none';
                 document.getElementById('app').style.display = 'block';
-                document.getElementById('loggedUserDisplay').textContent = `Ingelogd als: ${displayName}`;
                 loadData();
             }, 1000);
         }
