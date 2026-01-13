@@ -1506,6 +1506,7 @@
             isDragging = true;
             dragStart = { date: dateStr, time };
             selectedCells = [{ date: dateStr, time }];
+            console.log('startDrag - selectedCells:', selectedCells);
             updateCellSelection();
         }
 
@@ -1527,9 +1528,11 @@
 
         document.addEventListener('mouseup', (e) => {
             if (isDragging) {
+                console.log('mouseup - isDragging was true, selectedCells:', selectedCells);
                 isDragging = false;
                 dragStart = null;
-                // Don't auto-open modal - let user click the button instead
+                // Update selection to ensure floating action stays visible
+                updateCellSelection();
             }
         });
 
@@ -1574,11 +1577,16 @@
             const floatingAction = document.getElementById('floatingAction');
             const selectionBadge = document.getElementById('selectionBadge');
 
+            console.log('updateCellSelection - selectedCells.length:', selectedCells.length);
+            console.log('updateCellSelection - floatingAction element:', floatingAction);
+
             // Always show floating action when cells are selected
             if (selectedCells.length > 0) {
+                console.log('Adding show class to floatingAction');
                 floatingAction.classList.add('show');
                 selectionBadge.textContent = `${selectedCells.length} tijdslot${selectedCells.length !== 1 ? 's' : ''} geselecteerd`;
             } else {
+                console.log('Removing show class from floatingAction');
                 floatingAction.classList.remove('show');
             }
         }
@@ -1771,7 +1779,7 @@
             try {
                 console.log('Loading bookings for user:', authenticatedUser);
 
-                let query = supabase
+                let query = sb
                     .from('meeting_room_bookings')
                     .select(`
                         *,
