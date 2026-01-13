@@ -117,6 +117,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   const [selectedCustomers, setSelectedCustomers] = useState<Set<string>>(new Set());
   const [meetingRoomBookings, setMeetingRoomBookings] = useState<any[]>([]);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [showDetailSelection, setShowDetailSelection] = useState(false);
 
   useImperativeHandle(ref, () => ({
     openGenerateModal: () => setShowGenerateModal(true)
@@ -428,6 +429,47 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   const deselectAllCustomers = () => {
     setSelectedCustomers(new Set());
   };
+
+  useEffect(() => {
+    if (!invoiceMonth || !showGenerateModal) return;
+
+    const leasesToGenerate = leases.filter(lease => {
+      const existingInvoice = invoices.find(
+        inv => inv.lease_id === lease.id && inv.invoice_month === invoiceMonth
+      );
+      return !existingInvoice;
+    });
+
+    const customersWithBookingsIds = [...tenants, ...externalCustomers.map(ec => ({
+      ...ec,
+      isExternal: true
+    }))].filter(customer => {
+      const bookings = meetingRoomBookings.filter(booking => {
+        const bookingDate = new Date(booking.booking_date);
+        const bookingYearMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
+        const isForSelectedMonth = bookingYearMonth === invoiceMonth;
+        const isUnbilled = !booking.invoice_id;
+        const isForCustomer = (customer as any).isExternal
+          ? booking.external_customer_id === customer.id
+          : booking.tenant_id === customer.id;
+        return isForSelectedMonth && isUnbilled && isForCustomer;
+      });
+
+      if (bookings.length === 0) return false;
+
+      const existingInvoice = invoices.find(inv => {
+        const matchesCustomer = (customer as any).isExternal
+          ? inv.external_customer_id === customer.id
+          : inv.tenant_id === customer.id;
+        return matchesCustomer && inv.invoice_month === invoiceMonth && !inv.lease_id;
+      });
+
+      return !existingInvoice;
+    }).map(c => c.id);
+
+    setSelectedLeases(new Set(leasesToGenerate.map(l => l.id)));
+    setSelectedCustomers(new Set(customersWithBookingsIds));
+  }, [invoiceMonth, showGenerateModal, leases, invoices, tenants, externalCustomers, meetingRoomBookings]);
 
   const startEditInvoice = async (invoice: InvoiceWithDetails) => {
     const { data: items } = await supabase
@@ -1778,6 +1820,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
       setInvoiceMonth('');
       setSelectedLeases(new Set());
       setSelectedCustomers(new Set());
+      setShowDetailSelection(false);
     }
     if (totalFail > 0) {
       console.log(`${totalFail} facturen overgeslagen (bestaan al of fout)`);
@@ -2838,6 +2881,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                     setInvoiceMonth('');
                     setSelectedLeases(new Set());
                     setSelectedCustomers(new Set());
+                    setShowDetailSelection(false);
                   }}
                   className="text-gray-400 hover:text-gray-200 transition-colors"
                 >
@@ -2889,166 +2933,201 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
                 {/* Te genereren facturen */}
                 {invoiceMonth && (leasesToGenerate.length > 0 || customersWithBookings.length > 0) && (
-                  <div className="space-y-6">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-semibold text-gray-100">
-                        Te genereren facturen
-                      </h3>
-                      <div className="text-sm text-gray-400">
-                        {selectedLeases.size + selectedCustomers.size} geselecteerd
+                  <div className="space-y-4">
+                    {/* Samenvatting en hoofdknop */}
+                    <div className="bg-dark-800 rounded-lg p-4 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-semibold text-gray-100">
+                          Overzicht
+                        </h3>
+                        <span className="text-sm text-gray-400">
+                          {selectedLeases.size + selectedCustomers.size} van {leasesToGenerate.length + customersWithBookings.length} geselecteerd
+                        </span>
                       </div>
-                    </div>
 
-                    {/* Huurcontracten */}
-                    {leasesToGenerate.length > 0 && (
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <h4 className="text-sm font-medium text-gray-300 flex items-center gap-2">
-                            <Home size={16} className="text-emerald-500" />
-                            Huurcontracten ({leasesToGenerate.length})
-                          </h4>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => selectAllLeases(leasesToGenerate.map(l => l.id))}
-                              className="text-xs text-gold-500 hover:text-gold-400"
-                            >
-                              Alles selecteren
-                            </button>
-                            <span className="text-gray-600">|</span>
-                            <button
-                              onClick={() => deselectAllLeases()}
-                              className="text-xs text-gray-500 hover:text-gray-400"
-                            >
-                              Alles deselecteren
-                            </button>
+                      <div className="grid grid-cols-2 gap-3">
+                        {leasesToGenerate.length > 0 && (
+                          <div className="bg-dark-700 rounded-lg p-3">
+                            <div className="flex items-center gap-2 text-emerald-500 mb-1">
+                              <Home size={16} />
+                              <span className="text-sm font-medium">Huurcontracten</span>
+                            </div>
+                            <div className="text-2xl font-bold text-gray-100">{selectedLeases.size}</div>
+                            <div className="text-xs text-gray-400">van {leasesToGenerate.length} beschikbaar</div>
                           </div>
-                        </div>
-                        <div className="space-y-2">
-                          {leasesToGenerate.map(lease => {
-                            const rentAmount = lease.lease_type === 'flex'
-                              ? (lease.flex_monthly_rate || 0)
-                              : lease.lease_spaces.reduce((sum, ls) => sum + ls.monthly_rent, 0);
-                            const total = Math.round((rentAmount + lease.security_deposit) * 100) / 100;
-
-                            return (
-                              <div
-                                key={lease.id}
-                                onClick={() => toggleLeaseSelection(lease.id)}
-                                className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                                  selectedLeases.has(lease.id)
-                                    ? 'bg-emerald-900/20 border-emerald-700'
-                                    : 'bg-dark-800 border-dark-700 hover:border-dark-600'
-                                }`}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={selectedLeases.has(lease.id)}
-                                  onChange={() => {}}
-                                  className="w-4 h-4 rounded border-dark-600 text-emerald-600 focus:ring-emerald-500"
-                                />
-                                <div className="flex-1">
-                                  <div className="text-sm font-medium text-gray-200">
-                                    {lease.tenant?.company_name}
-                                  </div>
-                                  <div className="text-xs text-gray-400">
-                                    {lease.lease_type === 'flex' ? 'Flexplek' : `${lease.lease_spaces.length} ruimte(s)`}
-                                  </div>
-                                </div>
-                                <div className="text-sm font-medium text-gray-200">
-                                  €{total.toFixed(2)}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Vergaderruimte facturen */}
-                    {customersWithBookings.length > 0 && (
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <h4 className="text-sm font-medium text-gray-300 flex items-center gap-2">
-                            <Calendar size={16} className="text-blue-500" />
-                            Vergaderruimte boekingen ({customersWithBookings.length})
-                          </h4>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => selectAllCustomers(customersWithBookings.map(c => c.id))}
-                              className="text-xs text-gold-500 hover:text-gold-400"
-                            >
-                              Alles selecteren
-                            </button>
-                            <span className="text-gray-600">|</span>
-                            <button
-                              onClick={() => deselectAllCustomers()}
-                              className="text-xs text-gray-500 hover:text-gray-400"
-                            >
-                              Alles deselecteren
-                            </button>
+                        )}
+                        {customersWithBookings.length > 0 && (
+                          <div className="bg-dark-700 rounded-lg p-3">
+                            <div className="flex items-center gap-2 text-blue-500 mb-1">
+                              <Calendar size={16} />
+                              <span className="text-sm font-medium">Vergaderruimtes</span>
+                            </div>
+                            <div className="text-2xl font-bold text-gray-100">{selectedCustomers.size}</div>
+                            <div className="text-xs text-gray-400">van {customersWithBookings.length} beschikbaar</div>
                           </div>
-                        </div>
-                        <div className="space-y-2">
-                          {customersWithBookings.map(customer => {
-                            const customerBookings = meetingRoomBookings.filter(booking => {
-                              const bookingDate = new Date(booking.booking_date);
-                              const bookingYearMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
-                              const isForSelectedMonth = bookingYearMonth === targetMonth;
-                              const isUnbilled = !booking.invoice_id;
-                              const isForCustomer = (customer as any).isExternal
-                                ? booking.external_customer_id === customer.id
-                                : booking.tenant_id === customer.id;
-                              return isForSelectedMonth && isUnbilled && isForCustomer;
-                            });
-
-                            const total = customerBookings.reduce((sum, booking) => {
-                              return sum + booking.total_amount;
-                            }, 0);
-
-                            return (
-                              <div
-                                key={customer.id}
-                                onClick={() => toggleCustomerSelection(customer.id)}
-                                className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                                  selectedCustomers.has(customer.id)
-                                    ? 'bg-blue-900/20 border-blue-700'
-                                    : 'bg-dark-800 border-dark-700 hover:border-dark-600'
-                                }`}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={selectedCustomers.has(customer.id)}
-                                  onChange={() => {}}
-                                  className="w-4 h-4 rounded border-dark-600 text-blue-600 focus:ring-blue-500"
-                                />
-                                <div className="flex-1">
-                                  <div className="text-sm font-medium text-gray-200">
-                                    {customer.company_name}
-                                  </div>
-                                  <div className="text-xs text-gray-400">
-                                    {customerBookings.length} boeking{customerBookings.length > 1 ? 'en' : ''}
-                                  </div>
-                                </div>
-                                <div className="text-sm font-medium text-gray-200">
-                                  €{total.toFixed(2)}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
+                        )}
                       </div>
-                    )}
 
-                    {/* Genereer knop */}
-                    <div className="pt-4 border-t border-dark-700">
                       <button
                         onClick={() => generateAllInvoices()}
                         disabled={(selectedLeases.size === 0 && selectedCustomers.size === 0) || generatingBulk}
-                        className="w-full px-6 py-3 bg-gold-500 text-dark-900 font-medium rounded-lg hover:bg-gold-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="w-full px-6 py-4 bg-gold-500 text-dark-900 font-semibold text-lg rounded-lg hover:bg-gold-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
                         {generatingBulk ? 'Facturen worden gegenereerd...' : `Genereer ${selectedLeases.size + selectedCustomers.size} factuur${(selectedLeases.size + selectedCustomers.size) !== 1 ? 'en' : ''}`}
                       </button>
+
+                      <button
+                        onClick={() => setShowDetailSelection(!showDetailSelection)}
+                        className="w-full text-sm text-gray-400 hover:text-gray-200 transition-colors py-2"
+                      >
+                        {showDetailSelection ? 'Verberg details' : 'Toon details / Selectie aanpassen'}
+                      </button>
                     </div>
+
+                    {/* Gedetailleerde selectie (inklapbaar) */}
+                    {showDetailSelection && (
+                      <div className="space-y-4 border-t border-dark-700 pt-4">
+                        {/* Huurcontracten */}
+                        {leasesToGenerate.length > 0 && (
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <h4 className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                                <Home size={16} className="text-emerald-500" />
+                                Huurcontracten ({leasesToGenerate.length})
+                              </h4>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => selectAllLeases(leasesToGenerate.map(l => l.id))}
+                                  className="text-xs text-gold-500 hover:text-gold-400"
+                                >
+                                  Alles selecteren
+                                </button>
+                                <span className="text-gray-600">|</span>
+                                <button
+                                  onClick={() => deselectAllLeases()}
+                                  className="text-xs text-gray-500 hover:text-gray-400"
+                                >
+                                  Alles deselecteren
+                                </button>
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              {leasesToGenerate.map(lease => {
+                                const rentAmount = lease.lease_type === 'flex'
+                                  ? (lease.flex_monthly_rate || 0)
+                                  : lease.lease_spaces.reduce((sum, ls) => sum + ls.monthly_rent, 0);
+                                const total = Math.round((rentAmount + lease.security_deposit) * 100) / 100;
+
+                                return (
+                                  <div
+                                    key={lease.id}
+                                    onClick={() => toggleLeaseSelection(lease.id)}
+                                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                                      selectedLeases.has(lease.id)
+                                        ? 'bg-emerald-900/20 border-emerald-700'
+                                        : 'bg-dark-800 border-dark-700 hover:border-dark-600'
+                                    }`}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedLeases.has(lease.id)}
+                                      onChange={() => {}}
+                                      className="w-4 h-4 rounded border-dark-600 text-emerald-600 focus:ring-emerald-500"
+                                    />
+                                    <div className="flex-1">
+                                      <div className="text-sm font-medium text-gray-200">
+                                        {lease.tenant?.company_name}
+                                      </div>
+                                      <div className="text-xs text-gray-400">
+                                        {lease.lease_type === 'flex' ? 'Flexplek' : `${lease.lease_spaces.length} ruimte(s)`}
+                                      </div>
+                                    </div>
+                                    <div className="text-sm font-medium text-gray-200">
+                                      €{total.toFixed(2)}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Vergaderruimte facturen */}
+                        {customersWithBookings.length > 0 && (
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <h4 className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                                <Calendar size={16} className="text-blue-500" />
+                                Vergaderruimte boekingen ({customersWithBookings.length})
+                              </h4>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => selectAllCustomers(customersWithBookings.map(c => c.id))}
+                                  className="text-xs text-gold-500 hover:text-gold-400"
+                                >
+                                  Alles selecteren
+                                </button>
+                                <span className="text-gray-600">|</span>
+                                <button
+                                  onClick={() => deselectAllCustomers()}
+                                  className="text-xs text-gray-500 hover:text-gray-400"
+                                >
+                                  Alles deselecteren
+                                </button>
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              {customersWithBookings.map(customer => {
+                                const customerBookings = meetingRoomBookings.filter(booking => {
+                                  const bookingDate = new Date(booking.booking_date);
+                                  const bookingYearMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
+                                  const isForSelectedMonth = bookingYearMonth === targetMonth;
+                                  const isUnbilled = !booking.invoice_id;
+                                  const isForCustomer = (customer as any).isExternal
+                                    ? booking.external_customer_id === customer.id
+                                    : booking.tenant_id === customer.id;
+                                  return isForSelectedMonth && isUnbilled && isForCustomer;
+                                });
+
+                                const total = customerBookings.reduce((sum, booking) => {
+                                  return sum + booking.total_amount;
+                                }, 0);
+
+                                return (
+                                  <div
+                                    key={customer.id}
+                                    onClick={() => toggleCustomerSelection(customer.id)}
+                                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                                      selectedCustomers.has(customer.id)
+                                        ? 'bg-blue-900/20 border-blue-700'
+                                        : 'bg-dark-800 border-dark-700 hover:border-dark-600'
+                                    }`}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedCustomers.has(customer.id)}
+                                      onChange={() => {}}
+                                      className="w-4 h-4 rounded border-dark-600 text-blue-600 focus:ring-blue-500"
+                                    />
+                                    <div className="flex-1">
+                                      <div className="text-sm font-medium text-gray-200">
+                                        {customer.company_name}
+                                      </div>
+                                      <div className="text-xs text-gray-400">
+                                        {customerBookings.length} boeking{customerBookings.length > 1 ? 'en' : ''}
+                                      </div>
+                                    </div>
+                                    <div className="text-sm font-medium text-gray-200">
+                                      €{total.toFixed(2)}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 
