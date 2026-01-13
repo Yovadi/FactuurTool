@@ -1037,16 +1037,20 @@
             const pinError = document.getElementById('pinError');
 
             // Check tenants
-            const { data: tenants } = await sb
+            const { data: tenants, error: tenantError } = await sb
                 .from('tenants')
                 .select('id, name, company_name, booking_pin_code')
                 .eq('booking_pin_code', pin);
 
+            console.log('Tenants query result:', { tenants, tenantError, pin });
+
             // Check external customers
-            const { data: externalCustomers } = await sb
+            const { data: externalCustomers, error: customerError } = await sb
                 .from('external_customers')
                 .select('id, company_name, contact_name, booking_pin_code')
                 .eq('booking_pin_code', pin);
+
+            console.log('External customers query result:', { externalCustomers, customerError, pin });
 
             if (tenants && tenants.length > 0) {
                 authenticatedUser = {
@@ -1061,6 +1065,7 @@
                 };
                 showSuccess();
             } else {
+                console.error('Login failed for pin:', pin);
                 pinInput.classList.add('error');
                 pinError.textContent = 'Ongeldige pincode';
                 pinError.style.display = 'block';
