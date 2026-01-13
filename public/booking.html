@@ -686,15 +686,22 @@
                         .order('space_number'),
                     sb.from('tenants')
                         .select('id, name, company_name, email, booking_pin_code')
+                        .not('booking_pin_code', 'is', null)
+                        .not('booking_pin_code', 'eq', '')
                         .order('name'),
                     sb.from('external_customers')
-                        .select('id, name, company_name, email, booking_pin_code')
-                        .order('name')
+                        .select('id, contact_name, company_name, email, booking_pin_code')
+                        .not('booking_pin_code', 'is', null)
+                        .not('booking_pin_code', 'eq', '')
+                        .order('company_name')
                 ]);
 
                 meetingRooms = roomsResult.data || [];
                 tenants = tenantsResult.data || [];
                 externalCustomers = externalResult.data || [];
+
+                console.log('Loaded tenants with PIN:', tenants.length);
+                console.log('Loaded external customers with PIN:', externalCustomers.length);
 
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('content').style.display = 'block';
@@ -1048,6 +1055,10 @@
                 document.getElementById('pinError').style.display = 'none';
 
                 if (pinValue.length === 4) {
+                    console.log('Checking PIN:', pinValue);
+                    console.log('Available tenants:', tenants.map(t => ({ name: t.name, pin: t.booking_pin_code })));
+                    console.log('Available external:', externalCustomers.map(c => ({ name: c.contact_name, pin: c.booking_pin_code })));
+
                     let matchingUser = tenants.find(t => t.booking_pin_code === pinValue);
                     let userType = 'tenant';
 
@@ -1056,9 +1067,12 @@
                         userType = 'external';
                     }
 
+                    console.log('Matching user:', matchingUser);
+
                     if (matchingUser) {
                         authenticatedUser = { ...matchingUser, userType };
-                        document.getElementById('tenantName').textContent = matchingUser.company_name || matchingUser.name;
+                        const displayName = matchingUser.company_name || matchingUser.name || matchingUser.contact_name;
+                        document.getElementById('tenantName').textContent = displayName;
                         document.getElementById('tenantInfo').style.display = 'block';
                         e.target.style.borderColor = '#10B981';
                     } else {
