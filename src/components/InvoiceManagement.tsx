@@ -1758,7 +1758,6 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
       setInvoiceMonth('');
       setSelectedLeases(new Set());
       setSelectedCustomers(new Set());
-      alert(`✓ ${totalSuccess} factuur${totalSuccess > 1 ? 'en' : ''} aangemaakt voor ${new Date((invoiceMonth || await getNextMonthString()) + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}`);
     }
     if (totalFail > 0) {
       console.log(`${totalFail} facturen overgeslagen (bestaan al of fout)`);
