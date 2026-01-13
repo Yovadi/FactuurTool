@@ -1062,8 +1062,8 @@
                     </div>
                 </div>
 
-                <div id="touchInstruction" class="touch-instruction" style="display: none;">
-                    <p>Tik op tijdslots om te selecteren. Tik nogmaals om de selectie ongedaan te maken.</p>
+                <div class="touch-instruction">
+                    <p>Klik op tijdslots om te selecteren. Klik nogmaals om de selectie ongedaan te maken.</p>
                 </div>
 
                 <div class="week-grid-container" id="weekGridContainer">
@@ -1116,12 +1116,9 @@
         let currentDate = new Date();
         let baseMonth = new Date();
         let selectedCells = [];
-        let isDragging = false;
-        let dragStart = null;
         let meetingRooms = [];
         let weekBookings = [];
         let allBookings = [];
-        let isTouchDevice = false;
 
         // Time slots from 6:00 to 21:30
         const timeSlots = [];
@@ -1345,11 +1342,7 @@
                     cell.dataset.time = time;
 
                     if (!cellPast) {
-                        cell.addEventListener('mousedown', () => startDrag(dateStr, time));
-                        cell.addEventListener('mouseenter', () => continueDrag(dateStr, time));
-                        cell.addEventListener('click', () => {
-                            if (isTouchDevice) handleCellTap(dateStr, time);
-                        });
+                        cell.addEventListener('click', () => handleCellClick(dateStr, time));
                     }
 
                     dayColumn.appendChild(cell);
@@ -1501,43 +1494,8 @@
             }
         }
 
-        // Drag selection
-        function startDrag(dateStr, time) {
-            isDragging = true;
-            dragStart = { date: dateStr, time };
-            selectedCells = [{ date: dateStr, time }];
-            console.log('startDrag - selectedCells:', selectedCells);
-            updateCellSelection();
-        }
-
-        function continueDrag(dateStr, time) {
-            if (!isDragging || !dragStart || dragStart.date !== dateStr) return;
-
-            const startIdx = timeSlots.indexOf(dragStart.time);
-            const currentIdx = timeSlots.indexOf(time);
-            const minIdx = Math.min(startIdx, currentIdx);
-            const maxIdx = Math.max(startIdx, currentIdx);
-
-            selectedCells = [];
-            for (let i = minIdx; i <= maxIdx; i++) {
-                selectedCells.push({ date: dateStr, time: timeSlots[i] });
-            }
-
-            updateCellSelection();
-        }
-
-        document.addEventListener('mouseup', (e) => {
-            if (isDragging) {
-                console.log('mouseup - isDragging was true, selectedCells:', selectedCells);
-                isDragging = false;
-                dragStart = null;
-                // Update selection to ensure floating action stays visible
-                updateCellSelection();
-            }
-        });
-
-        // Touch device tap
-        function handleCellTap(dateStr, time) {
+        // Click selection
+        function handleCellClick(dateStr, time) {
             const cellIdx = selectedCells.findIndex(c => c.date === dateStr && c.time === time);
 
             if (cellIdx !== -1) {
@@ -1577,16 +1535,11 @@
             const floatingAction = document.getElementById('floatingAction');
             const selectionBadge = document.getElementById('selectionBadge');
 
-            console.log('updateCellSelection - selectedCells.length:', selectedCells.length);
-            console.log('updateCellSelection - floatingAction element:', floatingAction);
-
             // Always show floating action when cells are selected
             if (selectedCells.length > 0) {
-                console.log('Adding show class to floatingAction');
                 floatingAction.classList.add('show');
                 selectionBadge.textContent = `${selectedCells.length} tijdslot${selectedCells.length !== 1 ? 's' : ''} geselecteerd`;
             } else {
-                console.log('Removing show class from floatingAction');
                 floatingAction.classList.remove('show');
             }
         }
@@ -1931,12 +1884,6 @@
                 console.error('Error canceling booking:', error);
                 showToast('Fout bij annuleren van boeking', 'error');
             }
-        }
-
-        // Detect touch device
-        isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-        if (isTouchDevice) {
-            document.getElementById('touchInstruction').style.display = 'block';
         }
 
         // Initialize
