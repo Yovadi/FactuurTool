@@ -1868,7 +1868,7 @@
             }
 
             try {
-                const { error } = await supabase
+                const { error } = await sb
                     .from('meeting_room_bookings')
                     .delete()
                     .eq('id', bookingId);
