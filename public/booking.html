@@ -117,8 +117,16 @@
 
         .mini-calendar-grid {
             display: grid;
-            grid-template-columns: repeat(7, 1fr);
+            grid-template-columns: 20px repeat(7, 1fr);
             gap: 0.125rem;
+        }
+
+        .mini-calendar-week-header {
+            text-align: center;
+            font-size: 0.625rem;
+            color: #6B7280;
+            font-weight: 600;
+            padding: 0.25rem 0;
         }
 
         .mini-calendar-day-header {
@@ -127,6 +135,13 @@
             color: #6B7280;
             font-weight: 600;
             padding: 0.25rem 0;
+        }
+
+        .mini-calendar-week-number {
+            text-align: center;
+            font-size: 0.625rem;
+            color: #6B7280;
+            padding: 0.375rem 0;
         }
 
         .mini-calendar-day {
@@ -250,7 +265,7 @@
             background-color: #2A2A2D;
             border-bottom: 1px solid #3A3A3E;
             border-left: 1px solid #3A3A3E;
-            padding: 0.75rem;
+            padding: 0.5rem;
             text-align: center;
         }
 
@@ -266,13 +281,15 @@
             font-size: 0.75rem;
             color: #9CA3AF;
             text-transform: uppercase;
+            font-weight: 400;
         }
 
         .week-day-date {
-            font-size: 1.5rem;
+            font-size: 2rem;
             font-weight: 300;
             color: #F3F4F6;
-            margin-top: 0.25rem;
+            margin-top: 0.125rem;
+            line-height: 1;
         }
 
         .week-day-date.today {
@@ -796,6 +813,7 @@
                             </div>
                         </div>
                         <div class="mini-calendar-grid">
+                            <div class="mini-calendar-week-header">#</div>
                             <div class="mini-calendar-day-header">MA</div>
                             <div class="mini-calendar-day-header">DI</div>
                             <div class="mini-calendar-day-header">WO</div>
@@ -811,6 +829,7 @@
                             <h3 id="monthTitle2"></h3>
                         </div>
                         <div class="mini-calendar-grid">
+                            <div class="mini-calendar-week-header">#</div>
                             <div class="mini-calendar-day-header">MA</div>
                             <div class="mini-calendar-day-header">DI</div>
                             <div class="mini-calendar-day-header">WO</div>
@@ -826,6 +845,7 @@
                             <h3 id="monthTitle3"></h3>
                         </div>
                         <div class="mini-calendar-grid">
+                            <div class="mini-calendar-week-header">#</div>
                             <div class="mini-calendar-day-header">MA</div>
                             <div class="mini-calendar-day-header">DI</div>
                             <div class="mini-calendar-day-header">WO</div>
@@ -1138,7 +1158,7 @@
                 const header = document.createElement('div');
                 header.className = `week-day-header ${isToday(date) ? 'today' : ''}`;
                 header.innerHTML = `
-                    <div class="week-day-label">${date.toLocaleDateString('nl-NL', { weekday: 'short' })}</div>
+                    <div class="week-day-label">${date.toLocaleDateString('nl-NL', { weekday: 'short' }).toUpperCase()}</div>
                     <div class="week-day-date ${isToday(date) ? 'today' : ''}">${date.getDate()}</div>
                 `;
                 gridInner.appendChild(header);
@@ -1457,52 +1477,87 @@
                 const daysContainer = document.getElementById(`monthDays${monthOffset + 1}`);
                 daysContainer.innerHTML = '';
 
+                // Build all days array
+                const allDays = [];
+
                 // Previous month days
                 const prevMonthDays = new Date(month.getFullYear(), month.getMonth(), 0).getDate();
                 for (let i = startDay - 1; i >= 0; i--) {
-                    const day = document.createElement('div');
-                    day.className = 'mini-calendar-day other-month';
-                    day.textContent = prevMonthDays - i;
-                    daysContainer.appendChild(day);
+                    const date = new Date(month.getFullYear(), month.getMonth() - 1, prevMonthDays - i);
+                    allDays.push({
+                        day: prevMonthDays - i,
+                        date: date,
+                        dateStr: formatDate(date),
+                        isCurrentMonth: false
+                    });
                 }
 
                 // Current month days
                 for (let i = 1; i <= lastDay.getDate(); i++) {
                     const date = new Date(month.getFullYear(), month.getMonth(), i);
                     const dateStr = formatDate(date);
-                    date.setHours(12, 0, 0, 0);
-
-                    const day = document.createElement('div');
-                    day.className = 'mini-calendar-day current-month';
-                    day.textContent = i;
-
-                    if (isToday(date)) {
-                        day.classList.add('today');
-                    }
-
-                    if (date >= weekStart && date <= weekEnd) {
-                        day.classList.add('selected');
-                    }
-
-                    if (allBookings.some(b => b.booking_date === dateStr)) {
-                        day.classList.add('has-bookings');
-                    }
-
-                    day.addEventListener('click', () => {
-                        currentDate = new Date(date);
-                        loadData();
+                    allDays.push({
+                        day: i,
+                        date: date,
+                        dateStr: dateStr,
+                        isCurrentMonth: true
                     });
-
-                    daysContainer.appendChild(day);
                 }
 
                 // Next month days
-                const remainingDays = 42 - daysContainer.children.length;
+                const remainingDays = 42 - allDays.length;
                 for (let i = 1; i <= remainingDays; i++) {
-                    const day = document.createElement('div');
-                    day.className = 'mini-calendar-day other-month';
-                    day.textContent = i;
-                    daysContainer.appendChild(day);
+                    const date = new Date(month.getFullYear(), month.getMonth() + 1, i);
+                    allDays.push({
+                        day: i,
+                        date: date,
+                        dateStr: formatDate(date),
+                        isCurrentMonth: false
+                    });
+                }
+
+                // Render week by week
+                for (let weekIdx = 0; weekIdx < 6; weekIdx++) {
+                    const weekDays = allDays.slice(weekIdx * 7, (weekIdx + 1) * 7);
+                    const hasCurrentMonthDay = weekDays.some(d => d.isCurrentMonth);
+
+                    if (!hasCurrentMonthDay) continue;
+
+                    // Add week number
+                    const weekNum = getWeekNumber(weekDays[0].date);
+                    const weekNumDiv = document.createElement('div');
+                    weekNumDiv.className = 'mini-calendar-week-number';
+                    weekNumDiv.textContent = weekNum;
+                    daysContainer.appendChild(weekNumDiv);
+
+                    // Add days
+                    weekDays.forEach(dayInfo => {
+                        const date = dayInfo.date;
+                        date.setHours(12, 0, 0, 0);
+
+                        const day = document.createElement('div');
+                        day.className = `mini-calendar-day ${dayInfo.isCurrentMonth ? 'current-month' : 'other-month'}`;
+                        day.textContent = dayInfo.day;
+
+                        if (isToday(date)) {
+                            day.classList.add('today');
+                        }
+
+                        if (date >= weekStart && date <= weekEnd) {
+                            day.classList.add('selected');
+                        }
+
+                        if (allBookings.some(b => b.booking_date === dayInfo.dateStr)) {
+                            day.classList.add('has-bookings');
+                        }
+
+                        day.addEventListener('click', () => {
+                            currentDate = new Date(date);
+                            loadData();
+                        });
+
+                        daysContainer.appendChild(day);
+                    });
                 }
             }
         }
