@@ -30,6 +30,7 @@
         }
 
         .app-content {
+            position: relative;
             width: 100%;
             max-width: 1300px;
             height: calc(100vh - 4rem);
@@ -728,7 +729,7 @@
 
         /* Floating action button */
         .floating-action {
-            position: fixed;
+            position: absolute;
             bottom: 1.5rem;
             right: 1.5rem;
             z-index: 40;
@@ -1527,7 +1528,7 @@
             if (isDragging) {
                 isDragging = false;
                 dragStart = null;
-                if (selectedCells.length > 0 && !isTouchDevice) {
+                if (selectedCells.length >= 1 && !isTouchDevice) {
                     openBookingModal();
                 }
             }
@@ -1768,6 +1769,8 @@
             pastDiv.innerHTML = '<div class="no-bookings">Laden...</div>';
 
             try {
+                console.log('Loading bookings for user:', authenticatedUser);
+
                 let query = supabase
                     .from('meeting_room_bookings')
                     .select(`
@@ -1787,8 +1790,10 @@
 
                 // Filter based on user type
                 if (authenticatedUser.userType === 'tenant') {
+                    console.log('Filtering by tenant_id:', authenticatedUser.id);
                     query = query.eq('tenant_id', authenticatedUser.id);
                 } else {
+                    console.log('Filtering by external_customer_id:', authenticatedUser.id);
                     query = query.eq('external_customer_id', authenticatedUser.id);
                 }
 
@@ -1796,9 +1801,16 @@
                     .order('booking_date', { ascending: true })
                     .order('start_time', { ascending: true });
 
+                console.log('Bookings data:', bookings);
+                console.log('Bookings error:', error);
+
                 if (error) {
                     console.error('Query error:', error);
                     throw error;
+                }
+
+                if (!bookings || bookings.length === 0) {
+                    console.log('No bookings found for user');
                 }
 
                 const now = new Date();
