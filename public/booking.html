@@ -1071,6 +1071,16 @@
                 </div>
             </div>
         </div>
+
+        <!-- Floating Action Button -->
+        <div id="floatingAction" class="floating-action">
+            <div class="selection-badge" id="selectionBadge"></div>
+            <div class="floating-buttons">
+                <button class="floating-btn cancel" onclick="clearSelection()">Annuleren</button>
+                <button class="floating-btn confirm" onclick="openBookingModal()">Doorgaan →</button>
+            </div>
+        </div>
+
         </div>
     </div>
 
@@ -1092,15 +1102,6 @@
                     <button type="submit" class="btn btn-primary">Boeking Aanmaken</button>
                 </div>
             </form>
-        </div>
-    </div>
-
-    <!-- Floating Action Button -->
-    <div id="floatingAction" class="floating-action">
-        <div class="selection-badge" id="selectionBadge"></div>
-        <div class="floating-buttons">
-            <button class="floating-btn cancel" onclick="clearSelection()">Annuleren</button>
-            <button class="floating-btn confirm" onclick="openBookingModal()">Doorgaan →</button>
         </div>
     </div>
 
@@ -1247,7 +1248,7 @@
 
             setTimeout(() => {
                 document.getElementById('loginOverlay').style.display = 'none';
-                document.getElementById('app').style.display = 'block';
+                document.getElementById('app').style.display = 'flex';
                 loadData();
             }, 1000);
         }
@@ -1524,12 +1525,16 @@
             updateCellSelection();
         }
 
-        document.addEventListener('mouseup', () => {
+        document.addEventListener('mouseup', (e) => {
             if (isDragging) {
+                const wasDragging = isDragging;
                 isDragging = false;
                 dragStart = null;
-                if (selectedCells.length >= 1 && !isTouchDevice) {
-                    openBookingModal();
+
+                // Open modal for both single click and drag
+                if (wasDragging && selectedCells.length >= 1 && !isTouchDevice) {
+                    // Small delay to ensure state is updated
+                    setTimeout(() => openBookingModal(), 50);
                 }
             }
         });
