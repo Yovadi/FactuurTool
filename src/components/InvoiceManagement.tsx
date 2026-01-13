@@ -1581,28 +1581,48 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             continue;
           }
 
-          const lineItems = lease.lease_type === 'flex'
-            ? [
-                {
-                  invoice_id: newInvoice.id,
-                  description: `Flexplek huur ${new Date(targetMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}`,
-                  quantity: 1,
-                  unit_price: lease.flex_monthly_rate || 0,
-                  amount: lease.flex_monthly_rate || 0
+          const lineItems: any[] = [];
+
+          if (lease.lease_type === 'flex') {
+            lineItems.push({
+              invoice_id: newInvoice.id,
+              description: `Flexplek huur ${new Date(targetMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}`,
+              quantity: 1,
+              unit_price: lease.flex_monthly_rate || 0,
+              amount: lease.flex_monthly_rate || 0
+            });
+          } else {
+            for (const ls of lease.lease_spaces) {
+              const spaceName = ls.space.space_number;
+              const spaceType = ls.space.space_type;
+              const squareFootage = ls.space.square_footage;
+              const diversenCalc = (ls.space as any).diversen_calculation;
+
+              let displayName = spaceName;
+              if (spaceType === 'bedrijfsruimte') {
+                const numOnly = spaceName.replace(/^(Bedrijfsruimte|Hal)\s*/i, '').trim();
+                if (/^\d+/.test(numOnly)) {
+                  displayName = `Hal ${numOnly}`;
                 }
-              ]
-            : lease.lease_spaces.map(ls => ({
+              }
+
+              const isDiversenFixed = spaceType === 'diversen' && (!diversenCalc || diversenCalc === 'fixed');
+              const quantity = isDiversenFixed ? 1 : (squareFootage || 1);
+
+              lineItems.push({
                 invoice_id: newInvoice.id,
-                description: `Huur ${ls.space.space_number} - ${new Date(targetMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}`,
-                quantity: 1,
-                unit_price: ls.monthly_rent,
+                description: displayName,
+                quantity: quantity,
+                unit_price: ls.price_per_sqm,
                 amount: ls.monthly_rent
-              }));
+              });
+            }
+          }
 
           if (lease.security_deposit > 0) {
             lineItems.push({
               invoice_id: newInvoice.id,
-              description: 'Borgsom',
+              description: 'Voorschot Gas, Water & Electra',
               quantity: 1,
               unit_price: lease.security_deposit,
               amount: lease.security_deposit
