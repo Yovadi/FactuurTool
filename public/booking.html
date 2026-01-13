@@ -14,516 +14,14 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background-color: #0A0A0B;
-            color: #F3F4F6;
-            line-height: 1.6;
-            overflow: hidden;
-        }
-
-        .container {
-            padding: 0;
-            max-width: 100%;
-            margin: 0;
-            height: 100vh;
-        }
-
-
-        .btn {
-            background: #D4AF37;
-            color: #0A0A0B;
-            border: none;
-            padding: 0.5rem 1.25rem;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 0.875rem;
-            transition: all 0.2s;
-        }
-
-        .btn:hover {
-            background: #C19B2F;
-        }
-
-        .btn-secondary {
-            background: #2A2A2D;
-            color: #F3F4F6;
-            border: 1px solid #4A4A4F;
-        }
-
-        .btn-secondary:hover {
-            background: #3A3A3E;
-        }
-
-        .calendar-container {
-            display: flex;
-            gap: 0;
-            height: 100vh;
-        }
-
-        /* Mini calendars sidebar */
-        .mini-calendars {
-            width: 280px;
-            flex-shrink: 0;
-            background-color: #1A1A1C;
-            border-radius: 0;
-            padding: 1rem;
-            overflow-y: auto;
-            border-right: 1px solid #3A3A3E;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .mini-calendar {
-            margin-bottom: 2rem;
-            flex-shrink: 0;
-        }
-
-        .mini-calendar:last-of-type {
-            margin-bottom: 1rem;
-        }
-
-        .mini-calendar-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 0.75rem;
-        }
-
-        .mini-calendar-header h3 {
-            font-size: 0.875rem;
-            font-weight: 600;
-            color: #F3F4F6;
-        }
-
-        .mini-nav {
-            display: flex;
-            gap: 0.25rem;
-        }
-
-        .mini-nav button {
-            background: transparent;
-            border: none;
-            color: #9CA3AF;
-            cursor: pointer;
-            padding: 0.25rem;
-            border-radius: 0.25rem;
-            transition: all 0.2s;
-        }
-
-        .mini-nav button:hover {
-            background: #2A2A2D;
-            color: #F3F4F6;
-        }
-
-        .mini-calendar-grid {
-            display: grid;
-            grid-template-columns: 20px repeat(7, 1fr);
-            gap: 0.125rem;
-        }
-
-        .mini-calendar-week-header {
-            text-align: center;
-            font-size: 0.625rem;
-            color: #6B7280;
-            font-weight: 600;
-            padding: 0.25rem 0;
-        }
-
-        .mini-calendar-day-header {
-            text-align: center;
-            font-size: 0.625rem;
-            color: #6B7280;
-            font-weight: 600;
-            padding: 0.25rem 0;
-        }
-
-        .mini-calendar-week-number {
-            text-align: center;
-            font-size: 0.625rem;
-            color: #6B7280;
-            padding: 0.375rem 0;
-        }
-
-        .mini-calendar-day {
-            text-align: center;
-            font-size: 0.75rem;
-            padding: 0.375rem;
-            border-radius: 0.25rem;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .mini-calendar-day.other-month {
-            color: #4B5563;
-        }
-
-        .mini-calendar-day.current-month {
-            color: #9CA3AF;
-        }
-
-        .mini-calendar-day.today {
-            background-color: rgba(251, 191, 36, 0.3);
-            color: #FCD34D;
-            font-weight: 600;
-        }
-
-        .mini-calendar-day.selected {
-            background-color: #D4AF37;
-            color: #0A0A0B;
-            font-weight: 600;
-        }
-
-        .mini-calendar-day.has-bookings {
-            border: 2px solid #FCD34D;
-        }
-
-        .mini-calendar-day:hover:not(.other-month) {
-            background-color: #2A2A2D;
-        }
-
-        .today-btn {
-            width: 100%;
-            margin-top: auto;
-            background: #2A2A2D;
-            color: #F3F4F6;
-            border: 1px solid #4A4A4F;
-            padding: 0.5rem;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            font-size: 0.875rem;
-            transition: all 0.2s;
-        }
-
-        .today-btn:hover {
-            background: #3A3A3E;
-        }
-
-        /* Week view */
-        .week-view {
-            flex: 1;
-            background-color: #1A1A1C;
-            border-radius: 0;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            border: none;
-        }
-
-        .week-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 1rem;
-            background-color: #2A2A2D;
-            border-bottom: 1px solid #3A3A3E;
-        }
-
-        .week-nav {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        .week-nav button {
-            background: transparent;
-            border: none;
-            color: #9CA3AF;
-            cursor: pointer;
-            padding: 0.25rem;
-            border-radius: 0.25rem;
-            transition: all 0.2s;
-        }
-
-        .week-nav button:hover {
-            background: #3A3A3E;
-            color: #F3F4F6;
-        }
-
-        .week-nav h2 {
-            font-size: 1rem;
-            font-weight: 600;
-            color: #F3F4F6;
-        }
-
-        .week-grid {
-            flex: 1;
-            overflow-y: auto;
-            overflow-x: hidden;
             background-color: #0F0F10;
-        }
-
-        .week-grid-inner {
-            min-width: 900px;
-            display: grid;
-            grid-template-columns: 60px repeat(7, 1fr);
-        }
-
-        .week-day-header {
-            position: sticky;
-            top: 0;
-            z-index: 20;
-            background-color: #2A2A2D;
-            border-bottom: 1px solid #3A3A3E;
-            border-left: 1px solid #3A3A3E;
-            padding: 0.5rem;
-            text-align: center;
-        }
-
-        .week-day-header.corner {
-            border-left: none;
-        }
-
-        .week-day-header.today {
-            background-color: rgba(251, 191, 36, 0.2);
-        }
-
-        .week-day-label {
-            font-size: 0.75rem;
-            color: #9CA3AF;
-            text-transform: uppercase;
-            font-weight: 400;
-        }
-
-        .week-day-date {
-            font-size: 2rem;
-            font-weight: 300;
             color: #F3F4F6;
-            margin-top: 0.125rem;
-            line-height: 1;
-        }
-
-        .week-day-date.today {
-            color: #FCD34D;
-        }
-
-        .time-column {
-            background-color: #1A1A1C;
-        }
-
-        .time-slot {
-            height: 50px;
-            font-size: 0.625rem;
-            color: #6B7280;
-            padding-right: 0.5rem;
-            text-align: right;
-            border-bottom: 1px solid #2A2A2D;
-            background-color: #1A1A1C;
-            line-height: 50px;
-        }
-
-        .time-slot.hour {
-            font-weight: 500;
-        }
-
-        .day-column {
-            position: relative;
-            border-left: 1px solid #3A3A3E;
-        }
-
-        .day-column.today {
-            background-color: rgba(251, 191, 36, 0.05);
-        }
-
-        .time-cell {
-            height: 50px;
-            border-bottom: 1px solid #2A2A2D;
-            cursor: pointer;
-            transition: background-color 0.1s;
-            user-select: none;
-            position: relative;
-        }
-
-        .time-cell.work-hours {
-            background-color: #1F1F21;
-        }
-
-        .time-cell.outside-hours {
-            background-color: #0F0F10;
-        }
-
-        .time-cell.past {
-            background-color: #141416;
-            cursor: not-allowed;
-            opacity: 0.5;
-        }
-
-        .time-cell.selected {
-            background-color: rgba(251, 191, 36, 0.4);
-            border: 2px solid rgba(251, 191, 36, 0.6);
-        }
-
-        .time-cell:hover:not(.past):not(.has-booking) {
-            background-color: rgba(212, 175, 55, 0.15);
-        }
-
-        .time-cell.dragging-over {
-            background-color: rgba(16, 185, 129, 0.2);
-        }
-
-        .booking-block {
-            position: absolute;
-            left: 2px;
-            right: 2px;
-            top: 2px;
-            border-radius: 0.25rem;
-            padding: 0.375rem 0.5rem;
-            cursor: move;
-            z-index: 10;
             overflow: hidden;
-            border-left: 4px solid;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-            transition: box-shadow 0.2s;
         }
 
-        .booking-block:hover {
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
-        }
-
-        .booking-block.dragging {
-            opacity: 0.5;
-        }
-
-        .booking-name {
-            font-size: 0.75rem;
-            font-weight: 600;
-            line-height: 1.2;
-            margin-bottom: 0.125rem;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .booking-time {
-            font-size: 0.6875rem;
-            opacity: 0.9;
-            line-height: 1.2;
-        }
-
-        .booking-type-badge {
-            font-size: 0.625rem;
-            text-transform: uppercase;
-            font-weight: 700;
-            opacity: 0.75;
-            line-height: 1.2;
-        }
-
-        /* Modal */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background-color: rgba(0, 0, 0, 0.7);
-            z-index: 100;
-            justify-content: center;
-            align-items: center;
-            padding: 1rem;
-        }
-
-        .modal-overlay.show {
-            display: flex;
-        }
-
-        .modal-content {
-            background-color: #1A1A1C;
-            border-radius: 0.5rem;
-            padding: 1.5rem;
-            max-width: 500px;
-            width: 100%;
-            max-height: 90vh;
-            overflow-y: auto;
-            border: 1px solid #3A3A3E;
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-        }
-
-        .modal-header h3 {
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: #F3F4F6;
-        }
-
-        .close-btn {
-            background: transparent;
-            border: none;
-            color: #9CA3AF;
-            cursor: pointer;
-            padding: 0.25rem;
-            font-size: 1.5rem;
-            line-height: 1;
-            transition: color 0.2s;
-        }
-
-        .close-btn:hover {
-            color: #F3F4F6;
-        }
-
-        .form-group {
-            margin-bottom: 1.25rem;
-        }
-
-        .form-label {
-            display: block;
-            font-size: 0.875rem;
-            font-weight: 500;
-            color: #F3F4F6;
-            margin-bottom: 0.5rem;
-        }
-
-        .form-input, .form-select {
-            width: 100%;
-            padding: 0.625rem 0.75rem;
-            background-color: #2A2A2D;
-            border: 1px solid #4A4A4F;
-            border-radius: 0.375rem;
-            color: #F3F4F6;
-            font-size: 0.9375rem;
-            transition: border-color 0.2s, background-color 0.2s;
-        }
-
-        .form-input:focus, .form-select:focus {
-            outline: none;
-            border-color: #D4AF37;
-            background-color: #3A3A3E;
-        }
-
-        .info-box {
-            background-color: #2A2A2D;
-            border-radius: 0.5rem;
-            padding: 1rem;
-            margin-bottom: 1.25rem;
-        }
-
-        .info-box h4 {
-            font-size: 0.9375rem;
-            color: #D4AF37;
-            margin-bottom: 0.75rem;
-            font-weight: 600;
-        }
-
-        .info-box p {
-            font-size: 0.875rem;
-            color: #9CA3AF;
-            margin-bottom: 0.5rem;
-        }
-
-        .info-box p:last-child {
-            margin-bottom: 0;
-        }
-
-        .info-box strong {
-            color: #F3F4F6;
-        }
-
-        .modal-actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: 0.75rem;
-            margin-top: 1.5rem;
+        .app-container {
+            position: relative;
+            height: 100vh;
         }
 
         /* Toast notifications */
@@ -535,7 +33,7 @@
             display: flex;
             flex-direction: column;
             gap: 0.5rem;
-            max-width: 24rem;
+            max-width: 28rem;
         }
 
         .toast {
@@ -544,8 +42,8 @@
             gap: 0.75rem;
             padding: 1rem;
             border-radius: 0.5rem;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-            border: 1px solid;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            border-width: 1px;
             backdrop-filter: blur(8px);
             animation: slide-in 0.3s ease-out;
         }
@@ -562,21 +60,21 @@
         }
 
         .toast.success {
-            background-color: rgba(16, 185, 129, 0.95);
-            border-color: rgba(52, 211, 153, 0.5);
-            color: white;
+            background-color: rgba(5, 46, 22, 0.9);
+            border-color: rgba(22, 101, 52, 1);
+            color: rgba(187, 247, 208, 1);
         }
 
         .toast.error {
-            background-color: rgba(239, 68, 68, 0.95);
-            border-color: rgba(252, 165, 165, 0.5);
-            color: white;
+            background-color: rgba(69, 10, 10, 0.9);
+            border-color: rgba(127, 29, 29, 1);
+            color: rgba(254, 202, 202, 1);
         }
 
         .toast.info {
-            background-color: rgba(59, 130, 246, 0.95);
-            border-color: rgba(147, 197, 253, 0.5);
-            color: white;
+            background-color: rgba(30, 58, 138, 0.9);
+            border-color: rgba(30, 64, 175, 1);
+            color: rgba(191, 219, 254, 1);
         }
 
         .toast-message {
@@ -588,10 +86,10 @@
         .toast-close {
             background: none;
             border: none;
-            color: white;
+            color: currentColor;
             cursor: pointer;
             padding: 0;
-            font-size: 1.25rem;
+            font-size: 1rem;
             line-height: 1;
             opacity: 0.7;
             transition: opacity 0.2s;
@@ -601,20 +99,11 @@
             opacity: 1;
         }
 
-        .loading {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            font-size: 1.25rem;
-            color: #9CA3AF;
-        }
-
         /* Login overlay */
         .login-overlay {
             position: fixed;
             inset: 0;
-            background-color: rgba(0, 0, 0, 0.9);
+            background-color: rgba(0, 0, 0, 0.95);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -636,6 +125,13 @@
             color: #D4AF37;
             margin-bottom: 1.5rem;
             text-align: center;
+        }
+
+        .login-box p {
+            text-align: center;
+            color: #9CA3AF;
+            margin-bottom: 1rem;
+            font-size: 0.875rem;
         }
 
         .pin-input {
@@ -688,12 +184,535 @@
             font-weight: 600;
         }
 
-        /* Touch device button */
+        /* Main calendar layout */
+        .calendar-layout {
+            display: flex;
+            gap: 0;
+            height: 100vh;
+        }
+
+        /* Sidebar */
+        .calendar-sidebar {
+            width: 18rem;
+            flex-shrink: 0;
+            background-color: #1A1A1C;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .month-calendar {
+            margin-bottom: 1.5rem;
+        }
+
+        .month-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.75rem;
+        }
+
+        .month-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #E5E7EB;
+        }
+
+        .month-nav {
+            display: flex;
+            gap: 0.25rem;
+        }
+
+        .month-nav button {
+            padding: 0.25rem;
+            background: transparent;
+            border: none;
+            color: #9CA3AF;
+            cursor: pointer;
+            border-radius: 0.25rem;
+            transition: all 0.2s;
+        }
+
+        .month-nav button:hover {
+            background: #2A2A2D;
+            color: #E5E7EB;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: 20px repeat(7, 1fr);
+            gap: 0.125rem;
+        }
+
+        .calendar-weekday {
+            text-align: center;
+            font-size: 0.625rem;
+            color: #6B7280;
+            font-weight: 600;
+            padding: 0.25rem 0;
+        }
+
+        .calendar-day {
+            text-align: center;
+            font-size: 0.75rem;
+            padding: 0.375rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .calendar-day.other-month {
+            color: #4B5563;
+        }
+
+        .calendar-day.current-month {
+            color: #9CA3AF;
+        }
+
+        .calendar-day.today {
+            background-color: rgba(234, 179, 8, 0.3);
+            color: #FCD34D;
+            font-weight: 600;
+        }
+
+        .calendar-day.selected {
+            background-color: #CA8A04;
+            color: #0A0A0B;
+            font-weight: 600;
+        }
+
+        .calendar-day.has-bookings {
+            border: 2px solid #FCD34D;
+        }
+
+        .calendar-day:hover:not(.other-month) {
+            background-color: #2A2A2D;
+        }
+
+        .week-number {
+            text-align: center;
+            font-size: 0.625rem;
+            color: #6B7280;
+            padding: 0.375rem 0;
+        }
+
+        .today-button {
+            width: 100%;
+            margin-top: auto;
+            padding: 0.5rem;
+            background-color: #2A2A2D;
+            color: #E5E7EB;
+            border: 1px solid #4A4A4F;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .today-button:hover {
+            background-color: #3A3A3E;
+        }
+
+        /* Week view */
+        .week-view {
+            flex: 1;
+            background-color: #1A1A1C;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .week-header {
+            background-color: #2A2A2D;
+            padding: 0.75rem 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #3A3A3E;
+        }
+
+        .week-nav {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .week-nav button {
+            padding: 0.25rem;
+            background: transparent;
+            border: none;
+            color: #9CA3AF;
+            cursor: pointer;
+            border-radius: 0.25rem;
+            transition: all 0.2s;
+        }
+
+        .week-nav button:hover {
+            background: #3A3A3E;
+            color: #E5E7EB;
+        }
+
+        .week-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #E5E7EB;
+        }
+
+        .week-actions button {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.375rem 0.75rem;
+            background-color: #CA8A04;
+            color: white;
+            border: none;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+
+        .week-actions button:hover {
+            background-color: #A16207;
+        }
+
+        .touch-instruction {
+            background-color: rgba(42, 42, 45, 0.5);
+            border-bottom: 1px solid #3A3A3E;
+            padding: 0.5rem 1rem;
+        }
+
+        .touch-instruction p {
+            text-align: center;
+            font-size: 0.75rem;
+            color: #D1D5DB;
+        }
+
+        .week-grid-container {
+            flex: 1;
+            overflow: auto;
+            background-color: #0F0F10;
+        }
+
+        .week-grid {
+            min-width: 900px;
+            display: grid;
+            grid-template-columns: 60px repeat(7, 1fr);
+        }
+
+        .week-grid-header {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            background-color: #2A2A2D;
+            border-bottom: 1px solid #3A3A3E;
+            display: contents;
+        }
+
+        .header-corner {
+            padding: 0.5rem;
+            background-color: #2A2A2D;
+            border-bottom: 1px solid #3A3A3E;
+        }
+
+        .day-header {
+            padding: 0.5rem;
+            text-align: center;
+            background-color: #2A2A2D;
+            border-left: 1px solid #525252;
+            border-bottom: 1px solid #3A3A3E;
+        }
+
+        .day-header.today-header {
+            background-color: rgba(234, 179, 8, 0.2);
+        }
+
+        .day-label {
+            font-size: 0.75rem;
+            color: #9CA3AF;
+            text-transform: uppercase;
+        }
+
+        .day-number {
+            font-size: 2rem;
+            font-weight: 300;
+            color: #E5E7EB;
+            line-height: 1;
+            margin-top: 0.125rem;
+        }
+
+        .day-number.today-number {
+            color: #FCD34D;
+        }
+
+        .time-column {
+            background-color: #1A1A1C;
+        }
+
+        .time-slot {
+            height: 50px;
+            font-size: 0.625rem;
+            color: #6B7280;
+            padding-right: 0.5rem;
+            text-align: right;
+            border-bottom: 1px solid #374151;
+            background-color: #1A1A1C;
+            line-height: 50px;
+            font-weight: 500;
+        }
+
+        .day-column {
+            position: relative;
+            border-left: 1px solid #525252;
+        }
+
+        .day-column.today-column {
+            background-color: rgba(234, 179, 8, 0.05);
+        }
+
+        .time-cell {
+            height: 50px;
+            border-bottom: 1px solid #374151;
+            cursor: pointer;
+            transition: background-color 0.1s;
+            user-select: none;
+            position: relative;
+        }
+
+        .time-cell.work-hours {
+            background-color: #1F1F21;
+        }
+
+        .time-cell.outside-hours {
+            background-color: #18181B;
+        }
+
+        .time-cell.past {
+            background-color: #141416;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .time-cell.selected {
+            background-color: rgba(234, 179, 8, 0.6);
+            border: 2px solid rgba(234, 179, 8, 0.8);
+        }
+
+        .time-cell:hover:not(.past):not(.has-booking) {
+            background-color: rgba(42, 42, 45, 0.5);
+        }
+
+        .time-cell.dragging-over {
+            background-color: rgba(16, 185, 129, 0.2);
+        }
+
+        .booking-block {
+            position: absolute;
+            left: 2px;
+            right: 2px;
+            border-radius: 0.25rem;
+            padding: 0.25rem 0.375rem;
+            cursor: move;
+            z-index: 10;
+            overflow: hidden;
+            border-left-width: 4px;
+            border-left-style: solid;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            transition: box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .booking-block:hover {
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+        }
+
+        .booking-block.dragging {
+            opacity: 0.5;
+        }
+
+        .booking-badge {
+            font-size: 0.625rem;
+            text-transform: uppercase;
+            font-weight: 700;
+            opacity: 0.75;
+            line-height: 1.2;
+        }
+
+        .booking-name {
+            font-size: 0.75rem;
+            font-weight: 600;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .booking-time {
+            font-size: 0.6875rem;
+            opacity: 0.9;
+            line-height: 1.2;
+            margin-top: 0.125rem;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background-color: #1A1A1C;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            max-width: 500px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            border: 1px solid #3A3A3E;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #E5E7EB;
+        }
+
+        .modal-close {
+            background: transparent;
+            border: none;
+            color: #9CA3AF;
+            cursor: pointer;
+            padding: 0.25rem;
+            font-size: 1.5rem;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+
+        .modal-close:hover {
+            color: #E5E7EB;
+        }
+
+        .info-box {
+            background-color: #2A2A2D;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .info-box h4 {
+            font-size: 0.9375rem;
+            color: #CA8A04;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .info-box p {
+            font-size: 0.875rem;
+            color: #D1D5DB;
+            margin-bottom: 0.5rem;
+        }
+
+        .info-box p:last-child {
+            margin-bottom: 0;
+        }
+
+        .info-box strong {
+            color: #E5E7EB;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #E5E7EB;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-select {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            background-color: #1A1A1C;
+            border: 1px solid #525252;
+            border-radius: 0.5rem;
+            color: #E5E7EB;
+            font-size: 0.9375rem;
+            transition: all 0.2s;
+        }
+
+        .form-select:focus {
+            outline: none;
+            border-color: #CA8A04;
+            box-shadow: 0 0 0 3px rgba(202, 138, 4, 0.1);
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.9375rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            border: none;
+        }
+
+        .btn-primary {
+            background-color: #CA8A04;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #A16207;
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            color: #D1D5DB;
+            border: 1px solid #525252;
+        }
+
+        .btn-secondary:hover {
+            background-color: #2A2A2D;
+        }
+
+        /* Floating action button */
         .floating-action {
             position: fixed;
             bottom: 1.5rem;
             right: 1.5rem;
-            z-index: 50;
+            z-index: 40;
             display: none;
             flex-direction: column;
             align-items: flex-end;
@@ -707,7 +726,7 @@
         .selection-badge {
             background-color: #CA8A04;
             color: white;
-            padding: 0.75rem 1rem;
+            padding: 0.5rem 1rem;
             border-radius: 0.5rem;
             font-size: 0.875rem;
             font-weight: 600;
@@ -720,7 +739,7 @@
         }
 
         .floating-btn {
-            padding: 0.875rem 1.5rem;
+            padding: 0.75rem 1.5rem;
             border-radius: 9999px;
             font-size: 0.9375rem;
             font-weight: 600;
@@ -748,34 +767,24 @@
             background-color: #A16207;
         }
 
-        @media (max-width: 1024px) {
-            .calendar-container {
-                flex-direction: column;
-                height: auto;
-            }
-
-            .mini-calendars {
-                width: 100%;
-                max-height: 300px;
-            }
-
-            .week-view {
-                height: 600px;
-            }
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-size: 1.25rem;
+            color: #9CA3AF;
         }
     </style>
 </head>
 <body>
-    <!-- Toast Container -->
     <div id="toastContainer" class="toast-container"></div>
 
     <!-- Login Overlay -->
     <div id="loginOverlay" class="login-overlay">
         <div class="login-box">
             <h2>Inloggen</h2>
-            <p style="text-align: center; color: #9CA3AF; margin-bottom: 1rem; font-size: 0.875rem;">
-                Voer je pincode in om boekingen te maken
-            </p>
+            <p>Voer je pincode in om boekingen te maken</p>
             <input
                 type="password"
                 id="pinInput"
@@ -795,86 +804,40 @@
 
     <!-- Loading -->
     <div id="loadingScreen" class="loading" style="display: none;">
-        <p>Laden...</p>
+        <p>Kalender laden...</p>
     </div>
 
     <!-- Main App -->
-    <div id="app" style="display: none;">
-        <div class="container">
-            <div class="calendar-container">
-                <!-- Mini Calendars -->
-                <div class="mini-calendars">
-                    <div class="mini-calendar">
-                        <div class="mini-calendar-header">
-                            <h3 id="monthTitle1"></h3>
-                            <div class="mini-nav">
-                                <button onclick="previousMonth()">‹</button>
-                                <button onclick="nextMonth()">›</button>
-                            </div>
-                        </div>
-                        <div class="mini-calendar-grid">
-                            <div class="mini-calendar-week-header">#</div>
-                            <div class="mini-calendar-day-header">MA</div>
-                            <div class="mini-calendar-day-header">DI</div>
-                            <div class="mini-calendar-day-header">WO</div>
-                            <div class="mini-calendar-day-header">DO</div>
-                            <div class="mini-calendar-day-header">VR</div>
-                            <div class="mini-calendar-day-header">ZA</div>
-                            <div class="mini-calendar-day-header">ZO</div>
-                            <div id="monthDays1"></div>
-                        </div>
+    <div id="app" class="app-container" style="display: none;">
+        <div class="calendar-layout">
+            <!-- Sidebar with mini calendars -->
+            <div class="calendar-sidebar">
+                <div id="miniCalendars"></div>
+                <button class="today-button" onclick="goToToday()">Vandaag</button>
+            </div>
+
+            <!-- Week view -->
+            <div class="week-view">
+                <div class="week-header">
+                    <div class="week-nav">
+                        <button onclick="previousWeek()">‹</button>
+                        <h2 class="week-title" id="weekTitle"></h2>
+                        <button onclick="nextWeek()">›</button>
                     </div>
-                    <div class="mini-calendar">
-                        <div class="mini-calendar-header">
-                            <h3 id="monthTitle2"></h3>
-                        </div>
-                        <div class="mini-calendar-grid">
-                            <div class="mini-calendar-week-header">#</div>
-                            <div class="mini-calendar-day-header">MA</div>
-                            <div class="mini-calendar-day-header">DI</div>
-                            <div class="mini-calendar-day-header">WO</div>
-                            <div class="mini-calendar-day-header">DO</div>
-                            <div class="mini-calendar-day-header">VR</div>
-                            <div class="mini-calendar-day-header">ZA</div>
-                            <div class="mini-calendar-day-header">ZO</div>
-                            <div id="monthDays2"></div>
-                        </div>
+                    <div class="week-actions">
+                        <button style="display: none;">
+                            <span>↻</span>
+                            Terugkerende Boeking
+                        </button>
                     </div>
-                    <div class="mini-calendar">
-                        <div class="mini-calendar-header">
-                            <h3 id="monthTitle3"></h3>
-                        </div>
-                        <div class="mini-calendar-grid">
-                            <div class="mini-calendar-week-header">#</div>
-                            <div class="mini-calendar-day-header">MA</div>
-                            <div class="mini-calendar-day-header">DI</div>
-                            <div class="mini-calendar-day-header">WO</div>
-                            <div class="mini-calendar-day-header">DO</div>
-                            <div class="mini-calendar-day-header">VR</div>
-                            <div class="mini-calendar-day-header">ZA</div>
-                            <div class="mini-calendar-day-header">ZO</div>
-                            <div id="monthDays3"></div>
-                        </div>
-                    </div>
-                    <button class="today-btn" onclick="goToToday()">Vandaag</button>
                 </div>
 
-                <!-- Week View -->
-                <div class="week-view">
-                    <div class="week-header">
-                        <div class="week-nav">
-                            <button onclick="previousWeek()">‹</button>
-                            <h2 id="weekRange"></h2>
-                            <button onclick="nextWeek()">›</button>
-                        </div>
-                        <button class="btn" style="display: none;">Terugkerende Boeking</button>
-                    </div>
-                    <div style="padding: 0.75rem 1rem; background-color: #2A2A2D; border-bottom: 1px solid #3A3A3E; text-align: center; color: #9CA3AF; font-size: 0.875rem;">
-                        Tik op tijdslots om te selecteren. Tik nogmaals om de selectie ongedaan te maken.
-                    </div>
-                    <div class="week-grid" id="weekGrid">
-                        <div class="week-grid-inner" id="weekGridInner"></div>
-                    </div>
+                <div id="touchInstruction" class="touch-instruction" style="display: none;">
+                    <p>Tik op tijdslots om te selecteren. Tik nogmaals om de selectie ongedaan te maken.</p>
+                </div>
+
+                <div class="week-grid-container" id="weekGridContainer">
+                    <div class="week-grid" id="weekGrid"></div>
                 </div>
             </div>
         </div>
@@ -884,8 +847,8 @@
     <div id="bookingModal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Nieuwe Boeking</h3>
-                <button class="close-btn" onclick="closeBookingModal()">&times;</button>
+                <h3 class="modal-title">Nieuwe Boeking</h3>
+                <button class="modal-close" onclick="closeBookingModal()">&times;</button>
             </div>
             <form id="bookingForm" onsubmit="submitBooking(event)">
                 <div id="selectionInfo" class="info-box"></div>
@@ -895,13 +858,13 @@
                 </div>
                 <div class="modal-actions">
                     <button type="button" class="btn btn-secondary" onclick="closeBookingModal()">Annuleren</button>
-                    <button type="submit" class="btn">Boeking Aanmaken</button>
+                    <button type="submit" class="btn btn-primary">Boeking Aanmaken</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Floating Action Button (Touch devices) -->
+    <!-- Floating Action Button -->
     <div id="floatingAction" class="floating-action">
         <div class="selection-badge" id="selectionBadge"></div>
         <div class="floating-buttons">
@@ -924,8 +887,8 @@
         let isDragging = false;
         let dragStart = null;
         let meetingRooms = [];
-        let allBookings = [];
         let weekBookings = [];
+        let allBookings = [];
         let isTouchDevice = false;
 
         // Time slots from 6:00 to 21:30
@@ -966,7 +929,7 @@
             setTimeout(() => toast.remove(), 5000);
         }
 
-        // Format date
+        // Date helpers
         function formatDate(date) {
             const y = date.getFullYear();
             const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -974,7 +937,6 @@
             return `${y}-${m}-${d}`;
         }
 
-        // Get week start (Monday)
         function getWeekStart(date) {
             const d = new Date(date);
             d.setHours(0, 0, 0, 0);
@@ -984,7 +946,6 @@
             return d;
         }
 
-        // Get week number
         function getWeekNumber(date) {
             const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
             const dayNum = d.getUTCDay() || 7;
@@ -993,7 +954,6 @@
             return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
         }
 
-        // Check if date is today
         function isToday(date) {
             const today = new Date();
             return date.getDate() === today.getDate() &&
@@ -1001,7 +961,6 @@
                    date.getFullYear() === today.getFullYear();
         }
 
-        // Check if date is past
         function isPast(date) {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
@@ -1022,36 +981,18 @@
             const pinInput = document.getElementById('pinInput');
             const pinError = document.getElementById('pinError');
 
-            // Check tenants
-            const { data: tenants, error: tenantError } = await sb
-                .from('tenants')
-                .select('id, name, company_name, booking_pin_code')
-                .eq('booking_pin_code', pin);
+            const [tenantsRes, customersRes] = await Promise.all([
+                sb.from('tenants').select('id, name, company_name, booking_pin_code').eq('booking_pin_code', pin),
+                sb.from('external_customers').select('id, company_name, contact_name, booking_pin_code').eq('booking_pin_code', pin)
+            ]);
 
-            console.log('Tenants query result:', { tenants, tenantError, pin });
-
-            // Check external customers
-            const { data: externalCustomers, error: customerError } = await sb
-                .from('external_customers')
-                .select('id, company_name, contact_name, booking_pin_code')
-                .eq('booking_pin_code', pin);
-
-            console.log('External customers query result:', { externalCustomers, customerError, pin });
-
-            if (tenants && tenants.length > 0) {
-                authenticatedUser = {
-                    ...tenants[0],
-                    userType: 'tenant'
-                };
+            if (tenantsRes.data && tenantsRes.data.length > 0) {
+                authenticatedUser = { ...tenantsRes.data[0], userType: 'tenant' };
                 showSuccess();
-            } else if (externalCustomers && externalCustomers.length > 0) {
-                authenticatedUser = {
-                    ...externalCustomers[0],
-                    userType: 'external'
-                };
+            } else if (customersRes.data && customersRes.data.length > 0) {
+                authenticatedUser = { ...customersRes.data[0], userType: 'external' };
                 showSuccess();
             } else {
-                console.error('Login failed for pin:', pin);
                 pinInput.classList.add('error');
                 pinError.textContent = 'Ongeldige pincode';
                 pinError.style.display = 'block';
@@ -1080,14 +1021,6 @@
             }, 1000);
         }
 
-        function logout() {
-            authenticatedUser = null;
-            document.getElementById('app').style.display = 'none';
-            document.getElementById('loginOverlay').style.display = 'flex';
-            document.getElementById('pinInput').value = '';
-            document.getElementById('userInfoDisplay').style.display = 'none';
-        }
-
         // Load data
         async function loadData() {
             document.getElementById('loadingScreen').style.display = 'flex';
@@ -1096,30 +1029,18 @@
             const weekEnd = new Date(weekStart);
             weekEnd.setDate(weekEnd.getDate() + 6);
 
-            // Load month range for mini calendars
             const firstDay = new Date(baseMonth.getFullYear(), baseMonth.getMonth(), 1);
             const lastDay = new Date(baseMonth.getFullYear(), baseMonth.getMonth() + 3, 0);
 
             const [bookingsRes, spacesRes, allBookingsRes] = await Promise.all([
-                sb.from('meeting_room_bookings')
-                    .select(`
-                        id, booking_date, start_time, end_time, tenant_id, external_customer_id, status,
-                        tenants(name, company_name),
-                        external_customers(company_name, contact_name),
-                        office_spaces(space_number)
-                    `)
-                    .gte('booking_date', formatDate(weekStart))
-                    .lte('booking_date', formatDate(weekEnd))
-                    .neq('status', 'cancelled'),
-                sb.from('office_spaces')
-                    .select('id, space_number, hourly_rate, half_day_rate, full_day_rate')
-                    .eq('space_type', 'Meeting Room')
-                    .order('space_number'),
-                sb.from('meeting_room_bookings')
-                    .select('id, booking_date')
-                    .gte('booking_date', formatDate(firstDay))
-                    .lte('booking_date', formatDate(lastDay))
-                    .neq('status', 'cancelled')
+                sb.from('meeting_room_bookings').select(`
+                    id, booking_date, start_time, end_time, tenant_id, external_customer_id, status,
+                    tenants(name, company_name),
+                    external_customers(company_name, contact_name),
+                    office_spaces(space_number)
+                `).gte('booking_date', formatDate(weekStart)).lte('booking_date', formatDate(weekEnd)).neq('status', 'cancelled'),
+                sb.from('office_spaces').select('id, space_number, hourly_rate, half_day_rate, full_day_rate').eq('space_type', 'Meeting Room').order('space_number'),
+                sb.from('meeting_room_bookings').select('id, booking_date').gte('booking_date', formatDate(firstDay)).lte('booking_date', formatDate(lastDay)).neq('status', 'cancelled')
             ]);
 
             meetingRooms = spacesRes.data || [];
@@ -1139,15 +1060,15 @@
             weekEnd.setDate(weekEnd.getDate() + 6);
 
             const weekRange = `Week ${getWeekNumber(weekStart)} - ${weekStart.getDate()} ${weekStart.toLocaleDateString('nl-NL', { month: 'short' })} - ${weekEnd.getDate()} ${weekEnd.toLocaleDateString('nl-NL', { month: 'short', year: 'numeric' })}`;
-            document.getElementById('weekRange').textContent = weekRange;
+            document.getElementById('weekTitle').textContent = weekRange;
 
-            const gridInner = document.getElementById('weekGridInner');
-            gridInner.innerHTML = '';
+            const gridEl = document.getElementById('weekGrid');
+            gridEl.innerHTML = '';
 
             // Header row
-            const cornerHeader = document.createElement('div');
-            cornerHeader.className = 'week-day-header corner';
-            gridInner.appendChild(cornerHeader);
+            const headerCorner = document.createElement('div');
+            headerCorner.className = 'header-corner';
+            gridEl.appendChild(headerCorner);
 
             const weekDays = [];
             for (let i = 0; i < 7; i++) {
@@ -1156,29 +1077,29 @@
                 weekDays.push(date);
 
                 const header = document.createElement('div');
-                header.className = `week-day-header ${isToday(date) ? 'today' : ''}`;
+                header.className = `day-header ${isToday(date) ? 'today-header' : ''}`;
                 header.innerHTML = `
-                    <div class="week-day-label">${date.toLocaleDateString('nl-NL', { weekday: 'short' }).toUpperCase()}</div>
-                    <div class="week-day-date ${isToday(date) ? 'today' : ''}">${date.getDate()}</div>
+                    <div class="day-label">${date.toLocaleDateString('nl-NL', { weekday: 'short' }).toUpperCase()}</div>
+                    <div class="day-number ${isToday(date) ? 'today-number' : ''}">${date.getDate()}</div>
                 `;
-                gridInner.appendChild(header);
+                gridEl.appendChild(header);
             }
 
             // Time column
             const timeColumn = document.createElement('div');
             timeColumn.className = 'time-column';
-            timeSlots.forEach((time, idx) => {
+            timeSlots.forEach(time => {
                 const slot = document.createElement('div');
-                slot.className = `time-slot ${time.endsWith(':00') ? 'hour' : ''}`;
+                slot.className = 'time-slot';
                 slot.textContent = time.endsWith(':00') ? time : '';
                 timeColumn.appendChild(slot);
             });
-            gridInner.appendChild(timeColumn);
+            gridEl.appendChild(timeColumn);
 
             // Day columns
             weekDays.forEach(date => {
                 const dayColumn = document.createElement('div');
-                dayColumn.className = `day-column ${isToday(date) ? 'today' : ''}`;
+                dayColumn.className = `day-column ${isToday(date) ? 'today-column' : ''}`;
                 const dateStr = formatDate(date);
 
                 timeSlots.forEach(time => {
@@ -1224,7 +1145,7 @@
                             : booking.external_customers?.company_name || '';
 
                         block.innerHTML = `
-                            ${booking.external_customer_id ? '<div class="booking-type-badge">EXTERN</div>' : ''}
+                            ${booking.external_customer_id ? '<div class="booking-badge">EXTERN</div>' : ''}
                             <div class="booking-name">${displayName}</div>
                             <div class="booking-time">${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)}</div>
                         `;
@@ -1233,14 +1154,119 @@
                     }
                 });
 
-                gridInner.appendChild(dayColumn);
+                gridEl.appendChild(dayColumn);
             });
 
             // Scroll to 8:00 AM
             setTimeout(() => {
-                const weekGrid = document.getElementById('weekGrid');
-                weekGrid.scrollTop = 4 * 50; // 8:00 is at index 4
+                const container = document.getElementById('weekGridContainer');
+                container.scrollTop = 4 * 50;
             }, 100);
+        }
+
+        // Render mini calendars
+        function renderMiniCalendars() {
+            const container = document.getElementById('miniCalendars');
+            container.innerHTML = '';
+
+            for (let monthOffset = 0; monthOffset < 3; monthOffset++) {
+                const month = new Date(baseMonth.getFullYear(), baseMonth.getMonth() + monthOffset, 1);
+                const monthDiv = document.createElement('div');
+                monthDiv.className = 'month-calendar';
+
+                const header = document.createElement('div');
+                header.className = 'month-header';
+                header.innerHTML = `
+                    <h3 class="month-title">${month.toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}</h3>
+                    ${monthOffset === 0 ? `
+                        <div class="month-nav">
+                            <button onclick="previousMonth()">‹</button>
+                            <button onclick="nextMonth()">›</button>
+                        </div>
+                    ` : ''}
+                `;
+                monthDiv.appendChild(header);
+
+                const grid = document.createElement('div');
+                grid.className = 'calendar-grid';
+                grid.innerHTML = `
+                    <div class="calendar-weekday">#</div>
+                    <div class="calendar-weekday">MA</div>
+                    <div class="calendar-weekday">DI</div>
+                    <div class="calendar-weekday">WO</div>
+                    <div class="calendar-weekday">DO</div>
+                    <div class="calendar-weekday">VR</div>
+                    <div class="calendar-weekday">ZA</div>
+                    <div class="calendar-weekday">ZO</div>
+                `;
+
+                const firstDay = new Date(month.getFullYear(), month.getMonth(), 1);
+                const lastDay = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+                const startDay = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
+
+                const weekStart = getWeekStart(currentDate);
+                const weekEnd = new Date(weekStart);
+                weekEnd.setDate(weekEnd.getDate() + 6);
+                weekEnd.setHours(23, 59, 59, 999);
+
+                const allDays = [];
+
+                // Previous month days
+                const prevMonthDays = new Date(month.getFullYear(), month.getMonth(), 0).getDate();
+                for (let i = startDay - 1; i >= 0; i--) {
+                    const date = new Date(month.getFullYear(), month.getMonth() - 1, prevMonthDays - i);
+                    allDays.push({ day: prevMonthDays - i, date, dateStr: formatDate(date), isCurrentMonth: false });
+                }
+
+                // Current month days
+                for (let i = 1; i <= lastDay.getDate(); i++) {
+                    const date = new Date(month.getFullYear(), month.getMonth(), i);
+                    allDays.push({ day: i, date, dateStr: formatDate(date), isCurrentMonth: true });
+                }
+
+                // Next month days
+                const remainingDays = 42 - allDays.length;
+                for (let i = 1; i <= remainingDays; i++) {
+                    const date = new Date(month.getFullYear(), month.getMonth() + 1, i);
+                    allDays.push({ day: i, date, dateStr: formatDate(date), isCurrentMonth: false });
+                }
+
+                // Render week by week
+                for (let weekIdx = 0; weekIdx < 6; weekIdx++) {
+                    const weekDays = allDays.slice(weekIdx * 7, (weekIdx + 1) * 7);
+                    const hasCurrentMonthDay = weekDays.some(d => d.isCurrentMonth);
+                    if (!hasCurrentMonthDay) continue;
+
+                    const weekNum = getWeekNumber(weekDays[0].date);
+                    const weekNumDiv = document.createElement('div');
+                    weekNumDiv.className = 'week-number';
+                    weekNumDiv.textContent = weekNum;
+                    grid.appendChild(weekNumDiv);
+
+                    weekDays.forEach(dayInfo => {
+                        const date = dayInfo.date;
+                        date.setHours(12, 0, 0, 0);
+
+                        const day = document.createElement('div');
+                        day.className = `calendar-day ${dayInfo.isCurrentMonth ? 'current-month' : 'other-month'}`;
+                        day.textContent = dayInfo.day;
+
+                        if (isToday(date)) day.classList.add('today');
+                        if (date >= weekStart && date <= weekEnd) day.classList.add('selected');
+                        if (allBookings.some(b => b.booking_date === dayInfo.dateStr)) day.classList.add('has-bookings');
+
+                        day.addEventListener('click', () => {
+                            currentDate = new Date(date);
+                            loadData();
+                        });
+
+                        grid.appendChild(day);
+                    });
+                }
+
+                monthDiv.appendChild(grid);
+                container.appendChild(monthDiv);
+            }
         }
 
         // Drag selection
@@ -1315,7 +1341,6 @@
                 cell.classList.toggle('selected', isSelected);
             });
 
-            // Update floating action button for touch devices
             const floatingAction = document.getElementById('floatingAction');
             const selectionBadge = document.getElementById('selectionBadge');
 
@@ -1339,14 +1364,12 @@
                 return;
             }
 
-            // Check if all cells are on the same date
             const firstDate = selectedCells[0].date;
             if (!selectedCells.every(c => c.date === firstDate)) {
                 showToast('Selecteer tijdsloten op dezelfde dag', 'error');
                 return;
             }
 
-            // Check if cells are consecutive
             const times = selectedCells.map(c => c.time).sort();
             const isConsecutive = times.every((time, i) => {
                 if (i === 0) return true;
@@ -1360,7 +1383,6 @@
                 return;
             }
 
-            // Fill info
             const startTime = times[0];
             const endIdx = timeSlots.indexOf(times[times.length - 1]) + 1;
             const endTime = timeSlots[endIdx] || '22:00';
@@ -1377,7 +1399,6 @@
                 <p><strong>Duur:</strong> ${totalHours.toFixed(1)} uur</p>
             `;
 
-            // Fill rooms
             const roomSelect = document.getElementById('roomSelect');
             roomSelect.innerHTML = '<option value="">Selecteer een vergaderruimte</option>';
             meetingRooms.forEach(room => {
@@ -1443,9 +1464,7 @@
                 bookingData.external_customer_id = authenticatedUser.id;
             }
 
-            const { error } = await sb
-                .from('meeting_room_bookings')
-                .insert(bookingData);
+            const { error } = await sb.from('meeting_room_bookings').insert(bookingData);
 
             if (error) {
                 console.error('Error creating booking:', error);
@@ -1456,110 +1475,6 @@
             showToast('Boeking succesvol aangemaakt!', 'success');
             closeBookingModal();
             await loadData();
-        }
-
-        // Render mini calendars
-        function renderMiniCalendars() {
-            for (let monthOffset = 0; monthOffset < 3; monthOffset++) {
-                const month = new Date(baseMonth.getFullYear(), baseMonth.getMonth() + monthOffset, 1);
-                const monthTitle = month.toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' });
-                document.getElementById(`monthTitle${monthOffset + 1}`).textContent = monthTitle;
-
-                const firstDay = new Date(month.getFullYear(), month.getMonth(), 1);
-                const lastDay = new Date(month.getFullYear(), month.getMonth() + 1, 0);
-                const startDay = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
-
-                const weekStart = getWeekStart(currentDate);
-                const weekEnd = new Date(weekStart);
-                weekEnd.setDate(weekEnd.getDate() + 6);
-                weekEnd.setHours(23, 59, 59, 999);
-
-                const daysContainer = document.getElementById(`monthDays${monthOffset + 1}`);
-                daysContainer.innerHTML = '';
-
-                // Build all days array
-                const allDays = [];
-
-                // Previous month days
-                const prevMonthDays = new Date(month.getFullYear(), month.getMonth(), 0).getDate();
-                for (let i = startDay - 1; i >= 0; i--) {
-                    const date = new Date(month.getFullYear(), month.getMonth() - 1, prevMonthDays - i);
-                    allDays.push({
-                        day: prevMonthDays - i,
-                        date: date,
-                        dateStr: formatDate(date),
-                        isCurrentMonth: false
-                    });
-                }
-
-                // Current month days
-                for (let i = 1; i <= lastDay.getDate(); i++) {
-                    const date = new Date(month.getFullYear(), month.getMonth(), i);
-                    const dateStr = formatDate(date);
-                    allDays.push({
-                        day: i,
-                        date: date,
-                        dateStr: dateStr,
-                        isCurrentMonth: true
-                    });
-                }
-
-                // Next month days
-                const remainingDays = 42 - allDays.length;
-                for (let i = 1; i <= remainingDays; i++) {
-                    const date = new Date(month.getFullYear(), month.getMonth() + 1, i);
-                    allDays.push({
-                        day: i,
-                        date: date,
-                        dateStr: formatDate(date),
-                        isCurrentMonth: false
-                    });
-                }
-
-                // Render week by week
-                for (let weekIdx = 0; weekIdx < 6; weekIdx++) {
-                    const weekDays = allDays.slice(weekIdx * 7, (weekIdx + 1) * 7);
-                    const hasCurrentMonthDay = weekDays.some(d => d.isCurrentMonth);
-
-                    if (!hasCurrentMonthDay) continue;
-
-                    // Add week number
-                    const weekNum = getWeekNumber(weekDays[0].date);
-                    const weekNumDiv = document.createElement('div');
-                    weekNumDiv.className = 'mini-calendar-week-number';
-                    weekNumDiv.textContent = weekNum;
-                    daysContainer.appendChild(weekNumDiv);
-
-                    // Add days
-                    weekDays.forEach(dayInfo => {
-                        const date = dayInfo.date;
-                        date.setHours(12, 0, 0, 0);
-
-                        const day = document.createElement('div');
-                        day.className = `mini-calendar-day ${dayInfo.isCurrentMonth ? 'current-month' : 'other-month'}`;
-                        day.textContent = dayInfo.day;
-
-                        if (isToday(date)) {
-                            day.classList.add('today');
-                        }
-
-                        if (date >= weekStart && date <= weekEnd) {
-                            day.classList.add('selected');
-                        }
-
-                        if (allBookings.some(b => b.booking_date === dayInfo.dateStr)) {
-                            day.classList.add('has-bookings');
-                        }
-
-                        day.addEventListener('click', () => {
-                            currentDate = new Date(date);
-                            loadData();
-                        });
-
-                        daysContainer.appendChild(day);
-                    });
-                }
-            }
         }
 
         // Navigation
@@ -1593,6 +1508,9 @@
 
         // Detect touch device
         isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        if (isTouchDevice) {
+            document.getElementById('touchInstruction').style.display = 'block';
+        }
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
