@@ -113,7 +113,7 @@
         .login-box {
             background-color: #1A1A1C;
             border-radius: 0.5rem;
-            padding: 2rem;
+            padding: 1.5rem;
             max-width: 400px;
             width: 100%;
             border: 1px solid #3A3A3E;
@@ -123,14 +123,14 @@
             font-size: 1.5rem;
             font-weight: 700;
             color: #D4AF37;
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem;
             text-align: center;
         }
 
         .login-box p {
             text-align: center;
             color: #9CA3AF;
-            margin-bottom: 1rem;
+            margin-bottom: 0.75rem;
             font-size: 0.875rem;
         }
 
@@ -203,14 +203,14 @@
         }
 
         .month-calendar {
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem;
         }
 
         .month-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 0.75rem;
+            margin-bottom: 0.5rem;
         }
 
         .month-title {
@@ -250,13 +250,13 @@
             font-size: 0.625rem;
             color: #6B7280;
             font-weight: 600;
-            padding: 0.25rem 0;
+            padding: 0.125rem 0;
         }
 
         .calendar-day {
             text-align: center;
             font-size: 0.75rem;
-            padding: 0.375rem;
+            padding: 0.25rem;
             border-radius: 0.25rem;
             cursor: pointer;
             transition: all 0.2s;
@@ -295,7 +295,7 @@
             text-align: center;
             font-size: 0.625rem;
             color: #6B7280;
-            padding: 0.375rem 0;
+            padding: 0.25rem 0;
         }
 
         .today-button {
@@ -578,7 +578,7 @@
         .modal-content {
             background-color: #1A1A1C;
             border-radius: 0.5rem;
-            padding: 1.5rem;
+            padding: 1.25rem;
             max-width: 500px;
             width: 100%;
             max-height: 90vh;
@@ -590,7 +590,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 1rem;
+            margin-bottom: 0.75rem;
         }
 
         .modal-title {
@@ -617,21 +617,21 @@
         .info-box {
             background-color: #2A2A2D;
             border-radius: 0.5rem;
-            padding: 1rem;
-            margin-bottom: 1rem;
+            padding: 0.75rem;
+            margin-bottom: 0.75rem;
         }
 
         .info-box h4 {
-            font-size: 0.9375rem;
+            font-size: 0.875rem;
             color: #CA8A04;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.375rem;
             font-weight: 600;
         }
 
         .info-box p {
-            font-size: 0.875rem;
+            font-size: 0.8125rem;
             color: #D1D5DB;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.25rem;
         }
 
         .info-box p:last-child {
@@ -643,7 +643,7 @@
         }
 
         .form-group {
-            margin-bottom: 1rem;
+            margin-bottom: 0.75rem;
         }
 
         .form-label {
@@ -651,7 +651,7 @@
             font-size: 0.875rem;
             font-weight: 500;
             color: #E5E7EB;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.375rem;
         }
 
         .form-select {
@@ -675,7 +675,7 @@
             display: flex;
             justify-content: flex-end;
             gap: 0.75rem;
-            margin-top: 1.5rem;
+            margin-top: 1rem;
         }
 
         .btn {
@@ -825,7 +825,7 @@
                         <button onclick="nextWeek()">›</button>
                     </div>
                     <div class="week-actions">
-                        <button style="display: none;">
+                        <button onclick="showToast('Terugkerende boekingen zijn nog niet beschikbaar in deze weergave', 'info')">
                             <span>↻</span>
                             Terugkerende Boeking
                         </button>
