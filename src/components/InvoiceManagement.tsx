@@ -117,7 +117,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   const [selectedCustomers, setSelectedCustomers] = useState<Set<string>>(new Set());
   const [meetingRoomBookings, setMeetingRoomBookings] = useState<any[]>([]);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
-  const [showDetailSelection, setShowDetailSelection] = useState(false);
+  const [showDetailSelection, setShowDetailSelection] = useState(true);
 
   useImperativeHandle(ref, () => ({
     openGenerateModal: () => setShowGenerateModal(true)
@@ -1854,7 +1854,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
       setInvoiceMonth('');
       setSelectedLeases(new Set());
       setSelectedCustomers(new Set());
-      setShowDetailSelection(false);
+      setShowDetailSelection(true);
     }
     if (totalFail > 0) {
       console.log(`${totalFail} facturen overgeslagen (bestaan al of fout)`);
@@ -2906,7 +2906,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                     setInvoiceMonth('');
                     setSelectedLeases(new Set());
                     setSelectedCustomers(new Set());
-                    setShowDetailSelection(false);
+                    setShowDetailSelection(true);
                   }}
                   className="text-gray-400 hover:text-gray-200 transition-colors"
                 >
