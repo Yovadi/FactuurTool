@@ -1005,30 +1005,16 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                           </div>
                         </div>
                         <div className="space-y-2">
-                          <div className="flex items-center justify-between p-3 bg-dark-700 rounded-lg">
+                          <div className="flex items-center justify-between p-3 bg-dark-700 rounded-lg border border-gold-500">
                             <div>
                               <span className="text-sm text-gray-400">Toegepast tarief: </span>
                               <span className="text-sm font-medium text-gold-400">{getRateLabel(rateInfo.rateType)}</span>
                               <span className="text-sm text-gray-400"> ({totalHours} uur)</span>
                             </div>
-                            <div className="text-lg font-semibold text-gray-100">
-                              €{rateInfo.totalAmount.toFixed(2)}
+                            <div className="text-lg font-semibold text-gold-400">
+                              €{finalAmount.toFixed(2)}
                             </div>
                           </div>
-                          {discountPercentage > 0 && (
-                            <>
-                              <div className="flex items-center justify-between px-3 text-sm">
-                                <span className="text-green-400">Huurderkorting ({discountPercentage}%)</span>
-                                <span className="text-green-400 font-medium">-€{discountAmount.toFixed(2)}</span>
-                              </div>
-                              <div className="flex items-center justify-between p-3 bg-dark-700 rounded-lg border border-gold-500">
-                                <span className="text-sm font-medium text-gray-200">Totaal te betalen</span>
-                                <div className="text-lg font-semibold text-gold-400">
-                                  €{finalAmount.toFixed(2)}
-                                </div>
-                              </div>
-                            </>
-                          )}
                         </div>
                       </div>
                     );
@@ -1280,11 +1266,6 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                       <div className="text-sm font-semibold text-gray-200">
                         €{booking.total_amount.toFixed(2)}
                       </div>
-                      {booking.discount_percentage && booking.discount_percentage > 0 && (
-                        <div className="text-xs text-green-400 mt-0.5">
-                          -{booking.discount_percentage}% korting
-                        </div>
-                      )}
                     </td>
                     <td className="px-4 py-3 w-[10%]">
                       <span
