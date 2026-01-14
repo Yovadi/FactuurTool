@@ -109,7 +109,12 @@ export function RecurringBookingModal({
     const [startHour, startMinute] = pattern.start_time.split(':').map(Number);
     const [endHour, endMinute] = pattern.end_time.split(':').map(Number);
     const totalHours = (endHour + endMinute / 60) - (startHour + startMinute / 60);
-    const totalAmount = totalHours * hourlyRate;
+    const subtotal = totalHours * hourlyRate;
+
+    // Apply 10% tenant discount for recurring bookings
+    const discountPercentage = 10;
+    const discountAmount = (subtotal * discountPercentage) / 100;
+    const totalAmount = subtotal - discountAmount;
 
     let currentDate = new Date(startDate);
 
@@ -135,10 +140,15 @@ export function RecurringBookingModal({
           hourly_rate: hourlyRate,
           total_hours: totalHours,
           total_amount: totalAmount,
+          discount_percentage: discountPercentage,
+          discount_amount: discountAmount,
+          rate_type: 'hourly',
+          applied_rate: hourlyRate,
           status: 'confirmed',
           notes: pattern.notes || '',
           recurring_pattern_id: pattern.id,
-          is_exception: false
+          is_exception: false,
+          booking_type: 'tenant'
         });
       }
 
