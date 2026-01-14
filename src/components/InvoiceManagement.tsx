@@ -3134,18 +3134,11 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                     <div className="bg-dark-800 rounded-lg p-4">
                       <button
                         onClick={() => generateAllInvoices()}
-                        disabled={(selectedLeases.size === 0 && selectedCustomers.size === 0) || (selectedLeases.size === 0 && selectedCustomers.size > 0) || generatingBulk}
+                        disabled={(selectedLeases.size === 0 && selectedCustomers.size === 0) || generatingBulk}
                         className="w-full px-6 py-4 bg-gold-500 text-dark-900 font-semibold text-lg rounded-lg hover:bg-gold-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
                         {generatingBulk ? 'Facturen worden gegenereerd...' : `Genereer ${selectedLeases.size + selectedCustomers.size} factuur${(selectedLeases.size + selectedCustomers.size) !== 1 ? 'en' : ''}`}
                       </button>
-
-                      {selectedLeases.size === 0 && selectedCustomers.size > 0 && (
-                        <div className="flex items-center gap-2 text-amber-500 text-xs justify-center mt-2">
-                          <AlertCircle size={14} />
-                          <span>Vergaderfacturen kunnen alleen samen met huurcontracten worden gegenereerd</span>
-                        </div>
-                      )}
                     </div>
                   </div>
                 ) : (
