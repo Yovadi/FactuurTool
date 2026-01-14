@@ -153,11 +153,11 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     if (!invoiceMonth) return [];
 
     const [year, month] = invoiceMonth.split('-').map(Number);
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0);
 
-    const startDateStr = startDate.toISOString().split('T')[0];
-    const endDateStr = endDate.toISOString().split('T')[0];
+    // Format dates without timezone conversion
+    const startDateStr = `${year}-${String(month).padStart(2, '0')}-01`;
+    const lastDay = new Date(year, month, 0).getDate();
+    const endDateStr = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 
     console.log('Fetching bookings for customer:', customerId, 'type:', customerType);
     console.log('Date range:', startDateStr, 'to', endDateStr);
