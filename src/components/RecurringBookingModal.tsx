@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { X, Repeat } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, type Tenant } from '../lib/supabase';
 
 type RecurringBookingModalProps = {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
   spaces: { id: string; space_number: string }[];
-  tenants: { id: string; name: string; company_name: string }[];
+  tenants: Tenant[];
   preSelectedTenantId?: string | null;
 };
 
@@ -111,8 +111,8 @@ export function RecurringBookingModal({
     const totalHours = (endHour + endMinute / 60) - (startHour + startMinute / 60);
     const subtotal = totalHours * hourlyRate;
 
-    // Apply 10% tenant discount for recurring bookings
-    const discountPercentage = 10;
+    const selectedTenant = tenants.find(t => t.id === pattern.tenant_id);
+    const discountPercentage = selectedTenant?.discount_percentage || 10;
     const discountAmount = (subtotal * discountPercentage) / 100;
     const totalAmount = subtotal - discountAmount;
 

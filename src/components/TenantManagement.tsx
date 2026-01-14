@@ -22,6 +22,7 @@ type ExternalCustomer = {
   city: string;
   country: string;
   booking_pin_code?: string;
+  discount_percentage?: number;
   created_at?: string;
   updated_at?: string;
 };
@@ -50,7 +51,8 @@ export function TenantManagement() {
     postal_code: '',
     city: '',
     country: 'Nederland',
-    booking_pin_code: ''
+    booking_pin_code: '',
+    discount_percentage: 10
   });
 
   useEffect(() => {
@@ -178,7 +180,8 @@ export function TenantManagement() {
         postal_code: formData.postal_code,
         city: formData.city,
         country: formData.country,
-        booking_pin_code: formData.booking_pin_code
+        booking_pin_code: formData.booking_pin_code,
+        discount_percentage: formData.discount_percentage
       };
 
       if (editingCustomer) {
@@ -241,7 +244,8 @@ export function TenantManagement() {
       postal_code: tenant.postal_code || '',
       city: tenant.city || '',
       country: tenant.country || 'Nederland',
-      booking_pin_code: tenant.booking_pin_code || ''
+      booking_pin_code: tenant.booking_pin_code || '',
+      discount_percentage: tenant.discount_percentage
     });
     setShowForm(true);
   };
@@ -258,7 +262,8 @@ export function TenantManagement() {
       postal_code: customer.postal_code,
       city: customer.city,
       country: customer.country,
-      booking_pin_code: customer.booking_pin_code || ''
+      booking_pin_code: customer.booking_pin_code || '',
+      discount_percentage: customer.discount_percentage || 0
     });
     setShowForm(true);
   };
@@ -292,7 +297,7 @@ export function TenantManagement() {
   };
 
   const resetForm = () => {
-    setFormData({ company_name: '', name: '', email: '', phone: '', street: '', postal_code: '', city: '', country: 'Nederland', booking_pin_code: '' });
+    setFormData({ company_name: '', name: '', email: '', phone: '', street: '', postal_code: '', city: '', country: 'Nederland', booking_pin_code: '', discount_percentage: 10 });
     setEditingTenant(null);
     setEditingCustomer(null);
     setShowForm(false);
@@ -470,6 +475,27 @@ export function TenantManagement() {
                 />
                 <p className="text-xs text-gray-400 mt-1">
                   Geef deze pincode aan de huurder zodat ze zelfstandig vergaderruimtes kunnen boeken
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Korting op vergaderruimtes (%)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={formData.discount_percentage}
+                  onChange={(e) => setFormData({ ...formData, discount_percentage: Math.min(100, Math.max(0, Number(e.target.value))) })}
+                  className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-100"
+                  placeholder="Percentage korting"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  {activeTab === 'external'
+                    ? 'Percentage korting dat deze externe klant krijgt op vergaderruimte boekingen (standaard 0%)'
+                    : 'Percentage korting dat deze huurder krijgt op vergaderruimte boekingen (standaard 10%)'}
                 </p>
               </div>
               <div className="flex gap-4 justify-end pt-4">

@@ -325,8 +325,15 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       selectedRoom?.full_day_rate
     );
 
-    // Apply 10% tenant discount
-    const discountPercentage = bookingType === 'tenant' ? 10 : 0;
+    let discountPercentage = 0;
+    if (bookingType === 'tenant') {
+      const tenantId = loggedInTenantId || formData.tenant_id;
+      const selectedTenant = tenants.find(t => t.id === tenantId);
+      discountPercentage = selectedTenant?.discount_percentage || 10;
+    } else {
+      const selectedCustomer = externalCustomers.find(c => c.id === formData.external_customer_id);
+      discountPercentage = selectedCustomer?.discount_percentage || 0;
+    }
     const discountAmount = (totalAmount * discountPercentage) / 100;
     const finalAmount = totalAmount - discountAmount;
 
@@ -963,7 +970,15 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                       selectedRoom.full_day_rate
                     ) : { rateType: 'hourly' as const, appliedRate: 25, totalAmount: totalHours * 25 };
 
-                    const discountPercentage = bookingType === 'tenant' ? 10 : 0;
+                    let discountPercentage = 0;
+                    if (bookingType === 'tenant') {
+                      const tenantId = loggedInTenantId || formData.tenant_id;
+                      const selectedTenant = tenants.find(t => t.id === tenantId);
+                      discountPercentage = selectedTenant?.discount_percentage || 10;
+                    } else {
+                      const selectedCustomer = externalCustomers.find(c => c.id === formData.external_customer_id);
+                      discountPercentage = selectedCustomer?.discount_percentage || 0;
+                    }
                     const discountAmount = (rateInfo.totalAmount * discountPercentage) / 100;
                     const finalAmount = rateInfo.totalAmount - discountAmount;
 
