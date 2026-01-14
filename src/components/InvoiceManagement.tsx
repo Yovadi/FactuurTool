@@ -2917,9 +2917,51 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               <div className="p-6 space-y-4">
                 {invoiceMonth && (leasesToGenerate.length > 0 || customersWithBookings.length > 0) ? (
                   <div className="space-y-4">
-                    {/* Overzicht met selectie knoppen */}
-                    <div className="bg-dark-800 rounded-lg p-4 space-y-4">
-                      <div className="grid grid-cols-2 gap-3">
+                    {/* Maandkeuze en Overzicht tellers - naast elkaar */}
+                    <div className="bg-dark-800 rounded-lg p-4">
+                      <div className="grid grid-cols-3 gap-3">
+                        {/* Maandkeuze - Links */}
+                        <div className="space-y-2">
+                          <h4 className="text-sm font-medium text-gray-300">
+                            Factureren voor maand
+                          </h4>
+                          <input
+                            type="month"
+                            value={invoiceMonth}
+                            onChange={(e) => setInvoiceMonth(e.target.value)}
+                            className="w-full px-4 py-2 bg-dark-700 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                          />
+                          {invoiceMonth && (
+                            <div className="space-y-2">
+                              <div className="text-xs text-gray-400">Geselecteerd</div>
+                              <div className="text-sm font-semibold text-gold-500">
+                                {new Date(invoiceMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}
+                              </div>
+                              {((invoicedMonths.leaseCount.get(invoiceMonth) || 0) > 0 || (invoicedMonths.meetingRoomCount.get(invoiceMonth) || 0) > 0) && (
+                                <div className="space-y-1 mt-2">
+                                  {(invoicedMonths.leaseCount.get(invoiceMonth) || 0) > 0 && (
+                                    <div className="flex items-center gap-1 text-amber-500 text-xs">
+                                      <AlertCircle size={12} />
+                                      <span>
+                                        {invoicedMonths.leaseCount.get(invoiceMonth)} huur bestaat al
+                                      </span>
+                                    </div>
+                                  )}
+                                  {(invoicedMonths.meetingRoomCount.get(invoiceMonth) || 0) > 0 && (
+                                    <div className="flex items-center gap-1 text-amber-500 text-xs">
+                                      <AlertCircle size={12} />
+                                      <span>
+                                        {invoicedMonths.meetingRoomCount.get(invoiceMonth)} vergader bestaat al
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Huurcontracten Teller */}
                         {leasesToGenerate.length > 0 && (
                           <div className="bg-dark-700 rounded-lg p-3">
                             <div className="flex items-center gap-2 text-emerald-500 mb-1">
@@ -2930,6 +2972,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                             <div className="text-xs text-gray-400">van {leasesToGenerate.length} beschikbaar</div>
                           </div>
                         )}
+
+                        {/* Vergaderruimtes Teller */}
                         {customersWithBookings.length > 0 && (
                           <div className="bg-dark-700 rounded-lg p-3">
                             <div className="flex items-center gap-2 text-blue-500 mb-1">
@@ -2941,68 +2985,10 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                           </div>
                         )}
                       </div>
-
-                      <button
-                        onClick={() => generateAllInvoices()}
-                        disabled={(selectedLeases.size === 0 && selectedCustomers.size === 0) || (selectedLeases.size === 0 && selectedCustomers.size > 0) || generatingBulk}
-                        className="w-full px-6 py-4 bg-gold-500 text-dark-900 font-semibold text-lg rounded-lg hover:bg-gold-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        {generatingBulk ? 'Facturen worden gegenereerd...' : `Genereer ${selectedLeases.size + selectedCustomers.size} factuur${(selectedLeases.size + selectedCustomers.size) !== 1 ? 'en' : ''}`}
-                      </button>
-
-                      {selectedLeases.size === 0 && selectedCustomers.size > 0 && (
-                        <div className="flex items-center gap-2 text-amber-500 text-xs justify-center">
-                          <AlertCircle size={14} />
-                          <span>Vergaderfacturen kunnen alleen samen met huurcontracten worden gegenereerd</span>
-                        </div>
-                      )}
                     </div>
 
-                    {/* Gedetailleerde selectie - 3 kolommen naast elkaar */}
-                    <div className="grid grid-cols-3 gap-4">
-                      {/* Maandkeuze - Links */}
-                      <div className="space-y-3">
-                        <h4 className="text-sm font-medium text-gray-300">
-                          Factureren voor maand
-                        </h4>
-                        <input
-                          type="month"
-                          value={invoiceMonth}
-                          onChange={(e) => setInvoiceMonth(e.target.value)}
-                          className="w-full px-4 py-2 bg-dark-700 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                        />
-                        {invoiceMonth && (
-                          <div className="space-y-2">
-                            <div className="bg-dark-700 rounded-lg p-3">
-                              <div className="text-xs text-gray-400 mb-1">Geselecteerd</div>
-                              <div className="text-base font-semibold text-gold-500">
-                                {new Date(invoiceMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}
-                              </div>
-                            </div>
-                            {((invoicedMonths.leaseCount.get(invoiceMonth) || 0) > 0 || (invoicedMonths.meetingRoomCount.get(invoiceMonth) || 0) > 0) && (
-                              <div className="space-y-2">
-                                {(invoicedMonths.leaseCount.get(invoiceMonth) || 0) > 0 && (
-                                  <div className="flex items-center gap-1 text-amber-500 text-xs">
-                                    <AlertCircle size={14} />
-                                    <span>
-                                      {invoicedMonths.leaseCount.get(invoiceMonth)} huur bestaat al
-                                    </span>
-                                  </div>
-                                )}
-                                {(invoicedMonths.meetingRoomCount.get(invoiceMonth) || 0) > 0 && (
-                                  <div className="flex items-center gap-1 text-amber-500 text-xs">
-                                    <AlertCircle size={14} />
-                                    <span>
-                                      {invoicedMonths.meetingRoomCount.get(invoiceMonth)} vergader bestaat al
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-
+                    {/* Gedetailleerde selectie - 2 kolommen naast elkaar */}
+                    <div className="grid grid-cols-2 gap-4">
                       {/* Huurcontracten */}
                       {leasesToGenerate.length > 0 && (
                           <div className="space-y-3">
@@ -3143,6 +3129,24 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                           </div>
                         )}
                       </div>
+
+                    {/* Gele Knop - Helemaal onderaan */}
+                    <div className="bg-dark-800 rounded-lg p-4">
+                      <button
+                        onClick={() => generateAllInvoices()}
+                        disabled={(selectedLeases.size === 0 && selectedCustomers.size === 0) || (selectedLeases.size === 0 && selectedCustomers.size > 0) || generatingBulk}
+                        className="w-full px-6 py-4 bg-gold-500 text-dark-900 font-semibold text-lg rounded-lg hover:bg-gold-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {generatingBulk ? 'Facturen worden gegenereerd...' : `Genereer ${selectedLeases.size + selectedCustomers.size} factuur${(selectedLeases.size + selectedCustomers.size) !== 1 ? 'en' : ''}`}
+                      </button>
+
+                      {selectedLeases.size === 0 && selectedCustomers.size > 0 && (
+                        <div className="flex items-center gap-2 text-amber-500 text-xs justify-center mt-2">
+                          <AlertCircle size={14} />
+                          <span>Vergaderfacturen kunnen alleen samen met huurcontracten worden gegenereerd</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-4">
