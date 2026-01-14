@@ -196,21 +196,10 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
     console.log('Raw bookings found:', bookings?.length || 0, bookings);
 
-    return (bookings || []).map(booking => {
-      const spaceName = booking.office_spaces?.space_number || 'Onbekende ruimte';
-      const bookingDate = new Date(booking.booking_date).toLocaleDateString('nl-NL');
-      const startTime = booking.start_time?.substring(0, 5) || '';
-      const endTime = booking.end_time?.substring(0, 5) || '';
-      const totalHours = parseFloat(booking.total_hours?.toString() || '0');
-
-      return {
-        description: `${bookingDate} ${startTime}-${endTime}`,
-        unit_price: (booking.hourly_rate || 0).toFixed(2),
-        quantity: totalHours.toFixed(1),
-        space_type: 'Meeting Room',
-        bookingId: booking.id
-      };
-    });
+    return (bookings || []).map(booking => ({
+      ...booking,
+      space: booking.office_spaces
+    }));
   };
 
   const [formData, setFormData] = useState({
