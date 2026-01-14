@@ -2915,56 +2915,9 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               </div>
 
               <div className="p-6 space-y-4">
-                {/* Maandkeuze - compact bovenaan */}
-                <div className="bg-dark-800 rounded-lg p-4">
-                  <div className="flex items-center gap-4">
-                    <div className="flex-1">
-                      <label className="block text-sm font-medium text-gray-200 mb-2">
-                        Factureren voor maand
-                      </label>
-                      <input
-                        type="month"
-                        value={invoiceMonth}
-                        onChange={(e) => setInvoiceMonth(e.target.value)}
-                        className="w-full px-4 py-2 bg-dark-700 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                      />
-                    </div>
-                    {invoiceMonth && (
-                      <div className="flex-1 flex items-center gap-3">
-                        <div className="flex-1">
-                          <div className="text-sm text-gray-400 mb-1">Geselecteerd</div>
-                          <div className="text-lg font-semibold text-gold-500">
-                            {new Date(invoiceMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  {invoiceMonth && ((invoicedMonths.leaseCount.get(invoiceMonth) || 0) > 0 || (invoicedMonths.meetingRoomCount.get(invoiceMonth) || 0) > 0) && (
-                    <div className="mt-3 flex gap-3">
-                      {(invoicedMonths.leaseCount.get(invoiceMonth) || 0) > 0 && (
-                        <div className="flex items-center gap-1 text-amber-500 text-xs">
-                          <AlertCircle size={14} />
-                          <span>
-                            {invoicedMonths.leaseCount.get(invoiceMonth)} huur bestaat al
-                          </span>
-                        </div>
-                      )}
-                      {(invoicedMonths.meetingRoomCount.get(invoiceMonth) || 0) > 0 && (
-                        <div className="flex items-center gap-1 text-amber-500 text-xs">
-                          <AlertCircle size={14} />
-                          <span>
-                            {invoicedMonths.meetingRoomCount.get(invoiceMonth)} vergader bestaat al
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Overzicht met selectie knoppen */}
-                {invoiceMonth && (leasesToGenerate.length > 0 || customersWithBookings.length > 0) && (
+                {invoiceMonth && (leasesToGenerate.length > 0 || customersWithBookings.length > 0) ? (
                   <div className="space-y-4">
+                    {/* Overzicht met selectie knoppen */}
                     <div className="bg-dark-800 rounded-lg p-4 space-y-4">
                       <div className="grid grid-cols-2 gap-3">
                         {leasesToGenerate.length > 0 && (
@@ -3005,11 +2958,53 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                       )}
                     </div>
 
-                    {/* Gedetailleerde selectie - 2 kolommen naast elkaar */}
-                    {showDetailSelection && (
-                      <div className="grid grid-cols-2 gap-4">
-                        {/* Huurcontracten */}
-                        {leasesToGenerate.length > 0 && (
+                    {/* Gedetailleerde selectie - 3 kolommen naast elkaar */}
+                    <div className="grid grid-cols-3 gap-4">
+                      {/* Maandkeuze - Links */}
+                      <div className="space-y-3">
+                        <h4 className="text-sm font-medium text-gray-300">
+                          Factureren voor maand
+                        </h4>
+                        <input
+                          type="month"
+                          value={invoiceMonth}
+                          onChange={(e) => setInvoiceMonth(e.target.value)}
+                          className="w-full px-4 py-2 bg-dark-700 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                        />
+                        {invoiceMonth && (
+                          <div className="space-y-2">
+                            <div className="bg-dark-700 rounded-lg p-3">
+                              <div className="text-xs text-gray-400 mb-1">Geselecteerd</div>
+                              <div className="text-base font-semibold text-gold-500">
+                                {new Date(invoiceMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}
+                              </div>
+                            </div>
+                            {((invoicedMonths.leaseCount.get(invoiceMonth) || 0) > 0 || (invoicedMonths.meetingRoomCount.get(invoiceMonth) || 0) > 0) && (
+                              <div className="space-y-2">
+                                {(invoicedMonths.leaseCount.get(invoiceMonth) || 0) > 0 && (
+                                  <div className="flex items-center gap-1 text-amber-500 text-xs">
+                                    <AlertCircle size={14} />
+                                    <span>
+                                      {invoicedMonths.leaseCount.get(invoiceMonth)} huur bestaat al
+                                    </span>
+                                  </div>
+                                )}
+                                {(invoicedMonths.meetingRoomCount.get(invoiceMonth) || 0) > 0 && (
+                                  <div className="flex items-center gap-1 text-amber-500 text-xs">
+                                    <AlertCircle size={14} />
+                                    <span>
+                                      {invoicedMonths.meetingRoomCount.get(invoiceMonth)} vergader bestaat al
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Huurcontracten */}
+                      {leasesToGenerate.length > 0 && (
                           <div className="space-y-3">
                             <div className="flex items-center justify-between">
                               <h4 className="text-sm font-medium text-gray-300 flex items-center gap-2">
@@ -3148,13 +3143,36 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                           </div>
                         )}
                       </div>
-                    )}
                   </div>
-                )}
+                ) : (
+                  <div className="space-y-4">
+                    {/* Maandkeuze - wanneer er geen facturen zijn */}
+                    <div className="bg-dark-800 rounded-lg p-4">
+                      <label className="block text-sm font-medium text-gray-200 mb-2">
+                        Factureren voor maand
+                      </label>
+                      <input
+                        type="month"
+                        value={invoiceMonth}
+                        onChange={(e) => setInvoiceMonth(e.target.value)}
+                        className="w-full px-4 py-2 bg-dark-700 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                      />
+                      {invoiceMonth && (
+                        <div className="mt-3">
+                          <div className="text-sm text-gray-300">
+                            Geselecteerd: <span className="font-bold text-gold-500">
+                              {new Date(invoiceMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
 
-                {invoiceMonth && leasesToGenerate.length === 0 && customersWithBookings.length === 0 && (
-                  <div className="text-center py-8 text-gray-400">
-                    Geen facturen te genereren voor deze maand
+                    {invoiceMonth && (
+                      <div className="text-center py-8 text-gray-400">
+                        Geen facturen te genereren voor deze maand
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
