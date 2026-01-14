@@ -49,6 +49,8 @@ type Booking = {
   hourly_rate: number;
   total_hours: number;
   total_amount: number;
+  discount_percentage?: number;
+  discount_amount?: number;
   rate_type?: 'hourly' | 'half_day' | 'full_day';
   applied_rate?: number;
   status: 'confirmed' | 'cancelled' | 'completed';
@@ -323,6 +325,11 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       selectedRoom?.full_day_rate
     );
 
+    // Apply 10% tenant discount
+    const discountPercentage = bookingType === 'tenant' ? 10 : 0;
+    const discountAmount = (totalAmount * discountPercentage) / 100;
+    const finalAmount = totalAmount - discountAmount;
+
     const insertData: any = {
       space_id: formData.space_id,
       booking_date: formData.booking_date,
@@ -330,7 +337,9 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       end_time: formData.end_time,
       hourly_rate: selectedRoom?.hourly_rate || formData.hourly_rate,
       total_hours: totalHours,
-      total_amount: totalAmount,
+      total_amount: finalAmount,
+      discount_percentage: discountPercentage,
+      discount_amount: discountAmount,
       rate_type: rateType,
       applied_rate: appliedRate,
       status: 'confirmed',
@@ -499,7 +508,11 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     } else {
       rateDescription = `${booking.total_hours}u`;
     }
-    const bookingLine = `- ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)} (${rateDescription}) = €${booking.total_amount.toFixed(2)}`;
+
+    const discountNote = booking.discount_percentage && booking.discount_percentage > 0
+      ? ` (incl. ${booking.discount_percentage}% huurderkorting)`
+      : '';
+    const bookingLine = `- ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)} (${rateDescription})${discountNote} = €${booking.total_amount.toFixed(2)}`;
 
     let updatedNotes = invoice.notes || '';
     const lines = updatedNotes.split('\n');
@@ -578,7 +591,11 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     } else {
       rateDescription = `${booking.total_hours}u`;
     }
-    const bookingLine = `- ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)} (${rateDescription}) = €${booking.total_amount.toFixed(2)}`;
+
+    const discountNote = booking.discount_percentage && booking.discount_percentage > 0
+      ? ` (incl. ${booking.discount_percentage}% huurderkorting)`
+      : '';
+    const bookingLine = `- ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)} (${rateDescription})${discountNote} = €${booking.total_amount.toFixed(2)}`;
 
     if (existingInvoice) {
       const newSubtotal = parseFloat(existingInvoice.subtotal) + booking.total_amount;
@@ -1228,6 +1245,11 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                       <div className="text-sm font-semibold text-gray-200">
                         €{booking.total_amount.toFixed(2)}
                       </div>
+                      {booking.discount_percentage && booking.discount_percentage > 0 && (
+                        <div className="text-xs text-green-400 mt-0.5">
+                          -{booking.discount_percentage}% korting
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3 w-[10%]">
                       <span

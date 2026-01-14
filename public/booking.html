@@ -1942,7 +1942,12 @@
             const totalHours = ((endHour * 60 + endMin) - (startHour * 60 + startMin)) / 60;
 
             const hourlyRate = selectedRoom.hourly_rate || 25;
-            const totalAmount = totalHours * hourlyRate;
+            let totalAmount = totalHours * hourlyRate;
+
+            // Calculate tenant discount (10% for tenants, 0% for external customers)
+            const discountPercentage = authenticatedUser.userType === 'tenant' ? 10 : 0;
+            const discountAmount = (totalAmount * discountPercentage) / 100;
+            const finalAmount = totalAmount - discountAmount;
 
             const bookingData = {
                 space_id: roomId,
@@ -1951,7 +1956,9 @@
                 end_time: endTime,
                 hourly_rate: hourlyRate,
                 total_hours: totalHours,
-                total_amount: totalAmount,
+                total_amount: finalAmount,
+                discount_percentage: discountPercentage,
+                discount_amount: discountAmount,
                 status: 'confirmed',
                 booking_type: authenticatedUser.userType
             };
@@ -2107,7 +2114,12 @@
             const [startHour, startMinute] = pattern.start_time.split(':').map(Number);
             const [endHour, endMinute] = pattern.end_time.split(':').map(Number);
             const totalHours = (endHour + endMinute / 60) - (startHour + startMinute / 60);
-            const totalAmount = totalHours * hourlyRate;
+            let totalAmount = totalHours * hourlyRate;
+
+            // Apply 10% tenant discount for recurring bookings (always tenant bookings)
+            const discountPercentage = 10;
+            const discountAmount = (totalAmount * discountPercentage) / 100;
+            const finalAmount = totalAmount - discountAmount;
 
             let currentDate = new Date(startDate);
 
@@ -2132,7 +2144,9 @@
                         end_time: pattern.end_time,
                         hourly_rate: hourlyRate,
                         total_hours: totalHours,
-                        total_amount: totalAmount,
+                        total_amount: finalAmount,
+                        discount_percentage: discountPercentage,
+                        discount_amount: discountAmount,
                         status: 'confirmed',
                         notes: pattern.notes || '',
                         recurring_pattern_id: pattern.id,
