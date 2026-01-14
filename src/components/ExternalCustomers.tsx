@@ -136,7 +136,7 @@ export function ExternalCustomers() {
       .eq('external_customer_id', id);
 
     if (invoices && invoices.length > 0) {
-      details.push(`${invoices.length} factuur${invoices.length > 1 ? 'uren' : ''}`);
+      details.push(`${invoices.length} ${invoices.length > 1 ? 'facturen' : 'factuur'}`);
     }
 
     // Check for existing credit notes

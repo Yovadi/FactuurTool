@@ -1319,7 +1319,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
     if (successCount > 0) {
       await loadData();
-      alert(`✓ ${successCount} vergaderruimte factuur${successCount > 1 ? 'en' : ''} aangemaakt voor ${new Date(targetMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}`);
+      alert(`✓ ${successCount} vergaderruimte ${successCount > 1 ? 'facturen' : 'factuur'} aangemaakt voor ${new Date(targetMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}`);
       setSelectedCustomers(new Set());
     }
     if (failCount > 0) {
@@ -1553,7 +1553,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
     if (successCount > 0) {
       await loadData();
-      alert(`✓ ${successCount} huur factuur${successCount > 1 ? 'en' : ''} aangemaakt voor ${new Date(targetMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}`);
+      alert(`✓ ${successCount} huur ${successCount > 1 ? 'facturen' : 'factuur'} aangemaakt voor ${new Date(targetMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}`);
       setSelectedLeases(new Set());
     }
     if (failCount > 0) {
@@ -3122,11 +3122,17 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                     {/* Gele Knop - Helemaal onderaan */}
                     <div className="bg-dark-800 rounded-lg p-4">
                       <button
-                        onClick={() => generateAllInvoices()}
+                        onClick={(e) => {
+                          console.log('Button clicked!', e);
+                          console.log('selectedLeases.size:', selectedLeases.size);
+                          console.log('selectedCustomers.size:', selectedCustomers.size);
+                          console.log('generatingBulk:', generatingBulk);
+                          generateAllInvoices();
+                        }}
                         disabled={(selectedLeases.size === 0 && selectedCustomers.size === 0) || generatingBulk}
                         className="w-full px-6 py-4 bg-gold-500 text-dark-900 font-semibold text-lg rounded-lg hover:bg-gold-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
-                        {generatingBulk ? 'Facturen worden gegenereerd...' : `Genereer ${selectedLeases.size + selectedCustomers.size} factuur${(selectedLeases.size + selectedCustomers.size) !== 1 ? 'en' : ''}`}
+                        {generatingBulk ? 'Facturen worden gegenereerd...' : `Genereer ${selectedLeases.size + selectedCustomers.size} ${(selectedLeases.size + selectedCustomers.size) !== 1 ? 'facturen' : 'factuur'}`}
                       </button>
                     </div>
                   </div>
