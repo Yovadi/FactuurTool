@@ -1009,33 +1009,67 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
       return;
     }
 
-    const { error: itemsError } = await supabase
-      .from('invoice_line_items')
-      .delete()
-      .eq('invoice_id', invoiceId);
+    if (invoiceId === 'bulk') {
+      const idsToDelete = Array.from(selectedInvoices);
 
-    if (itemsError) {
-      console.error('Error deleting line items:', itemsError);
-      setDeleteError('Fout bij verwijderen van factuurregels');
-      return;
+      for (const id of idsToDelete) {
+        const { error: itemsError } = await supabase
+          .from('invoice_line_items')
+          .delete()
+          .eq('invoice_id', id);
+
+        if (itemsError) {
+          console.error('Error deleting line items:', itemsError);
+          setDeleteError('Fout bij verwijderen van factuurregels');
+          return;
+        }
+
+        const { error } = await supabase
+          .from('invoices')
+          .delete()
+          .eq('id', id);
+
+        if (error) {
+          console.error('Error deleting invoice:', error);
+          setDeleteError('Fout bij verwijderen van factuur');
+          return;
+        }
+      }
+
+      setShowDeleteConfirm(null);
+      setDeletePassword('');
+      setDeleteError('');
+      setInvoices(prev => prev.filter(inv => !selectedInvoices.has(inv.id)));
+      setSelectedInvoices(new Set());
+    } else {
+      const { error: itemsError } = await supabase
+        .from('invoice_line_items')
+        .delete()
+        .eq('invoice_id', invoiceId);
+
+      if (itemsError) {
+        console.error('Error deleting line items:', itemsError);
+        setDeleteError('Fout bij verwijderen van factuurregels');
+        return;
+      }
+
+      const { error } = await supabase
+        .from('invoices')
+        .delete()
+        .eq('id', invoiceId);
+
+      if (error) {
+        console.error('Error deleting invoice:', error);
+        setDeleteError('Fout bij verwijderen van factuur');
+        return;
+      }
+      setShowDeleteConfirm(null);
+      setDeletePassword('');
+      setDeleteError('');
+
+      // Update local state without full reload
+      setInvoices(prev => prev.filter(inv => inv.id !== invoiceId));
     }
-
-    const { error } = await supabase
-      .from('invoices')
-      .delete()
-      .eq('id', invoiceId);
-
-    if (error) {
-      console.error('Error deleting invoice:', error);
-      setDeleteError('Fout bij verwijderen van factuur');
-      return;
-    }
-    setShowDeleteConfirm(null);
-    setDeletePassword('');
-    setDeleteError('');
-
-    // Update local state without full reload
-    setInvoices(prev => prev.filter(inv => inv.id !== invoiceId));
   };
 
   const viewInvoiceDetails = async (invoice: InvoiceWithDetails) => {
@@ -1977,16 +2011,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
   const handleBatchDelete = async () => {
     if (selectedInvoices.size === 0) return;
-    if (!window.confirm(`Weet je zeker dat je ${selectedInvoices.size} facturen wilt verwijderen?`)) return;
-
-    const idsToDelete = Array.from(selectedInvoices);
-
-    for (const id of idsToDelete) {
-      await supabase.from('invoices').delete().eq('id', id);
-    }
-
-    await fetchInvoices();
-    setSelectedInvoices(new Set());
+    setShowDeleteConfirm('bulk');
   };
 
   const handleBatchStatusChange = async (newStatus: string) => {
@@ -3145,9 +3170,14 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-dark-900 rounded-lg p-6 max-w-md w-full mx-4 border border-dark-700">
-            <h3 className="text-xl font-bold text-gray-100 mb-4">Factuur Wissen</h3>
+            <h3 className="text-xl font-bold text-gray-100 mb-4">
+              {showDeleteConfirm === 'bulk' ? 'Facturen Wissen' : 'Factuur Wissen'}
+            </h3>
             <p className="text-gray-300 mb-4">
-              Weet je zeker dat je deze factuur wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.
+              {showDeleteConfirm === 'bulk'
+                ? `Weet je zeker dat je ${selectedInvoices.size} facturen wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.`
+                : 'Weet je zeker dat je deze factuur wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.'
+              }
             </p>
             {deleteError && (
               <div className="mb-4 p-3 bg-red-900/30 border border-red-500/50 rounded-lg text-red-200 text-sm">
