@@ -963,6 +963,10 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                       selectedRoom.full_day_rate
                     ) : { rateType: 'hourly' as const, appliedRate: 25, totalAmount: totalHours * 25 };
 
+                    const discountPercentage = bookingType === 'tenant' ? 10 : 0;
+                    const discountAmount = (rateInfo.totalAmount * discountPercentage) / 100;
+                    const finalAmount = rateInfo.totalAmount - discountAmount;
+
                     return (
                       <div className="space-y-3">
                         <div className="grid grid-cols-3 gap-3">
@@ -985,15 +989,31 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center justify-between p-3 bg-dark-700 rounded-lg">
-                          <div>
-                            <span className="text-sm text-gray-400">Toegepast tarief: </span>
-                            <span className="text-sm font-medium text-gold-400">{getRateLabel(rateInfo.rateType)}</span>
-                            <span className="text-sm text-gray-400"> ({totalHours} uur)</span>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between p-3 bg-dark-700 rounded-lg">
+                            <div>
+                              <span className="text-sm text-gray-400">Toegepast tarief: </span>
+                              <span className="text-sm font-medium text-gold-400">{getRateLabel(rateInfo.rateType)}</span>
+                              <span className="text-sm text-gray-400"> ({totalHours} uur)</span>
+                            </div>
+                            <div className="text-lg font-semibold text-gray-100">
+                              €{rateInfo.totalAmount.toFixed(2)}
+                            </div>
                           </div>
-                          <div className="text-lg font-semibold text-gray-100">
-                            €{rateInfo.totalAmount.toFixed(2)}
-                          </div>
+                          {discountPercentage > 0 && (
+                            <>
+                              <div className="flex items-center justify-between px-3 text-sm">
+                                <span className="text-green-400">Huurderkorting ({discountPercentage}%)</span>
+                                <span className="text-green-400 font-medium">-€{discountAmount.toFixed(2)}</span>
+                              </div>
+                              <div className="flex items-center justify-between p-3 bg-dark-700 rounded-lg border border-gold-500">
+                                <span className="text-sm font-medium text-gray-200">Totaal te betalen</span>
+                                <div className="text-lg font-semibold text-gold-400">
+                                  €{finalAmount.toFixed(2)}
+                                </div>
+                              </div>
+                            </>
+                          )}
                         </div>
                       </div>
                     );

@@ -1907,11 +1907,37 @@
             const [endHour, endMin] = endTime.split(':').map(Number);
             const totalHours = ((endHour * 60 + endMin) - (startHour * 60 + startMin)) / 60;
 
+            function updatePricePreview(roomId) {
+                const selectedRoom = meetingRooms.find(r => r.id === roomId);
+                if (!selectedRoom) {
+                    document.getElementById('pricePreview').innerHTML = '';
+                    return;
+                }
+
+                const hourlyRate = selectedRoom.hourly_rate || 25;
+                const subtotal = totalHours * hourlyRate;
+                const discountPercentage = authenticatedUser.userType === 'tenant' ? 10 : 0;
+                const discountAmount = (subtotal * discountPercentage) / 100;
+                const totalAmount = subtotal - discountAmount;
+
+                let priceHtml = `<p><strong>Uurtarief:</strong> €${hourlyRate.toFixed(2)}</p>`;
+                priceHtml += `<p><strong>Subtotaal:</strong> €${subtotal.toFixed(2)}</p>`;
+
+                if (discountPercentage > 0) {
+                    priceHtml += `<p style="color: #22C55E;"><strong>Huurderkorting (${discountPercentage}%):</strong> -€${discountAmount.toFixed(2)}</p>`;
+                }
+
+                priceHtml += `<p style="font-size: 1.125rem; margin-top: 0.5rem;"><strong>Totaal:</strong> €${totalAmount.toFixed(2)}</p>`;
+
+                document.getElementById('pricePreview').innerHTML = priceHtml;
+            }
+
             document.getElementById('selectionInfo').innerHTML = `
                 <h4>Geselecteerde tijd</h4>
                 <p><strong>Datum:</strong> ${bookingDate.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
                 <p><strong>Tijd:</strong> ${startTime} - ${endTime}</p>
                 <p><strong>Duur:</strong> ${totalHours.toFixed(1)} uur</p>
+                <div id="pricePreview" style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #3A3A3E;"></div>
             `;
 
             const roomSelect = document.getElementById('roomSelect');
@@ -1921,6 +1947,10 @@
                 option.value = room.id;
                 option.textContent = room.space_number;
                 roomSelect.appendChild(option);
+            });
+
+            roomSelect.addEventListener('change', (e) => {
+                updatePricePreview(e.target.value);
             });
 
             document.getElementById('bookingModal').classList.add('show');
@@ -2348,6 +2378,10 @@
                 ? '<span class="status-badge can-cancel">Klik om te annuleren</span>'
                 : '<span class="status-badge past">Voltooid</span>';
 
+            const discountBadge = booking.discount_percentage > 0
+                ? `<span style="font-size: 0.75rem; color: #22C55E; margin-left: 0.25rem;">(-${booking.discount_percentage}%)</span>`
+                : '';
+
             return `
                 <tr class="${rowClass}" ${onClickAttr}>
                     <td class="date-cell">
@@ -2355,7 +2389,7 @@
                     </td>
                     <td class="room-cell">${room?.space_number || 'Onbekend'}</td>
                     <td class="time-cell">${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)}</td>
-                    <td class="amount-cell">€${booking.total_amount.toFixed(2)}</td>
+                    <td class="amount-cell">€${booking.total_amount.toFixed(2)}${discountBadge}</td>
                     <td class="status-cell">${statusBadge}</td>
                 </tr>
             `;
