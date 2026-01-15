@@ -188,6 +188,10 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         total_hours,
         total_amount,
         hourly_rate,
+        discount_percentage,
+        discount_amount,
+        rate_type,
+        applied_rate,
         status,
         invoice_id,
         office_spaces(space_number)
@@ -1204,10 +1208,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
           continue;
         }
 
-        const baseAmount = Math.round(bookings.reduce((sum, item) => {
-          const quantity = item.quantity ? parseFloat(item.quantity) : 1;
-          const unitPrice = parseFloat(item.unit_price);
-          return sum + (quantity * unitPrice);
+        const baseAmount = Math.round(bookings.reduce((sum, booking) => {
+          return sum + (booking.total_amount || 0);
         }, 0) * 100) / 100;
 
         const { subtotal, vatAmount, total } = calculateVAT(baseAmount, 21, false);
@@ -1257,16 +1259,29 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
           continue;
         }
 
-        const lineItemsToInsert = bookings.map(item => {
-          const quantity = item.quantity ? parseFloat(item.quantity) : 1;
-          const unitPrice = parseFloat(item.unit_price);
+        const lineItemsToInsert = bookings.map(booking => {
+          let rateDescription = '';
+          if (booking.rate_type === 'half_day') {
+            rateDescription = 'halve dag';
+          } else if (booking.rate_type === 'full_day') {
+            rateDescription = 'hele dag';
+          } else {
+            rateDescription = `${booking.total_hours}u`;
+          }
+
+          const discountNote = booking.discount_percentage && booking.discount_percentage > 0
+            ? ` (incl. ${booking.discount_percentage}% huurderkorting)`
+            : '';
+
+          const description = `${booking.space?.space_number || 'Vergaderruimte'} - ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)} (${rateDescription})${discountNote}`;
+
           return {
             invoice_id: newInvoice.id,
-            description: item.description,
-            quantity: quantity,
-            unit_price: unitPrice,
-            amount: quantity * unitPrice,
-            booking_id: item.bookingId || null
+            description: description,
+            quantity: booking.total_hours,
+            unit_price: booking.applied_rate || booking.hourly_rate,
+            amount: booking.total_amount,
+            booking_id: booking.id
           };
         });
 
@@ -1281,9 +1296,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
           continue;
         }
 
-        const allBookingIds = bookings
-          .filter(item => item.bookingId)
-          .map(item => item.bookingId);
+        const allBookingIds = bookings.map(booking => booking.id);
 
         if (allBookingIds.length > 0) {
           await supabase
