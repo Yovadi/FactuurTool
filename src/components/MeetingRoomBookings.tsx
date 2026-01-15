@@ -1300,56 +1300,40 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                       </div>
                     </td>
                     <td className="px-4 py-3 w-[24%]">
-                      <div className="flex items-center justify-center gap-2 flex-wrap">
-                        {!loggedInTenantId && !booking.invoice_id && booking.status === 'completed' && (
-                          <button
-                            onClick={() => handleGenerateInvoice(booking)}
-                            className="text-gold-400 hover:text-gold-300"
-                            title="Factuur aanmaken"
-                          >
-                            <FileText size={18} />
-                          </button>
-                        )}
-                        {booking.invoice_id && (
-                          <span className="text-xs text-green-400" title="Gefactureerd">
-                            <FileText size={18} />
-                          </span>
-                        )}
+                      <div className="flex items-center justify-center gap-3">
                         {!loggedInTenantId && booking.status === 'confirmed' && (
                           <button
                             onClick={() => handleStatusChange(booking.id, 'completed')}
-                            className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium text-sm transition-colors flex items-center gap-1.5"
+                            className="p-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
                             title="Markeer als voltooid"
                           >
-                            <Check size={16} />
-                            Goedkeuren
+                            <Check size={20} />
                           </button>
                         )}
                         {!loggedInTenantId && booking.status === 'completed' && !booking.invoice_id && (
                           <button
                             onClick={() => handleStatusChange(booking.id, 'confirmed')}
-                            className="text-blue-400 hover:text-blue-300"
+                            className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
                             title="Zet terug naar bevestigd"
                           >
-                            <RotateCcw size={18} />
+                            <RotateCcw size={20} />
                           </button>
                         )}
                         {booking.status === 'confirmed' && (
                           <button
                             onClick={() => handleStatusChange(booking.id, 'cancelled')}
-                            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium text-sm transition-colors flex items-center gap-1.5"
+                            className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
                             title="Annuleer boeking"
                           >
-                            <AlertCircle size={16} />
-                            Annuleren
+                            <AlertCircle size={20} />
                           </button>
                         )}
                         <button
                           onClick={() => confirmDelete(booking.id)}
-                          className="text-gray-400 hover:text-red-400"
+                          className="p-2 bg-gray-700 hover:bg-red-600 text-gray-300 hover:text-white rounded-lg transition-colors"
                           title="Verwijder boeking"
                         >
-                          <Trash2 size={18} />
+                          <Trash2 size={20} />
                         </button>
                       </div>
                     </td>
