@@ -2939,10 +2939,6 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                           />
                           {invoiceMonth && (
                             <div className="space-y-2">
-                              <div className="text-xs text-gray-400">Geselecteerd</div>
-                              <div className="text-sm font-semibold text-gold-500">
-                                {new Date(invoiceMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}
-                              </div>
                               {((invoicedMonths.leaseCount.get(invoiceMonth) || 0) > 0 || (invoicedMonths.meetingRoomCount.get(invoiceMonth) || 0) > 0) && (
                                 <div className="space-y-1 mt-2">
                                   {(invoicedMonths.leaseCount.get(invoiceMonth) || 0) > 0 && (
