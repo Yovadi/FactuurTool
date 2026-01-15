@@ -31,7 +31,7 @@ export function DebiteurenTabs({ onCreateCreditNote }: DebiteurenTabsProps) {
                 onClick={() => setActiveTab('invoices')}
                 className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
                   activeTab === 'invoices'
-                    ? 'bg-gold-500 text-dark-950'
+                    ? 'bg-gold-500 text-white'
                     : 'text-gray-300 hover:bg-dark-800'
                 }`}
               >
@@ -42,7 +42,7 @@ export function DebiteurenTabs({ onCreateCreditNote }: DebiteurenTabsProps) {
                 onClick={() => setActiveTab('outstanding')}
                 className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
                   activeTab === 'outstanding'
-                    ? 'bg-gold-500 text-dark-950'
+                    ? 'bg-gold-500 text-white'
                     : 'text-gray-300 hover:bg-dark-800'
                 }`}
               >
@@ -53,7 +53,7 @@ export function DebiteurenTabs({ onCreateCreditNote }: DebiteurenTabsProps) {
                 onClick={() => setActiveTab('log')}
                 className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
                   activeTab === 'log'
-                    ? 'bg-gold-500 text-dark-950'
+                    ? 'bg-gold-500 text-white'
                     : 'text-gray-300 hover:bg-dark-800'
                 }`}
               >
@@ -64,7 +64,7 @@ export function DebiteurenTabs({ onCreateCreditNote }: DebiteurenTabsProps) {
             {activeTab === 'invoices' && (
               <button
                 onClick={() => invoiceManagementRef.current?.openGenerateModal()}
-                className="flex items-center gap-2 px-4 py-2 bg-gold-500 text-dark-900 font-medium rounded-lg hover:bg-gold-400 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-gold-500 text-white font-medium rounded-lg hover:bg-gold-400 transition-colors"
               >
                 <Plus size={18} />
                 Genereer Facturen

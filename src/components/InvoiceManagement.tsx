@@ -3146,7 +3146,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                           generateAllInvoices();
                         }}
                         disabled={(selectedLeases.size === 0 && selectedCustomers.size === 0) || generatingBulk}
-                        className="w-full px-6 py-4 bg-gold-500 text-dark-900 font-semibold text-lg rounded-lg hover:bg-gold-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="w-full px-6 py-4 bg-gold-500 text-white font-semibold text-lg rounded-lg hover:bg-gold-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
                         {generatingBulk ? 'Facturen worden gegenereerd...' : `Genereer ${selectedLeases.size + selectedCustomers.size} ${(selectedLeases.size + selectedCustomers.size) !== 1 ? 'facturen' : 'factuur'}`}
                       </button>

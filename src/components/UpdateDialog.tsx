@@ -84,7 +84,7 @@ export function UpdateDialog({
                     onDownload?.();
                     handleClose();
                   }}
-                  className="flex-1 px-4 py-2.5 bg-gold-500 hover:bg-gold-600 text-dark-950 font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
+                  className="flex-1 px-4 py-2.5 bg-gold-500 hover:bg-gold-600 text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
                 >
                   <Download size={18} />
                   Download
@@ -157,7 +157,7 @@ export function UpdateDialog({
                     onInstall?.();
                     handleClose();
                   }}
-                  className="flex-1 px-4 py-2.5 bg-gold-500 hover:bg-gold-600 text-dark-950 font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
+                  className="flex-1 px-4 py-2.5 bg-gold-500 hover:bg-gold-600 text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
                 >
                   <CheckCircle size={18} />
                   Nu Installeren
@@ -187,7 +187,7 @@ export function UpdateDialog({
               </div>
               <button
                 onClick={handleClose}
-                className="w-full px-4 py-2.5 bg-gold-500 hover:bg-gold-600 text-dark-950 font-semibold rounded-lg transition-colors"
+                className="w-full px-4 py-2.5 bg-gold-500 hover:bg-gold-600 text-white font-semibold rounded-lg transition-colors"
               >
                 Sluiten
               </button>

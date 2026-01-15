@@ -150,7 +150,7 @@ export function CreditOverview() {
             onClick={() => setActiveTab('customers')}
             className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
               activeTab === 'customers'
-                ? 'bg-gold-500 text-dark-950'
+                ? 'bg-gold-500 text-white'
                 : 'text-gray-300 hover:bg-dark-800'
             }`}
           >
@@ -161,7 +161,7 @@ export function CreditOverview() {
             onClick={() => setActiveTab('unapplied')}
             className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
               activeTab === 'unapplied'
-                ? 'bg-gold-500 text-dark-950'
+                ? 'bg-gold-500 text-white'
                 : 'text-gray-300 hover:bg-dark-800'
             }`}
           >

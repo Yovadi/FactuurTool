@@ -19,7 +19,7 @@ export function SpacesTabs() {
             onClick={() => setActiveTab('spaces')}
             className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
               activeTab === 'spaces'
-                ? 'bg-gold-500 text-dark-950'
+                ? 'bg-gold-500 text-white'
                 : 'text-gray-300 hover:bg-dark-800'
             }`}
           >
@@ -30,7 +30,7 @@ export function SpacesTabs() {
             onClick={() => setActiveTab('rates')}
             className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
               activeTab === 'rates'
-                ? 'bg-gold-500 text-dark-950'
+                ? 'bg-gold-500 text-white'
                 : 'text-gray-300 hover:bg-dark-800'
             }`}
           >

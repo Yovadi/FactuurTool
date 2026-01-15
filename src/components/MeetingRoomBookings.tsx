@@ -781,7 +781,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
               onClick={() => setSelectedView('list')}
               className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
                 selectedView === 'list'
-                  ? 'bg-gold-500 text-dark-950'
+                  ? 'bg-gold-500 text-white'
                   : 'text-gray-300 hover:bg-dark-800'
               }`}
             >
@@ -792,7 +792,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
               onClick={() => setSelectedView('calendar')}
               className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
                 selectedView === 'calendar'
-                  ? 'bg-gold-500 text-dark-950'
+                  ? 'bg-gold-500 text-white'
                   : 'text-gray-300 hover:bg-dark-800'
               }`}
             >

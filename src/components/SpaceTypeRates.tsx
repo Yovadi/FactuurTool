@@ -191,7 +191,7 @@ export function SpaceTypeRates() {
         <h2 className="text-2xl font-bold text-gray-100">Ruimte Tarieven</h2>
         <button
           onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 bg-gold-500 text-dark-950 px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors font-medium"
+          className="flex items-center gap-2 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors font-medium"
         >
           <Plus size={20} />
           Tarief Toevoegen
@@ -828,7 +828,7 @@ export function SpaceTypeRates() {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-gold-500 text-dark-950 rounded-lg hover:bg-gold-600 transition-colors font-medium"
+                  className="flex-1 px-4 py-2 bg-gold-500 text-white rounded-lg hover:bg-gold-600 transition-colors font-medium"
                 >
                   {editingRate ? 'Opslaan' : 'Toevoegen'}
                 </button>

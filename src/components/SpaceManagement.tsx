@@ -862,7 +862,7 @@ export function SpaceManagement() {
                               <div className="text-gray-100 font-medium mb-1">{space.space_number}</div>
                               <div className="flex flex-wrap gap-1.5">
                                 {(space.space_type === 'kantoor' || space.space_type === 'Flexplek') && space.is_furnished && (
-                                  <span className="text-xs bg-gold-500 text-dark-950 px-2 py-0.5 rounded-full font-medium">
+                                  <span className="text-xs bg-gold-500 text-white px-2 py-0.5 rounded-full font-medium">
                                     Gemeubileerd
                                   </span>
                                 )}

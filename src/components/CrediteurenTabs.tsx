@@ -30,7 +30,7 @@ export function CrediteurenTabs({ prefilledInvoiceData, onClearPrefilled }: Cred
               onClick={() => setActiveTab('creditnotes')}
               className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
                 activeTab === 'creditnotes'
-                  ? 'bg-gold-500 text-dark-950'
+                  ? 'bg-gold-500 text-white'
                   : 'text-gray-300 hover:bg-dark-800'
               }`}
             >
@@ -41,7 +41,7 @@ export function CrediteurenTabs({ prefilledInvoiceData, onClearPrefilled }: Cred
               onClick={() => setActiveTab('overview')}
               className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
                 activeTab === 'overview'
-                  ? 'bg-gold-500 text-dark-950'
+                  ? 'bg-gold-500 text-white'
                   : 'text-gray-300 hover:bg-dark-800'
               }`}
             >

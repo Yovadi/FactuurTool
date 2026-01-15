@@ -315,7 +315,7 @@ export function TenantManagement() {
             onClick={() => setActiveTab('fulltime')}
             className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
               activeTab === 'fulltime'
-                ? 'bg-gold-500 text-dark-950'
+                ? 'bg-gold-500 text-white'
                 : 'text-gray-300 hover:bg-dark-800'
             }`}
           >
@@ -326,7 +326,7 @@ export function TenantManagement() {
             onClick={() => setActiveTab('external')}
             className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
               activeTab === 'external'
-                ? 'bg-gold-500 text-dark-950'
+                ? 'bg-gold-500 text-white'
                 : 'text-gray-300 hover:bg-dark-800'
             }`}
           >
@@ -337,7 +337,7 @@ export function TenantManagement() {
             onClick={() => setActiveTab('inactive')}
             className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
               activeTab === 'inactive'
-                ? 'bg-gold-500 text-dark-950'
+                ? 'bg-gold-500 text-white'
                 : 'text-gray-300 hover:bg-dark-800'
             }`}
           >

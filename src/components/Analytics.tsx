@@ -371,7 +371,7 @@ export function Analytics() {
               onClick={() => setActiveTab('overview')}
               className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
                 activeTab === 'overview'
-                  ? 'bg-gold-500 text-dark-950'
+                  ? 'bg-gold-500 text-white'
                   : 'text-gray-300 hover:bg-dark-800'
               }`}
             >
@@ -382,7 +382,7 @@ export function Analytics() {
               onClick={() => setActiveTab('vat')}
               className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
                 activeTab === 'vat'
-                  ? 'bg-gold-500 text-dark-950'
+                  ? 'bg-gold-500 text-white'
                   : 'text-gray-300 hover:bg-dark-800'
               }`}
             >
@@ -393,7 +393,7 @@ export function Analytics() {
               onClick={() => setActiveTab('bookings')}
               className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
                 activeTab === 'bookings'
-                  ? 'bg-gold-500 text-dark-950'
+                  ? 'bg-gold-500 text-white'
                   : 'text-gray-300 hover:bg-dark-800'
               }`}
             >
@@ -513,7 +513,7 @@ export function Analytics() {
                 <button
                   onClick={() => setYearlyView('table')}
                   className={`flex items-center gap-1 px-3 py-1 rounded transition-colors ${
-                    yearlyView === 'table' ? 'bg-gold-500 text-dark-950' : 'text-gray-400 hover:text-gray-200'
+                    yearlyView === 'table' ? 'bg-gold-500 text-white' : 'text-gray-400 hover:text-gray-200'
                   }`}
                 >
                   <Table size={16} />
@@ -521,7 +521,7 @@ export function Analytics() {
                 <button
                   onClick={() => setYearlyView('chart')}
                   className={`flex items-center gap-1 px-3 py-1 rounded transition-colors ${
-                    yearlyView === 'chart' ? 'bg-gold-500 text-dark-950' : 'text-gray-400 hover:text-gray-200'
+                    yearlyView === 'chart' ? 'bg-gold-500 text-white' : 'text-gray-400 hover:text-gray-200'
                   }`}
                 >
                   <LineChartIcon size={16} />
@@ -598,7 +598,7 @@ export function Analytics() {
                 <button
                   onClick={() => setQuarterlyView('table')}
                   className={`flex items-center gap-1 px-3 py-1 rounded transition-colors ${
-                    quarterlyView === 'table' ? 'bg-gold-500 text-dark-950' : 'text-gray-400 hover:text-gray-200'
+                    quarterlyView === 'table' ? 'bg-gold-500 text-white' : 'text-gray-400 hover:text-gray-200'
                   }`}
                 >
                   <Table size={16} />
@@ -606,7 +606,7 @@ export function Analytics() {
                 <button
                   onClick={() => setQuarterlyView('chart')}
                   className={`flex items-center gap-1 px-3 py-1 rounded transition-colors ${
-                    quarterlyView === 'chart' ? 'bg-gold-500 text-dark-950' : 'text-gray-400 hover:text-gray-200'
+                    quarterlyView === 'chart' ? 'bg-gold-500 text-white' : 'text-gray-400 hover:text-gray-200'
                   }`}
                 >
                   <LineChartIcon size={16} />
@@ -788,7 +788,7 @@ export function Analytics() {
                   <button
                     onClick={() => setVatView('table')}
                     className={`flex items-center gap-1 px-3 py-1 rounded transition-colors ${
-                      vatView === 'table' ? 'bg-gold-500 text-dark-950' : 'text-gray-400 hover:text-gray-200'
+                      vatView === 'table' ? 'bg-gold-500 text-white' : 'text-gray-400 hover:text-gray-200'
                     }`}
                   >
                     <Table size={16} />
@@ -796,7 +796,7 @@ export function Analytics() {
                   <button
                     onClick={() => setVatView('chart')}
                     className={`flex items-center gap-1 px-3 py-1 rounded transition-colors ${
-                      vatView === 'chart' ? 'bg-gold-500 text-dark-950' : 'text-gray-400 hover:text-gray-200'
+                      vatView === 'chart' ? 'bg-gold-500 text-white' : 'text-gray-400 hover:text-gray-200'
                     }`}
                   >
                     <LineChartIcon size={16} />

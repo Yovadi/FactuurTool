@@ -20,7 +20,7 @@ export function VerhuurderTabs() {
               onClick={() => setActiveTab('company')}
               className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
                 activeTab === 'company'
-                  ? 'bg-gold-500 text-dark-950'
+                  ? 'bg-gold-500 text-white'
                   : 'text-gray-300 hover:bg-dark-800'
               }`}
             >
@@ -31,7 +31,7 @@ export function VerhuurderTabs() {
               onClick={() => setActiveTab('building')}
               className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
                 activeTab === 'building'
-                  ? 'bg-gold-500 text-dark-950'
+                  ? 'bg-gold-500 text-white'
                   : 'text-gray-300 hover:bg-dark-800'
               }`}
             >
@@ -42,7 +42,7 @@ export function VerhuurderTabs() {
               onClick={() => setActiveTab('app')}
               className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
                 activeTab === 'app'
-                  ? 'bg-gold-500 text-dark-950'
+                  ? 'bg-gold-500 text-white'
                   : 'text-gray-300 hover:bg-dark-800'
               }`}
             >
