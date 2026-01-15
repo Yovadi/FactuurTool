@@ -2671,7 +2671,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
           ); };
 
           return (
-            <div className="p-6 space-y-8">
+            <div className="space-y-4">
               {/* Concept Huur Facturen */}
               {renderInvoiceTable(
                 draftLeaseInvoices,

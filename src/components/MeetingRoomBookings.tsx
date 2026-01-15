@@ -1208,7 +1208,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                 <th className="text-center px-4 py-3 font-semibold w-[12%]">
                   Factuur
                 </th>
-                <th className="text-center px-4 py-3 font-semibold w-[12%]">
+                <th className="text-center px-4 py-3 font-semibold w-[15%]">
                   Acties
                 </th>
               </tr>
@@ -1299,8 +1299,8 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3 w-[12%]">
-                      <div className="flex items-center justify-center gap-2">
+                    <td className="px-4 py-3 w-[15%]">
+                      <div className="flex items-center justify-center gap-2 flex-wrap">
                         {!loggedInTenantId && !booking.invoice_id && booking.status === 'completed' && (
                           <button
                             onClick={() => handleGenerateInvoice(booking)}
@@ -1318,10 +1318,11 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                         {!loggedInTenantId && booking.status === 'confirmed' && (
                           <button
                             onClick={() => handleStatusChange(booking.id, 'completed')}
-                            className="text-green-400 hover:text-green-300"
+                            className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium text-sm transition-colors flex items-center gap-1.5"
                             title="Markeer als voltooid"
                           >
-                            <Check size={18} />
+                            <Check size={16} />
+                            Goedkeuren
                           </button>
                         )}
                         {!loggedInTenantId && booking.status === 'completed' && !booking.invoice_id && (
