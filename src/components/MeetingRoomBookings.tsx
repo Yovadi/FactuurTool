@@ -1187,28 +1187,28 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
             <table className="w-full table-fixed min-w-[1000px]">
             <thead>
               <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
-                <th className="text-left px-4 py-3 font-semibold w-[16%]">
+                <th className="text-left px-4 py-3 font-semibold w-[14%]">
                   Datum & Tijd
                 </th>
-                <th className="text-left px-4 py-3 font-semibold w-[10%]">
+                <th className="text-left px-4 py-3 font-semibold w-[9%]">
                   Ruimte
                 </th>
-                <th className="text-left px-4 py-3 font-semibold w-[18%]">
+                <th className="text-left px-4 py-3 font-semibold w-[15%]">
                   Klant
                 </th>
-                <th className="text-left px-4 py-3 font-semibold w-[12%]">
+                <th className="text-left px-4 py-3 font-semibold w-[10%]">
                   Duur
                 </th>
-                <th className="text-left px-4 py-3 font-semibold w-[10%]">
+                <th className="text-left px-4 py-3 font-semibold w-[9%]">
                   Bedrag
                 </th>
-                <th className="text-left px-4 py-3 font-semibold w-[10%]">
+                <th className="text-left px-4 py-3 font-semibold w-[9%]">
                   Status
                 </th>
-                <th className="text-center px-4 py-3 font-semibold w-[12%]">
+                <th className="text-center px-4 py-3 font-semibold w-[10%]">
                   Factuur
                 </th>
-                <th className="text-center px-4 py-3 font-semibold w-[15%]">
+                <th className="text-center px-4 py-3 font-semibold w-[24%]">
                   Acties
                 </th>
               </tr>
@@ -1226,7 +1226,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
               ) : (
                 bookings.map((booking) => (
                   <tr key={booking.id} className="hover:bg-dark-800/50 transition-colors">
-                    <td className="px-4 py-3 w-[16%]">
+                    <td className="px-4 py-3 w-[14%]">
                       <div className="text-sm text-gray-200 font-medium">
                         Week {getWeekNumber(new Date(booking.booking_date + 'T00:00:00'))} - {new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </div>
@@ -1234,12 +1234,12 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                         {booking.start_time.substring(0, 5)} - {booking.end_time.substring(0, 5)}
                       </div>
                     </td>
-                    <td className="px-4 py-3 w-[10%]">
+                    <td className="px-4 py-3 w-[9%]">
                       <div className="text-sm font-medium text-gray-200">
                         {booking.office_spaces?.space_number}
                       </div>
                     </td>
-                    <td className="px-4 py-3 w-[18%]">
+                    <td className="px-4 py-3 w-[15%]">
                       {booking.booking_type === 'external' ? (
                         <>
                           <div className="text-sm text-gray-200">{booking.external_customers?.contact_name}</div>
@@ -1254,7 +1254,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                         </>
                       )}
                     </td>
-                    <td className="px-4 py-3 w-[12%]">
+                    <td className="px-4 py-3 w-[10%]">
                       <div className="text-sm text-gray-200">
                         {booking.total_hours.toFixed(1)} uur
                       </div>
@@ -1262,12 +1262,12 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                         {booking.rate_type ? getRateLabel(booking.rate_type) : `€${booking.hourly_rate}/uur`}
                       </div>
                     </td>
-                    <td className="px-4 py-3 w-[10%]">
+                    <td className="px-4 py-3 w-[9%]">
                       <div className="text-sm font-semibold text-gray-200">
                         €{booking.total_amount.toFixed(2)}
                       </div>
                     </td>
-                    <td className="px-4 py-3 w-[10%]">
+                    <td className="px-4 py-3 w-[9%]">
                       <span
                         className={`inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full ${
                           booking.status === 'confirmed'
@@ -1284,7 +1284,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                           : 'Geannuleerd'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 w-[12%]">
+                    <td className="px-4 py-3 w-[10%]">
                       <div className="flex items-center justify-center">
                         {booking.invoice_id ? (
                           <span className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full bg-green-900/50 text-green-300 border border-green-700/50">
@@ -1299,7 +1299,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3 w-[15%]">
+                    <td className="px-4 py-3 w-[24%]">
                       <div className="flex items-center justify-center gap-2 flex-wrap">
                         {!loggedInTenantId && !booking.invoice_id && booking.status === 'completed' && (
                           <button
@@ -1337,10 +1337,11 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                         {booking.status === 'confirmed' && (
                           <button
                             onClick={() => handleStatusChange(booking.id, 'cancelled')}
-                            className="text-red-400 hover:text-red-300"
+                            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium text-sm transition-colors flex items-center gap-1.5"
                             title="Annuleer boeking"
                           >
-                            <AlertCircle size={18} />
+                            <AlertCircle size={16} />
+                            Annuleren
                           </button>
                         )}
                         <button
