@@ -162,6 +162,22 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     console.log('Fetching bookings for customer:', customerId, 'type:', customerType);
     console.log('Date range:', startDateStr, 'to', endDateStr);
 
+    // First check what bookings exist for this customer without status/invoice filters
+    let debugQuery = supabase
+      .from('meeting_room_bookings')
+      .select('id, booking_date, status, invoice_id, tenant_id, external_customer_id')
+      .gte('booking_date', startDateStr)
+      .lte('booking_date', endDateStr);
+
+    if (customerType === 'tenant') {
+      debugQuery = debugQuery.eq('tenant_id', customerId);
+    } else {
+      debugQuery = debugQuery.eq('external_customer_id', customerId);
+    }
+
+    const { data: allBookings } = await debugQuery;
+    console.log('All bookings for customer (no filters):', allBookings);
+
     let query = supabase
       .from('meeting_room_bookings')
       .select(`
@@ -194,7 +210,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       return [];
     }
 
-    console.log('Raw bookings found:', bookings?.length || 0, bookings);
+    console.log('Filtered bookings (completed + no invoice):', bookings?.length || 0, bookings);
 
     return (bookings || []).map(booking => ({
       ...booking,
