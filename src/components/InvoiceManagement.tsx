@@ -355,6 +355,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         external_customer_id,
         space:office_spaces(space_number)
       `)
+      .eq('status', 'completed')
       .order('booking_date', { ascending: false });
 
     setMeetingRoomBookings(bookingsData || []);
