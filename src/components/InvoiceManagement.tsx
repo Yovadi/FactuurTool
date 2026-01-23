@@ -1221,7 +1221,16 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
           return sum + (booking.discount_amount || 0);
         }, 0) * 100) / 100;
 
-        const baseAmount = totalBeforeDiscount - totalDiscount;
+        let additionalDiscount = 0;
+        const discountPercentage = customerType === 'tenant'
+          ? (customer as Tenant).meeting_discount_percentage
+          : (customer as ExternalCustomer).meeting_discount_percentage;
+
+        if (discountPercentage && discountPercentage > 0) {
+          additionalDiscount = Math.round((totalBeforeDiscount - totalDiscount) * (discountPercentage / 100) * 100) / 100;
+        }
+
+        const baseAmount = totalBeforeDiscount - totalDiscount - additionalDiscount;
 
         const { subtotal, vatAmount, total } = calculateVAT(baseAmount, 21, false);
 
@@ -1306,6 +1315,17 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
           return items;
         });
+
+        if (additionalDiscount > 0 && discountPercentage) {
+          lineItemsToInsert.push({
+            invoice_id: newInvoice.id,
+            description: `Korting vergaderruimtes (${discountPercentage}%)`,
+            quantity: 1,
+            unit_price: -additionalDiscount,
+            amount: -additionalDiscount,
+            booking_id: null
+          });
+        }
 
         const { error: lineItemsError } = await supabase
           .from('invoice_line_items')
@@ -1479,7 +1499,12 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
           rentAmount = lease.lease_spaces.reduce((sum, ls) => sum + ls.monthly_rent, 0);
         }
 
-        const baseAmount = Math.round((rentAmount + lease.security_deposit) * 100) / 100;
+        let discountAmount = 0;
+        if (lease.tenant?.lease_discount_percentage && lease.tenant.lease_discount_percentage > 0) {
+          discountAmount = Math.round(rentAmount * (lease.tenant.lease_discount_percentage / 100) * 100) / 100;
+        }
+
+        const baseAmount = Math.round((rentAmount - discountAmount + lease.security_deposit) * 100) / 100;
 
         const { subtotal, vatAmount, total } = calculateVAT(
           baseAmount,
@@ -1542,6 +1567,16 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
         } else {
           lineItemsToInsert.forEach(item => {
             item.invoice_id = newInvoice.id;
+          });
+        }
+
+        if (discountAmount > 0) {
+          lineItemsToInsert.push({
+            invoice_id: newInvoice.id,
+            description: `Korting verhuur (${lease.tenant?.lease_discount_percentage}%)`,
+            quantity: 1,
+            unit_price: -discountAmount,
+            amount: -discountAmount
           });
         }
 
