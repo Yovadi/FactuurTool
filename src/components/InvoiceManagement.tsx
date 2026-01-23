@@ -1496,19 +1496,39 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             });
           }
         } else {
-          rentAmount = lease.lease_spaces.reduce((sum, ls) => sum + ls.monthly_rent, 0);
+          rentAmount = lease.lease_spaces.reduce((sum, ls) => {
+            const monthlyRent = typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent;
+            return sum + monthlyRent;
+          }, 0);
         }
+
+        const vatRate = typeof lease.vat_rate === 'string' ? parseFloat(lease.vat_rate) : lease.vat_rate;
+        const securityDeposit = typeof lease.security_deposit === 'string' ? parseFloat(lease.security_deposit) : lease.security_deposit;
+        const discountPercentage = lease.tenant?.lease_discount_percentage
+          ? (typeof lease.tenant.lease_discount_percentage === 'string'
+              ? parseFloat(lease.tenant.lease_discount_percentage)
+              : lease.tenant.lease_discount_percentage)
+          : 0;
 
         let discountAmount = 0;
-        if (lease.tenant?.lease_discount_percentage && lease.tenant.lease_discount_percentage > 0) {
-          discountAmount = Math.round(rentAmount * (lease.tenant.lease_discount_percentage / 100) * 100) / 100;
+        if (discountPercentage > 0) {
+          discountAmount = Math.round(rentAmount * (discountPercentage / 100) * 100) / 100;
         }
 
-        const baseAmount = Math.round((rentAmount - discountAmount + lease.security_deposit) * 100) / 100;
+        console.log('=== INVOICE CALCULATION DEBUG ===');
+        console.log('Tenant:', lease.tenant?.company_name);
+        console.log('Rent amount:', rentAmount);
+        console.log('Discount %:', discountPercentage);
+        console.log('Discount amount:', discountAmount);
+        console.log('Security deposit:', securityDeposit);
+        console.log('VAT rate:', vatRate);
+        console.log('VAT inclusive:', lease.vat_inclusive);
+
+        const baseAmount = Math.round((rentAmount - discountAmount + securityDeposit) * 100) / 100;
 
         const { subtotal, vatAmount, total } = calculateVAT(
           baseAmount,
-          lease.vat_rate,
+          vatRate,
           lease.vat_inclusive
         );
 
@@ -1524,7 +1544,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             subtotal: subtotal,
             vat_amount: vatAmount,
             amount: total,
-            vat_rate: lease.vat_rate,
+            vat_rate: vatRate,
             vat_inclusive: lease.vat_inclusive,
             status: 'draft',
             notes: null
@@ -1542,8 +1562,10 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
           for (const ls of lease.lease_spaces) {
             const spaceName = ls.space.space_number;
             const spaceType = ls.space.space_type;
-            const squareFootage = ls.space.square_footage;
+            const squareFootage = typeof ls.space.square_footage === 'string' ? parseFloat(ls.space.square_footage) : ls.space.square_footage;
             const diversenCalc = (ls.space as any).diversen_calculation;
+            const pricePerSqm = typeof ls.price_per_sqm === 'string' ? parseFloat(ls.price_per_sqm) : ls.price_per_sqm;
+            const monthlyRent = typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent;
 
             let displayName = spaceName;
             if (spaceType === 'bedrijfsruimte') {
@@ -1560,8 +1582,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               invoice_id: newInvoice.id,
               description: displayName,
               quantity: quantity,
-              unit_price: ls.price_per_sqm,
-              amount: ls.monthly_rent
+              unit_price: pricePerSqm,
+              amount: monthlyRent
             });
           }
         } else {
@@ -1573,20 +1595,20 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
         if (discountAmount > 0) {
           lineItemsToInsert.push({
             invoice_id: newInvoice.id,
-            description: `Korting verhuur (${lease.tenant?.lease_discount_percentage}%)`,
+            description: `Korting verhuur (${discountPercentage}%)`,
             quantity: 1,
             unit_price: -discountAmount,
             amount: -discountAmount
           });
         }
 
-        if (lease.security_deposit > 0) {
+        if (securityDeposit > 0) {
           lineItemsToInsert.push({
             invoice_id: newInvoice.id,
             description: 'Voorschot Gas, Water & Electra',
             quantity: 1,
-            unit_price: lease.security_deposit,
-            amount: lease.security_deposit
+            unit_price: securityDeposit,
+            amount: securityDeposit
           });
         }
 
