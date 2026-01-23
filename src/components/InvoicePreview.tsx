@@ -276,6 +276,19 @@ export function InvoicePreview({
                           return sum;
                         }, 0);
 
+                        // Calculate total discount info
+                        let hasDiscount = false;
+                        let discountPercentage = 0;
+                        bookingLines.forEach(line => {
+                          const discountMatch = line.match(/(\d+)%\s*huurderkorting/);
+                          if (discountMatch) {
+                            hasDiscount = true;
+                            discountPercentage = parseInt(discountMatch[1]);
+                          }
+                        });
+
+                        const vatAmount = (totalAmount * invoice.vat_rate) / 100;
+
                         return (
                           <>
                             <tr>
@@ -285,10 +298,10 @@ export function InvoicePreview({
                             </tr>
                             <tr className="bg-dark-800">
                               <td className="px-4 py-3 text-left text-gray-100">
-                                {bookingLines.length} boekingen in totaal
+                                {bookingLines.length} boekingen{hasDiscount ? ` (incl. ${discountPercentage}% huurderkorting)` : ''}
                               </td>
                               <td className="px-4 py-3 text-right text-gray-100">€ {totalAmount.toFixed(2)}</td>
-                              <td className="px-4 py-3 text-right text-gray-100">{invoice.vat_rate.toFixed(0)}%</td>
+                              <td className="px-4 py-3 text-right text-gray-100">€ {vatAmount.toFixed(2)}</td>
                             </tr>
                           </>
                         );
@@ -312,10 +325,13 @@ export function InvoicePreview({
                             if (line.startsWith('-')) {
                               let cleanLine = line.replace(/^-\s*/, '');
                               let amount = '';
+                              let vatAmount = '';
 
                               const amountMatch = cleanLine.match(/=\s*€([\d.]+)\s*$/);
                               if (amountMatch) {
                                 amount = amountMatch[1];
+                                const amountValue = parseFloat(amount);
+                                vatAmount = ((amountValue * invoice.vat_rate) / 100).toFixed(2);
                                 cleanLine = cleanLine.substring(0, cleanLine.lastIndexOf('=')).trim();
                               }
 
@@ -323,7 +339,7 @@ export function InvoicePreview({
                                 <tr key={`line-${lineIndex}`} className={lineIndex % 2 === 0 ? 'bg-dark-800' : 'bg-dark-850'}>
                                   <td className="px-4 py-3 text-left text-gray-100">{cleanLine}</td>
                                   <td className="px-4 py-3 text-right text-gray-100">{amount ? `€ ${amount}` : ''}</td>
-                                  <td className="px-4 py-3 text-right text-gray-100">{invoice.vat_rate.toFixed(0)}%</td>
+                                  <td className="px-4 py-3 text-right text-gray-100">{vatAmount ? `€ ${vatAmount}` : ''}</td>
                                 </tr>
                               );
                             }

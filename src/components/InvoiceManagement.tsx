@@ -2584,10 +2584,23 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                                       return sum;
                                     }, 0);
 
+                                    // Check for discount
+                                    let hasDiscount = false;
+                                    let discountPercentage = 0;
+                                    bookingLines.forEach(line => {
+                                      const discountMatch = line.match(/(\d+)%\s*huurderkorting/);
+                                      if (discountMatch) {
+                                        hasDiscount = true;
+                                        discountPercentage = parseInt(discountMatch[1]);
+                                      }
+                                    });
+
                                     return (
                                       <div className="text-xs space-y-1">
                                         <div className="font-medium text-blue-400">Vergaderruimte boekingen</div>
-                                        <div className="text-gray-400">{bookingLines.length} boekingen - €{totalAmount.toFixed(2)}</div>
+                                        <div className="text-gray-400">
+                                          {bookingLines.length} boekingen{hasDiscount ? ` (${discountPercentage}% korting)` : ''}
+                                        </div>
                                       </div>
                                     );
                                   }

@@ -268,6 +268,17 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
         return sum;
       }, 0);
 
+      // Calculate discount info
+      let hasDiscount = false;
+      let discountPercentage = 0;
+      bookingLines.forEach(line => {
+        const discountMatch = line.match(/(\d+)%\s*huurderkorting/);
+        if (discountMatch) {
+          hasDiscount = true;
+          discountPercentage = parseInt(discountMatch[1]);
+        }
+      });
+
       // Header
       pdf.setFont('helvetica', 'bold');
       pdf.text('Vergaderruimte boekingen', col1X + 2, yPosition);
@@ -275,12 +286,14 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
       yPosition += 7;
 
       // Summary line
+      const vatAmount = (totalAmount * invoice.vat_rate) / 100;
       pdf.setFillColor(250, 250, 250);
       pdf.rect(margin, yPosition - 4, pageWidth - 2 * margin, 7, 'F');
       pdf.setTextColor(60, 60, 60);
-      pdf.text(`${bookingLines.length} boekingen in totaal`, col1X + 2, yPosition);
+      const summaryText = `${bookingLines.length} boekingen${hasDiscount ? ` (incl. ${discountPercentage}% huurderkorting)` : ''}`;
+      pdf.text(summaryText, col1X + 2, yPosition);
       pdf.text(`€ ${totalAmount.toFixed(2)}`, col4X + 15, yPosition, { align: 'right' });
-      pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col5X - 2, yPosition, { align: 'right' });
+      pdf.text(`€ ${vatAmount.toFixed(2)}`, col5X - 2, yPosition, { align: 'right' });
       yPosition += 7;
     } else {
       // Show all lines
@@ -336,10 +349,16 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
         if (amount) {
           const amountText = isDiscount ? `€ -${amount}` : `€ ${amount}`;
           pdf.text(amountText, col4X + 15, yPosition, { align: 'right' });
-        }
 
-        pdf.setTextColor(60, 60, 60);
-        pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col5X - 2, yPosition, { align: 'right' });
+          // Calculate and show VAT amount
+          const amountValue = parseFloat(amount);
+          const vatAmount = ((amountValue * invoice.vat_rate) / 100).toFixed(2);
+          pdf.setTextColor(60, 60, 60);
+          pdf.text(`€ ${vatAmount}`, col5X - 2, yPosition, { align: 'right' });
+        } else {
+          pdf.setTextColor(60, 60, 60);
+          pdf.text('', col5X - 2, yPosition, { align: 'right' });
+        }
 
         lineIndex++;
         yPosition += 7;
