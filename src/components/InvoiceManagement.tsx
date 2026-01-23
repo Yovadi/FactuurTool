@@ -2570,13 +2570,47 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                             </td>
                             <td className="px-4 py-3 text-gray-300 text-sm">
                               {invoice.line_items && invoice.line_items.length > 0 ? (
-                                <div className="space-y-1">
-                                  {invoice.line_items.map((item: any, idx: number) => (
-                                    <div key={idx} className="text-xs">
-                                      {item.description}
+                                (() => {
+                                  const isMeetingRoomInvoice = invoice.notes?.toLowerCase().includes('vergaderruimte');
+                                  const bookingLines = invoice.notes ? invoice.notes.split('\n').filter((line: string) => line.trim().startsWith('-')) : [];
+
+                                  // If more than 10 booking lines in meeting room invoice, show summary
+                                  if (isMeetingRoomInvoice && bookingLines.length > 10) {
+                                    const totalAmount = bookingLines.reduce((sum, line) => {
+                                      const amountMatch = line.match(/=\s*€([\d.]+)\s*$/);
+                                      if (amountMatch) {
+                                        return sum + parseFloat(amountMatch[1]);
+                                      }
+                                      return sum;
+                                    }, 0);
+
+                                    return (
+                                      <div className="text-xs space-y-1">
+                                        <div className="font-medium text-blue-400">Vergaderruimte boekingen</div>
+                                        <div className="text-gray-400">{bookingLines.length} boekingen - €{totalAmount.toFixed(2)}</div>
+                                      </div>
+                                    );
+                                  }
+
+                                  // Otherwise show line items (max 3 with "..." if more)
+                                  const itemsToShow = invoice.line_items.slice(0, 3);
+                                  const hasMore = invoice.line_items.length > 3;
+
+                                  return (
+                                    <div className="space-y-1">
+                                      {itemsToShow.map((item: any, idx: number) => (
+                                        <div key={idx} className="text-xs truncate" title={item.description}>
+                                          {item.description}
+                                        </div>
+                                      ))}
+                                      {hasMore && (
+                                        <div className="text-xs text-gray-500 italic">
+                                          +{invoice.line_items.length - 3} meer...
+                                        </div>
+                                      )}
                                     </div>
-                                  ))}
-                                </div>
+                                  );
+                                })()
                               ) : '-'}
                             </td>
                             <td className="px-4 py-3 text-gray-300 text-sm">
