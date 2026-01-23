@@ -2605,22 +2605,10 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                                     );
                                   }
 
-                                  // Otherwise show line items (max 3 with "..." if more)
-                                  const itemsToShow = invoice.line_items.slice(0, 3);
-                                  const hasMore = invoice.line_items.length > 3;
-
+                                  // Show summary of line items
                                   return (
-                                    <div className="space-y-1">
-                                      {itemsToShow.map((item: any, idx: number) => (
-                                        <div key={idx} className="text-xs truncate" title={item.description}>
-                                          {item.description}
-                                        </div>
-                                      ))}
-                                      {hasMore && (
-                                        <div className="text-xs text-gray-500 italic">
-                                          +{invoice.line_items.length - 3} meer...
-                                        </div>
-                                      )}
+                                    <div className="text-xs text-gray-400">
+                                      {invoice.line_items.length} {invoice.line_items.length === 1 ? 'factuurregel' : 'factuurregels'}
                                     </div>
                                   );
                                 })()
