@@ -431,6 +431,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
   yPosition += 8;
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(9);
+  pdf.setTextColor(60, 60, 60);
   pdf.text('Subtotaal (excl. BTW):', pageWidth - margin - 70, yPosition);
   pdf.text(`€ ${invoice.subtotal.toFixed(2)}`, pageWidth - margin, yPosition, { align: 'right' });
 
@@ -441,6 +442,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
   yPosition += 8;
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(11);
+  pdf.setTextColor(40, 40, 40);
   pdf.text('Totaal te betalen:', pageWidth - margin - 70, yPosition);
   pdf.text(`€ ${invoice.amount.toFixed(2)}`, pageWidth - margin, yPosition, { align: 'right' });
 

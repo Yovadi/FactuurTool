@@ -2686,10 +2686,20 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                                     );
                                   }
 
-                                  // For other invoices, show line items count
+                                  // For regular rental invoices, show space details
                                   return (
-                                    <div className="text-xs text-gray-400">
-                                      {invoice.line_items.length} {invoice.line_items.length === 1 ? 'factuurregel' : 'factuurregels'}
+                                    <div className="text-xs text-gray-400 space-y-1">
+                                      {invoice.line_items.slice(0, 3).map((item: any, idx: number) => (
+                                        <div key={idx}>
+                                          {item.description}
+                                          {item.quantity > 0 && ` (${item.quantity} ${item.unit || 'm²'})`}
+                                        </div>
+                                      ))}
+                                      {invoice.line_items.length > 3 && (
+                                        <div className="text-gray-500">
+                                          +{invoice.line_items.length - 3} meer
+                                        </div>
+                                      )}
                                     </div>
                                   );
                                 })()
