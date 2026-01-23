@@ -255,143 +255,73 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
 
   if (invoice.notes && invoice.notes.split('\n').filter(line => line.trim() && line.startsWith('-')).length > 0) {
     const lines = invoice.notes.split('\n').filter(line => line.trim());
-    const bookingLines = lines.filter(line => line.startsWith('-'));
-    const isMeetingRoomInvoice = invoice.notes.toLowerCase().includes('vergaderruimte');
+    let lineIndex = 0;
 
-    // If there are more than 10 booking lines, show summary
-    if (isMeetingRoomInvoice && bookingLines.length > 10) {
-      // Separate NEW discount lines (start with "- Korting") from booking lines
-      // OLD format lines with "(incl. X% huurderkorting)" are NOT discount lines
-      const discountLines = bookingLines.filter(line => {
-        const cleaned = line.replace(/^-\s*/, '').trim();
-        return cleaned.toLowerCase().startsWith('korting');
-      });
-      const actualBookings = bookingLines.filter(line => {
-        const cleaned = line.replace(/^-\s*/, '').trim();
-        return !cleaned.toLowerCase().startsWith('korting');
-      });
-
-      const totalAmount = bookingLines.reduce((sum, line) => {
-        const amountMatch = line.match(/=\s*€([\d.]+)\s*$/);
-        if (amountMatch) {
-          const amount = parseFloat(amountMatch[1]);
-          const cleaned = line.replace(/^-\s*/, '').trim();
-          // Only subtract if it's a NEW discount line (starts with "Korting")
-          // OLD format lines with "(incl.)" are already discounted, so add normally
-          return sum + (cleaned.toLowerCase().startsWith('korting') ? -amount : amount);
-        }
-        return sum;
-      }, 0);
-
-      // Calculate discount info
-      let hasDiscount = false;
-      let discountPercentage = 0;
-      discountLines.forEach(line => {
-        const discountMatch = line.match(/(\d+)%\s*huurderkorting/);
-        if (discountMatch) {
-          hasDiscount = true;
-          discountPercentage = parseInt(discountMatch[1]);
-        }
-      });
-      // Also check OLD format lines for discount percentage
-      if (!hasDiscount) {
-        actualBookings.forEach(line => {
-          const discountMatch = line.match(/\(incl\.\s*(\d+)%\s*huurderkorting\)/i);
-          if (discountMatch) {
-            hasDiscount = true;
-            discountPercentage = parseInt(discountMatch[1]);
-          }
-        });
+    lines.forEach((line: string) => {
+      if (yPosition > pageHeight - 70) {
+        pdf.addPage();
+        yPosition = 20;
       }
 
-      // Header
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('Vergaderruimte boekingen', col1X + 2, yPosition);
-      pdf.setFont('helvetica', 'normal');
-      yPosition += 7;
-
-      // Summary line
-      const vatAmount = (totalAmount * invoice.vat_rate) / 100;
-      pdf.setFillColor(250, 250, 250);
-      pdf.rect(margin, yPosition - 4, pageWidth - 2 * margin, 7, 'F');
-      pdf.setTextColor(60, 60, 60);
-      const summaryText = `${actualBookings.length} boekingen${hasDiscount ? ` (incl. ${discountPercentage}% huurderkorting)` : ''}`;
-      pdf.text(summaryText, col1X + 2, yPosition);
-      pdf.text(`€ ${totalAmount.toFixed(2)}`, col4X + 15, yPosition, { align: 'right' });
-      pdf.text(`€ ${vatAmount.toFixed(2)}`, col5X - 2, yPosition, { align: 'right' });
-      yPosition += 7;
-    } else {
-      // Show all lines
-      let lineIndex = 0;
-
-      lines.forEach((line: string) => {
-        if (yPosition > pageHeight - 70) {
-          pdf.addPage();
-          yPosition = 20;
-        }
-
-        // Header line (e.g., "Vergaderruimte boekingen:")
-        if (line.includes(':') && !line.includes('(') && !line.startsWith('-')) {
-          pdf.setFont('helvetica', 'bold');
-          pdf.text(line, col1X + 2, yPosition);
-          pdf.setFont('helvetica', 'normal');
-          yPosition += 7;
-          return;
-        }
-
-        // Only process lines that start with "-"
-        if (!line.startsWith('-')) {
-          return;
-        }
-
-        // Format: - 04-11-2025 04:00-06:30 (2.5u) = €62.50
-        // Or: - Korting 10% huurderkorting = €7.50
-        let description = line.replace(/^-\s*/, '').trim();
-        let amount = '';
-
-        // Extract amount from pattern like = €62.50
-        const amountMatch = description.match(/=\s*€([\d.]+)\s*$/);
-        if (amountMatch) {
-          amount = amountMatch[1];
-          description = description.substring(0, description.lastIndexOf('=')).trim();
-        }
-
-        // Check if this is a discount line (only if it starts with "Korting")
-        // Lines with "(incl. X% huurderkorting)" are OLD format and should display normally
-        const isDiscount = description.toLowerCase().startsWith('korting');
-
-        if (lineIndex % 2 === 0) {
-          pdf.setFillColor(250, 250, 250);
-          pdf.rect(margin, yPosition - 4, pageWidth - 2 * margin, 7, 'F');
-        }
-
-        if (isDiscount) {
-          pdf.setTextColor(34, 197, 94);
-        } else {
-          pdf.setTextColor(60, 60, 60);
-        }
-
-        pdf.text(description, col1X + 2, yPosition);
-        pdf.text('', col2X + 20, yPosition, { align: 'right' });
-        pdf.text('', col3X + 18, yPosition, { align: 'right' });
-        if (amount) {
-          const amountText = isDiscount ? `€ -${amount}` : `€ ${amount}`;
-          pdf.text(amountText, col4X + 15, yPosition, { align: 'right' });
-
-          // Calculate and show VAT amount
-          const amountValue = parseFloat(amount);
-          const vatAmount = ((amountValue * invoice.vat_rate) / 100).toFixed(2);
-          pdf.setTextColor(60, 60, 60);
-          pdf.text(`€ ${vatAmount}`, col5X - 2, yPosition, { align: 'right' });
-        } else {
-          pdf.setTextColor(60, 60, 60);
-          pdf.text('', col5X - 2, yPosition, { align: 'right' });
-        }
-
-        lineIndex++;
+      // Header line (e.g., "Vergaderruimte boekingen:")
+      if (line.includes(':') && !line.includes('(') && !line.startsWith('-')) {
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(line.replace(':', ''), col1X + 2, yPosition);
+        pdf.setFont('helvetica', 'normal');
         yPosition += 7;
-      });
-    }
+        return;
+      }
+
+      // Only process lines that start with "-"
+      if (!line.startsWith('-')) {
+        return;
+      }
+
+      let description = line.replace(/^-\s*/, '').trim();
+      let amount = '';
+
+      // Extract amount from pattern like = €62.50
+      const amountMatch = description.match(/=\s*€([\d.]+)\s*$/);
+      if (amountMatch) {
+        amount = amountMatch[1];
+        description = description.substring(0, description.lastIndexOf('=')).trim();
+      }
+
+      // Check if this is a discount line (starts with "Totale korting" or "Korting")
+      const isDiscount = description.toLowerCase().startsWith('totale korting') || description.toLowerCase().startsWith('korting');
+
+      if (lineIndex % 2 === 0) {
+        pdf.setFillColor(250, 250, 250);
+        pdf.rect(margin, yPosition - 4, pageWidth - 2 * margin, 7, 'F');
+      }
+
+      if (isDiscount) {
+        pdf.setTextColor(34, 197, 94);
+      } else {
+        pdf.setTextColor(60, 60, 60);
+      }
+
+      pdf.text(description, col1X + 2, yPosition);
+      pdf.text('', col2X + 20, yPosition, { align: 'right' });
+      pdf.text('', col3X + 18, yPosition, { align: 'right' });
+      if (amount) {
+        const amountText = isDiscount ? `€ -${amount}` : `€ ${amount}`;
+        pdf.text(amountText, col4X + 15, yPosition, { align: 'right' });
+
+        // Calculate and show VAT amount
+        const amountValue = parseFloat(amount);
+        const vatAmount = ((amountValue * invoice.vat_rate) / 100).toFixed(2);
+        const vatText = isDiscount ? `€ -${vatAmount}` : `€ ${vatAmount}`;
+        pdf.setTextColor(isDiscount ? 34 : 60, isDiscount ? 197 : 60, isDiscount ? 94 : 60);
+        pdf.text(vatText, col5X - 2, yPosition, { align: 'right' });
+      } else {
+        pdf.setTextColor(60, 60, 60);
+        pdf.text('', col5X - 2, yPosition, { align: 'right' });
+      }
+
+      lineIndex++;
+      yPosition += 7;
+    });
   } else {
     invoice.spaces.forEach((space, index) => {
     if (yPosition > pageHeight - 70) {

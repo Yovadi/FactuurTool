@@ -263,76 +263,7 @@ export function InvoicePreview({
                   <tbody>
                     {(() => {
                       const lines = invoice.notes.split('\n').filter(line => line.trim());
-                      const bookingLines = lines.filter(line => line.startsWith('-'));
-                      const isMeetingRoomInvoice = invoice.notes.toLowerCase().includes('vergaderruimte');
 
-                      // If there are more than 10 booking lines, show summary
-                      if (isMeetingRoomInvoice && bookingLines.length > 10) {
-                        // Separate NEW discount lines (start with "- Korting") from booking lines
-                        // OLD format lines with "(incl. X% huurderkorting)" are NOT discount lines
-                        const discountLines = bookingLines.filter(line => {
-                          const cleaned = line.replace(/^-\s*/, '').trim();
-                          return cleaned.toLowerCase().startsWith('korting');
-                        });
-                        const actualBookings = bookingLines.filter(line => {
-                          const cleaned = line.replace(/^-\s*/, '').trim();
-                          return !cleaned.toLowerCase().startsWith('korting');
-                        });
-
-                        const totalAmount = bookingLines.reduce((sum, line) => {
-                          const amountMatch = line.match(/=\s*€([\d.]+)\s*$/);
-                          if (amountMatch) {
-                            const amount = parseFloat(amountMatch[1]);
-                            const cleaned = line.replace(/^-\s*/, '').trim();
-                            // Only subtract if it's a NEW discount line (starts with "Korting")
-                            // OLD format lines with "(incl.)" are already discounted, so add normally
-                            return sum + (cleaned.toLowerCase().startsWith('korting') ? -amount : amount);
-                          }
-                          return sum;
-                        }, 0);
-
-                        // Calculate total discount info
-                        let hasDiscount = false;
-                        let discountPercentage = 0;
-                        discountLines.forEach(line => {
-                          const discountMatch = line.match(/(\d+)%\s*huurderkorting/);
-                          if (discountMatch) {
-                            hasDiscount = true;
-                            discountPercentage = parseInt(discountMatch[1]);
-                          }
-                        });
-                        // Also check OLD format lines for discount percentage
-                        if (!hasDiscount) {
-                          actualBookings.forEach(line => {
-                            const discountMatch = line.match(/\(incl\.\s*(\d+)%\s*huurderkorting\)/i);
-                            if (discountMatch) {
-                              hasDiscount = true;
-                              discountPercentage = parseInt(discountMatch[1]);
-                            }
-                          });
-                        }
-
-                        const vatAmount = (totalAmount * invoice.vat_rate) / 100;
-
-                        return (
-                          <>
-                            <tr>
-                              <td colSpan={3} className="px-4 py-2 font-semibold text-gray-100 bg-dark-800">
-                                Vergaderruimte boekingen
-                              </td>
-                            </tr>
-                            <tr className="bg-dark-800">
-                              <td className="px-4 py-3 text-left text-gray-100">
-                                {actualBookings.length} boekingen{hasDiscount ? ` (incl. ${discountPercentage}% huurderkorting)` : ''}
-                              </td>
-                              <td className="px-4 py-3 text-right text-gray-100">€ {totalAmount.toFixed(2)}</td>
-                              <td className="px-4 py-3 text-right text-gray-100">€ {vatAmount.toFixed(2)}</td>
-                            </tr>
-                          </>
-                        );
-                      }
-
-                      // Otherwise show all lines
                       return (
                         <>
                           {lines.map((line, lineIndex) => {
@@ -341,7 +272,7 @@ export function InvoicePreview({
                               return (
                                 <tr key={lineIndex}>
                                   <td colSpan={3} className="px-4 py-2 font-semibold text-gray-100 bg-dark-800">
-                                    {line}
+                                    {line.replace(':', '')}
                                   </td>
                                 </tr>
                               );
@@ -360,17 +291,16 @@ export function InvoicePreview({
                                 cleanLine = cleanLine.substring(0, cleanLine.lastIndexOf('=')).trim();
                               }
 
-                              // Check if this is a discount line (only if it starts with "Korting")
-                              // Lines with "(incl. X% huurderkorting)" are OLD format and should display normally
-                              const isDiscount = cleanLine.toLowerCase().startsWith('korting');
+                              // Check if this is a discount line (starts with "Totale korting" or "Korting")
+                              const isDiscount = cleanLine.toLowerCase().startsWith('totale korting') || cleanLine.toLowerCase().startsWith('korting');
                               const amountText = amount ? (isDiscount ? `€ -${amount}` : `€ ${amount}`) : '';
-                              const vatText = vatAmount ? `€ ${vatAmount}` : '';
+                              const vatText = vatAmount ? (isDiscount ? `€ -${vatAmount}` : `€ ${vatAmount}`) : '';
 
                               return (
                                 <tr key={`line-${lineIndex}`} className={lineIndex % 2 === 0 ? 'bg-dark-800' : 'bg-dark-850'}>
                                   <td className={`px-4 py-3 text-left ${isDiscount ? 'text-green-400' : 'text-gray-100'}`}>{cleanLine}</td>
                                   <td className={`px-4 py-3 text-right ${isDiscount ? 'text-green-400' : 'text-gray-100'}`}>{amountText}</td>
-                                  <td className="px-4 py-3 text-right text-gray-100">{vatText}</td>
+                                  <td className="px-4 py-3 text-right text-gray-400">{vatText}</td>
                                 </tr>
                               );
                             }
