@@ -1671,180 +1671,49 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
   };
 
   const generateAllInvoices = async () => {
+    console.log('\n\n========================================');
+    console.log('🚀 GENERATE ALL INVOICES CALLED');
+    console.log('========================================');
+    console.log('Selected leases:', selectedLeases.size);
+    console.log('Selected customers:', selectedCustomers.size);
+    console.log('========================================\n');
+
     if (selectedLeases.size === 0 && selectedCustomers.size === 0) {
       alert('Selecteer eerst de huurcontracten en/of klanten waarvoor je facturen wilt genereren.');
       return;
     }
 
-    setGeneratingBulk(true);
-
-    let totalSuccess = 0;
-    let totalFail = 0;
-
     if (selectedLeases.size > 0) {
-      const { data: settings } = await supabase
-        .from('company_settings')
-        .select('*')
-        .maybeSingle();
-
-      let currentDate = new Date();
-      if (settings?.test_mode === true && settings?.test_date) {
-        currentDate = new Date(settings.test_date);
-      }
-
-      const targetMonth = invoiceMonth || await getNextMonthString();
-      const invoiceDate = currentDate.toISOString().split('T')[0];
-      const dueDateObj = new Date(currentDate);
-      dueDateObj.setDate(dueDateObj.getDate() + 14);
-      const dueDate = dueDateObj.toISOString().split('T')[0];
-
-      let leaseSuccess = 0;
-      let leaseFail = 0;
-
-      const selectedLeasesArray = Array.from(selectedLeases);
-      for (const leaseId of selectedLeasesArray) {
-        const lease = leases.find(l => l.id === leaseId);
-        if (!lease) continue;
-
-        const existingInvoice = invoices.find(
-          inv => inv.lease_id === lease.id && inv.invoice_month === targetMonth
-        );
-
-        if (existingInvoice) {
-          console.log(`Skipping duplicate invoice for lease ${lease.id} for month ${targetMonth}`);
-          leaseFail++;
-          continue;
-        }
-
-        try {
-          const { data: invoiceNumber, error: invoiceNumberError } = await supabase.rpc('generate_invoice_number');
-
-          if (invoiceNumberError || !invoiceNumber) {
-            console.error('Error generating invoice number:', invoiceNumberError);
-            leaseFail++;
-            continue;
-          }
-
-          const rentAmount = lease.lease_type === 'flex'
-            ? (lease.flex_monthly_rate || 0)
-            : lease.lease_spaces.reduce((sum, ls) => sum + ls.monthly_rent, 0);
-
-          const invoiceAmount = Math.round((rentAmount + lease.security_deposit) * 100) / 100;
-
-          const { data: newInvoice, error: invoiceError } = await supabase
-            .from('invoices')
-            .insert({
-              invoice_number: invoiceNumber,
-              lease_id: lease.id,
-              tenant_id: lease.tenant_id,
-              invoice_date: invoiceDate,
-              due_date: dueDate,
-              amount: invoiceAmount,
-              status: 'draft',
-              invoice_month: targetMonth,
-              notes: lease.lease_type === 'flex'
-                ? `Flexplek huur voor ${new Date(targetMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}`
-                : `Huur voor ${new Date(targetMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}`
-            })
-            .select()
-            .single();
-
-          if (invoiceError || !newInvoice) {
-            console.error('Error creating invoice:', invoiceError);
-            leaseFail++;
-            continue;
-          }
-
-          const lineItems: any[] = [];
-
-          if (lease.lease_type === 'flex') {
-            lineItems.push({
-              invoice_id: newInvoice.id,
-              description: `Flexplek huur ${new Date(targetMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}`,
-              quantity: 1,
-              unit_price: lease.flex_monthly_rate || 0,
-              amount: lease.flex_monthly_rate || 0
-            });
-          } else {
-            for (const ls of lease.lease_spaces) {
-              const spaceName = ls.space.space_number;
-              const spaceType = ls.space.space_type;
-              const squareFootage = ls.space.square_footage;
-              const diversenCalc = (ls.space as any).diversen_calculation;
-
-              let displayName = spaceName;
-              if (spaceType === 'bedrijfsruimte') {
-                const numOnly = spaceName.replace(/^(Bedrijfsruimte|Hal)\s*/i, '').trim();
-                if (/^\d+/.test(numOnly)) {
-                  displayName = `Hal ${numOnly}`;
-                }
-              }
-
-              const isDiversenFixed = spaceType === 'diversen' && (!diversenCalc || diversenCalc === 'fixed');
-              const quantity = isDiversenFixed ? 1 : (squareFootage || 1);
-
-              lineItems.push({
-                invoice_id: newInvoice.id,
-                description: displayName,
-                quantity: quantity,
-                unit_price: ls.price_per_sqm,
-                amount: ls.monthly_rent
-              });
-            }
-          }
-
-          if (lease.security_deposit > 0) {
-            lineItems.push({
-              invoice_id: newInvoice.id,
-              description: 'Voorschot Gas, Water & Electra',
-              quantity: 1,
-              unit_price: lease.security_deposit,
-              amount: lease.security_deposit
-            });
-          }
-
-          const { error: lineItemsError } = await supabase
-            .from('invoice_line_items')
-            .insert(lineItems);
-
-          if (lineItemsError) {
-            console.error('Error creating line items:', lineItemsError);
-            await supabase.from('invoices').delete().eq('id', newInvoice.id);
-            leaseFail++;
-            continue;
-          }
-
-          leaseSuccess++;
-        } catch (err) {
-          console.error('Unexpected error generating invoice:', err);
-          leaseFail++;
-        }
-      }
-
-      totalSuccess += leaseSuccess;
-      totalFail += leaseFail;
+      await generateBulkInvoices();
     }
 
     if (selectedCustomers.size > 0) {
-      const { data: settings } = await supabase
-        .from('company_settings')
-        .select('*')
-        .maybeSingle();
+      await generateMeetingRoomInvoicesForSelectedCustomers();
+    }
+  };
 
-      let currentDate = new Date();
-      if (settings?.test_mode === true && settings?.test_date) {
-        currentDate = new Date(settings.test_date);
-      }
+  const generateMeetingRoomInvoicesForSelectedCustomers = async () => {
+    setGeneratingBulk(true);
 
-      const targetMonth = invoiceMonth || await getNextMonthString();
+    let meetingSuccess = 0;
+    let meetingFail = 0;
 
-      let meetingSuccess = 0;
-      let meetingFail = 0;
+    const { data: settings } = await supabase
+      .from('company_settings')
+      .select('*')
+      .maybeSingle();
 
-      const selectedCustomersArray = Array.from(selectedCustomers);
-      for (const customerId of selectedCustomersArray) {
-        const customer = [...tenants, ...externalCustomers].find(c => c.id === customerId);
-        if (!customer) continue;
+    let currentDate = new Date();
+    if (settings?.test_mode === true && settings?.test_date) {
+      currentDate = new Date(settings.test_date);
+    }
+
+    const targetMonth = invoiceMonth || await getNextMonthString();
+
+    const selectedCustomersArray = Array.from(selectedCustomers);
+    for (const customerId of selectedCustomersArray) {
+      const customer = [...tenants, ...externalCustomers].find(c => c.id === customerId);
+      if (!customer) continue;
 
         const isExternal = externalCustomers.some(ec => ec.id === customerId);
 
@@ -1940,13 +1809,9 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
         }
       }
 
-      totalSuccess += meetingSuccess;
-      totalFail += meetingFail;
-    }
-
     setGeneratingBulk(false);
 
-    if (totalSuccess > 0) {
+    if (meetingSuccess > 0) {
       await loadData();
       setShowGenerateModal(false);
       setInvoiceMonth('');
@@ -1954,8 +1819,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
       setSelectedCustomers(new Set());
       setShowDetailSelection(true);
     }
-    if (totalFail > 0) {
-      console.log(`${totalFail} facturen overgeslagen (bestaan al of fout)`);
+    if (meetingFail > 0) {
+      console.log(`${meetingFail} facturen overgeslagen (bestaan al of fout)`);
     }
   };
 
