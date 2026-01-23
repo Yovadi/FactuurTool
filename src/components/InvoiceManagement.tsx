@@ -1391,7 +1391,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
     if (successCount > 0) {
       await loadData();
-      alert(`✓ ${successCount} vergaderruimte ${successCount > 1 ? 'facturen' : 'factuur'} aangemaakt voor ${new Date(targetMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}`);
+      console.log(`✓ ${successCount} vergaderruimte ${successCount > 1 ? 'facturen' : 'factuur'} aangemaakt voor ${new Date(targetMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}`);
       setSelectedCustomers(new Set());
     }
     if (failCount > 0) {
@@ -1662,7 +1662,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
     if (successCount > 0) {
       await loadData();
-      alert(`✓ ${successCount} huur ${successCount > 1 ? 'facturen' : 'factuur'} aangemaakt voor ${new Date(targetMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}`);
+      console.log(`✓ ${successCount} huur ${successCount > 1 ? 'facturen' : 'factuur'} aangemaakt voor ${new Date(targetMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}`);
       setSelectedLeases(new Set());
     }
     if (failCount > 0) {
