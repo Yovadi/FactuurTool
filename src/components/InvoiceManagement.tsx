@@ -1753,6 +1753,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
           const totalAmount = bookings.reduce((sum, booking) => sum + booking.total_amount, 0);
 
+          const { subtotal, vatAmount, total } = calculateVAT(totalAmount, 21, false);
+
           const { data: newInvoice, error: invoiceError } = await supabase
             .from('invoices')
             .insert({
@@ -1761,7 +1763,11 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               external_customer_id: isExternal ? customerId : null,
               invoice_date: currentDate.toISOString().split('T')[0],
               due_date: new Date(currentDate.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-              amount: totalAmount,
+              subtotal: subtotal,
+              vat_amount: vatAmount,
+              amount: total,
+              vat_rate: 21,
+              vat_inclusive: false,
               status: 'draft',
               invoice_month: targetMonth,
               notes: `Vergaderruimte gebruik ${new Date(targetMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}`
