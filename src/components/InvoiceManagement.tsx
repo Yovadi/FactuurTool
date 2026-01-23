@@ -1233,7 +1233,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
         const baseAmount = totalBeforeDiscount - totalDiscount - additionalDiscount;
 
-        const { subtotal, vatAmount, total } = calculateVAT(baseAmount, 21, false);
+        const { subtotal, vatAmount, total } = calculateVAT(baseAmount, 21, true);
 
         console.log('Calculated amounts:', { baseAmount, subtotal, vatAmount, total });
 
@@ -1257,7 +1257,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
           vat_amount: vatAmount,
           amount: total,
           vat_rate: 21,
-          vat_inclusive: false,
+          vat_inclusive: true,
           status: 'draft',
           notes: 'Vergaderruimte boekingen'
         };
@@ -1753,7 +1753,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
           const totalAmount = bookings.reduce((sum, booking) => sum + booking.total_amount, 0);
 
-          const { subtotal, vatAmount, total } = calculateVAT(totalAmount, 21, false);
+          const { subtotal, vatAmount, total } = calculateVAT(totalAmount, 21, true);
 
           const { data: newInvoice, error: invoiceError } = await supabase
             .from('invoices')
@@ -1767,7 +1767,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               vat_amount: vatAmount,
               amount: total,
               vat_rate: 21,
-              vat_inclusive: false,
+              vat_inclusive: true,
               status: 'draft',
               invoice_month: targetMonth,
               notes: `Vergaderruimte gebruik ${new Date(targetMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}`
