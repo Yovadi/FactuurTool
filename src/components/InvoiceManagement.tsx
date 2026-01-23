@@ -1249,11 +1249,11 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
           const beforeDiscountAmount = (booking.total_amount || 0) + (booking.discount_amount || 0);
           const bookingLine = `- ${booking.space?.space_number || 'Vergaderruimte'} - ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)} (${rateDescription}) = €${beforeDiscountAmount.toFixed(2)}`;
           notesLines.push(bookingLine);
-
-          if (booking.discount_percentage && booking.discount_percentage > 0 && booking.discount_amount && booking.discount_amount > 0) {
-            notesLines.push(`- Korting ${Math.round(booking.discount_percentage)}% huurderkorting = €${booking.discount_amount.toFixed(2)}`);
-          }
         });
+
+        if (totalDiscount > 0 && bookings.length > 0 && bookings[0].discount_percentage) {
+          notesLines.push(`- Totale korting ${Math.round(bookings[0].discount_percentage)}% huurderkorting = €${totalDiscount.toFixed(2)}`);
+        }
 
         if (additionalDiscount > 0 && discountPercentage) {
           notesLines.push(`- Korting vergaderruimtes (${discountPercentage}%) = €${additionalDiscount.toFixed(2)}`);
@@ -1782,6 +1782,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
           const { subtotal, vatAmount, total } = calculateVAT(totalAmount, 21, true);
 
           const notesLines = ['Vergaderruimte boekingen:'];
+          let totalDiscountAmount = 0;
           bookings.forEach(booking => {
             let rateDescription = '';
             if (booking.rate_type === 'half_day') {
@@ -1796,10 +1797,14 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             const bookingLine = `- ${booking.space?.space_number || 'Vergaderruimte'} - ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)} (${rateDescription}) = €${beforeDiscountAmount.toFixed(2)}`;
             notesLines.push(bookingLine);
 
-            if (booking.discount_percentage && booking.discount_percentage > 0 && booking.discount_amount && booking.discount_amount > 0) {
-              notesLines.push(`- Korting ${Math.round(booking.discount_percentage)}% huurderkorting = €${booking.discount_amount.toFixed(2)}`);
+            if (booking.discount_amount && booking.discount_amount > 0) {
+              totalDiscountAmount += booking.discount_amount;
             }
           });
+
+          if (totalDiscountAmount > 0 && bookings.length > 0 && bookings[0].discount_percentage) {
+            notesLines.push(`- Totale korting ${Math.round(bookings[0].discount_percentage)}% huurderkorting = €${totalDiscountAmount.toFixed(2)}`);
+          }
 
           const invoiceNotes = notesLines.join('\n');
 
