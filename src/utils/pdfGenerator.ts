@@ -255,66 +255,96 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
 
   if (invoice.notes && invoice.notes.split('\n').filter(line => line.trim() && line.startsWith('-')).length > 0) {
     const lines = invoice.notes.split('\n').filter(line => line.trim());
-    let lineIndex = 0;
+    const bookingLines = lines.filter(line => line.startsWith('-'));
+    const isMeetingRoomInvoice = invoice.notes.toLowerCase().includes('vergaderruimte');
 
-    lines.forEach((line: string) => {
-      if (yPosition > pageHeight - 70) {
-        pdf.addPage();
-        yPosition = 20;
-      }
+    // If there are more than 10 booking lines, show summary
+    if (isMeetingRoomInvoice && bookingLines.length > 10) {
+      const totalAmount = bookingLines.reduce((sum, line) => {
+        const amountMatch = line.match(/=\s*€([\d.]+)\s*$/);
+        if (amountMatch) {
+          return sum + parseFloat(amountMatch[1]);
+        }
+        return sum;
+      }, 0);
 
-      // Header line (e.g., "Vergaderruimte boekingen:")
-      if (line.includes(':') && !line.includes('(') && !line.startsWith('-')) {
-        pdf.setFont('helvetica', 'bold');
-        pdf.text(line, col1X + 2, yPosition);
-        pdf.setFont('helvetica', 'normal');
-        yPosition += 7;
-        return;
-      }
-
-      // Only process lines that start with "-"
-      if (!line.startsWith('-')) {
-        return;
-      }
-
-      // Format: - 04-11-2025 04:00-06:30 (2.5u) = €62.50
-      let description = line.replace(/^-\s*/, '').trim();
-      let amount = '';
-
-      // Extract amount from pattern like = €62.50
-      const amountMatch = description.match(/=\s*€([\d.]+)\s*$/);
-      if (amountMatch) {
-        amount = amountMatch[1];
-        description = description.substring(0, description.lastIndexOf('=')).trim();
-      }
-
-      const isDiscount = description.toLowerCase().includes('korting');
-
-      if (lineIndex % 2 === 0) {
-        pdf.setFillColor(250, 250, 250);
-        pdf.rect(margin, yPosition - 4, pageWidth - 2 * margin, 7, 'F');
-      }
-
-      if (isDiscount) {
-        pdf.setTextColor(34, 197, 94);
-      } else {
-        pdf.setTextColor(60, 60, 60);
-      }
-
-      pdf.text(description, col1X + 2, yPosition);
-      pdf.text('', col2X + 20, yPosition, { align: 'right' });
-      pdf.text('', col3X + 18, yPosition, { align: 'right' });
-      if (amount) {
-        const amountText = isDiscount ? `€ -${amount}` : `€ ${amount}`;
-        pdf.text(amountText, col4X + 15, yPosition, { align: 'right' });
-      }
-
-      pdf.setTextColor(60, 60, 60);
-      pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col5X - 2, yPosition, { align: 'right' });
-
-      lineIndex++;
+      // Header
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Vergaderruimte boekingen', col1X + 2, yPosition);
+      pdf.setFont('helvetica', 'normal');
       yPosition += 7;
-    });
+
+      // Summary line
+      pdf.setFillColor(250, 250, 250);
+      pdf.rect(margin, yPosition - 4, pageWidth - 2 * margin, 7, 'F');
+      pdf.setTextColor(60, 60, 60);
+      pdf.text(`${bookingLines.length} boekingen in totaal`, col1X + 2, yPosition);
+      pdf.text(`€ ${totalAmount.toFixed(2)}`, col4X + 15, yPosition, { align: 'right' });
+      pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col5X - 2, yPosition, { align: 'right' });
+      yPosition += 7;
+    } else {
+      // Show all lines
+      let lineIndex = 0;
+
+      lines.forEach((line: string) => {
+        if (yPosition > pageHeight - 70) {
+          pdf.addPage();
+          yPosition = 20;
+        }
+
+        // Header line (e.g., "Vergaderruimte boekingen:")
+        if (line.includes(':') && !line.includes('(') && !line.startsWith('-')) {
+          pdf.setFont('helvetica', 'bold');
+          pdf.text(line, col1X + 2, yPosition);
+          pdf.setFont('helvetica', 'normal');
+          yPosition += 7;
+          return;
+        }
+
+        // Only process lines that start with "-"
+        if (!line.startsWith('-')) {
+          return;
+        }
+
+        // Format: - 04-11-2025 04:00-06:30 (2.5u) = €62.50
+        let description = line.replace(/^-\s*/, '').trim();
+        let amount = '';
+
+        // Extract amount from pattern like = €62.50
+        const amountMatch = description.match(/=\s*€([\d.]+)\s*$/);
+        if (amountMatch) {
+          amount = amountMatch[1];
+          description = description.substring(0, description.lastIndexOf('=')).trim();
+        }
+
+        const isDiscount = description.toLowerCase().includes('korting');
+
+        if (lineIndex % 2 === 0) {
+          pdf.setFillColor(250, 250, 250);
+          pdf.rect(margin, yPosition - 4, pageWidth - 2 * margin, 7, 'F');
+        }
+
+        if (isDiscount) {
+          pdf.setTextColor(34, 197, 94);
+        } else {
+          pdf.setTextColor(60, 60, 60);
+        }
+
+        pdf.text(description, col1X + 2, yPosition);
+        pdf.text('', col2X + 20, yPosition, { align: 'right' });
+        pdf.text('', col3X + 18, yPosition, { align: 'right' });
+        if (amount) {
+          const amountText = isDiscount ? `€ -${amount}` : `€ ${amount}`;
+          pdf.text(amountText, col4X + 15, yPosition, { align: 'right' });
+        }
+
+        pdf.setTextColor(60, 60, 60);
+        pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col5X - 2, yPosition, { align: 'right' });
+
+        lineIndex++;
+        yPosition += 7;
+      });
+    }
   } else {
     invoice.spaces.forEach((space, index) => {
     if (yPosition > pageHeight - 70) {

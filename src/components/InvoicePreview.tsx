@@ -261,42 +261,77 @@ export function InvoicePreview({
                     </tr>
                   </thead>
                   <tbody>
-                    {invoice.notes.split('\n')
-                      .filter(line => line.trim())
-                      .map((line, lineIndex) => {
-                        // Header line (e.g., "Vergaderruimte boekingen:")
-                        if (line.includes(':') && !line.includes('(') && !line.startsWith('-')) {
-                          return (
-                            <tr key={lineIndex}>
-                              <td colSpan={3} className="px-4 py-2 font-semibold text-gray-100 bg-dark-800">
-                                {line}
-                              </td>
-                            </tr>
-                          );
-                        }
-                        return null;
-                      })
-                      .filter(Boolean)}
-                    {invoice.notes.split('\n')
-                      .filter(line => line.trim() && line.startsWith('-'))
-                      .map((line, lineIndex) => {
-                        let cleanLine = line.replace(/^-\s*/, '');
-                        let amount = '';
+                    {(() => {
+                      const lines = invoice.notes.split('\n').filter(line => line.trim());
+                      const bookingLines = lines.filter(line => line.startsWith('-'));
+                      const isMeetingRoomInvoice = invoice.notes.toLowerCase().includes('vergaderruimte');
 
-                        const amountMatch = cleanLine.match(/=\s*€([\d.]+)\s*$/);
-                        if (amountMatch) {
-                          amount = amountMatch[1];
-                          cleanLine = cleanLine.substring(0, cleanLine.lastIndexOf('=')).trim();
-                        }
+                      // If there are more than 10 booking lines, show summary
+                      if (isMeetingRoomInvoice && bookingLines.length > 10) {
+                        const totalAmount = bookingLines.reduce((sum, line) => {
+                          const amountMatch = line.match(/=\s*€([\d.]+)\s*$/);
+                          if (amountMatch) {
+                            return sum + parseFloat(amountMatch[1]);
+                          }
+                          return sum;
+                        }, 0);
 
                         return (
-                          <tr key={`line-${lineIndex}`} className={lineIndex % 2 === 0 ? 'bg-dark-800' : 'bg-dark-850'}>
-                            <td className="px-4 py-3 text-left text-gray-100">{cleanLine}</td>
-                            <td className="px-4 py-3 text-right text-gray-100">{amount ? `€ ${amount}` : ''}</td>
-                            <td className="px-4 py-3 text-right text-gray-100">{invoice.vat_rate.toFixed(0)}%</td>
-                          </tr>
+                          <>
+                            <tr>
+                              <td colSpan={3} className="px-4 py-2 font-semibold text-gray-100 bg-dark-800">
+                                Vergaderruimte boekingen
+                              </td>
+                            </tr>
+                            <tr className="bg-dark-800">
+                              <td className="px-4 py-3 text-left text-gray-100">
+                                {bookingLines.length} boekingen in totaal
+                              </td>
+                              <td className="px-4 py-3 text-right text-gray-100">€ {totalAmount.toFixed(2)}</td>
+                              <td className="px-4 py-3 text-right text-gray-100">{invoice.vat_rate.toFixed(0)}%</td>
+                            </tr>
+                          </>
                         );
-                      })}
+                      }
+
+                      // Otherwise show all lines
+                      return (
+                        <>
+                          {lines.map((line, lineIndex) => {
+                            // Header line (e.g., "Vergaderruimte boekingen:")
+                            if (line.includes(':') && !line.includes('(') && !line.startsWith('-')) {
+                              return (
+                                <tr key={lineIndex}>
+                                  <td colSpan={3} className="px-4 py-2 font-semibold text-gray-100 bg-dark-800">
+                                    {line}
+                                  </td>
+                                </tr>
+                              );
+                            }
+
+                            if (line.startsWith('-')) {
+                              let cleanLine = line.replace(/^-\s*/, '');
+                              let amount = '';
+
+                              const amountMatch = cleanLine.match(/=\s*€([\d.]+)\s*$/);
+                              if (amountMatch) {
+                                amount = amountMatch[1];
+                                cleanLine = cleanLine.substring(0, cleanLine.lastIndexOf('=')).trim();
+                              }
+
+                              return (
+                                <tr key={`line-${lineIndex}`} className={lineIndex % 2 === 0 ? 'bg-dark-800' : 'bg-dark-850'}>
+                                  <td className="px-4 py-3 text-left text-gray-100">{cleanLine}</td>
+                                  <td className="px-4 py-3 text-right text-gray-100">{amount ? `€ ${amount}` : ''}</td>
+                                  <td className="px-4 py-3 text-right text-gray-100">{invoice.vat_rate.toFixed(0)}%</td>
+                                </tr>
+                              );
+                            }
+                            return null;
+                          })}
+                        </>
+                      );
+                    })()}
                   </tbody>
                 </table>
               </div>
