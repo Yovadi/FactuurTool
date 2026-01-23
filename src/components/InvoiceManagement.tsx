@@ -1235,6 +1235,32 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
         const { subtotal, vatAmount, total } = calculateVAT(baseAmount, 21, true);
 
+        const notesLines = ['Vergaderruimte boekingen:'];
+        bookings.forEach(booking => {
+          let rateDescription = '';
+          if (booking.rate_type === 'half_day') {
+            rateDescription = 'dagdeel';
+          } else if (booking.rate_type === 'full_day') {
+            rateDescription = 'hele dag';
+          } else {
+            rateDescription = `${Math.round(booking.total_hours)}u`;
+          }
+
+          const beforeDiscountAmount = (booking.total_amount || 0) + (booking.discount_amount || 0);
+          const bookingLine = `- ${booking.space?.space_number || 'Vergaderruimte'} - ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)} (${rateDescription}) = €${beforeDiscountAmount.toFixed(2)}`;
+          notesLines.push(bookingLine);
+
+          if (booking.discount_percentage && booking.discount_percentage > 0 && booking.discount_amount && booking.discount_amount > 0) {
+            notesLines.push(`- Korting ${Math.round(booking.discount_percentage)}% huurderkorting = €${booking.discount_amount.toFixed(2)}`);
+          }
+        });
+
+        if (additionalDiscount > 0 && discountPercentage) {
+          notesLines.push(`- Korting vergaderruimtes (${discountPercentage}%) = €${additionalDiscount.toFixed(2)}`);
+        }
+
+        const invoiceNotes = notesLines.join('\n');
+
         console.log('Calculated amounts:', { baseAmount, subtotal, vatAmount, total });
 
         const { data: invoiceNumber, error: invoiceNumberError } = await supabase.rpc('generate_invoice_number');
@@ -1259,7 +1285,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
           vat_rate: 21,
           vat_inclusive: true,
           status: 'draft',
-          notes: 'Vergaderruimte boekingen'
+          notes: invoiceNotes
         };
 
         if (customerType === 'tenant') {
@@ -1755,6 +1781,28 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
           const { subtotal, vatAmount, total } = calculateVAT(totalAmount, 21, true);
 
+          const notesLines = ['Vergaderruimte boekingen:'];
+          bookings.forEach(booking => {
+            let rateDescription = '';
+            if (booking.rate_type === 'half_day') {
+              rateDescription = 'dagdeel';
+            } else if (booking.rate_type === 'full_day') {
+              rateDescription = 'hele dag';
+            } else {
+              rateDescription = `${Math.round(booking.total_hours)}u`;
+            }
+
+            const beforeDiscountAmount = (booking.total_amount || 0) + (booking.discount_amount || 0);
+            const bookingLine = `- ${booking.space?.space_number || 'Vergaderruimte'} - ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)} (${rateDescription}) = €${beforeDiscountAmount.toFixed(2)}`;
+            notesLines.push(bookingLine);
+
+            if (booking.discount_percentage && booking.discount_percentage > 0 && booking.discount_amount && booking.discount_amount > 0) {
+              notesLines.push(`- Korting ${Math.round(booking.discount_percentage)}% huurderkorting = €${booking.discount_amount.toFixed(2)}`);
+            }
+          });
+
+          const invoiceNotes = notesLines.join('\n');
+
           const { data: newInvoice, error: invoiceError } = await supabase
             .from('invoices')
             .insert({
@@ -1770,7 +1818,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               vat_inclusive: true,
               status: 'draft',
               invoice_month: targetMonth,
-              notes: `Vergaderruimte gebruik ${new Date(targetMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}`
+              notes: invoiceNotes
             })
             .select()
             .single();
