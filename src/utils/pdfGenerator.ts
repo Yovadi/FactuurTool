@@ -369,6 +369,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
     }
 
     const isDiscount = space.space_type === 'discount' || space.monthly_rent < 0 || displayName.toLowerCase().includes('korting');
+    const absoluteAmount = Math.abs(space.monthly_rent);
 
     if (index % 2 === 0) {
       pdf.setFillColor(250, 250, 250);
@@ -385,9 +386,9 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
     pdf.text(quantity, col2X + 20, yPosition, { align: 'right' });
     pdf.text(rate, col3X + 18, yPosition, { align: 'right' });
 
-    const amountText = isDiscount && space.monthly_rent > 0
-      ? `€ -${Math.abs(space.monthly_rent).toFixed(2)}`
-      : `€ ${Math.abs(space.monthly_rent).toFixed(2)}`;
+    const amountText = isDiscount || space.monthly_rent < 0
+      ? `€ -${absoluteAmount.toFixed(2)}`
+      : `€ ${absoluteAmount.toFixed(2)}`;
     pdf.text(amountText, col4X + 15, yPosition, { align: 'right' });
 
     pdf.setTextColor(60, 60, 60);

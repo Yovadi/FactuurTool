@@ -359,8 +359,9 @@ export function InvoicePreview({
                       }
                     }
 
-                    const isDiscount = space.space_type === 'discount' || space.monthly_rent < 0;
+                    const isDiscount = space.space_type === 'discount' || space.monthly_rent < 0 || displayName.toLowerCase().includes('korting');
                     const amountClass = isDiscount ? 'text-green-400' : 'text-gray-100';
+                    const absoluteAmount = Math.abs(space.monthly_rent);
 
                     return (
                       <tr key={index} className={index % 2 === 0 ? 'bg-dark-800' : 'bg-dark-850'}>
@@ -368,7 +369,7 @@ export function InvoicePreview({
                         <td className={`px-4 py-3 text-right ${amountClass}`}>{quantity}</td>
                         <td className={`px-4 py-3 text-right ${amountClass}`}>{rate}</td>
                         <td className={`px-4 py-3 text-right font-semibold ${amountClass}`}>
-                          €{isDiscount && space.monthly_rent > 0 ? ' -' : ' '}{Math.abs(space.monthly_rent).toFixed(2)}
+                          € {isDiscount || space.monthly_rent < 0 ? '-' : ''}{absoluteAmount.toFixed(2)}
                         </td>
                         <td className="px-4 py-3 text-right text-gray-100">{invoice.vat_rate.toFixed(0)}%</td>
                       </tr>
