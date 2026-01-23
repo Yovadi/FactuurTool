@@ -560,13 +560,14 @@ export function TenantManagement() {
             <table className="w-full table-fixed">
               <thead>
                 <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
-                  <th className="text-left px-4 py-3 font-semibold w-[18%]">Bedrijf</th>
-                  <th className="text-left px-4 py-3 font-semibold w-[14%]">Contactpersoon</th>
-                  <th className="text-left px-4 py-3 font-semibold w-[16%]">Email</th>
-                  <th className="text-left px-4 py-3 font-semibold w-[11%]">Telefoon</th>
-                  <th className="text-left px-4 py-3 font-semibold w-[16%]">Adres</th>
-                  <th className="text-center px-4 py-3 font-semibold w-[7%]">PIN</th>
-                  <th className="text-right px-4 py-3 font-semibold w-[18%]">Acties</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[16%]">Bedrijf</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[12%]">Contactpersoon</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[14%]">Email</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[10%]">Telefoon</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[14%]">Adres</th>
+                  <th className="text-center px-4 py-3 font-semibold w-[6%]">PIN</th>
+                  <th className="text-center px-4 py-3 font-semibold w-[12%]">Kortingen</th>
+                  <th className="text-right px-4 py-3 font-semibold w-[16%]">Acties</th>
                 </tr>
               </thead>
               <tbody>
@@ -625,6 +626,18 @@ export function TenantManagement() {
                         ) : '-'}
                       </td>
                       <td className="px-4 py-3">
+                        <div className="flex flex-col gap-1 items-center text-xs">
+                          <div className="flex items-center gap-1 text-blue-400">
+                            <span className="font-medium">Verhuur:</span>
+                            <span className="font-bold">{tenant.lease_discount_percentage || 0}%</span>
+                          </div>
+                          <div className="flex items-center gap-1 text-green-400">
+                            <span className="font-medium">Vergader:</span>
+                            <span className="font-bold">{tenant.meeting_discount_percentage || 0}%</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
                         <div className="flex gap-1 justify-end">
                           <button
                             onClick={() => handleEdit(tenant)}
@@ -666,13 +679,14 @@ export function TenantManagement() {
             <table className="w-full table-fixed">
               <thead>
                 <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
-                  <th className="text-left px-4 py-3 font-semibold w-[18%]">Bedrijf</th>
-                  <th className="text-left px-4 py-3 font-semibold w-[14%]">Contactpersoon</th>
-                  <th className="text-left px-4 py-3 font-semibold w-[16%]">Email</th>
-                  <th className="text-left px-4 py-3 font-semibold w-[11%]">Telefoon</th>
-                  <th className="text-left px-4 py-3 font-semibold w-[16%]">Adres</th>
-                  <th className="text-center px-4 py-3 font-semibold w-[7%]">PIN</th>
-                  <th className="text-right px-4 py-3 font-semibold w-[18%]">Acties</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[16%]">Bedrijf</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[12%]">Contactpersoon</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[14%]">Email</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[10%]">Telefoon</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[14%]">Adres</th>
+                  <th className="text-center px-4 py-3 font-semibold w-[6%]">PIN</th>
+                  <th className="text-center px-4 py-3 font-semibold w-[12%]">Kortingen</th>
+                  <th className="text-right px-4 py-3 font-semibold w-[16%]">Acties</th>
                 </tr>
               </thead>
               <tbody>
@@ -743,6 +757,18 @@ export function TenantManagement() {
                         ) : (
                           <span className="text-gray-500">-</span>
                         )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col gap-1 items-center text-xs">
+                          <div className="flex items-center gap-1 text-blue-400">
+                            <span className="font-medium">Verhuur:</span>
+                            <span className="font-bold">{customer.lease_discount_percentage || 0}%</span>
+                          </div>
+                          <div className="flex items-center gap-1 text-green-400">
+                            <span className="font-medium">Vergader:</span>
+                            <span className="font-bold">{customer.meeting_discount_percentage || 0}%</span>
+                          </div>
+                        </div>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
