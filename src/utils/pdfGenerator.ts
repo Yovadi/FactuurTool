@@ -260,16 +260,25 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
 
     // If there are more than 10 booking lines, show summary
     if (isMeetingRoomInvoice && bookingLines.length > 10) {
-      // Separate booking lines and discount lines
-      const actualBookings = bookingLines.filter(line => !line.toLowerCase().includes('korting'));
-      const discountLines = bookingLines.filter(line => line.toLowerCase().includes('korting'));
+      // Separate NEW discount lines (start with "- Korting") from booking lines
+      // OLD format lines with "(incl. X% huurderkorting)" are NOT discount lines
+      const discountLines = bookingLines.filter(line => {
+        const cleaned = line.replace(/^-\s*/, '').trim();
+        return cleaned.toLowerCase().startsWith('korting');
+      });
+      const actualBookings = bookingLines.filter(line => {
+        const cleaned = line.replace(/^-\s*/, '').trim();
+        return !cleaned.toLowerCase().startsWith('korting');
+      });
 
       const totalAmount = bookingLines.reduce((sum, line) => {
         const amountMatch = line.match(/=\s*€([\d.]+)\s*$/);
         if (amountMatch) {
           const amount = parseFloat(amountMatch[1]);
-          // Subtract discount amounts, add booking amounts
-          return sum + (line.toLowerCase().includes('korting') ? -amount : amount);
+          const cleaned = line.replace(/^-\s*/, '').trim();
+          // Only subtract if it's a NEW discount line (starts with "Korting")
+          // OLD format lines with "(incl.)" are already discounted, so add normally
+          return sum + (cleaned.toLowerCase().startsWith('korting') ? -amount : amount);
         }
         return sum;
       }, 0);
@@ -284,6 +293,16 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
           discountPercentage = parseInt(discountMatch[1]);
         }
       });
+      // Also check OLD format lines for discount percentage
+      if (!hasDiscount) {
+        actualBookings.forEach(line => {
+          const discountMatch = line.match(/\(incl\.\s*(\d+)%\s*huurderkorting\)/i);
+          if (discountMatch) {
+            hasDiscount = true;
+            discountPercentage = parseInt(discountMatch[1]);
+          }
+        });
+      }
 
       // Header
       pdf.setFont('helvetica', 'bold');
@@ -326,6 +345,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
         }
 
         // Format: - 04-11-2025 04:00-06:30 (2.5u) = €62.50
+        // Or: - Korting 10% huurderkorting = €7.50
         let description = line.replace(/^-\s*/, '').trim();
         let amount = '';
 
@@ -336,7 +356,9 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
           description = description.substring(0, description.lastIndexOf('=')).trim();
         }
 
-        const isDiscount = description.toLowerCase().includes('korting');
+        // Check if this is a discount line (only if it starts with "Korting")
+        // Lines with "(incl. X% huurderkorting)" are OLD format and should display normally
+        const isDiscount = description.toLowerCase().startsWith('korting');
 
         if (lineIndex % 2 === 0) {
           pdf.setFillColor(250, 250, 250);
