@@ -1227,9 +1227,6 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                   Duur
                 </th>
                 <th className="text-left px-4 py-3 font-semibold w-[9%]">
-                  Bedrag
-                </th>
-                <th className="text-left px-4 py-3 font-semibold w-[9%]">
                   Status
                 </th>
                 <th className="text-center px-4 py-3 font-semibold w-[10%]">
@@ -1243,7 +1240,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
             <tbody className="divide-y divide-dark-700">
               {bookings.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12">
+                  <td colSpan={7} className="px-4 py-12">
                     <div className="flex flex-col items-center">
                       <CheckCircle size={48} className="text-green-500 mb-4" />
                       <p className="text-gray-400">Geen boekingen gevonden</p>
@@ -1287,11 +1284,6 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                       </div>
                       <div className="text-xs text-gray-400 mt-0.5">
                         {booking.rate_type ? getRateLabel(booking.rate_type) : `€${booking.hourly_rate}/uur`}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 w-[9%]">
-                      <div className="text-sm font-semibold text-gray-200">
-                        €{booking.total_amount.toFixed(2)}
                       </div>
                     </td>
                     <td className="px-4 py-3 w-[9%]">
