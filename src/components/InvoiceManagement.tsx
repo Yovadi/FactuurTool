@@ -104,6 +104,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   const [deleteError, setDeleteError] = useState('');
   const [invoiceMode, setInvoiceMode] = useState<'lease' | 'manual'>('lease');
   const [generatingBulk, setGeneratingBulk] = useState(false);
+  const [loadingPreview, setLoadingPreview] = useState(false);
   const [previewInvoice, setPreviewInvoice] = useState<{
     invoice: InvoiceWithDetails;
     spaces: any[];
@@ -1880,26 +1881,31 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
 
   const showInvoicePreview = async (invoice: InvoiceWithDetails) => {
-    const { data: items, error } = await supabase
-      .from('invoice_line_items')
-      .select(`
-        *,
-        booking:meeting_room_bookings(
-          booking_date,
-          start_time,
-          end_time,
-          total_hours
-        )
-      `)
-      .eq('invoice_id', invoice.id);
+    setLoadingPreview(true);
+    try {
+      const { data: items, error } = await supabase
+        .from('invoice_line_items')
+        .select(`
+          *,
+          booking:meeting_room_bookings(
+            booking_date,
+            start_time,
+            end_time,
+            total_hours
+          )
+        `)
+        .eq('invoice_id', invoice.id);
 
-    if (error) {
-      console.error('Error loading line items:', error);
+      if (error) {
+        console.error('Error loading line items:', error);
+      }
+
+      console.log('Loaded line items:', items);
+      const spaces = convertLineItemsToSpaces(items || []);
+      setPreviewInvoice({ invoice: { ...invoice, line_items: items } as any, spaces });
+    } finally {
+      setLoadingPreview(false);
     }
-
-    console.log('Loaded line items:', items);
-    const spaces = convertLineItemsToSpaces(items || []);
-    setPreviewInvoice({ invoice: { ...invoice, line_items: items } as any, spaces });
   };
 
   const handlePreviewDownload = async () => {
@@ -3248,7 +3254,18 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
         </div>
       )}
 
-      {previewInvoice && (
+      {loadingPreview && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-dark-900 rounded-lg p-8 border border-dark-700">
+            <div className="flex flex-col items-center gap-4">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gold-500"></div>
+              <p className="text-gray-200 font-medium">Preview laden...</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {previewInvoice && !loadingPreview && (
         <InvoicePreview
           invoice={previewInvoice.invoice}
           tenant={getInvoiceTenant(previewInvoice.invoice) || {
