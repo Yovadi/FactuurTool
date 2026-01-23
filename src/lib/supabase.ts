@@ -21,7 +21,8 @@ export type Tenant = {
   city: string | null;
   country: string | null;
   booking_pin_code: string | null;
-  discount_percentage: number;
+  lease_discount_percentage: number;
+  meeting_discount_percentage: number;
   created_at: string;
 };
 
@@ -36,7 +37,8 @@ export type ExternalCustomer = {
   city: string | null;
   country: string | null;
   booking_pin_code: string | null;
-  discount_percentage: number;
+  lease_discount_percentage: number;
+  meeting_discount_percentage: number;
   created_at: string;
   updated_at?: string;
 };

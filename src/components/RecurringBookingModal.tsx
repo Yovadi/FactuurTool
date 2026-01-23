@@ -112,7 +112,7 @@ export function RecurringBookingModal({
     const subtotal = totalHours * hourlyRate;
 
     const selectedTenant = tenants.find(t => t.id === pattern.tenant_id);
-    const discountPercentage = selectedTenant?.discount_percentage || 10;
+    const discountPercentage = selectedTenant?.meeting_discount_percentage || 10;
     const discountAmount = (subtotal * discountPercentage) / 100;
     const totalAmount = subtotal - discountAmount;
 

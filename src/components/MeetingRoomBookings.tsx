@@ -329,10 +329,10 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     if (bookingType === 'tenant') {
       const tenantId = loggedInTenantId || formData.tenant_id;
       const selectedTenant = tenants.find(t => t.id === tenantId);
-      discountPercentage = selectedTenant?.discount_percentage || 10;
+      discountPercentage = selectedTenant?.meeting_discount_percentage || 10;
     } else {
       const selectedCustomer = externalCustomers.find(c => c.id === formData.external_customer_id);
-      discountPercentage = selectedCustomer?.discount_percentage || 0;
+      discountPercentage = selectedCustomer?.meeting_discount_percentage || 0;
     }
     const discountAmount = (totalAmount * discountPercentage) / 100;
     const finalAmount = totalAmount - discountAmount;
@@ -974,10 +974,10 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                     if (bookingType === 'tenant') {
                       const tenantId = loggedInTenantId || formData.tenant_id;
                       const selectedTenant = tenants.find(t => t.id === tenantId);
-                      discountPercentage = selectedTenant?.discount_percentage || 10;
+                      discountPercentage = selectedTenant?.meeting_discount_percentage || 10;
                     } else {
                       const selectedCustomer = externalCustomers.find(c => c.id === formData.external_customer_id);
-                      discountPercentage = selectedCustomer?.discount_percentage || 0;
+                      discountPercentage = selectedCustomer?.meeting_discount_percentage || 0;
                     }
                     const discountAmount = (rateInfo.totalAmount * discountPercentage) / 100;
                     const finalAmount = rateInfo.totalAmount - discountAmount;

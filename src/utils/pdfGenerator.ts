@@ -288,17 +288,28 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
         description = description.substring(0, description.lastIndexOf('=')).trim();
       }
 
+      const isDiscount = description.toLowerCase().includes('korting');
+
       if (lineIndex % 2 === 0) {
         pdf.setFillColor(250, 250, 250);
         pdf.rect(margin, yPosition - 4, pageWidth - 2 * margin, 7, 'F');
+      }
+
+      if (isDiscount) {
+        pdf.setTextColor(34, 197, 94);
+      } else {
+        pdf.setTextColor(60, 60, 60);
       }
 
       pdf.text(description, col1X + 2, yPosition);
       pdf.text('', col2X + 20, yPosition, { align: 'right' });
       pdf.text('', col3X + 18, yPosition, { align: 'right' });
       if (amount) {
-        pdf.text(`€ ${amount}`, col4X + 15, yPosition, { align: 'right' });
+        const amountText = isDiscount ? `€ -${amount}` : `€ ${amount}`;
+        pdf.text(amountText, col4X + 15, yPosition, { align: 'right' });
       }
+
+      pdf.setTextColor(60, 60, 60);
       pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col5X - 2, yPosition, { align: 'right' });
 
       lineIndex++;
@@ -357,15 +368,29 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
       }
     }
 
+    const isDiscount = space.space_type === 'discount' || space.monthly_rent < 0 || displayName.toLowerCase().includes('korting');
+
     if (index % 2 === 0) {
       pdf.setFillColor(250, 250, 250);
       pdf.rect(margin, yPosition - 4, pageWidth - 2 * margin, 7, 'F');
     }
 
+    if (isDiscount) {
+      pdf.setTextColor(34, 197, 94);
+    } else {
+      pdf.setTextColor(60, 60, 60);
+    }
+
     pdf.text(displayName, col1X + 2, yPosition);
     pdf.text(quantity, col2X + 20, yPosition, { align: 'right' });
     pdf.text(rate, col3X + 18, yPosition, { align: 'right' });
-    pdf.text(`€ ${space.monthly_rent.toFixed(2)}`, col4X + 15, yPosition, { align: 'right' });
+
+    const amountText = isDiscount && space.monthly_rent > 0
+      ? `€ -${Math.abs(space.monthly_rent).toFixed(2)}`
+      : `€ ${Math.abs(space.monthly_rent).toFixed(2)}`;
+    pdf.text(amountText, col4X + 15, yPosition, { align: 'right' });
+
+    pdf.setTextColor(60, 60, 60);
     pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col5X - 2, yPosition, { align: 'right' });
 
     yPosition += 7;
