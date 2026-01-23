@@ -1183,9 +1183,9 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
               </button>
             </div>
           </div>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto overflow-y-auto max-h-[600px]">
             <table className="w-full table-fixed min-w-[1000px]">
-            <thead>
+            <thead className="sticky top-0 z-10">
               <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
                 <th className="text-left px-4 py-3 font-semibold w-[14%]">
                   Datum & Tijd
