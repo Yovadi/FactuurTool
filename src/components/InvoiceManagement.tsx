@@ -2605,7 +2605,23 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                                     );
                                   }
 
-                                  // Show summary of line items
+                                  // Show summary based on invoice notes
+                                  // Check if this is a booking invoice by looking at notes
+                                  const isBookingInvoice = invoice.notes &&
+                                    (invoice.notes.includes('Vergaderruimte boekingen:') ||
+                                     invoice.notes.includes('Flexwerkplek boekingen:'));
+
+                                  if (isBookingInvoice) {
+                                    // Count booking lines (lines that start with "- ")
+                                    const bookingCount = (invoice.notes.match(/^- /gm) || []).length;
+                                    return (
+                                      <div className="text-xs text-gray-400">
+                                        {bookingCount} {bookingCount === 1 ? 'boeking' : 'boekingen'}
+                                      </div>
+                                    );
+                                  }
+
+                                  // For other invoices, show line items count
                                   return (
                                     <div className="text-xs text-gray-400">
                                       {invoice.line_items.length} {invoice.line_items.length === 1 ? 'factuurregel' : 'factuurregels'}

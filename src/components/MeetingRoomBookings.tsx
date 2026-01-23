@@ -516,14 +516,25 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       rateDescription = `${booking.total_hours}u`;
     }
 
-    const discountNote = booking.discount_percentage && booking.discount_percentage > 0
-      ? ` (incl. ${booking.discount_percentage}% huurderkorting)`
+    // Calculate original amount (before discount)
+    const originalAmount = booking.total_amount + (booking.discount_amount || 0);
+
+    // Create booking line without discount note (show original amount)
+    const bookingLine = `- ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)} (${rateDescription}) = €${originalAmount.toFixed(2)}`;
+
+    // Create discount line if applicable
+    const hasDiscount = booking.discount_percentage && booking.discount_percentage > 0 && booking.discount_amount && booking.discount_amount > 0;
+    const discountLine = hasDiscount
+      ? `- Korting ${booking.discount_percentage}% huurderkorting = €${booking.discount_amount.toFixed(2)}`
       : '';
-    const bookingLine = `- ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)} (${rateDescription})${discountNote} = €${booking.total_amount.toFixed(2)}`;
 
     let updatedNotes = invoice.notes || '';
     const lines = updatedNotes.split('\n');
-    const filteredLines = lines.filter(line => line.trim() !== bookingLine.trim());
+    // Filter out both the booking line and the discount line
+    const filteredLines = lines.filter(line => {
+      const trimmedLine = line.trim();
+      return trimmedLine !== bookingLine.trim() && trimmedLine !== discountLine.trim();
+    });
     updatedNotes = filteredLines.join('\n').trim();
 
     // Als er geen boekingen meer zijn, verwijder de factuur
@@ -599,16 +610,27 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       rateDescription = `${booking.total_hours}u`;
     }
 
-    const discountNote = booking.discount_percentage && booking.discount_percentage > 0
-      ? ` (incl. ${booking.discount_percentage}% huurderkorting)`
+    // Calculate original amount (before discount)
+    const originalAmount = booking.total_amount + (booking.discount_amount || 0);
+
+    // Create booking line without discount note (show original amount)
+    const bookingLine = `- ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)} (${rateDescription}) = €${originalAmount.toFixed(2)}`;
+
+    // Create discount line if applicable
+    const hasDiscount = booking.discount_percentage && booking.discount_percentage > 0 && booking.discount_amount && booking.discount_amount > 0;
+    const discountLine = hasDiscount
+      ? `- Korting ${booking.discount_percentage}% huurderkorting = €${booking.discount_amount.toFixed(2)}`
       : '';
-    const bookingLine = `- ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)} (${rateDescription})${discountNote} = €${booking.total_amount.toFixed(2)}`;
 
     if (existingInvoice) {
       const newSubtotal = parseFloat(existingInvoice.subtotal) + booking.total_amount;
       const newVatAmount = newSubtotal * (vatRate / 100);
       const newTotal = newSubtotal + newVatAmount;
-      const updatedNotes = existingInvoice.notes ? `${existingInvoice.notes}\n${bookingLine}` : `Vergaderruimte boekingen:\n${bookingLine}`;
+
+      let updatedNotes = existingInvoice.notes ? `${existingInvoice.notes}\n${bookingLine}` : `Vergaderruimte boekingen:\n${bookingLine}`;
+      if (hasDiscount) {
+        updatedNotes += `\n${discountLine}`;
+      }
 
       const { error: updateError } = await supabase
         .from('invoices')
@@ -656,6 +678,11 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
 
       const invoiceNumber = invoiceNumberResult || 'INV-ERROR';
 
+      let notes = `Vergaderruimte boekingen:\n${bookingLine}`;
+      if (hasDiscount) {
+        notes += `\n${discountLine}`;
+      }
+
       const invoiceInsertData: any = {
         invoice_number: invoiceNumber,
         invoice_date: invoiceDate,
@@ -667,7 +694,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
         vat_rate: vatRate,
         vat_inclusive: false,
         amount: totalAmount,
-        notes: `Vergaderruimte boekingen:\n${bookingLine}`
+        notes: notes
       };
 
       if (booking.booking_type === 'tenant') {

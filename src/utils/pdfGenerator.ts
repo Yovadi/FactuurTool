@@ -260,10 +260,16 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
 
     // If there are more than 10 booking lines, show summary
     if (isMeetingRoomInvoice && bookingLines.length > 10) {
+      // Separate booking lines and discount lines
+      const actualBookings = bookingLines.filter(line => !line.toLowerCase().includes('korting'));
+      const discountLines = bookingLines.filter(line => line.toLowerCase().includes('korting'));
+
       const totalAmount = bookingLines.reduce((sum, line) => {
         const amountMatch = line.match(/=\s*€([\d.]+)\s*$/);
         if (amountMatch) {
-          return sum + parseFloat(amountMatch[1]);
+          const amount = parseFloat(amountMatch[1]);
+          // Subtract discount amounts, add booking amounts
+          return sum + (line.toLowerCase().includes('korting') ? -amount : amount);
         }
         return sum;
       }, 0);
@@ -271,7 +277,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
       // Calculate discount info
       let hasDiscount = false;
       let discountPercentage = 0;
-      bookingLines.forEach(line => {
+      discountLines.forEach(line => {
         const discountMatch = line.match(/(\d+)%\s*huurderkorting/);
         if (discountMatch) {
           hasDiscount = true;
@@ -290,7 +296,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
       pdf.setFillColor(250, 250, 250);
       pdf.rect(margin, yPosition - 4, pageWidth - 2 * margin, 7, 'F');
       pdf.setTextColor(60, 60, 60);
-      const summaryText = `${bookingLines.length} boekingen${hasDiscount ? ` (incl. ${discountPercentage}% huurderkorting)` : ''}`;
+      const summaryText = `${actualBookings.length} boekingen${hasDiscount ? ` (incl. ${discountPercentage}% huurderkorting)` : ''}`;
       pdf.text(summaryText, col1X + 2, yPosition);
       pdf.text(`€ ${totalAmount.toFixed(2)}`, col4X + 15, yPosition, { align: 'right' });
       pdf.text(`€ ${vatAmount.toFixed(2)}`, col5X - 2, yPosition, { align: 'right' });
