@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Calendar, Clock, Plus, X, Check, AlertCircle, Trash2, CalendarDays, FileText, CheckCircle, XCircle, Info, RotateCcw } from 'lucide-react';
+import { Calendar, Clock, Plus, X, Check, AlertCircle, Trash2, CalendarDays, FileText, CheckCircle, XCircle, Info, RotateCcw, Filter } from 'lucide-react';
 import { BookingCalendar } from './BookingCalendar';
 import { InlineDatePicker } from './InlineDatePicker';
 
@@ -76,6 +76,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
   const [showForm, setShowForm] = useState(false);
   const [selectedView, setSelectedView] = useState<'list' | 'calendar'>('list');
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'internal' | 'external' | 'upcoming' | 'invoiced'>('all');
+  const [selectedTenantFilter, setSelectedTenantFilter] = useState<string>('all');
   const [selectedTab, setSelectedTab] = useState<'tenant' | 'external'>('tenant');
   const [bookingType, setBookingType] = useState<'tenant' | 'external'>('tenant');
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -167,27 +168,33 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     setLoading(false);
   };
 
-  const applyFilter = (bookingsList: Booking[], filter: 'all' | 'internal' | 'external' | 'upcoming' | 'invoiced', tab?: 'tenant' | 'external') => {
+  const applyFilter = (bookingsList: Booking[], filter: 'all' | 'internal' | 'external' | 'upcoming' | 'invoiced', tenantFilter?: string) => {
     const today = new Date();
     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
     let filtered = bookingsList;
 
     if (filter === 'all') {
-      // Show all bookings (no additional filter)
       filtered = bookingsList;
     } else if (filter === 'internal') {
-      // Only tenant bookings
       filtered = bookingsList.filter(b => b.booking_type === 'tenant');
     } else if (filter === 'external') {
-      // Only external bookings
       filtered = bookingsList.filter(b => b.booking_type === 'external');
     } else if (filter === 'upcoming') {
-      // Future bookings without invoice (still need to be processed)
       filtered = bookingsList.filter(b => b.booking_date >= todayStr && !b.invoice_id);
     } else if (filter === 'invoiced') {
-      // Bookings with invoice
       filtered = bookingsList.filter(b => b.invoice_id !== null);
+    }
+
+    const currentTenantFilter = tenantFilter !== undefined ? tenantFilter : selectedTenantFilter;
+    if (currentTenantFilter !== 'all') {
+      filtered = filtered.filter(b => {
+        if (b.booking_type === 'tenant') {
+          return b.tenant_id === currentTenantFilter;
+        } else {
+          return b.external_customer_id === currentTenantFilter;
+        }
+      });
     }
 
     setBookings(filtered);
@@ -206,7 +213,12 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
   const handleTabChange = (tab: 'tenant' | 'external') => {
     setSelectedTab(tab);
     setBookingType(tab);
-    applyFilter(allBookings, selectedFilter, tab);
+    applyFilter(allBookings, selectedFilter);
+  };
+
+  const handleTenantFilterChange = (tenantId: string) => {
+    setSelectedTenantFilter(tenantId);
+    applyFilter(allBookings, selectedFilter, tenantId);
   };
 
   const calculateTotalHours = (startTime: string, endTime: string) => {
@@ -1150,72 +1162,98 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
             <h2 className="text-lg font-bold text-gray-100">
               Vergaderruimte Boekingen
             </h2>
-            <div className="flex gap-2">
-              <button
-                onClick={() => {
-                  setSelectedFilter('all');
-                  applyFilter(allBookings, 'all');
-                }}
-                className={`px-3 py-1.5 rounded-lg transition-colors text-sm ${
-                  selectedFilter === 'all'
-                    ? 'bg-gold-600 text-white'
-                    : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
-                }`}
-              >
-                Alle
-              </button>
-              <button
-                onClick={() => {
-                  setSelectedFilter('internal');
-                  applyFilter(allBookings, 'internal');
-                }}
-                className={`px-3 py-1.5 rounded-lg transition-colors text-sm ${
-                  selectedFilter === 'internal'
-                    ? 'bg-gold-600 text-white'
-                    : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
-                }`}
-              >
-                Intern
-              </button>
-              <button
-                onClick={() => {
-                  setSelectedFilter('external');
-                  applyFilter(allBookings, 'external');
-                }}
-                className={`px-3 py-1.5 rounded-lg transition-colors text-sm ${
-                  selectedFilter === 'external'
-                    ? 'bg-gold-600 text-white'
-                    : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
-                }`}
-              >
-                Extern
-              </button>
-              <button
-                onClick={() => {
-                  setSelectedFilter('upcoming');
-                  applyFilter(allBookings, 'upcoming');
-                }}
-                className={`px-3 py-1.5 rounded-lg transition-colors text-sm ${
-                  selectedFilter === 'upcoming'
-                    ? 'bg-gold-600 text-white'
-                    : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
-                }`}
-              >
-                Aankomend
-              </button>
-              <button
-                onClick={() => {
-                  setSelectedFilter('invoiced');
-                  applyFilter(allBookings, 'invoiced');
-                }}
-                className={`px-3 py-1.5 rounded-lg transition-colors text-sm ${
-                  selectedFilter === 'invoiced'
-                    ? 'bg-gold-600 text-white'
-                    : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
-                }`}
-              >
-                Gefactureerd
-              </button>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Filter size={16} className="text-gray-400" />
+                <select
+                  value={selectedTenantFilter}
+                  onChange={(e) => handleTenantFilterChange(e.target.value)}
+                  className="px-3 py-1.5 bg-dark-700 border border-dark-600 text-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                >
+                  <option value="all">Alle klanten</option>
+                  <optgroup label="Huurders">
+                    {tenants.map((tenant) => (
+                      <option key={tenant.id} value={tenant.id}>
+                        {tenant.company_name || tenant.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Externe klanten">
+                    {externalCustomers.map((customer) => (
+                      <option key={customer.id} value={customer.id}>
+                        {customer.company_name}
+                      </option>
+                    ))}
+                  </optgroup>
+                </select>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setSelectedFilter('all');
+                    applyFilter(allBookings, 'all');
+                  }}
+                  className={`px-3 py-1.5 rounded-lg transition-colors text-sm ${
+                    selectedFilter === 'all'
+                      ? 'bg-gold-600 text-white'
+                      : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
+                  }`}
+                >
+                  Alle
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedFilter('internal');
+                    applyFilter(allBookings, 'internal');
+                  }}
+                  className={`px-3 py-1.5 rounded-lg transition-colors text-sm ${
+                    selectedFilter === 'internal'
+                      ? 'bg-gold-600 text-white'
+                      : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
+                  }`}
+                >
+                  Intern
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedFilter('external');
+                    applyFilter(allBookings, 'external');
+                  }}
+                  className={`px-3 py-1.5 rounded-lg transition-colors text-sm ${
+                    selectedFilter === 'external'
+                      ? 'bg-gold-600 text-white'
+                      : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
+                  }`}
+                >
+                  Extern
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedFilter('upcoming');
+                    applyFilter(allBookings, 'upcoming');
+                  }}
+                  className={`px-3 py-1.5 rounded-lg transition-colors text-sm ${
+                    selectedFilter === 'upcoming'
+                      ? 'bg-gold-600 text-white'
+                      : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
+                  }`}
+                >
+                  Aankomend
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedFilter('invoiced');
+                    applyFilter(allBookings, 'invoiced');
+                  }}
+                  className={`px-3 py-1.5 rounded-lg transition-colors text-sm ${
+                    selectedFilter === 'invoiced'
+                      ? 'bg-gold-600 text-white'
+                      : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
+                  }`}
+                >
+                  Gefactureerd
+                </button>
+              </div>
             </div>
           </div>
           <div className="overflow-x-auto overflow-y-auto max-h-[600px]">
