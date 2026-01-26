@@ -27,6 +27,26 @@ type Tenant = {
   city: string;
 };
 
+type ExternalCustomer = {
+  id: string;
+  company_name: string;
+  contact_name: string;
+  email: string;
+  phone: string;
+  street: string;
+  postal_code: string;
+  city: string;
+  country: string;
+};
+
+type FlexerOption = {
+  id: string;
+  type: 'lease' | 'external';
+  display_name: string;
+  lease?: Lease;
+  external_customer?: ExternalCustomer;
+};
+
 type Lease = {
   id: string;
   tenant_id: string;
@@ -53,7 +73,8 @@ type LeaseSpace = {
 
 type FlexSchedule = {
   id: string;
-  lease_id: string;
+  lease_id: string | null;
+  external_customer_id: string | null;
   space_id: string;
   monday: boolean;
   tuesday: boolean;
@@ -62,10 +83,17 @@ type FlexSchedule = {
   friday: boolean;
 };
 
+type FlexScheduleWithCustomer = {
+  schedule: FlexSchedule;
+  lease?: Lease;
+  external_customer?: ExternalCustomer;
+  display_name: string;
+};
+
 type SpaceOccupancy = {
   space: Space;
   fullTimeLeases: (Lease & { lease_spaces: LeaseSpace[] })[];
-  flexSchedules: Array<{ schedule: FlexSchedule; lease: Lease }>;
+  flexSchedules: FlexScheduleWithCustomer[];
 };
 
 type ToastMessage = {
@@ -107,6 +135,8 @@ export function FlexOccupancy() {
   const [selectedLeaseId, setSelectedLeaseId] = useState('');
   const [selectedSpaceId, setSelectedSpaceId] = useState('');
   const [availableFlexLeases, setAvailableFlexLeases] = useState<Lease[]>([]);
+  const [externalCustomers, setExternalCustomers] = useState<ExternalCustomer[]>([]);
+  const [availableFlexers, setAvailableFlexers] = useState<FlexerOption[]>([]);
   const [filterType, setFilterType] = useState<'all' | 'occupied' | 'available'>('all');
   const [spaceTypeFilter, setSpaceTypeFilter] = useState<'all' | 'full_time' | 'flex'>('flex');
   const [searchQuery, setSearchQuery] = useState('');
@@ -197,11 +227,34 @@ export function FlexOccupancy() {
       .eq('lease_type', 'flex')
       .eq('status', 'active');
 
+    const { data: externalCustomersData } = await supabase
+      .from('external_customers')
+      .select('*')
+      .order('company_name');
+
     const { data: flexSchedules } = await supabase
       .from('flex_schedules')
       .select('*');
 
     setAvailableFlexLeases(flexLeases || []);
+    setExternalCustomers(externalCustomersData || []);
+
+    const flexerOptions: FlexerOption[] = [
+      ...(flexLeases || []).map(lease => ({
+        id: lease.id,
+        type: 'lease' as const,
+        display_name: `${lease.tenants.company_name} (Huurder)`,
+        lease
+      })),
+      ...(externalCustomersData || []).map(customer => ({
+        id: customer.id,
+        type: 'external' as const,
+        display_name: `${customer.company_name} (Extern)`,
+        external_customer: customer
+      }))
+    ];
+
+    setAvailableFlexers(flexerOptions);
 
     const occupanciesData: SpaceOccupancy[] = (spaces || []).map(space => {
       const fullTimeForSpace = (fullTimeLeases || []).filter(lease =>
@@ -211,10 +264,28 @@ export function FlexOccupancy() {
       const flexSchedulesForSpace = (flexSchedules || [])
         .filter(schedule => schedule.space_id === space.id)
         .map(schedule => {
-          const lease = (flexLeases || []).find(l => l.id === schedule.lease_id);
-          return { schedule, lease: lease! };
+          if (schedule.lease_id) {
+            const lease = (flexLeases || []).find(l => l.id === schedule.lease_id);
+            if (lease) {
+              return {
+                schedule,
+                lease,
+                display_name: `${lease.tenants.company_name} (Huurder)`
+              };
+            }
+          } else if (schedule.external_customer_id) {
+            const customer = (externalCustomersData || []).find(c => c.id === schedule.external_customer_id);
+            if (customer) {
+              return {
+                schedule,
+                external_customer: customer,
+                display_name: `${customer.company_name} (Extern)`
+              };
+            }
+          }
+          return null;
         })
-        .filter(item => item.lease);
+        .filter((item): item is FlexScheduleWithCustomer => item !== null);
 
       return {
         space,
@@ -304,7 +375,9 @@ export function FlexOccupancy() {
     const dayKey = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][date.getDay()];
 
     const presentFlexers: Array<{
-      lease: Lease;
+      lease?: Lease;
+      external_customer?: ExternalCustomer;
+      display_name: string;
       space: Space;
       schedule: FlexSchedule | null;
       booking: FlexDayBookingType | null;
@@ -315,15 +388,24 @@ export function FlexOccupancy() {
     const flexSpaces = occupancies.filter(occ => occ.space.space_type === 'Flexplek');
 
     for (const occ of flexSpaces) {
-      for (const { schedule, lease } of occ.flexSchedules) {
+      for (const flexScheduleItem of occ.flexSchedules) {
+        const { schedule, lease, external_customer, display_name } = flexScheduleItem;
+
+        const customerId = lease?.id || external_customer?.id;
+        if (!customerId) continue;
+
         const bookingsForFlexer = flexDayBookings.filter(
-          b => b.lease_id === lease.id && b.space_id === occ.space.id && b.booking_date === dateStr
+          b => (b.lease_id === customerId || b.external_customer_id === customerId) &&
+               b.space_id === occ.space.id &&
+               b.booking_date === dateStr
         );
 
         if (bookingsForFlexer.length > 0) {
           for (const booking of bookingsForFlexer) {
             presentFlexers.push({
               lease,
+              external_customer,
+              display_name,
               space: occ.space,
               schedule,
               booking,
@@ -334,6 +416,8 @@ export function FlexOccupancy() {
         } else if ((schedule as any)[dayKey]) {
           presentFlexers.push({
             lease,
+            external_customer,
+            display_name,
             space: occ.space,
             schedule,
             booking: null,
@@ -365,20 +449,33 @@ export function FlexOccupancy() {
       return;
     }
 
+    const selectedFlexer = availableFlexers.find(f => f.id === quickBookingModal.flexerId);
+    if (!selectedFlexer) {
+      showToast('Ongeldige flexer selectie', 'error');
+      return;
+    }
+
     const dateStr = quickBookingModal.date.toISOString().split('T')[0];
     const isHalfDay = quickBookingModal.bookingType !== 'full_day';
     const halfDayPeriod = isHalfDay ? quickBookingModal.bookingType : null;
 
+    const bookingData: any = {
+      space_id: quickBookingModal.spaceId,
+      booking_date: dateStr,
+      is_half_day: isHalfDay,
+      half_day_period: halfDayPeriod,
+      created_by: 'admin'
+    };
+
+    if (selectedFlexer.type === 'lease') {
+      bookingData.lease_id = selectedFlexer.id;
+    } else {
+      bookingData.external_customer_id = selectedFlexer.id;
+    }
+
     const { error } = await supabase
       .from('flex_day_bookings')
-      .insert({
-        lease_id: quickBookingModal.flexerId,
-        space_id: quickBookingModal.spaceId,
-        booking_date: dateStr,
-        is_half_day: isHalfDay,
-        half_day_period: halfDayPeriod,
-        created_by: 'admin'
-      });
+      .insert(bookingData);
 
     if (error) {
       if (error.code === '23505') {
@@ -420,13 +517,26 @@ export function FlexOccupancy() {
       return;
     }
 
+    const selectedFlexer = availableFlexers.find(f => f.id === selectedLeaseId);
+    if (!selectedFlexer) {
+      showToast('Ongeldige flexer selectie', 'error');
+      return;
+    }
+
+    const scheduleData: any = {
+      space_id: selectedSpaceId,
+      ...newSchedule
+    };
+
+    if (selectedFlexer.type === 'lease') {
+      scheduleData.lease_id = selectedFlexer.id;
+    } else {
+      scheduleData.external_customer_id = selectedFlexer.id;
+    }
+
     const { data, error } = await supabase
       .from('flex_schedules')
-      .insert([{
-        lease_id: selectedLeaseId,
-        space_id: selectedSpaceId,
-        ...newSchedule
-      }])
+      .insert([scheduleData])
       .select()
       .single();
 
@@ -671,7 +781,7 @@ export function FlexOccupancy() {
                                     <div className="flex items-center gap-1.5 min-w-0 flex-1">
                                       <UserCheck size={12} className={flexer.booking ? 'text-gold-400 flex-shrink-0' : 'text-blue-400 flex-shrink-0'} />
                                       <span className="font-medium text-gray-100 truncate">
-                                        {flexer.lease.tenants.company_name}
+                                        {flexer.display_name}
                                       </span>
                                       {flexer.period === 'morning' && (
                                         <span className="text-[10px] px-1 py-0.5 bg-amber-500/30 text-amber-300 rounded flex-shrink-0">
@@ -735,7 +845,7 @@ export function FlexOccupancy() {
                                     <div className="flex items-center gap-1.5 min-w-0 flex-1">
                                       <UserCheck size={12} className={flexer.booking ? 'text-gold-400 flex-shrink-0' : 'text-blue-400 flex-shrink-0'} />
                                       <span className="font-medium text-gray-100 truncate">
-                                        {flexer.lease.tenants.company_name}
+                                        {flexer.display_name}
                                       </span>
                                       {flexer.period === 'afternoon' && (
                                         <span className="text-[10px] px-1 py-0.5 bg-orange-500/30 text-orange-300 rounded flex-shrink-0">
@@ -905,9 +1015,9 @@ export function FlexOccupancy() {
                     className="w-full px-3 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-200 focus:outline-none focus:border-gold-500"
                   >
                     <option value="">Selecteer een flexer</option>
-                    {availableFlexLeases.map(lease => (
-                      <option key={lease.id} value={lease.id}>
-                        {lease.tenants.company_name}
+                    {availableFlexers.map(flexer => (
+                      <option key={flexer.id} value={flexer.id}>
+                        {flexer.display_name}
                       </option>
                     ))}
                   </select>
@@ -1193,59 +1303,74 @@ export function FlexOccupancy() {
                     </div>
                   ))}
 
-                  {occupancy.flexSchedules.map(({ schedule, lease }) => (
-                    <div key={schedule.id} className="bg-dark-800 rounded-lg p-4 border border-dark-700">
+                  {occupancy.flexSchedules.map((flexScheduleItem) => (
+                    <div key={flexScheduleItem.schedule.id} className="bg-dark-800 rounded-lg p-4 border border-dark-700">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
                             <Users size={18} className="text-blue-400" />
-                            <h4 className="font-semibold text-gray-100 text-lg">{lease.tenants.company_name}</h4>
+                            <h4 className="font-semibold text-gray-100 text-lg">{flexScheduleItem.display_name}</h4>
                             <span className="text-xs px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 font-medium">
                               Flexwerker
                             </span>
-                            <span className={`text-xs px-2 py-0.5 rounded ${
-                              lease.flex_day_type === 'half_day'
-                                ? 'bg-purple-500/20 text-purple-400'
-                                : 'bg-emerald-500/20 text-emerald-400'
-                            }`}>
-                              {lease.flex_day_type === 'half_day' ? 'Halve dagen' : 'Hele dagen'}
-                            </span>
+                            {flexScheduleItem.lease && (
+                              <span className={`text-xs px-2 py-0.5 rounded ${
+                                flexScheduleItem.lease.flex_day_type === 'half_day'
+                                  ? 'bg-purple-500/20 text-purple-400'
+                                  : 'bg-emerald-500/20 text-emerald-400'
+                              }`}>
+                                {flexScheduleItem.lease.flex_day_type === 'half_day' ? 'Halve dagen' : 'Hele dagen'}
+                              </span>
+                            )}
                           </div>
 
                           <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm mt-3 mb-3">
                             <div className="flex items-center gap-2 text-gray-400">
                               <Users size={14} />
-                              <span>{lease.tenants.contact_name || 'Geen contactpersoon'}</span>
+                              <span>
+                                {flexScheduleItem.lease
+                                  ? flexScheduleItem.lease.tenants.contact_name || 'Geen contactpersoon'
+                                  : flexScheduleItem.external_customer?.contact_name || 'Geen contactpersoon'
+                                }
+                              </span>
                             </div>
-                            <div className="flex items-center gap-2 text-gray-400">
-                              <Calendar size={14} />
-                              <span>{formatDate(lease.start_date)} - {formatDate(lease.end_date)}</span>
-                            </div>
-                            {lease.tenants.email && (
+                            {flexScheduleItem.lease && (
+                              <div className="flex items-center gap-2 text-gray-400">
+                                <Calendar size={14} />
+                                <span>{formatDate(flexScheduleItem.lease.start_date)} - {formatDate(flexScheduleItem.lease.end_date)}</span>
+                              </div>
+                            )}
+                            {(flexScheduleItem.lease?.tenants.email || flexScheduleItem.external_customer?.email) && (
                               <div className="flex items-center gap-2 text-gray-400">
                                 <Mail size={14} />
-                                <a href={`mailto:${lease.tenants.email}`} className="hover:text-gold-500 transition-colors">
-                                  {lease.tenants.email}
+                                <a
+                                  href={`mailto:${flexScheduleItem.lease?.tenants.email || flexScheduleItem.external_customer?.email}`}
+                                  className="hover:text-gold-500 transition-colors"
+                                >
+                                  {flexScheduleItem.lease?.tenants.email || flexScheduleItem.external_customer?.email}
                                 </a>
                               </div>
                             )}
-                            {lease.tenants.phone && (
+                            {(flexScheduleItem.lease?.tenants.phone || flexScheduleItem.external_customer?.phone) && (
                               <div className="flex items-center gap-2 text-gray-400">
                                 <Phone size={14} />
-                                <a href={`tel:${lease.tenants.phone}`} className="hover:text-gold-500 transition-colors">
-                                  {lease.tenants.phone}
+                                <a
+                                  href={`tel:${flexScheduleItem.lease?.tenants.phone || flexScheduleItem.external_customer?.phone}`}
+                                  className="hover:text-gold-500 transition-colors"
+                                >
+                                  {flexScheduleItem.lease?.tenants.phone || flexScheduleItem.external_customer?.phone}
                                 </a>
                               </div>
                             )}
-                            {lease.credits_per_week && lease.flex_credit_rate && (
+                            {flexScheduleItem.lease?.credits_per_week && flexScheduleItem.lease?.flex_credit_rate && (
                               <>
                                 <div className="flex items-center gap-2 text-gray-400">
                                   <CreditCard size={14} />
-                                  <span>{lease.credits_per_week} dagen per week</span>
+                                  <span>{flexScheduleItem.lease.credits_per_week} dagen per week</span>
                                 </div>
                                 <div className="flex items-center gap-2 text-gray-400">
                                   <Euro size={14} />
-                                  <span>{formatCurrency(lease.flex_credit_rate)} per dag</span>
+                                  <span>{formatCurrency(flexScheduleItem.lease.flex_credit_rate)} per dag</span>
                                 </div>
                               </>
                             )}
@@ -1256,11 +1381,11 @@ export function FlexOccupancy() {
                               <label className="text-xs text-gray-400 mb-1 block">Vaste dagen in deze ruimte:</label>
                               <div className="flex gap-1">
                                 {workDays.map(({ key, label }) => {
-                                  const isActive = (schedule as any)[key];
+                                  const isActive = (flexScheduleItem.schedule as any)[key];
                                   return (
                                     <button
                                       key={key}
-                                      onClick={() => handleToggleDay(schedule.id, key, isActive)}
+                                      onClick={() => handleToggleDay(flexScheduleItem.schedule.id, key, isActive)}
                                       className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
                                         isActive
                                           ? 'bg-gold-500 text-white'
@@ -1275,26 +1400,26 @@ export function FlexOccupancy() {
                               </div>
                             </div>
 
-                            {lease.credits_per_week && (
+                            {flexScheduleItem.lease?.credits_per_week && (
                               <div className="pt-3 border-t border-dark-600">
                                 <button
                                   onClick={() => {
                                     setSelectedBooking({
-                                      leaseId: lease.id,
+                                      leaseId: flexScheduleItem.lease!.id,
                                       spaceId: occupancy.space.id,
                                       spaceName: occupancy.space.space_number,
-                                      tenantName: lease.tenants.company_name,
-                                      creditsPerWeek: lease.credits_per_week,
-                                      dayType: lease.flex_day_type || 'full_day',
-                                      startDate: lease.start_date,
-                                      endDate: lease.end_date
+                                      tenantName: flexScheduleItem.lease!.tenants.company_name,
+                                      creditsPerWeek: flexScheduleItem.lease!.credits_per_week!,
+                                      dayType: flexScheduleItem.lease!.flex_day_type || 'full_day',
+                                      startDate: flexScheduleItem.lease!.start_date,
+                                      endDate: flexScheduleItem.lease!.end_date
                                     });
                                     setBookingModalOpen(true);
                                   }}
                                   className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
                                 >
                                   <CalendarDays size={16} />
-                                  Dagen Beheren ({lease.credits_per_week} per week)
+                                  Dagen Beheren ({flexScheduleItem.lease.credits_per_week} per week)
                                 </button>
                               </div>
                             )}
@@ -1302,7 +1427,7 @@ export function FlexOccupancy() {
                         </div>
 
                         <button
-                          onClick={() => handleDeleteSchedule(schedule.id)}
+                          onClick={() => handleDeleteSchedule(flexScheduleItem.schedule.id)}
                           className="ml-4 p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors"
                           title="Planning verwijderen"
                         >
@@ -1364,9 +1489,9 @@ export function FlexOccupancy() {
                   className="w-full px-3 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-200 focus:outline-none focus:border-gold-500"
                 >
                   <option value="">Selecteer een flexer</option>
-                  {availableFlexLeases.map(lease => (
-                    <option key={lease.id} value={lease.id}>
-                      {lease.tenants.company_name}
+                  {availableFlexers.map(flexer => (
+                    <option key={flexer.id} value={flexer.id}>
+                      {flexer.display_name}
                     </option>
                   ))}
                 </select>
