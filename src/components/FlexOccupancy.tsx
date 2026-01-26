@@ -608,39 +608,41 @@ export function FlexOccupancy() {
                       <div className={`p-3 border-b border-dark-700 ${isToday(date) ? 'bg-gold-500/10' : ''}`}>
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-medium text-gray-400">{dayNames[date.getDay()]}</span>
-                          <div className="flex items-center gap-2">
-                            <span className={`text-lg font-bold ${isToday(date) ? 'text-gold-500' : 'text-gray-100'}`}>
-                              {date.getDate()}
-                            </span>
-                            {!isPastDate && (
-                              <button
-                                onClick={() => setQuickBookingModal({ date, bookingType: 'full_day' })}
-                                className="p-1 text-gray-500 hover:text-gold-400 hover:bg-dark-700 rounded transition-colors"
-                                title="Boeking toevoegen"
-                              >
-                                <Plus size={16} />
-                              </button>
-                            )}
-                          </div>
+                          <span className={`text-lg font-bold ${isToday(date) ? 'text-gold-500' : 'text-gray-100'}`}>
+                            {date.getDate()}
+                          </span>
                         </div>
                       </div>
 
                       <div className="divide-y divide-dark-700">
-                        <div className="p-2">
+                        <div
+                          className={`p-2 ${!isPastDate && morningFlexers.length < totalCapacity ? 'cursor-pointer hover:bg-dark-700/50 transition-colors' : ''}`}
+                          onClick={() => {
+                            if (!isPastDate && morningFlexers.length < totalCapacity) {
+                              setQuickBookingModal({ date, bookingType: 'morning' });
+                            }
+                          }}
+                        >
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-xs font-medium text-gray-500">Ochtend</span>
-                            <span className="text-xs text-gray-500">{morningFlexers.length}/{totalCapacity}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-500">{morningFlexers.length}/{totalCapacity}</span>
+                              {!isPastDate && morningFlexers.length < totalCapacity && (
+                                <Plus size={14} className="text-gray-500" />
+                              )}
+                            </div>
                           </div>
                           <div className="min-h-[60px]">
                             {morningFlexers.length === 0 ? (
                               <div className="flex items-center justify-center h-full text-gray-600 text-xs">
-                                Geen aanwezigen
+                                {isPastDate ? 'Geen aanwezigen' : 'Klik om boeking toe te voegen'}
                               </div>
                             ) : (
                               <div className="space-y-1">
                                 {morningFlexers.map((flexer, idx) => (
                                   <div
                                     key={idx}
+                                    onClick={(e) => e.stopPropagation()}
                                     className={`group px-2 py-1 rounded text-xs flex items-center justify-between ${
                                       flexer.booking
                                         ? flexer.period === 'morning' ? 'bg-amber-500/20 border border-amber-500/30' : 'bg-gold-500/20 border border-gold-500/30'
@@ -660,7 +662,10 @@ export function FlexOccupancy() {
                                     </div>
                                     {flexer.booking && (
                                       <button
-                                        onClick={() => handleDeleteBooking(flexer.booking!.id)}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDeleteBooking(flexer.booking!.id);
+                                        }}
                                         className="opacity-0 group-hover:opacity-100 p-0.5 text-red-400 hover:text-red-300 transition-opacity"
                                         title="Verwijderen"
                                       >
@@ -674,21 +679,34 @@ export function FlexOccupancy() {
                           </div>
                         </div>
 
-                        <div className="p-2">
+                        <div
+                          className={`p-2 ${!isPastDate && afternoonFlexers.length < totalCapacity ? 'cursor-pointer hover:bg-dark-700/50 transition-colors' : ''}`}
+                          onClick={() => {
+                            if (!isPastDate && afternoonFlexers.length < totalCapacity) {
+                              setQuickBookingModal({ date, bookingType: 'afternoon' });
+                            }
+                          }}
+                        >
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-xs font-medium text-gray-500">Middag</span>
-                            <span className="text-xs text-gray-500">{afternoonFlexers.length}/{totalCapacity}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-500">{afternoonFlexers.length}/{totalCapacity}</span>
+                              {!isPastDate && afternoonFlexers.length < totalCapacity && (
+                                <Plus size={14} className="text-gray-500" />
+                              )}
+                            </div>
                           </div>
                           <div className="min-h-[60px]">
                             {afternoonFlexers.length === 0 ? (
                               <div className="flex items-center justify-center h-full text-gray-600 text-xs">
-                                Geen aanwezigen
+                                {isPastDate ? 'Geen aanwezigen' : 'Klik om boeking toe te voegen'}
                               </div>
                             ) : (
                               <div className="space-y-1">
                                 {afternoonFlexers.map((flexer, idx) => (
                                   <div
                                     key={idx}
+                                    onClick={(e) => e.stopPropagation()}
                                     className={`group px-2 py-1 rounded text-xs flex items-center justify-between ${
                                       flexer.booking
                                         ? flexer.period === 'afternoon' ? 'bg-orange-500/20 border border-orange-500/30' : 'bg-gold-500/20 border border-gold-500/30'
@@ -708,7 +726,10 @@ export function FlexOccupancy() {
                                     </div>
                                     {flexer.booking && (
                                       <button
-                                        onClick={() => handleDeleteBooking(flexer.booking!.id)}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDeleteBooking(flexer.booking!.id);
+                                        }}
                                         className="opacity-0 group-hover:opacity-100 p-0.5 text-red-400 hover:text-red-300 transition-opacity"
                                         title="Verwijderen"
                                       >
