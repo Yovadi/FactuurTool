@@ -37,7 +37,7 @@ function convertLineItemsToSpaces(items: InvoiceLineItem[]) {
     } else if (item.description.startsWith('Kantoor ')) {
       spaceType = 'kantoor';
       isKnownSpaceType = true;
-    } else if (item.description.startsWith('Buitenterrein ')) {
+    } else if (item.description.toLowerCase().startsWith('buitenterrein')) {
       spaceType = 'buitenterrein';
       isKnownSpaceType = true;
     } else if (item.description.toLowerCase().includes('vergader') || item.description.toLowerCase().includes('meeting')) {
@@ -971,7 +971,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           }
         }
 
-        const emailBody = `Beste ${tenant.name},
+        const tenantName = ('name' in tenant && tenant.name) ? tenant.name : ('contact_name' in tenant && tenant.contact_name) ? tenant.contact_name : tenant.company_name || '';
+        const emailBody = `Beste ${tenantName},
 
 Hierbij ontvangt u factuur ${invoice.invoice_number.replace(/^INV-/, '')} van ${companySettings.company_name}.
 
