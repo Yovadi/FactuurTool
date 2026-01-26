@@ -228,11 +228,11 @@ export function FlexOccupancy() {
   };
 
   const loadFlexDayBookings = async () => {
-    const weekEnd = new Date(selectedWeekStart);
-    weekEnd.setDate(weekEnd.getDate() + 6);
+    const twoWeeksEnd = new Date(selectedWeekStart);
+    twoWeeksEnd.setDate(twoWeeksEnd.getDate() + 13);
 
     const startStr = selectedWeekStart.toISOString().split('T')[0];
-    const endStr = weekEnd.toISOString().split('T')[0];
+    const endStr = twoWeeksEnd.toISOString().split('T')[0];
 
     const { data } = await supabase
       .from('flex_day_bookings')
@@ -246,7 +246,7 @@ export function FlexOccupancy() {
   const goToPreviousWeek = () => {
     setSelectedWeekStart(prev => {
       const newDate = new Date(prev);
-      newDate.setDate(newDate.getDate() - 7);
+      newDate.setDate(newDate.getDate() - 14);
       return newDate;
     });
   };
@@ -254,7 +254,7 @@ export function FlexOccupancy() {
   const goToNextWeek = () => {
     setSelectedWeekStart(prev => {
       const newDate = new Date(prev);
-      newDate.setDate(newDate.getDate() + 7);
+      newDate.setDate(newDate.getDate() + 14);
       return newDate;
     });
   };
@@ -271,11 +271,26 @@ export function FlexOccupancy() {
 
   const getWeekDays = useMemo(() => {
     const days = [];
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 10; i++) {
       const date = new Date(selectedWeekStart);
       date.setDate(date.getDate() + i);
-      days.push(date);
+      if (date.getDay() !== 0 && date.getDay() !== 6) {
+        days.push(date);
+      }
     }
+
+    let daysCount = days.length;
+    let offset = 10;
+    while (daysCount < 10) {
+      const date = new Date(selectedWeekStart);
+      date.setDate(date.getDate() + offset);
+      if (date.getDay() !== 0 && date.getDay() !== 6) {
+        days.push(date);
+        daysCount++;
+      }
+      offset++;
+    }
+
     return days;
   }, [selectedWeekStart]);
 
@@ -572,7 +587,11 @@ export function FlexOccupancy() {
                 </button>
                 <div className="flex items-center gap-4">
                   <h2 className="text-lg font-semibold text-gray-100">
-                    Week {Math.ceil((selectedWeekStart.getDate() + new Date(selectedWeekStart.getFullYear(), selectedWeekStart.getMonth(), 1).getDay()) / 7)} - {selectedWeekStart.toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}
+                    {selectedWeekStart.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })} - {(() => {
+                      const endDate = new Date(selectedWeekStart);
+                      endDate.setDate(endDate.getDate() + 13);
+                      return endDate.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' });
+                    })()}
                   </h2>
                   <button
                     onClick={goToCurrentWeek}
