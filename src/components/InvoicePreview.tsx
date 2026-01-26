@@ -140,47 +140,47 @@ export function InvoicePreview({
             {onCreateCreditNote && (
               <button
                 onClick={onCreateCreditNote}
-                className="flex items-center gap-1 text-gold-400 hover:text-gold-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
+                className="flex items-center gap-1.5 bg-amber-600 hover:bg-amber-500 text-white transition-colors px-3 py-1.5 rounded-lg"
                 title="Maak Credit Nota"
               >
-                <FileText size={20} />
+                <FileText size={18} />
                 <span className="text-sm font-medium">Credit Nota</span>
               </button>
             )}
             {onEdit && (
               <button
                 onClick={onEdit}
-                className="flex items-center gap-1 text-gray-300 hover:text-gray-100 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
+                className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white transition-colors px-3 py-1.5 rounded-lg"
                 title="Bewerken"
               >
-                <Edit size={20} />
+                <Edit size={18} />
                 <span className="text-sm font-medium">Bewerken</span>
               </button>
             )}
             {onDownload && (
               <button
                 onClick={onDownload}
-                className="flex items-center gap-1 text-gold-400 hover:text-gold-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
+                className="flex items-center gap-1.5 bg-green-600 hover:bg-green-500 text-white transition-colors px-3 py-1.5 rounded-lg"
                 title="Download PDF"
               >
-                <Download size={20} />
+                <Download size={18} />
                 <span className="text-sm font-medium">Download</span>
               </button>
             )}
             {onSend && (
               <button
                 onClick={onSend}
-                className="flex items-center gap-1 text-gray-300 hover:text-gray-100 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
+                className="flex items-center gap-1.5 bg-teal-600 hover:bg-teal-500 text-white transition-colors px-3 py-1.5 rounded-lg"
                 title="Versturen"
               >
-                <Send size={20} />
+                <Send size={18} />
                 <span className="text-sm font-medium">Versturen</span>
               </button>
             )}
             {onMarkAsPaid && invoice.status !== 'paid' && (
               <button
                 onClick={onMarkAsPaid}
-                className="flex items-center gap-1 text-green-400 hover:text-green-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
+                className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white transition-colors px-3 py-1.5 rounded-lg"
                 title="Markeer als betaald"
               >
                 <span className="text-sm font-medium">Betaald</span>
@@ -188,9 +188,9 @@ export function InvoicePreview({
             )}
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-200 transition-colors p-1.5"
+              className="bg-red-600 hover:bg-red-500 text-white transition-colors p-1.5 rounded-lg"
             >
-              <X size={24} />
+              <X size={20} />
             </button>
           </div>
         </div>
