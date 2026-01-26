@@ -2007,7 +2007,9 @@
                 discount_percentage: discountPercentage,
                 discount_amount: discountAmount,
                 status: 'confirmed',
-                booking_type: authenticatedUser.userType
+                booking_type: authenticatedUser.userType,
+                tenant_id: null,
+                external_customer_id: null
             };
 
             if (authenticatedUser.userType === 'tenant') {
@@ -2192,6 +2194,7 @@
                     bookings.push({
                         space_id: pattern.space_id,
                         tenant_id: pattern.tenant_id,
+                        external_customer_id: null,
                         booking_date: currentDate.toISOString().split('T')[0],
                         start_time: pattern.start_time,
                         end_time: pattern.end_time,
