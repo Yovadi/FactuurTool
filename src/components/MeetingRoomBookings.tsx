@@ -21,9 +21,13 @@ type Tenant = {
 type Space = {
   id: string;
   space_number: string;
-  hourly_rate?: number;
-  half_day_rate?: number;
-  full_day_rate?: number;
+};
+
+type MeetingRoomRates = {
+  hourly_rate: number;
+  half_day_rate: number | null;
+  full_day_rate: number | null;
+  vat_inclusive: boolean;
 };
 
 type ExternalCustomer = {
@@ -82,7 +86,12 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationId, setNotificationId] = useState(0);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [meetingRoomVatInclusive, setMeetingRoomVatInclusive] = useState(false);
+  const [meetingRoomRates, setMeetingRoomRates] = useState<MeetingRoomRates>({
+    hourly_rate: 0,
+    half_day_rate: null,
+    full_day_rate: null,
+    vat_inclusive: false
+  });
 
   const getWeekNumber = (date: Date): number => {
     const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -122,18 +131,23 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
 
     const { data: spacesData } = await supabase
       .from('office_spaces')
-      .select('id, space_number, hourly_rate, half_day_rate, full_day_rate')
+      .select('id, space_number')
       .eq('space_type', 'Meeting Room')
       .order('space_number');
 
-    const { data: meetingRoomRates } = await supabase
+    const { data: ratesData } = await supabase
       .from('space_type_rates')
-      .select('vat_inclusive')
+      .select('hourly_rate, half_day_rate, full_day_rate, vat_inclusive')
       .eq('space_type', 'Meeting Room')
       .maybeSingle();
 
-    if (meetingRoomRates) {
-      setMeetingRoomVatInclusive(meetingRoomRates.vat_inclusive || false);
+    if (ratesData) {
+      setMeetingRoomRates({
+        hourly_rate: ratesData.hourly_rate || 0,
+        half_day_rate: ratesData.half_day_rate,
+        full_day_rate: ratesData.full_day_rate,
+        vat_inclusive: ratesData.vat_inclusive || false
+      });
     }
 
     let bookingsQuery = supabase
@@ -340,12 +354,11 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     }
 
     const totalHours = calculateTotalHours(formData.start_time, formData.end_time);
-    const selectedRoom = meetingRooms.find(r => r.id === formData.space_id);
     const { rateType, appliedRate, totalAmount } = calculateOptimalRate(
       totalHours,
-      selectedRoom?.hourly_rate || formData.hourly_rate,
-      selectedRoom?.half_day_rate,
-      selectedRoom?.full_day_rate
+      meetingRoomRates.hourly_rate || formData.hourly_rate,
+      meetingRoomRates.half_day_rate || undefined,
+      meetingRoomRates.full_day_rate || undefined
     );
 
     let discountPercentage = 0;
@@ -365,7 +378,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       booking_date: formData.booking_date,
       start_time: formData.start_time,
       end_time: formData.end_time,
-      hourly_rate: selectedRoom?.hourly_rate || formData.hourly_rate,
+      hourly_rate: meetingRoomRates.hourly_rate || formData.hourly_rate,
       total_hours: totalHours,
       total_amount: finalAmount,
       discount_percentage: discountPercentage,
@@ -606,7 +619,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     const invoiceMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
 
     const vatRate = 21;
-    const vatInclusive = meetingRoomVatInclusive;
+    const vatInclusive = meetingRoomRates.vat_inclusive;
 
     let existingInvoiceQuery = supabase
       .from('invoices')
@@ -797,11 +810,10 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
   };
 
   const handleSpaceChange = (spaceId: string) => {
-    const selectedRoom = meetingRooms.find(r => r.id === spaceId);
     setFormData({
       ...formData,
       space_id: spaceId,
-      hourly_rate: selectedRoom?.hourly_rate || 25
+      hourly_rate: meetingRoomRates.hourly_rate || 25
     });
   };
 
@@ -1025,13 +1037,13 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                   </div>
 
                   {(() => {
-                    const selectedRoom = meetingRooms.find(r => r.id === formData.space_id);
                     const totalHours = calculateTotalHours(formData.start_time, formData.end_time);
-                    const rateInfo = selectedRoom ? calculateOptimalRate(
+                    const hasRates = meetingRoomRates.hourly_rate > 0;
+                    const rateInfo = hasRates ? calculateOptimalRate(
                       totalHours,
-                      selectedRoom.hourly_rate || 25,
-                      selectedRoom.half_day_rate,
-                      selectedRoom.full_day_rate
+                      meetingRoomRates.hourly_rate,
+                      meetingRoomRates.half_day_rate || undefined,
+                      meetingRoomRates.full_day_rate || undefined
                     ) : { rateType: 'hourly' as const, appliedRate: 25, totalAmount: totalHours * 25 };
 
                     let discountPercentage = 0;
@@ -1052,19 +1064,19 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                           <div className={`p-3 rounded-lg border ${rateInfo.rateType === 'hourly' ? 'border-gold-500 bg-gold-500/10' : 'border-dark-600 bg-dark-800'}`}>
                             <div className="text-xs text-gray-400 mb-1">Uurtarief</div>
                             <div className="text-sm font-medium text-gray-100">
-                              {selectedRoom?.hourly_rate ? `€${selectedRoom.hourly_rate}/uur` : '-'}
+                              {meetingRoomRates.hourly_rate ? `€${meetingRoomRates.hourly_rate}/uur` : '-'}
                             </div>
                           </div>
                           <div className={`p-3 rounded-lg border ${rateInfo.rateType === 'half_day' ? 'border-gold-500 bg-gold-500/10' : 'border-dark-600 bg-dark-800'}`}>
                             <div className="text-xs text-gray-400 mb-1">Dagdeel (4+ uur)</div>
                             <div className="text-sm font-medium text-gray-100">
-                              {selectedRoom?.half_day_rate ? `€${selectedRoom.half_day_rate}` : '-'}
+                              {meetingRoomRates.half_day_rate ? `€${meetingRoomRates.half_day_rate}` : '-'}
                             </div>
                           </div>
                           <div className={`p-3 rounded-lg border ${rateInfo.rateType === 'full_day' ? 'border-gold-500 bg-gold-500/10' : 'border-dark-600 bg-dark-800'}`}>
                             <div className="text-xs text-gray-400 mb-1">Hele dag (8+ uur)</div>
                             <div className="text-sm font-medium text-gray-100">
-                              {selectedRoom?.full_day_rate ? `€${selectedRoom.full_day_rate}` : '-'}
+                              {meetingRoomRates.full_day_rate ? `€${meetingRoomRates.full_day_rate}` : '-'}
                             </div>
                           </div>
                         </div>
@@ -1074,6 +1086,9 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                               <span className="text-sm text-gray-400">Toegepast tarief: </span>
                               <span className="text-sm font-medium text-gold-400">{getRateLabel(rateInfo.rateType)}</span>
                               <span className="text-sm text-gray-400"> ({totalHours} uur)</span>
+                              <span className={`ml-2 text-xs px-1.5 py-0.5 rounded ${meetingRoomRates.vat_inclusive ? 'bg-blue-500/20 text-blue-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                                {meetingRoomRates.vat_inclusive ? 'incl. BTW' : 'excl. BTW'}
+                              </span>
                             </div>
                             <div className="text-lg font-semibold text-gold-400">
                               €{finalAmount.toFixed(2)}
