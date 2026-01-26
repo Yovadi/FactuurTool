@@ -61,10 +61,9 @@ type SelectedCell = {
   slotIndex: number;
 };
 
-const timeSlots = Array.from({ length: 32 }, (_, i) => {
-  const hour = Math.floor(i / 2) + 6;
-  const minute = (i % 2) * 30;
-  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+const timeSlots = Array.from({ length: 16 }, (_, i) => {
+  const hour = i + 6;
+  return `${String(hour).padStart(2, '0')}:00`;
 });
 
 const tenantColors = [

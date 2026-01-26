@@ -998,10 +998,9 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                         size={5}
                         required
                       >
-                        {Array.from({ length: 20 }, (_, i) => {
-                          const hour = Math.floor(i / 2) + 8;
-                          const minute = (i % 2) * 30;
-                          const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+                        {Array.from({ length: 10 }, (_, i) => {
+                          const hour = i + 8;
+                          const time = `${String(hour).padStart(2, '0')}:00`;
                           return (
                             <option key={time} value={time}>
                               {time}
@@ -1022,10 +1021,9 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                         size={5}
                         required
                       >
-                        {Array.from({ length: 20 }, (_, i) => {
-                          const hour = Math.floor(i / 2) + 8;
-                          const minute = (i % 2) * 30;
-                          const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+                        {Array.from({ length: 10 }, (_, i) => {
+                          const hour = i + 8;
+                          const time = `${String(hour).padStart(2, '0')}:00`;
                           return (
                             <option key={time} value={time}>
                               {time}
