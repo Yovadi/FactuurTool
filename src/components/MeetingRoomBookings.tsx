@@ -174,8 +174,8 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     let filtered = bookingsList;
 
     if (filter === 'all') {
-      // Show only bookings without invoice (not yet processed)
-      filtered = bookingsList.filter(b => !b.invoice_id);
+      // Show all bookings (no additional filter)
+      filtered = bookingsList;
     } else if (filter === 'internal') {
       // Only tenant bookings
       filtered = bookingsList.filter(b => b.booking_type === 'tenant');
@@ -183,7 +183,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       // Only external bookings
       filtered = bookingsList.filter(b => b.booking_type === 'external');
     } else if (filter === 'upcoming') {
-      // Future bookings without invoice
+      // Future bookings without invoice (still need to be processed)
       filtered = bookingsList.filter(b => b.booking_date >= todayStr && !b.invoice_id);
     } else if (filter === 'invoiced') {
       // Bookings with invoice
