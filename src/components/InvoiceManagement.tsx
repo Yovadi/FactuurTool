@@ -971,7 +971,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           }
         }
 
-        const tenantName = ('name' in tenant && tenant.name) ? tenant.name : ('contact_name' in tenant ? tenant.contact_name : '');
+        const tenantName = ('name' in tenant && tenant.name) ? tenant.name : ('contact_name' in tenant && tenant.contact_name) ? tenant.contact_name : tenant.company_name || '';
         const emailBody = `Beste ${tenantName},
 
 Hierbij ontvangt u factuur ${invoice.invoice_number.replace(/^INV-/, '')} van ${companySettings.company_name}.
