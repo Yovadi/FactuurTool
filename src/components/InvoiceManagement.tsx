@@ -1511,7 +1511,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               description: `Flexplek - Dagelijks tarief (${workingDays} werkdagen)`,
               quantity: workingDays,
               unit_price: lease.flex_daily_rate || 0,
-              amount: rentAmount
+              amount: rentAmount,
+              quantity_label: 'dagen'
             });
           } else if (lease.flex_pricing_model === 'credit_based') {
             const creditsPerWeek = (lease as any).credits_per_week || 0;
@@ -1523,7 +1524,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               description: `Flexplek - ${creditsPerWeek} ${lease.flex_day_type === 'half_day' ? 'halve ' : ''}dagen/week`,
               quantity: monthlyCredits,
               unit_price: lease.flex_credit_rate || 0,
-              amount: rentAmount
+              amount: rentAmount,
+              quantity_label: 'dagen'
             });
           }
         } else {
@@ -2689,7 +2691,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                                       {invoice.line_items.slice(0, 3).map((item: any, idx: number) => (
                                         <div key={idx}>
                                           {item.description}
-                                          {item.quantity > 0 && ` (${item.quantity} ${item.unit || 'm²'})`}
+                                          {item.quantity > 0 && ` (${item.quantity} ${item.quantity_label || item.unit || 'm²'})`}
                                         </div>
                                       ))}
                                       {invoice.line_items.length > 3 && (
