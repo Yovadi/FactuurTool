@@ -449,7 +449,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   };
 
   useEffect(() => {
-    if (!invoiceMonth || !showGenerateModal) return;
+    if (!invoiceMonth || !showGenerateModal || !showDetailSelection) return;
 
     const leasesToGenerate = leases.filter(lease => {
       const existingInvoice = invoices.find(
@@ -487,7 +487,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
     setSelectedLeases(new Set(leasesToGenerate.map(l => l.id)));
     setSelectedCustomers(new Set(customersWithBookingsIds));
-  }, [invoiceMonth, showGenerateModal, leases, invoices, tenants, externalCustomers, meetingRoomBookings]);
+    setShowDetailSelection(false);
+  }, [invoiceMonth, showGenerateModal, showDetailSelection, leases, invoices, tenants, externalCustomers, meetingRoomBookings]);
 
   const startEditInvoice = async (invoice: InvoiceWithDetails) => {
     const { data: items } = await supabase
@@ -1501,7 +1502,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               amount: rentAmount
             });
           } else if (lease.flex_pricing_model === 'daily') {
-            const [year, month] = nextMonth.split('-').map(Number);
+            const [year, month] = targetMonth.split('-').map(Number);
             const daysInMonth = new Date(year, month, 0).getDate();
             const workingDays = Math.round(daysInMonth * (5/7));
             rentAmount = (lease.flex_daily_rate || 0) * workingDays;
@@ -1690,19 +1691,16 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
     setGeneratingBulk(false);
 
-    if (successCount > 0) {
-      await loadData();
-      console.log(`✓ ${successCount} huur ${successCount > 1 ? 'facturen' : 'factuur'} aangemaakt voor ${new Date(targetMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}`);
-      setSelectedLeases(new Set());
-    }
     if (failCount > 0) {
       console.log(`${failCount} facturen overgeslagen (bestaan al of fout)`);
     }
+
+    return successCount;
   };
 
   const generateAllInvoices = async () => {
     console.log('\n\n========================================');
-    console.log('🚀 GENERATE ALL INVOICES CALLED');
+    console.log('GENERATE ALL INVOICES CALLED');
     console.log('========================================');
     console.log('Selected leases:', selectedLeases.size);
     console.log('Selected customers:', selectedCustomers.size);
@@ -1713,12 +1711,22 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
       return;
     }
 
+    let totalSuccess = 0;
+
     if (selectedLeases.size > 0) {
-      await generateBulkInvoices();
+      const leaseSuccess = await generateBulkInvoices();
+      totalSuccess += leaseSuccess || 0;
     }
 
     if (selectedCustomers.size > 0) {
       await generateMeetingRoomInvoicesForSelectedCustomers();
+    } else if (totalSuccess > 0) {
+      await loadData();
+      setShowGenerateModal(false);
+      setInvoiceMonth('');
+      setSelectedLeases(new Set());
+      setSelectedCustomers(new Set());
+      setShowDetailSelection(true);
     }
   };
 
