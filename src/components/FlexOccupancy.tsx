@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
-import { Users, Calendar, Save, X, Plus, Trash2, Check, Building2, Mail, Phone, Euro, CreditCard, CalendarDays } from 'lucide-react';
+import { Users, Calendar, Save, X, Plus, Trash2, Check, Building2, Mail, Phone, Euro, CreditCard, CalendarDays, ChevronLeft, ChevronRight, LayoutGrid, CalendarRange, UserCheck } from 'lucide-react';
 import FlexDayBooking from './FlexDayBooking';
 import { Toast } from './Toast';
 import { ConfirmModal } from './ConfirmModal';
@@ -81,6 +81,25 @@ type ConfirmDialog = {
   variant?: 'default' | 'danger';
 } | null;
 
+type FlexDayBookingType = {
+  id: string;
+  lease_id: string;
+  space_id: string;
+  booking_date: string;
+  is_half_day: boolean;
+  half_day_period: 'morning' | 'afternoon' | null;
+  created_at: string;
+};
+
+type ViewMode = 'spaces' | 'calendar';
+
+type QuickBookingModal = {
+  date: Date;
+  flexerId?: string;
+  spaceId?: string;
+  bookingType: 'full_day' | 'morning' | 'afternoon';
+} | null;
+
 export function FlexOccupancy() {
   const [occupancies, setOccupancies] = useState<SpaceOccupancy[]>([]);
   const [loading, setLoading] = useState(true);
@@ -111,6 +130,18 @@ export function FlexOccupancy() {
   });
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialog>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('calendar');
+  const [quickBookingModal, setQuickBookingModal] = useState<QuickBookingModal>(null);
+  const [selectedWeekStart, setSelectedWeekStart] = useState<Date>(() => {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + diff);
+    monday.setHours(0, 0, 0, 0);
+    return monday;
+  });
+  const [flexDayBookings, setFlexDayBookings] = useState<FlexDayBookingType[]>([]);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info') => {
     const id = Date.now();
@@ -132,6 +163,12 @@ export function FlexOccupancy() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (viewMode === 'calendar') {
+      loadFlexDayBookings();
+    }
+  }, [selectedWeekStart, viewMode]);
 
   const loadData = async () => {
     setLoading(true);
@@ -188,6 +225,173 @@ export function FlexOccupancy() {
 
     setOccupancies(occupanciesData);
     setLoading(false);
+  };
+
+  const loadFlexDayBookings = async () => {
+    const weekEnd = new Date(selectedWeekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+
+    const startStr = selectedWeekStart.toISOString().split('T')[0];
+    const endStr = weekEnd.toISOString().split('T')[0];
+
+    const { data } = await supabase
+      .from('flex_day_bookings')
+      .select('*')
+      .gte('booking_date', startStr)
+      .lte('booking_date', endStr);
+
+    setFlexDayBookings(data || []);
+  };
+
+  const goToPreviousWeek = () => {
+    setSelectedWeekStart(prev => {
+      const newDate = new Date(prev);
+      newDate.setDate(newDate.getDate() - 7);
+      return newDate;
+    });
+  };
+
+  const goToNextWeek = () => {
+    setSelectedWeekStart(prev => {
+      const newDate = new Date(prev);
+      newDate.setDate(newDate.getDate() + 7);
+      return newDate;
+    });
+  };
+
+  const goToCurrentWeek = () => {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + diff);
+    monday.setHours(0, 0, 0, 0);
+    setSelectedWeekStart(monday);
+  };
+
+  const getWeekDays = useMemo(() => {
+    const days = [];
+    for (let i = 0; i < 5; i++) {
+      const date = new Date(selectedWeekStart);
+      date.setDate(date.getDate() + i);
+      days.push(date);
+    }
+    return days;
+  }, [selectedWeekStart]);
+
+  const isToday = (date: Date) => {
+    const today = new Date();
+    return date.toDateString() === today.toDateString();
+  };
+
+  const getFlexersForDay = (date: Date) => {
+    const dateStr = date.toISOString().split('T')[0];
+    const dayKey = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][date.getDay()];
+
+    const presentFlexers: Array<{
+      lease: Lease;
+      space: Space;
+      schedule: FlexSchedule | null;
+      booking: FlexDayBookingType | null;
+      isHalfDay: boolean;
+      period: 'morning' | 'afternoon' | 'full_day';
+    }> = [];
+
+    const flexSpaces = occupancies.filter(occ => occ.space.space_type === 'Flexplek');
+
+    for (const occ of flexSpaces) {
+      for (const { schedule, lease } of occ.flexSchedules) {
+        const bookingsForFlexer = flexDayBookings.filter(
+          b => b.lease_id === lease.id && b.space_id === occ.space.id && b.booking_date === dateStr
+        );
+
+        if (bookingsForFlexer.length > 0) {
+          for (const booking of bookingsForFlexer) {
+            presentFlexers.push({
+              lease,
+              space: occ.space,
+              schedule,
+              booking,
+              isHalfDay: booking.is_half_day,
+              period: booking.is_half_day ? (booking.half_day_period || 'morning') : 'full_day'
+            });
+          }
+        } else if ((schedule as any)[dayKey]) {
+          presentFlexers.push({
+            lease,
+            space: occ.space,
+            schedule,
+            booking: null,
+            isHalfDay: false,
+            period: 'full_day'
+          });
+        }
+      }
+    }
+
+    return presentFlexers;
+  };
+
+  const getFlexersForPeriod = (date: Date, period: 'morning' | 'afternoon') => {
+    const allFlexers = getFlexersForDay(date);
+    return allFlexers.filter(f =>
+      f.period === 'full_day' || f.period === period
+    );
+  };
+
+  const getTotalCapacityForDay = () => {
+    const flexSpaces = occupancies.filter(occ => occ.space.space_type === 'Flexplek');
+    return flexSpaces.reduce((sum, occ) => sum + (occ.space.flex_capacity || 1), 0);
+  };
+
+  const handleQuickBooking = async () => {
+    if (!quickBookingModal || !quickBookingModal.flexerId || !quickBookingModal.spaceId) {
+      showToast('Selecteer een flexer en ruimte', 'error');
+      return;
+    }
+
+    const dateStr = quickBookingModal.date.toISOString().split('T')[0];
+    const isHalfDay = quickBookingModal.bookingType !== 'full_day';
+    const halfDayPeriod = isHalfDay ? quickBookingModal.bookingType : null;
+
+    const { error } = await supabase
+      .from('flex_day_bookings')
+      .insert({
+        lease_id: quickBookingModal.flexerId,
+        space_id: quickBookingModal.spaceId,
+        booking_date: dateStr,
+        is_half_day: isHalfDay,
+        half_day_period: halfDayPeriod,
+        created_by: 'admin'
+      });
+
+    if (error) {
+      if (error.code === '23505') {
+        showToast('Deze boeking bestaat al', 'error');
+      } else {
+        showToast('Fout bij aanmaken boeking: ' + error.message, 'error');
+      }
+      return;
+    }
+
+    showToast('Boeking aangemaakt', 'success');
+    setQuickBookingModal(null);
+    loadFlexDayBookings();
+  };
+
+  const handleDeleteBooking = async (bookingId: string) => {
+    const { error } = await supabase
+      .from('flex_day_bookings')
+      .delete()
+      .eq('id', bookingId);
+
+    if (error) {
+      showToast('Fout bij verwijderen boeking', 'error');
+      return;
+    }
+
+    showToast('Boeking verwijderd', 'success');
+    loadFlexDayBookings();
   };
 
   const handleAddSchedule = async () => {
@@ -312,17 +516,256 @@ export function FlexOccupancy() {
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-100">Bezetting Overzicht</h1>
-            <p className="text-gray-400 mt-1">Volledige overzicht van wie waar zit - vaste huurders en flexwerkers</p>
+            <p className="text-gray-400 mt-1">
+              {viewMode === 'calendar'
+                ? 'Weekoverzicht van aanwezige flexwerkers'
+                : 'Volledige overzicht van wie waar zit - vaste huurders en flexwerkers'
+              }
+            </p>
           </div>
-          <button
-            onClick={() => setShowAddForm(!showAddForm)}
-            className="flex items-center gap-2 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors"
-          >
-            {showAddForm ? <X size={20} /> : <Plus size={20} />}
-            {showAddForm ? 'Annuleren' : 'Flex Planning Toevoegen'}
-          </button>
+          <div className="flex items-center gap-3">
+            <div className="flex bg-dark-800 rounded-lg p-1">
+              <button
+                onClick={() => setViewMode('calendar')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                  viewMode === 'calendar'
+                    ? 'bg-gold-500 text-white'
+                    : 'text-gray-400 hover:text-gray-200'
+                }`}
+              >
+                <CalendarRange size={18} />
+                Agenda
+              </button>
+              <button
+                onClick={() => setViewMode('spaces')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                  viewMode === 'spaces'
+                    ? 'bg-gold-500 text-white'
+                    : 'text-gray-400 hover:text-gray-200'
+                }`}
+              >
+                <LayoutGrid size={18} />
+                Ruimtes
+              </button>
+            </div>
+            {viewMode === 'spaces' && (
+              <button
+                onClick={() => setShowAddForm(!showAddForm)}
+                className="flex items-center gap-2 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors"
+              >
+                {showAddForm ? <X size={20} /> : <Plus size={20} />}
+                {showAddForm ? 'Annuleren' : 'Flex Planning Toevoegen'}
+              </button>
+            )}
+          </div>
         </div>
 
+        {viewMode === 'calendar' && (
+          <div className="space-y-6">
+            <div className="bg-dark-900 rounded-lg border border-dark-700 p-4">
+              <div className="flex items-center justify-between mb-4">
+                <button
+                  onClick={goToPreviousWeek}
+                  className="p-2 text-gray-400 hover:text-white hover:bg-dark-700 rounded-lg transition-colors"
+                >
+                  <ChevronLeft size={24} />
+                </button>
+                <div className="flex items-center gap-4">
+                  <h2 className="text-lg font-semibold text-gray-100">
+                    Week {Math.ceil((selectedWeekStart.getDate() + new Date(selectedWeekStart.getFullYear(), selectedWeekStart.getMonth(), 1).getDay()) / 7)} - {selectedWeekStart.toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}
+                  </h2>
+                  <button
+                    onClick={goToCurrentWeek}
+                    className="px-3 py-1 text-sm bg-dark-700 text-gray-300 rounded hover:bg-dark-600 transition-colors"
+                  >
+                    Vandaag
+                  </button>
+                </div>
+                <button
+                  onClick={goToNextWeek}
+                  className="p-2 text-gray-400 hover:text-white hover:bg-dark-700 rounded-lg transition-colors"
+                >
+                  <ChevronRight size={24} />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-5 gap-4">
+                {getWeekDays.map((date, index) => {
+                  const allFlexers = getFlexersForDay(date);
+                  const morningFlexers = getFlexersForPeriod(date, 'morning');
+                  const afternoonFlexers = getFlexersForPeriod(date, 'afternoon');
+                  const totalCapacity = getTotalCapacityForDay();
+                  const dayNames = ['Zo', 'Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za'];
+                  const isPastDate = date < new Date(new Date().setHours(0, 0, 0, 0));
+
+                  return (
+                    <div
+                      key={index}
+                      className={`bg-dark-800 rounded-lg border transition-colors ${
+                        isToday(date) ? 'border-gold-500' : 'border-dark-700'
+                      }`}
+                    >
+                      <div className={`p-3 border-b border-dark-700 ${isToday(date) ? 'bg-gold-500/10' : ''}`}>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-gray-400">{dayNames[date.getDay()]}</span>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-lg font-bold ${isToday(date) ? 'text-gold-500' : 'text-gray-100'}`}>
+                              {date.getDate()}
+                            </span>
+                            {!isPastDate && (
+                              <button
+                                onClick={() => setQuickBookingModal({ date, bookingType: 'full_day' })}
+                                className="p-1 text-gray-500 hover:text-gold-400 hover:bg-dark-700 rounded transition-colors"
+                                title="Boeking toevoegen"
+                              >
+                                <Plus size={16} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="divide-y divide-dark-700">
+                        <div className="p-2">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-medium text-gray-500">Ochtend</span>
+                            <span className="text-xs text-gray-500">{morningFlexers.length}/{totalCapacity}</span>
+                          </div>
+                          <div className="min-h-[60px]">
+                            {morningFlexers.length === 0 ? (
+                              <div className="flex items-center justify-center h-full text-gray-600 text-xs">
+                                Geen aanwezigen
+                              </div>
+                            ) : (
+                              <div className="space-y-1">
+                                {morningFlexers.map((flexer, idx) => (
+                                  <div
+                                    key={idx}
+                                    className={`group px-2 py-1 rounded text-xs flex items-center justify-between ${
+                                      flexer.booking
+                                        ? flexer.period === 'morning' ? 'bg-amber-500/20 border border-amber-500/30' : 'bg-gold-500/20 border border-gold-500/30'
+                                        : 'bg-blue-500/10 border border-blue-500/20'
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                                      <UserCheck size={12} className={flexer.booking ? 'text-gold-400 flex-shrink-0' : 'text-blue-400 flex-shrink-0'} />
+                                      <span className="font-medium text-gray-100 truncate">
+                                        {flexer.lease.tenants.company_name}
+                                      </span>
+                                      {flexer.period === 'morning' && (
+                                        <span className="text-[10px] px-1 py-0.5 bg-amber-500/30 text-amber-300 rounded flex-shrink-0">
+                                          Ochtend
+                                        </span>
+                                      )}
+                                    </div>
+                                    {flexer.booking && (
+                                      <button
+                                        onClick={() => handleDeleteBooking(flexer.booking!.id)}
+                                        className="opacity-0 group-hover:opacity-100 p-0.5 text-red-400 hover:text-red-300 transition-opacity"
+                                        title="Verwijderen"
+                                      >
+                                        <X size={12} />
+                                      </button>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="p-2">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-medium text-gray-500">Middag</span>
+                            <span className="text-xs text-gray-500">{afternoonFlexers.length}/{totalCapacity}</span>
+                          </div>
+                          <div className="min-h-[60px]">
+                            {afternoonFlexers.length === 0 ? (
+                              <div className="flex items-center justify-center h-full text-gray-600 text-xs">
+                                Geen aanwezigen
+                              </div>
+                            ) : (
+                              <div className="space-y-1">
+                                {afternoonFlexers.map((flexer, idx) => (
+                                  <div
+                                    key={idx}
+                                    className={`group px-2 py-1 rounded text-xs flex items-center justify-between ${
+                                      flexer.booking
+                                        ? flexer.period === 'afternoon' ? 'bg-orange-500/20 border border-orange-500/30' : 'bg-gold-500/20 border border-gold-500/30'
+                                        : 'bg-blue-500/10 border border-blue-500/20'
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                                      <UserCheck size={12} className={flexer.booking ? 'text-gold-400 flex-shrink-0' : 'text-blue-400 flex-shrink-0'} />
+                                      <span className="font-medium text-gray-100 truncate">
+                                        {flexer.lease.tenants.company_name}
+                                      </span>
+                                      {flexer.period === 'afternoon' && (
+                                        <span className="text-[10px] px-1 py-0.5 bg-orange-500/30 text-orange-300 rounded flex-shrink-0">
+                                          Middag
+                                        </span>
+                                      )}
+                                    </div>
+                                    {flexer.booking && (
+                                      <button
+                                        onClick={() => handleDeleteBooking(flexer.booking!.id)}
+                                        className="opacity-0 group-hover:opacity-100 p-0.5 text-red-400 hover:text-red-300 transition-opacity"
+                                        title="Verwijderen"
+                                      >
+                                        <X size={12} />
+                                      </button>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {allFlexers.length < totalCapacity && !isPastDate && (
+                        <div className="p-2 border-t border-dark-700">
+                          <div className="text-xs text-center py-1 rounded bg-green-500/10 text-green-400 border border-green-500/20">
+                            {totalCapacity - Math.max(morningFlexers.length, afternoonFlexers.length)} {totalCapacity - Math.max(morningFlexers.length, afternoonFlexers.length) === 1 ? 'plek' : 'plekken'} vrij
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="bg-dark-900 rounded-lg border border-dark-700 p-4">
+              <h3 className="text-sm font-medium text-gray-400 mb-3">Legenda</h3>
+              <div className="flex flex-wrap gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded bg-gold-500/20 border border-gold-500/30"></div>
+                  <span className="text-sm text-gray-300">Hele dag geboekt</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded bg-amber-500/20 border border-amber-500/30"></div>
+                  <span className="text-sm text-gray-300">Ochtend geboekt</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded bg-orange-500/20 border border-orange-500/30"></div>
+                  <span className="text-sm text-gray-300">Middag geboekt</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded bg-blue-500/10 border border-blue-500/20"></div>
+                  <span className="text-sm text-gray-300">Vaste planning</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded border-2 border-gold-500"></div>
+                  <span className="text-sm text-gray-300">Vandaag</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {viewMode === 'spaces' && (
+          <>
         <div className="mb-6 space-y-4">
           <div className="flex gap-4">
             <div className="flex-1">
@@ -835,6 +1278,8 @@ export function FlexOccupancy() {
           })}
           </div>
         )}
+          </>
+        )}
       </div>
 
       {bookingModalOpen && selectedBooking && (
@@ -853,6 +1298,110 @@ export function FlexOccupancy() {
             loadData();
           }}
         />
+      )}
+
+      {quickBookingModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-dark-900 rounded-lg border border-dark-700 w-full max-w-md mx-4">
+            <div className="p-4 border-b border-dark-700 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-100">
+                Nieuwe Boeking - {quickBookingModal.date.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' })}
+              </h3>
+              <button
+                onClick={() => setQuickBookingModal(null)}
+                className="p-1 text-gray-400 hover:text-white rounded transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Flexer</label>
+                <select
+                  value={quickBookingModal.flexerId || ''}
+                  onChange={(e) => setQuickBookingModal({ ...quickBookingModal, flexerId: e.target.value })}
+                  className="w-full px-3 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-200 focus:outline-none focus:border-gold-500"
+                >
+                  <option value="">Selecteer een flexer</option>
+                  {availableFlexLeases.map(lease => (
+                    <option key={lease.id} value={lease.id}>
+                      {lease.tenants.company_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Ruimte</label>
+                <select
+                  value={quickBookingModal.spaceId || ''}
+                  onChange={(e) => setQuickBookingModal({ ...quickBookingModal, spaceId: e.target.value })}
+                  className="w-full px-3 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-200 focus:outline-none focus:border-gold-500"
+                >
+                  <option value="">Selecteer een ruimte</option>
+                  {occupancies.filter(occ => occ.space.space_type === 'Flexplek').map(occ => (
+                    <option key={occ.space.id} value={occ.space.id}>
+                      {occ.space.space_number} (max {occ.space.flex_capacity} pers.)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Type Boeking</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={() => setQuickBookingModal({ ...quickBookingModal, bookingType: 'full_day' })}
+                    className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                      quickBookingModal.bookingType === 'full_day'
+                        ? 'bg-gold-500 text-white'
+                        : 'bg-dark-800 text-gray-400 hover:bg-dark-700'
+                    }`}
+                  >
+                    Hele dag
+                  </button>
+                  <button
+                    onClick={() => setQuickBookingModal({ ...quickBookingModal, bookingType: 'morning' })}
+                    className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                      quickBookingModal.bookingType === 'morning'
+                        ? 'bg-amber-500 text-white'
+                        : 'bg-dark-800 text-gray-400 hover:bg-dark-700'
+                    }`}
+                  >
+                    Ochtend
+                  </button>
+                  <button
+                    onClick={() => setQuickBookingModal({ ...quickBookingModal, bookingType: 'afternoon' })}
+                    className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                      quickBookingModal.bookingType === 'afternoon'
+                        ? 'bg-orange-500 text-white'
+                        : 'bg-dark-800 text-gray-400 hover:bg-dark-700'
+                    }`}
+                  >
+                    Middag
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-dark-700 flex justify-end gap-2">
+              <button
+                onClick={() => setQuickBookingModal(null)}
+                className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+              >
+                Annuleren
+              </button>
+              <button
+                onClick={handleQuickBooking}
+                disabled={!quickBookingModal.flexerId || !quickBookingModal.spaceId}
+                className="px-4 py-2 bg-gold-500 text-white rounded-lg hover:bg-gold-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Boeking Aanmaken
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <div className="fixed top-4 right-4 z-50 space-y-2 max-w-md">

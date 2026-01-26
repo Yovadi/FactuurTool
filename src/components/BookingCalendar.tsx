@@ -58,6 +58,7 @@ type ExternalCustomer = {
 type SelectedCell = {
   date: string;
   time: string;
+  slotIndex: number;
 };
 
 const timeSlots = Array.from({ length: 32 }, (_, i) => {
@@ -392,9 +393,10 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
 
     if (cellDate < today) return;
 
+    const slotIndex = timeSlots.indexOf(time);
     setIsDragging(true);
-    setDragStart({ date: dateStr, time });
-    setSelectedCells([{ date: dateStr, time }]);
+    setDragStart({ date: dateStr, time, slotIndex });
+    setSelectedCells([{ date: dateStr, time, slotIndex }]);
   };
 
   const handleCellTap = (dateStr: string, time: string) => {
@@ -408,6 +410,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
     if (cellDate < today) return;
 
     setIsProcessingTap(true);
+    const slotIndex = timeSlots.indexOf(time);
 
     requestAnimationFrame(() => {
       const cellIndex = selectedCells.findIndex(c => c.date === dateStr && c.time === time);
@@ -420,27 +423,27 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
       }
 
       if (selectedCells.length === 0) {
-        setSelectedCells([{ date: dateStr, time }]);
+        setSelectedCells([{ date: dateStr, time, slotIndex }]);
         setIsProcessingTap(false);
         return;
       }
 
       if (selectedCells[0].date !== dateStr) {
-        setSelectedCells([{ date: dateStr, time }]);
+        setSelectedCells([{ date: dateStr, time, slotIndex }]);
         setIsProcessingTap(false);
         return;
       }
 
-      const currentTimeIndex = timeSlots.indexOf(time);
+      const currentTimeIndex = slotIndex;
 
-      const timeIndices = selectedCells.map(c => timeSlots.indexOf(c.time));
+      const timeIndices = selectedCells.map(c => c.slotIndex);
       const minIndex = Math.min(...timeIndices);
       const maxIndex = Math.max(...timeIndices);
 
       if (currentTimeIndex === minIndex - 1 || currentTimeIndex === maxIndex + 1) {
-        const newCells = [...selectedCells, { date: dateStr, time }];
+        const newCells = [...selectedCells, { date: dateStr, time, slotIndex }];
 
-        const newTimeIndices = newCells.map(c => timeSlots.indexOf(c.time));
+        const newTimeIndices = newCells.map(c => c.slotIndex);
         const newMinIndex = Math.min(...newTimeIndices);
         const newMaxIndex = Math.max(...newTimeIndices);
         const expectedLength = newMaxIndex - newMinIndex + 1;
@@ -462,7 +465,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
 
         setSelectedCells(newCells);
       } else if (currentTimeIndex >= minIndex && currentTimeIndex <= maxIndex) {
-        setSelectedCells([...selectedCells, { date: dateStr, time }]);
+        setSelectedCells([...selectedCells, { date: dateStr, time, slotIndex }]);
       } else {
         showToast('Selecteer alleen aaneengesloten tijdslots', 'error');
       }
@@ -474,7 +477,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
   const handleCellMouseEnter = (dateStr: string, time: string) => {
     if (!isDragging || !dragStart || dragStart.date !== dateStr) return;
 
-    const startIndex = timeSlots.indexOf(dragStart.time);
+    const startIndex = dragStart.slotIndex;
     const currentIndex = timeSlots.indexOf(time);
     const minIndex = Math.min(startIndex, currentIndex);
     const maxIndex = Math.max(startIndex, currentIndex);
@@ -483,7 +486,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
     for (let i = minIndex; i <= maxIndex; i++) {
       const t = timeSlots[i];
       if (!hasBooking(dateStr, t)) {
-        cells.push({ date: dateStr, time: t });
+        cells.push({ date: dateStr, time: t, slotIndex: i });
       }
     }
 
@@ -551,7 +554,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
 
     const insertData: any = {
       space_id: selectedRoomForBooking.id,
-      booking_type: bookingType,
+      booking_type: formBookingType,
       booking_date: selectedCells[0].date,
       start_time: startTime,
       end_time: endTime,
@@ -565,9 +568,11 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
 
     if (formBookingType === 'tenant') {
       const tenantIdToUse = loggedInTenantId || formData.tenant_id;
-      insertData.tenant_id = tenantIdToUse;
+      insertData.tenant_id = tenantIdToUse || null;
+      insertData.external_customer_id = null;
     } else {
-      insertData.external_customer_id = formData.external_customer_id;
+      insertData.tenant_id = null;
+      insertData.external_customer_id = formData.external_customer_id || null;
     }
 
     const { data: newBooking, error } = await supabase

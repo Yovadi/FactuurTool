@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Calendar, Clock, Plus, X, Check, AlertCircle, Trash2, CalendarDays, FileText, CheckCircle, XCircle, Info, RotateCcw } from 'lucide-react';
+import { Calendar, Clock, Plus, X, Check, AlertCircle, Trash2, CalendarDays, FileText, CheckCircle, XCircle, Info, RotateCcw, Filter } from 'lucide-react';
 import { BookingCalendar } from './BookingCalendar';
 import { InlineDatePicker } from './InlineDatePicker';
 
@@ -21,9 +21,13 @@ type Tenant = {
 type Space = {
   id: string;
   space_number: string;
-  hourly_rate?: number;
-  half_day_rate?: number;
-  full_day_rate?: number;
+};
+
+type MeetingRoomRates = {
+  hourly_rate: number;
+  half_day_rate: number | null;
+  full_day_rate: number | null;
+  vat_inclusive: boolean;
 };
 
 type ExternalCustomer = {
@@ -76,11 +80,18 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
   const [showForm, setShowForm] = useState(false);
   const [selectedView, setSelectedView] = useState<'list' | 'calendar'>('list');
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'internal' | 'external' | 'upcoming' | 'invoiced'>('all');
+  const [selectedTenantFilter, setSelectedTenantFilter] = useState<string>('all');
   const [selectedTab, setSelectedTab] = useState<'tenant' | 'external'>('tenant');
   const [bookingType, setBookingType] = useState<'tenant' | 'external'>('tenant');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationId, setNotificationId] = useState(0);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [meetingRoomRates, setMeetingRoomRates] = useState<MeetingRoomRates>({
+    hourly_rate: 0,
+    half_day_rate: null,
+    full_day_rate: null,
+    vat_inclusive: false
+  });
 
   const getWeekNumber = (date: Date): number => {
     const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -120,9 +131,24 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
 
     const { data: spacesData } = await supabase
       .from('office_spaces')
-      .select('id, space_number, hourly_rate, half_day_rate, full_day_rate')
+      .select('id, space_number')
       .eq('space_type', 'Meeting Room')
       .order('space_number');
+
+    const { data: ratesData } = await supabase
+      .from('space_type_rates')
+      .select('hourly_rate, half_day_rate, full_day_rate, vat_inclusive')
+      .eq('space_type', 'Meeting Room')
+      .maybeSingle();
+
+    if (ratesData) {
+      setMeetingRoomRates({
+        hourly_rate: ratesData.hourly_rate || 0,
+        half_day_rate: ratesData.half_day_rate,
+        full_day_rate: ratesData.full_day_rate,
+        vat_inclusive: ratesData.vat_inclusive || false
+      });
+    }
 
     let bookingsQuery = supabase
       .from('meeting_room_bookings')
@@ -167,27 +193,33 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     setLoading(false);
   };
 
-  const applyFilter = (bookingsList: Booking[], filter: 'all' | 'internal' | 'external' | 'upcoming' | 'invoiced', tab?: 'tenant' | 'external') => {
+  const applyFilter = (bookingsList: Booking[], filter: 'all' | 'internal' | 'external' | 'upcoming' | 'invoiced', tenantFilter?: string) => {
     const today = new Date();
     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
     let filtered = bookingsList;
 
     if (filter === 'all') {
-      // Show only bookings without invoice (not yet processed)
-      filtered = bookingsList.filter(b => !b.invoice_id);
+      filtered = bookingsList;
     } else if (filter === 'internal') {
-      // Only tenant bookings
       filtered = bookingsList.filter(b => b.booking_type === 'tenant');
     } else if (filter === 'external') {
-      // Only external bookings
       filtered = bookingsList.filter(b => b.booking_type === 'external');
     } else if (filter === 'upcoming') {
-      // Future bookings without invoice
       filtered = bookingsList.filter(b => b.booking_date >= todayStr && !b.invoice_id);
     } else if (filter === 'invoiced') {
-      // Bookings with invoice
       filtered = bookingsList.filter(b => b.invoice_id !== null);
+    }
+
+    const currentTenantFilter = tenantFilter !== undefined ? tenantFilter : selectedTenantFilter;
+    if (currentTenantFilter !== 'all') {
+      filtered = filtered.filter(b => {
+        if (b.booking_type === 'tenant') {
+          return b.tenant_id === currentTenantFilter;
+        } else {
+          return b.external_customer_id === currentTenantFilter;
+        }
+      });
     }
 
     setBookings(filtered);
@@ -206,7 +238,12 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
   const handleTabChange = (tab: 'tenant' | 'external') => {
     setSelectedTab(tab);
     setBookingType(tab);
-    applyFilter(allBookings, selectedFilter, tab);
+    applyFilter(allBookings, selectedFilter);
+  };
+
+  const handleTenantFilterChange = (tenantId: string) => {
+    setSelectedTenantFilter(tenantId);
+    applyFilter(allBookings, selectedFilter, tenantId);
   };
 
   const calculateTotalHours = (startTime: string, endTime: string) => {
@@ -317,12 +354,11 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     }
 
     const totalHours = calculateTotalHours(formData.start_time, formData.end_time);
-    const selectedRoom = meetingRooms.find(r => r.id === formData.space_id);
     const { rateType, appliedRate, totalAmount } = calculateOptimalRate(
       totalHours,
-      selectedRoom?.hourly_rate || formData.hourly_rate,
-      selectedRoom?.half_day_rate,
-      selectedRoom?.full_day_rate
+      meetingRoomRates.hourly_rate || formData.hourly_rate,
+      meetingRoomRates.half_day_rate || undefined,
+      meetingRoomRates.full_day_rate || undefined
     );
 
     let discountPercentage = 0;
@@ -342,7 +378,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       booking_date: formData.booking_date,
       start_time: formData.start_time,
       end_time: formData.end_time,
-      hourly_rate: selectedRoom?.hourly_rate || formData.hourly_rate,
+      hourly_rate: meetingRoomRates.hourly_rate || formData.hourly_rate,
       total_hours: totalHours,
       total_amount: finalAmount,
       discount_percentage: discountPercentage,
@@ -356,12 +392,14 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
 
     if (bookingType === 'tenant') {
       const tenantId = loggedInTenantId || formData.tenant_id;
-      insertData.tenant_id = tenantId;
+      insertData.tenant_id = tenantId || null;
       insertData.external_customer_id = null;
     } else {
       insertData.tenant_id = null;
-      insertData.external_customer_id = formData.external_customer_id;
+      insertData.external_customer_id = formData.external_customer_id || null;
     }
+
+    console.log('Insert data:', JSON.stringify(insertData, null, 2));
 
     const { data, error } = await supabase
       .from('meeting_room_bookings')
@@ -581,6 +619,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     const invoiceMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
 
     const vatRate = 21;
+    const vatInclusive = meetingRoomRates.vat_inclusive;
 
     let existingInvoiceQuery = supabase
       .from('invoices')
@@ -623,7 +662,13 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       : '';
 
     if (existingInvoice) {
-      const newSubtotal = parseFloat(existingInvoice.subtotal) + booking.total_amount;
+      let bookingSubtotal: number;
+      if (vatInclusive) {
+        bookingSubtotal = booking.total_amount / (1 + vatRate / 100);
+      } else {
+        bookingSubtotal = booking.total_amount;
+      }
+      const newSubtotal = parseFloat(existingInvoice.subtotal) + bookingSubtotal;
       const newVatAmount = newSubtotal * (vatRate / 100);
       const newTotal = newSubtotal + newVatAmount;
 
@@ -664,7 +709,12 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       dueDate.setDate(dueDate.getDate() + 14);
       const dueDateStr = dueDate.toISOString().split('T')[0];
 
-      const subtotal = booking.total_amount;
+      let subtotal: number;
+      if (vatInclusive) {
+        subtotal = booking.total_amount / (1 + vatRate / 100);
+      } else {
+        subtotal = booking.total_amount;
+      }
       const vatAmount = subtotal * (vatRate / 100);
       const totalAmount = subtotal + vatAmount;
 
@@ -692,7 +742,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
         subtotal: subtotal,
         vat_amount: vatAmount,
         vat_rate: vatRate,
-        vat_inclusive: false,
+        vat_inclusive: vatInclusive,
         amount: totalAmount,
         notes: notes
       };
@@ -760,11 +810,10 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
   };
 
   const handleSpaceChange = (spaceId: string) => {
-    const selectedRoom = meetingRooms.find(r => r.id === spaceId);
     setFormData({
       ...formData,
       space_id: spaceId,
-      hourly_rate: selectedRoom?.hourly_rate || 25
+      hourly_rate: meetingRoomRates.hourly_rate || 25
     });
   };
 
@@ -988,13 +1037,13 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                   </div>
 
                   {(() => {
-                    const selectedRoom = meetingRooms.find(r => r.id === formData.space_id);
                     const totalHours = calculateTotalHours(formData.start_time, formData.end_time);
-                    const rateInfo = selectedRoom ? calculateOptimalRate(
+                    const hasRates = meetingRoomRates.hourly_rate > 0;
+                    const rateInfo = hasRates ? calculateOptimalRate(
                       totalHours,
-                      selectedRoom.hourly_rate || 25,
-                      selectedRoom.half_day_rate,
-                      selectedRoom.full_day_rate
+                      meetingRoomRates.hourly_rate,
+                      meetingRoomRates.half_day_rate || undefined,
+                      meetingRoomRates.full_day_rate || undefined
                     ) : { rateType: 'hourly' as const, appliedRate: 25, totalAmount: totalHours * 25 };
 
                     let discountPercentage = 0;
@@ -1015,19 +1064,19 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                           <div className={`p-3 rounded-lg border ${rateInfo.rateType === 'hourly' ? 'border-gold-500 bg-gold-500/10' : 'border-dark-600 bg-dark-800'}`}>
                             <div className="text-xs text-gray-400 mb-1">Uurtarief</div>
                             <div className="text-sm font-medium text-gray-100">
-                              {selectedRoom?.hourly_rate ? `€${selectedRoom.hourly_rate}/uur` : '-'}
+                              {meetingRoomRates.hourly_rate ? `€${meetingRoomRates.hourly_rate}/uur` : '-'}
                             </div>
                           </div>
                           <div className={`p-3 rounded-lg border ${rateInfo.rateType === 'half_day' ? 'border-gold-500 bg-gold-500/10' : 'border-dark-600 bg-dark-800'}`}>
                             <div className="text-xs text-gray-400 mb-1">Dagdeel (4+ uur)</div>
                             <div className="text-sm font-medium text-gray-100">
-                              {selectedRoom?.half_day_rate ? `€${selectedRoom.half_day_rate}` : '-'}
+                              {meetingRoomRates.half_day_rate ? `€${meetingRoomRates.half_day_rate}` : '-'}
                             </div>
                           </div>
                           <div className={`p-3 rounded-lg border ${rateInfo.rateType === 'full_day' ? 'border-gold-500 bg-gold-500/10' : 'border-dark-600 bg-dark-800'}`}>
                             <div className="text-xs text-gray-400 mb-1">Hele dag (8+ uur)</div>
                             <div className="text-sm font-medium text-gray-100">
-                              {selectedRoom?.full_day_rate ? `€${selectedRoom.full_day_rate}` : '-'}
+                              {meetingRoomRates.full_day_rate ? `€${meetingRoomRates.full_day_rate}` : '-'}
                             </div>
                           </div>
                         </div>
@@ -1037,6 +1086,9 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                               <span className="text-sm text-gray-400">Toegepast tarief: </span>
                               <span className="text-sm font-medium text-gold-400">{getRateLabel(rateInfo.rateType)}</span>
                               <span className="text-sm text-gray-400"> ({totalHours} uur)</span>
+                              <span className={`ml-2 text-xs px-1.5 py-0.5 rounded ${meetingRoomRates.vat_inclusive ? 'bg-blue-500/20 text-blue-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                                {meetingRoomRates.vat_inclusive ? 'incl. BTW' : 'excl. BTW'}
+                              </span>
                             </div>
                             <div className="text-lg font-semibold text-gold-400">
                               €{finalAmount.toFixed(2)}
@@ -1097,6 +1149,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
               .select(`
                 *,
                 tenants(name, company_name),
+                external_customers(id, company_name, contact_name, email, phone, street, postal_code, city, country),
                 office_spaces(space_number)
               `)
               .eq('id', bookingId)
@@ -1105,8 +1158,12 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
             if (newBooking) {
               setAllBookings(prev => {
                 const sorted = [newBooking, ...prev].sort((a, b) => {
-                  const companyA = a.tenants?.company_name || a.tenants?.name || '';
-                  const companyB = b.tenants?.company_name || b.tenants?.name || '';
+                  const companyA = a.booking_type === 'external'
+                    ? a.external_customers?.company_name || ''
+                    : a.tenants?.company_name || a.tenants?.name || '';
+                  const companyB = b.booking_type === 'external'
+                    ? b.external_customers?.company_name || ''
+                    : b.tenants?.company_name || b.tenants?.name || '';
                   const companyCompare = companyA.localeCompare(companyB);
                   if (companyCompare !== 0) return companyCompare;
                   const dateCompare = a.booking_date.localeCompare(b.booking_date);
@@ -1124,6 +1181,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
               .select(`
                 *,
                 tenants(name, company_name),
+                external_customers(id, company_name, contact_name, email, phone, street, postal_code, city, country),
                 office_spaces(space_number)
               `)
               .eq('id', bookingId)
@@ -1142,72 +1200,98 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
             <h2 className="text-lg font-bold text-gray-100">
               Vergaderruimte Boekingen
             </h2>
-            <div className="flex gap-2">
-              <button
-                onClick={() => {
-                  setSelectedFilter('all');
-                  applyFilter(allBookings, 'all');
-                }}
-                className={`px-3 py-1.5 rounded-lg transition-colors text-sm ${
-                  selectedFilter === 'all'
-                    ? 'bg-gold-600 text-white'
-                    : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
-                }`}
-              >
-                Alle
-              </button>
-              <button
-                onClick={() => {
-                  setSelectedFilter('internal');
-                  applyFilter(allBookings, 'internal');
-                }}
-                className={`px-3 py-1.5 rounded-lg transition-colors text-sm ${
-                  selectedFilter === 'internal'
-                    ? 'bg-gold-600 text-white'
-                    : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
-                }`}
-              >
-                Intern
-              </button>
-              <button
-                onClick={() => {
-                  setSelectedFilter('external');
-                  applyFilter(allBookings, 'external');
-                }}
-                className={`px-3 py-1.5 rounded-lg transition-colors text-sm ${
-                  selectedFilter === 'external'
-                    ? 'bg-gold-600 text-white'
-                    : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
-                }`}
-              >
-                Extern
-              </button>
-              <button
-                onClick={() => {
-                  setSelectedFilter('upcoming');
-                  applyFilter(allBookings, 'upcoming');
-                }}
-                className={`px-3 py-1.5 rounded-lg transition-colors text-sm ${
-                  selectedFilter === 'upcoming'
-                    ? 'bg-gold-600 text-white'
-                    : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
-                }`}
-              >
-                Aankomend
-              </button>
-              <button
-                onClick={() => {
-                  setSelectedFilter('invoiced');
-                  applyFilter(allBookings, 'invoiced');
-                }}
-                className={`px-3 py-1.5 rounded-lg transition-colors text-sm ${
-                  selectedFilter === 'invoiced'
-                    ? 'bg-gold-600 text-white'
-                    : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
-                }`}
-              >
-                Gefactureerd
-              </button>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Filter size={16} className="text-gray-400" />
+                <select
+                  value={selectedTenantFilter}
+                  onChange={(e) => handleTenantFilterChange(e.target.value)}
+                  className="px-3 py-1.5 bg-dark-700 border border-dark-600 text-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                >
+                  <option value="all">Alle klanten</option>
+                  <optgroup label="Huurders">
+                    {tenants.map((tenant) => (
+                      <option key={tenant.id} value={tenant.id}>
+                        {tenant.company_name || tenant.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Externe klanten">
+                    {externalCustomers.map((customer) => (
+                      <option key={customer.id} value={customer.id}>
+                        {customer.company_name}
+                      </option>
+                    ))}
+                  </optgroup>
+                </select>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setSelectedFilter('all');
+                    applyFilter(allBookings, 'all');
+                  }}
+                  className={`px-3 py-1.5 rounded-lg transition-colors text-sm ${
+                    selectedFilter === 'all'
+                      ? 'bg-gold-600 text-white'
+                      : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
+                  }`}
+                >
+                  Alle
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedFilter('internal');
+                    applyFilter(allBookings, 'internal');
+                  }}
+                  className={`px-3 py-1.5 rounded-lg transition-colors text-sm ${
+                    selectedFilter === 'internal'
+                      ? 'bg-gold-600 text-white'
+                      : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
+                  }`}
+                >
+                  Intern
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedFilter('external');
+                    applyFilter(allBookings, 'external');
+                  }}
+                  className={`px-3 py-1.5 rounded-lg transition-colors text-sm ${
+                    selectedFilter === 'external'
+                      ? 'bg-gold-600 text-white'
+                      : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
+                  }`}
+                >
+                  Extern
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedFilter('upcoming');
+                    applyFilter(allBookings, 'upcoming');
+                  }}
+                  className={`px-3 py-1.5 rounded-lg transition-colors text-sm ${
+                    selectedFilter === 'upcoming'
+                      ? 'bg-gold-600 text-white'
+                      : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
+                  }`}
+                >
+                  Aankomend
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedFilter('invoiced');
+                    applyFilter(allBookings, 'invoiced');
+                  }}
+                  className={`px-3 py-1.5 rounded-lg transition-colors text-sm ${
+                    selectedFilter === 'invoiced'
+                      ? 'bg-gold-600 text-white'
+                      : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
+                  }`}
+                >
+                  Gefactureerd
+                </button>
+              </div>
             </div>
           </div>
           <div className="overflow-x-auto overflow-y-auto max-h-[600px]">

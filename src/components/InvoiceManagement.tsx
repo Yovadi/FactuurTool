@@ -1,6 +1,6 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { supabase, type Invoice, type Lease, type Tenant, type ExternalCustomer, type LeaseSpace, type OfficeSpace, type InvoiceLineItem } from '../lib/supabase';
-import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, CreditCard as Edit, Search, CreditCard as Edit2, AlertCircle, CheckSquare, Square, Check, X, Home } from 'lucide-react';
+import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, CreditCard as Edit, Search, CreditCard as Edit2, AlertCircle, CheckSquare, Square, Check, X, Home, Zap } from 'lucide-react';
 import { generateInvoicePDF } from '../utils/pdfGenerator';
 import { InvoicePreview } from './InvoicePreview';
 import { checkAndRunScheduledJobs } from '../utils/scheduledJobs';
@@ -86,11 +86,14 @@ function convertLineItemsToSpaces(items: InvoiceLineItem[]) {
   });
 }
 
+export type InvoiceTypeFilter = 'all' | 'huur' | 'vergaderruimte' | 'flex' | 'handmatig';
+
 type InvoiceManagementProps = {
   onCreateCreditNote?: (invoice: any, tenant: any, spaces: any[]) => void;
+  invoiceTypeFilter?: InvoiceTypeFilter;
 };
 
-export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCreateCreditNote }, ref) => {
+export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCreateCreditNote, invoiceTypeFilter = 'all' }, ref) => {
   const [invoices, setInvoices] = useState<InvoiceWithDetails[]>([]);
   const [leases, setLeases] = useState<LeaseWithDetails[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -446,7 +449,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   };
 
   useEffect(() => {
-    if (!invoiceMonth || !showGenerateModal) return;
+    if (!invoiceMonth || !showGenerateModal || !showDetailSelection) return;
 
     const leasesToGenerate = leases.filter(lease => {
       const existingInvoice = invoices.find(
@@ -484,7 +487,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
     setSelectedLeases(new Set(leasesToGenerate.map(l => l.id)));
     setSelectedCustomers(new Set(customersWithBookingsIds));
-  }, [invoiceMonth, showGenerateModal, leases, invoices, tenants, externalCustomers, meetingRoomBookings]);
+    setShowDetailSelection(false);
+  }, [invoiceMonth, showGenerateModal, showDetailSelection, leases, invoices, tenants, externalCustomers, meetingRoomBookings]);
 
   const startEditInvoice = async (invoice: InvoiceWithDetails) => {
     const { data: items } = await supabase
@@ -1233,7 +1237,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
         const baseAmount = totalBeforeDiscount - totalDiscount - additionalDiscount;
 
-        const { subtotal, vatAmount, total } = calculateVAT(baseAmount, 21, true);
+        const { subtotal, vatAmount, total } = calculateVAT(baseAmount, 21, false);
 
         const notesLines = ['Vergaderruimte boekingen:'];
         bookings.forEach(booking => {
@@ -1283,7 +1287,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
           vat_amount: vatAmount,
           amount: total,
           vat_rate: 21,
-          vat_inclusive: true,
+          vat_inclusive: false,
           status: 'draft',
           notes: invoiceNotes
         };
@@ -1498,7 +1502,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               amount: rentAmount
             });
           } else if (lease.flex_pricing_model === 'daily') {
-            const [year, month] = nextMonth.split('-').map(Number);
+            const [year, month] = targetMonth.split('-').map(Number);
             const daysInMonth = new Date(year, month, 0).getDate();
             const workingDays = Math.round(daysInMonth * (5/7));
             rentAmount = (lease.flex_daily_rate || 0) * workingDays;
@@ -1507,7 +1511,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               description: `Flexplek - Dagelijks tarief (${workingDays} werkdagen)`,
               quantity: workingDays,
               unit_price: lease.flex_daily_rate || 0,
-              amount: rentAmount
+              amount: rentAmount,
+              quantity_label: 'dagen'
             });
           } else if (lease.flex_pricing_model === 'credit_based') {
             const creditsPerWeek = (lease as any).credits_per_week || 0;
@@ -1519,7 +1524,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               description: `Flexplek - ${creditsPerWeek} ${lease.flex_day_type === 'half_day' ? 'halve ' : ''}dagen/week`,
               quantity: monthlyCredits,
               unit_price: lease.flex_credit_rate || 0,
-              amount: rentAmount
+              amount: rentAmount,
+              quantity_label: 'dagen'
             });
           }
         } else {
@@ -1687,19 +1693,16 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
     setGeneratingBulk(false);
 
-    if (successCount > 0) {
-      await loadData();
-      console.log(`✓ ${successCount} huur ${successCount > 1 ? 'facturen' : 'factuur'} aangemaakt voor ${new Date(targetMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}`);
-      setSelectedLeases(new Set());
-    }
     if (failCount > 0) {
       console.log(`${failCount} facturen overgeslagen (bestaan al of fout)`);
     }
+
+    return successCount;
   };
 
   const generateAllInvoices = async () => {
     console.log('\n\n========================================');
-    console.log('🚀 GENERATE ALL INVOICES CALLED');
+    console.log('GENERATE ALL INVOICES CALLED');
     console.log('========================================');
     console.log('Selected leases:', selectedLeases.size);
     console.log('Selected customers:', selectedCustomers.size);
@@ -1710,12 +1713,22 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
       return;
     }
 
+    let totalSuccess = 0;
+
     if (selectedLeases.size > 0) {
-      await generateBulkInvoices();
+      const leaseSuccess = await generateBulkInvoices();
+      totalSuccess += leaseSuccess || 0;
     }
 
     if (selectedCustomers.size > 0) {
       await generateMeetingRoomInvoicesForSelectedCustomers();
+    } else if (totalSuccess > 0) {
+      await loadData();
+      setShowGenerateModal(false);
+      setInvoiceMonth('');
+      setSelectedLeases(new Set());
+      setSelectedCustomers(new Set());
+      setShowDetailSelection(true);
     }
   };
 
@@ -1779,7 +1792,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
           const totalAmount = bookings.reduce((sum, booking) => sum + booking.total_amount, 0);
 
-          const { subtotal, vatAmount, total } = calculateVAT(totalAmount, 21, true);
+          const { subtotal, vatAmount, total } = calculateVAT(totalAmount, 21, false);
 
           const notesLines = ['Vergaderruimte boekingen:'];
           let totalDiscountAmount = 0;
@@ -1820,7 +1833,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               vat_amount: vatAmount,
               amount: total,
               vat_rate: 21,
-              vat_inclusive: true,
+              vat_inclusive: false,
               status: 'draft',
               invoice_month: targetMonth,
               notes: invoiceNotes
@@ -2459,68 +2472,54 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
         {(() => {
           const allDraftInvoices = invoices.filter(inv => inv.status === 'draft');
 
-          // Categorize draft invoices
-          const draftLeaseInvoices = allDraftInvoices
-            .filter(inv => inv.lease_id !== null)
-            .sort((a, b) => {
-                const tenantA = getInvoiceTenant(a);
-                const tenantB = getInvoiceTenant(b);
-                if (tenantA && tenantB) {
-                  const nameCompare = tenantA.company_name.localeCompare(tenantB.company_name);
-                  if (nameCompare !== 0) return nameCompare;
-                }
-                if (a.invoice_month && b.invoice_month) {
-                  return b.invoice_month.localeCompare(a.invoice_month);
-                }
-                return new Date(b.invoice_date).getTime() - new Date(a.invoice_date).getTime();
-              });
+          const sortByTenantAndDate = (a: InvoiceWithDetails, b: InvoiceWithDetails) => {
+            const tenantA = getInvoiceTenant(a);
+            const tenantB = getInvoiceTenant(b);
+            if (tenantA && tenantB) {
+              const nameCompare = tenantA.company_name.localeCompare(tenantB.company_name);
+              if (nameCompare !== 0) return nameCompare;
+            }
+            if (a.invoice_month && b.invoice_month) {
+              return b.invoice_month.localeCompare(a.invoice_month);
+            }
+            return new Date(b.invoice_date).getTime() - new Date(a.invoice_date).getTime();
+          };
+
+          const draftHuurInvoices = allDraftInvoices
+            .filter(inv => inv.lease_id !== null && inv.lease?.lease_type !== 'flex')
+            .sort(sortByTenantAndDate);
+
+          const draftFlexInvoices = allDraftInvoices
+            .filter(inv => inv.lease_id !== null && inv.lease?.lease_type === 'flex')
+            .sort(sortByTenantAndDate);
 
           const draftMeetingRoomInvoices = allDraftInvoices
             .filter(inv => inv.lease_id === null && (inv.notes?.includes('Vergaderruimte gebruik') || inv.notes?.includes('Vergaderruimte boekingen')))
-            .sort((a, b) => {
-                const tenantA = getInvoiceTenant(a);
-                const tenantB = getInvoiceTenant(b);
-                if (tenantA && tenantB) {
-                  const nameCompare = tenantA.company_name.localeCompare(tenantB.company_name);
-                  if (nameCompare !== 0) return nameCompare;
-                }
-                if (a.invoice_month && b.invoice_month) {
-                  return b.invoice_month.localeCompare(a.invoice_month);
-                }
-                return new Date(b.invoice_date).getTime() - new Date(a.invoice_date).getTime();
-              });
+            .sort(sortByTenantAndDate);
 
           const draftManualInvoices = allDraftInvoices
             .filter(inv => inv.lease_id === null && !inv.notes?.includes('Vergaderruimte gebruik') && !inv.notes?.includes('Vergaderruimte boekingen'))
-            .sort((a, b) => {
-                const tenantA = getInvoiceTenant(a);
-                const tenantB = getInvoiceTenant(b);
-                if (tenantA && tenantB) {
-                  const nameCompare = tenantA.company_name.localeCompare(tenantB.company_name);
-                  if (nameCompare !== 0) return nameCompare;
-                }
-                if (a.invoice_month && b.invoice_month) {
-                  return b.invoice_month.localeCompare(a.invoice_month);
-                }
-                return new Date(b.invoice_date).getTime() - new Date(a.invoice_date).getTime();
-              });
+            .sort(sortByTenantAndDate);
 
             const openInvoices = invoices
               .filter(inv => inv.status !== 'paid' && inv.status !== 'draft')
-              .sort((a, b) => {
-                const tenantA = getInvoiceTenant(a);
-                const tenantB = getInvoiceTenant(b);
-                if (tenantA && tenantB) {
-                  const nameCompare = tenantA.company_name.localeCompare(tenantB.company_name);
-                  if (nameCompare !== 0) return nameCompare;
-                }
-                if (a.invoice_month && b.invoice_month) {
-                  return b.invoice_month.localeCompare(a.invoice_month);
-                }
-                return new Date(b.invoice_date).getTime() - new Date(a.invoice_date).getTime();
-              });
+              .sort(sortByTenantAndDate);
 
-          const renderInvoiceTable = (invoices: typeof draftLeaseInvoices, title: string, borderColor: string, buttonConfig?: { label: string; onClick: () => void; color: string; disabled?: boolean }) => {
+            const getInvoiceType = (inv: InvoiceWithDetails): InvoiceTypeFilter => {
+              if (inv.lease_id !== null && inv.lease?.lease_type === 'flex') return 'flex';
+              if (inv.lease_id !== null) return 'huur';
+              if (inv.notes?.includes('Vergaderruimte gebruik') || inv.notes?.includes('Vergaderruimte boekingen')) return 'vergaderruimte';
+              return 'handmatig';
+            };
+
+            const filterOpenInvoices = (type: InvoiceTypeFilter) => {
+              if (type === 'all') return openInvoices;
+              return openInvoices.filter(inv => getInvoiceType(inv) === type);
+            };
+
+            const filteredOpenInvoices = filterOpenInvoices(invoiceTypeFilter);
+
+          const renderInvoiceTable = (invoices: typeof draftHuurInvoices, title: string, borderColor: string, buttonConfig?: { label: string; onClick: () => void; color: string; disabled?: boolean }) => {
             const selectedInThisTable = invoices.filter(inv => selectedInvoices.has(inv.id)).length;
             return (
             <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700">
@@ -2692,7 +2691,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                                       {invoice.line_items.slice(0, 3).map((item: any, idx: number) => (
                                         <div key={idx}>
                                           {item.description}
-                                          {item.quantity > 0 && ` (${item.quantity} ${item.unit || 'm²'})`}
+                                          {item.quantity > 0 && ` (${item.quantity} ${item.quantity_label || item.unit || 'm²'})`}
                                         </div>
                                       ))}
                                       {invoice.line_items.length > 3 && (
@@ -2757,34 +2756,53 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
           return (
             <div className="space-y-4">
               {/* Concept Huur Facturen */}
-              {renderInvoiceTable(
-                draftLeaseInvoices,
-                'Concept Huur Facturen',
-                '#10b981'
+              {(invoiceTypeFilter === 'all' || invoiceTypeFilter === 'huur') && (
+                <div>
+                  {renderInvoiceTable(
+                    draftHuurInvoices,
+                    'Concept Huur Facturen',
+                    '#10b981'
+                  )}
+                </div>
+              )}
+
+              {/* Concept Flex Facturen */}
+              {(invoiceTypeFilter === 'all' || invoiceTypeFilter === 'flex') && (
+                <div>
+                  {renderInvoiceTable(
+                    draftFlexInvoices,
+                    'Concept Flex Facturen',
+                    '#8b5cf6'
+                  )}
+                </div>
               )}
 
               {/* Concept Vergaderruimte Facturen */}
-              <div>
-                {renderInvoiceTable(
-                  draftMeetingRoomInvoices,
-                  'Concept Vergaderruimte Facturen',
-                  '#3b82f6'
-                )}
-              </div>
+              {(invoiceTypeFilter === 'all' || invoiceTypeFilter === 'vergaderruimte') && (
+                <div>
+                  {renderInvoiceTable(
+                    draftMeetingRoomInvoices,
+                    'Concept Vergaderruimte Facturen',
+                    '#3b82f6'
+                  )}
+                </div>
+              )}
 
               {/* Concept Handgemaakte Facturen */}
-              <div>
-                {renderInvoiceTable(
-                  draftManualInvoices,
-                  'Concept Handgemaakte Facturen',
-                  '#f59e0b',
-                  {
-                    label: 'Nieuwe Factuur',
-                    onClick: () => setShowForm(true),
-                    color: 'bg-gold-500'
-                  }
-                )}
-              </div>
+              {(invoiceTypeFilter === 'all' || invoiceTypeFilter === 'handmatig') && (
+                <div>
+                  {renderInvoiceTable(
+                    draftManualInvoices,
+                    'Concept Handgemaakte Facturen',
+                    '#f59e0b',
+                    {
+                      label: 'Nieuwe Factuur',
+                      onClick: () => setShowForm(true),
+                      color: 'bg-gold-500'
+                    }
+                  )}
+                </div>
+              )}
 
               {/* Open facturen */}
               <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700">
@@ -2793,11 +2811,11 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                     Openstaande Facturen
                   </h2>
                   <div className="flex items-center gap-2">
-                    {openInvoices.filter(inv => selectedInvoices.has(inv.id)).length > 0 && (
+                    {filteredOpenInvoices.filter(inv => selectedInvoices.has(inv.id)).length > 0 && (
                       <>
                         <div className="flex items-center gap-2 bg-purple-600 text-white px-3 py-1.5 rounded-lg text-sm">
                           <CheckSquare size={16} />
-                          {openInvoices.filter(inv => selectedInvoices.has(inv.id)).length} Geselecteerd
+                          {filteredOpenInvoices.filter(inv => selectedInvoices.has(inv.id)).length} Geselecteerd
                         </div>
                         <button
                           onClick={() => handleBatchStatusChange('sent')}
@@ -2825,11 +2843,11 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                toggleSelectAll(openInvoices);
+                                toggleSelectAll(filteredOpenInvoices);
                               }}
                               className="text-gray-300 hover:text-gold-500 transition-colors"
                             >
-                              {selectedInvoices.size === openInvoices.length && openInvoices.length > 0 ? (
+                              {selectedInvoices.size === filteredOpenInvoices.length && filteredOpenInvoices.length > 0 ? (
                                 <CheckSquare size={18} />
                               ) : (
                                 <Square size={18} />
@@ -2847,14 +2865,14 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                         </tr>
                       </thead>
                       <tbody>
-                        {openInvoices.length === 0 ? (
+                        {filteredOpenInvoices.length === 0 ? (
                           <tr>
                             <td colSpan={9} className="px-4 py-8 text-center text-gray-400">
                               Geen openstaande facturen
                             </td>
                           </tr>
                         ) : (
-                          openInvoices.map((invoice) => {
+                          filteredOpenInvoices.map((invoice) => {
                             const tenant = getInvoiceTenant(invoice);
                             const displayName = tenant?.company_name || 'Onbekende huurder';
                             const hasLease = invoice.lease && invoice.lease.lease_spaces;
@@ -2950,12 +2968,33 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
       {/* Genereer Facturen Modal */}
       {showGenerateModal && (() => {
         const targetMonth = invoiceMonth;
-        const leasesToGenerate = targetMonth ? leases.filter(lease => {
+
+        const calculateFlexAmount = (lease: any, month: string) => {
+          if (lease.flex_pricing_model === 'monthly_unlimited') {
+            return lease.flex_monthly_rate || 0;
+          } else if (lease.flex_pricing_model === 'daily') {
+            const [year, monthNum] = month.split('-').map(Number);
+            const daysInMonth = new Date(year, monthNum, 0).getDate();
+            const workingDays = Math.round(daysInMonth * (5/7));
+            return (lease.flex_daily_rate || 0) * workingDays;
+          } else if (lease.flex_pricing_model === 'credit_based') {
+            const creditsPerWeek = lease.credits_per_week || 0;
+            const weeksInMonth = 4.33;
+            const monthlyCredits = Math.round(creditsPerWeek * weeksInMonth);
+            return monthlyCredits * (lease.flex_credit_rate || 0);
+          }
+          return 0;
+        };
+
+        const allLeasesToGenerate = targetMonth ? leases.filter(lease => {
           const existingInvoice = invoices.find(
             inv => inv.lease_id === lease.id && inv.invoice_month === targetMonth
           );
           return !existingInvoice;
         }) : [];
+
+        const regularLeasesToGenerate = allLeasesToGenerate.filter(l => l.lease_type !== 'flex');
+        const flexLeasesToGenerate = allLeasesToGenerate.filter(l => l.lease_type === 'flex');
 
         const customersWithBookings = targetMonth ? [...tenants, ...externalCustomers.map(ec => ({
           ...ec,
@@ -2986,7 +3025,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
         return (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-dark-900 rounded-lg shadow-xl border border-dark-700 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="bg-dark-900 rounded-lg shadow-xl border border-dark-700 max-w-5xl w-full max-h-[90vh] overflow-y-auto">
               <div className="sticky top-0 bg-dark-800 px-6 py-4 border-b border-dark-700 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-gray-100">Facturen Genereren</h2>
                 <button
@@ -3004,11 +3043,11 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               </div>
 
               <div className="p-6 space-y-4">
-                {invoiceMonth && (leasesToGenerate.length > 0 || customersWithBookings.length > 0) ? (
+                {invoiceMonth && (regularLeasesToGenerate.length > 0 || flexLeasesToGenerate.length > 0 || customersWithBookings.length > 0) ? (
                   <div className="space-y-4">
                     {/* Maandkeuze en Overzicht tellers - naast elkaar */}
                     <div className="bg-dark-800 rounded-lg p-4">
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                         {/* Maandkeuze - Links */}
                         <div className="space-y-2">
                           <h4 className="text-sm font-medium text-gray-300">
@@ -3047,14 +3086,26 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                         </div>
 
                         {/* Huurcontracten Teller */}
-                        {leasesToGenerate.length > 0 && (
+                        {regularLeasesToGenerate.length > 0 && (
                           <div className="bg-dark-700 rounded-lg p-3">
                             <div className="flex items-center gap-2 text-emerald-500 mb-1">
                               <Home size={16} />
                               <span className="text-sm font-medium">Huurcontracten</span>
                             </div>
-                            <div className="text-2xl font-bold text-gray-100">{selectedLeases.size}</div>
-                            <div className="text-xs text-gray-400">van {leasesToGenerate.length} beschikbaar</div>
+                            <div className="text-2xl font-bold text-gray-100">{Array.from(selectedLeases).filter(id => regularLeasesToGenerate.some(l => l.id === id)).length}</div>
+                            <div className="text-xs text-gray-400">van {regularLeasesToGenerate.length} beschikbaar</div>
+                          </div>
+                        )}
+
+                        {/* Flex Teller */}
+                        {flexLeasesToGenerate.length > 0 && (
+                          <div className="bg-dark-700 rounded-lg p-3">
+                            <div className="flex items-center gap-2 text-amber-500 mb-1">
+                              <Zap size={16} />
+                              <span className="text-sm font-medium">Flex contracten</span>
+                            </div>
+                            <div className="text-2xl font-bold text-gray-100">{Array.from(selectedLeases).filter(id => flexLeasesToGenerate.some(l => l.id === id)).length}</div>
+                            <div className="text-xs text-gray-400">van {flexLeasesToGenerate.length} beschikbaar</div>
                           </div>
                         )}
 
@@ -3072,37 +3123,35 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                       </div>
                     </div>
 
-                    {/* Gedetailleerde selectie - 2 kolommen naast elkaar */}
-                    <div className="grid grid-cols-2 gap-4">
+                    {/* Gedetailleerde selectie - 3 kolommen naast elkaar */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {/* Huurcontracten */}
-                      {leasesToGenerate.length > 0 && (
+                      {regularLeasesToGenerate.length > 0 && (
                           <div className="space-y-3">
                             <div className="flex items-center justify-between">
                               <h4 className="text-sm font-medium text-gray-300 flex items-center gap-2">
                                 <Home size={16} className="text-emerald-500" />
-                                Huurcontracten ({leasesToGenerate.length})
+                                Huurcontracten ({regularLeasesToGenerate.length})
                               </h4>
                             </div>
                             <div className="flex gap-2 text-xs">
                               <button
-                                onClick={() => selectAllLeases(leasesToGenerate.map(l => l.id))}
+                                onClick={() => selectAllLeases(regularLeasesToGenerate.map(l => l.id))}
                                 className="text-gold-500 hover:text-gold-400"
                               >
                                 Alles
                               </button>
                               <span className="text-gray-600">|</span>
                               <button
-                                onClick={() => deselectAllLeases()}
+                                onClick={() => setSelectedLeases(new Set(Array.from(selectedLeases).filter(id => !regularLeasesToGenerate.some(l => l.id === id))))}
                                 className="text-gray-500 hover:text-gray-400"
                               >
                                 Niets
                               </button>
                             </div>
                             <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
-                              {leasesToGenerate.map(lease => {
-                                const rentAmount = lease.lease_type === 'flex'
-                                  ? (lease.flex_monthly_rate || 0)
-                                  : lease.lease_spaces.reduce((sum, ls) => sum + ls.monthly_rent, 0);
+                              {regularLeasesToGenerate.map(lease => {
+                                const rentAmount = lease.lease_spaces.reduce((sum, ls) => sum + ls.monthly_rent, 0);
                                 const total = Math.round((rentAmount + lease.security_deposit) * 100) / 100;
 
                                 return (
@@ -3126,7 +3175,70 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                                         {lease.tenant?.company_name}
                                       </div>
                                       <div className="text-xs text-gray-400">
-                                        {lease.lease_type === 'flex' ? 'Flexplek' : `${lease.lease_spaces.length} ruimte(s)`}
+                                        {lease.lease_spaces.length} ruimte(s)
+                                      </div>
+                                    </div>
+                                    <div className="text-sm font-medium text-gray-200 flex-shrink-0">
+                                      €{total.toFixed(2)}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Flex contracten */}
+                        {flexLeasesToGenerate.length > 0 && (
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <h4 className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                                <Zap size={16} className="text-amber-500" />
+                                Flex contracten ({flexLeasesToGenerate.length})
+                              </h4>
+                            </div>
+                            <div className="flex gap-2 text-xs">
+                              <button
+                                onClick={() => selectAllLeases(flexLeasesToGenerate.map(l => l.id))}
+                                className="text-gold-500 hover:text-gold-400"
+                              >
+                                Alles
+                              </button>
+                              <span className="text-gray-600">|</span>
+                              <button
+                                onClick={() => setSelectedLeases(new Set(Array.from(selectedLeases).filter(id => !flexLeasesToGenerate.some(l => l.id === id))))}
+                                className="text-gray-500 hover:text-gray-400"
+                              >
+                                Niets
+                              </button>
+                            </div>
+                            <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
+                              {flexLeasesToGenerate.map(lease => {
+                                const rentAmount = calculateFlexAmount(lease, targetMonth);
+                                const total = Math.round((rentAmount + lease.security_deposit) * 100) / 100;
+
+                                return (
+                                  <div
+                                    key={lease.id}
+                                    onClick={() => toggleLeaseSelection(lease.id)}
+                                    className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-all ${
+                                      selectedLeases.has(lease.id)
+                                        ? 'bg-amber-900/20 border-amber-700'
+                                        : 'bg-dark-800 border-dark-700 hover:border-dark-600'
+                                    }`}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedLeases.has(lease.id)}
+                                      onChange={() => {}}
+                                      className="w-4 h-4 rounded border-dark-600 text-amber-600 focus:ring-amber-500 flex-shrink-0"
+                                    />
+                                    <div className="flex-1 min-w-0">
+                                      <div className="text-sm font-medium text-gray-200 truncate">
+                                        {lease.tenant?.company_name}
+                                      </div>
+                                      <div className="text-xs text-gray-400">
+                                        Flexplek
                                       </div>
                                     </div>
                                     <div className="text-sm font-medium text-gray-200 flex-shrink-0">
