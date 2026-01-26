@@ -86,11 +86,14 @@ function convertLineItemsToSpaces(items: InvoiceLineItem[]) {
   });
 }
 
+export type InvoiceTypeFilter = 'all' | 'huur' | 'vergaderruimte' | 'flex' | 'handmatig';
+
 type InvoiceManagementProps = {
   onCreateCreditNote?: (invoice: any, tenant: any, spaces: any[]) => void;
+  invoiceTypeFilter?: InvoiceTypeFilter;
 };
 
-export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCreateCreditNote }, ref) => {
+export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCreateCreditNote, invoiceTypeFilter = 'all' }, ref) => {
   const [invoices, setInvoices] = useState<InvoiceWithDetails[]>([]);
   const [leases, setLeases] = useState<LeaseWithDetails[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -2459,68 +2462,54 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
         {(() => {
           const allDraftInvoices = invoices.filter(inv => inv.status === 'draft');
 
-          // Categorize draft invoices
-          const draftLeaseInvoices = allDraftInvoices
-            .filter(inv => inv.lease_id !== null)
-            .sort((a, b) => {
-                const tenantA = getInvoiceTenant(a);
-                const tenantB = getInvoiceTenant(b);
-                if (tenantA && tenantB) {
-                  const nameCompare = tenantA.company_name.localeCompare(tenantB.company_name);
-                  if (nameCompare !== 0) return nameCompare;
-                }
-                if (a.invoice_month && b.invoice_month) {
-                  return b.invoice_month.localeCompare(a.invoice_month);
-                }
-                return new Date(b.invoice_date).getTime() - new Date(a.invoice_date).getTime();
-              });
+          const sortByTenantAndDate = (a: InvoiceWithDetails, b: InvoiceWithDetails) => {
+            const tenantA = getInvoiceTenant(a);
+            const tenantB = getInvoiceTenant(b);
+            if (tenantA && tenantB) {
+              const nameCompare = tenantA.company_name.localeCompare(tenantB.company_name);
+              if (nameCompare !== 0) return nameCompare;
+            }
+            if (a.invoice_month && b.invoice_month) {
+              return b.invoice_month.localeCompare(a.invoice_month);
+            }
+            return new Date(b.invoice_date).getTime() - new Date(a.invoice_date).getTime();
+          };
+
+          const draftHuurInvoices = allDraftInvoices
+            .filter(inv => inv.lease_id !== null && inv.lease?.lease_type !== 'flex')
+            .sort(sortByTenantAndDate);
+
+          const draftFlexInvoices = allDraftInvoices
+            .filter(inv => inv.lease_id !== null && inv.lease?.lease_type === 'flex')
+            .sort(sortByTenantAndDate);
 
           const draftMeetingRoomInvoices = allDraftInvoices
             .filter(inv => inv.lease_id === null && (inv.notes?.includes('Vergaderruimte gebruik') || inv.notes?.includes('Vergaderruimte boekingen')))
-            .sort((a, b) => {
-                const tenantA = getInvoiceTenant(a);
-                const tenantB = getInvoiceTenant(b);
-                if (tenantA && tenantB) {
-                  const nameCompare = tenantA.company_name.localeCompare(tenantB.company_name);
-                  if (nameCompare !== 0) return nameCompare;
-                }
-                if (a.invoice_month && b.invoice_month) {
-                  return b.invoice_month.localeCompare(a.invoice_month);
-                }
-                return new Date(b.invoice_date).getTime() - new Date(a.invoice_date).getTime();
-              });
+            .sort(sortByTenantAndDate);
 
           const draftManualInvoices = allDraftInvoices
             .filter(inv => inv.lease_id === null && !inv.notes?.includes('Vergaderruimte gebruik') && !inv.notes?.includes('Vergaderruimte boekingen'))
-            .sort((a, b) => {
-                const tenantA = getInvoiceTenant(a);
-                const tenantB = getInvoiceTenant(b);
-                if (tenantA && tenantB) {
-                  const nameCompare = tenantA.company_name.localeCompare(tenantB.company_name);
-                  if (nameCompare !== 0) return nameCompare;
-                }
-                if (a.invoice_month && b.invoice_month) {
-                  return b.invoice_month.localeCompare(a.invoice_month);
-                }
-                return new Date(b.invoice_date).getTime() - new Date(a.invoice_date).getTime();
-              });
+            .sort(sortByTenantAndDate);
 
             const openInvoices = invoices
               .filter(inv => inv.status !== 'paid' && inv.status !== 'draft')
-              .sort((a, b) => {
-                const tenantA = getInvoiceTenant(a);
-                const tenantB = getInvoiceTenant(b);
-                if (tenantA && tenantB) {
-                  const nameCompare = tenantA.company_name.localeCompare(tenantB.company_name);
-                  if (nameCompare !== 0) return nameCompare;
-                }
-                if (a.invoice_month && b.invoice_month) {
-                  return b.invoice_month.localeCompare(a.invoice_month);
-                }
-                return new Date(b.invoice_date).getTime() - new Date(a.invoice_date).getTime();
-              });
+              .sort(sortByTenantAndDate);
 
-          const renderInvoiceTable = (invoices: typeof draftLeaseInvoices, title: string, borderColor: string, buttonConfig?: { label: string; onClick: () => void; color: string; disabled?: boolean }) => {
+            const getInvoiceType = (inv: InvoiceWithDetails): InvoiceTypeFilter => {
+              if (inv.lease_id !== null && inv.lease?.lease_type === 'flex') return 'flex';
+              if (inv.lease_id !== null) return 'huur';
+              if (inv.notes?.includes('Vergaderruimte gebruik') || inv.notes?.includes('Vergaderruimte boekingen')) return 'vergaderruimte';
+              return 'handmatig';
+            };
+
+            const filterOpenInvoices = (type: InvoiceTypeFilter) => {
+              if (type === 'all') return openInvoices;
+              return openInvoices.filter(inv => getInvoiceType(inv) === type);
+            };
+
+            const filteredOpenInvoices = filterOpenInvoices(invoiceTypeFilter);
+
+          const renderInvoiceTable = (invoices: typeof draftHuurInvoices, title: string, borderColor: string, buttonConfig?: { label: string; onClick: () => void; color: string; disabled?: boolean }) => {
             const selectedInThisTable = invoices.filter(inv => selectedInvoices.has(inv.id)).length;
             return (
             <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700">
@@ -2757,34 +2746,53 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
           return (
             <div className="space-y-4">
               {/* Concept Huur Facturen */}
-              {renderInvoiceTable(
-                draftLeaseInvoices,
-                'Concept Huur Facturen',
-                '#10b981'
+              {(invoiceTypeFilter === 'all' || invoiceTypeFilter === 'huur') && (
+                <div>
+                  {renderInvoiceTable(
+                    draftHuurInvoices,
+                    'Concept Huur Facturen',
+                    '#10b981'
+                  )}
+                </div>
+              )}
+
+              {/* Concept Flex Facturen */}
+              {(invoiceTypeFilter === 'all' || invoiceTypeFilter === 'flex') && (
+                <div>
+                  {renderInvoiceTable(
+                    draftFlexInvoices,
+                    'Concept Flex Facturen',
+                    '#8b5cf6'
+                  )}
+                </div>
               )}
 
               {/* Concept Vergaderruimte Facturen */}
-              <div>
-                {renderInvoiceTable(
-                  draftMeetingRoomInvoices,
-                  'Concept Vergaderruimte Facturen',
-                  '#3b82f6'
-                )}
-              </div>
+              {(invoiceTypeFilter === 'all' || invoiceTypeFilter === 'vergaderruimte') && (
+                <div>
+                  {renderInvoiceTable(
+                    draftMeetingRoomInvoices,
+                    'Concept Vergaderruimte Facturen',
+                    '#3b82f6'
+                  )}
+                </div>
+              )}
 
               {/* Concept Handgemaakte Facturen */}
-              <div>
-                {renderInvoiceTable(
-                  draftManualInvoices,
-                  'Concept Handgemaakte Facturen',
-                  '#f59e0b',
-                  {
-                    label: 'Nieuwe Factuur',
-                    onClick: () => setShowForm(true),
-                    color: 'bg-gold-500'
-                  }
-                )}
-              </div>
+              {(invoiceTypeFilter === 'all' || invoiceTypeFilter === 'handmatig') && (
+                <div>
+                  {renderInvoiceTable(
+                    draftManualInvoices,
+                    'Concept Handgemaakte Facturen',
+                    '#f59e0b',
+                    {
+                      label: 'Nieuwe Factuur',
+                      onClick: () => setShowForm(true),
+                      color: 'bg-gold-500'
+                    }
+                  )}
+                </div>
+              )}
 
               {/* Open facturen */}
               <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700">
@@ -2793,11 +2801,11 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                     Openstaande Facturen
                   </h2>
                   <div className="flex items-center gap-2">
-                    {openInvoices.filter(inv => selectedInvoices.has(inv.id)).length > 0 && (
+                    {filteredOpenInvoices.filter(inv => selectedInvoices.has(inv.id)).length > 0 && (
                       <>
                         <div className="flex items-center gap-2 bg-purple-600 text-white px-3 py-1.5 rounded-lg text-sm">
                           <CheckSquare size={16} />
-                          {openInvoices.filter(inv => selectedInvoices.has(inv.id)).length} Geselecteerd
+                          {filteredOpenInvoices.filter(inv => selectedInvoices.has(inv.id)).length} Geselecteerd
                         </div>
                         <button
                           onClick={() => handleBatchStatusChange('sent')}
@@ -2825,11 +2833,11 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                toggleSelectAll(openInvoices);
+                                toggleSelectAll(filteredOpenInvoices);
                               }}
                               className="text-gray-300 hover:text-gold-500 transition-colors"
                             >
-                              {selectedInvoices.size === openInvoices.length && openInvoices.length > 0 ? (
+                              {selectedInvoices.size === filteredOpenInvoices.length && filteredOpenInvoices.length > 0 ? (
                                 <CheckSquare size={18} />
                               ) : (
                                 <Square size={18} />
@@ -2847,14 +2855,14 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                         </tr>
                       </thead>
                       <tbody>
-                        {openInvoices.length === 0 ? (
+                        {filteredOpenInvoices.length === 0 ? (
                           <tr>
                             <td colSpan={9} className="px-4 py-8 text-center text-gray-400">
                               Geen openstaande facturen
                             </td>
                           </tr>
                         ) : (
-                          openInvoices.map((invoice) => {
+                          filteredOpenInvoices.map((invoice) => {
                             const tenant = getInvoiceTenant(invoice);
                             const displayName = tenant?.company_name || 'Onbekende huurder';
                             const hasLease = invoice.lease && invoice.lease.lease_spaces;
