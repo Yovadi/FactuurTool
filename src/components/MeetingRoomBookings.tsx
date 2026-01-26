@@ -1099,6 +1099,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
               .select(`
                 *,
                 tenants(name, company_name),
+                external_customers(id, company_name, contact_name, email, phone, street, postal_code, city, country),
                 office_spaces(space_number)
               `)
               .eq('id', bookingId)
@@ -1107,8 +1108,12 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
             if (newBooking) {
               setAllBookings(prev => {
                 const sorted = [newBooking, ...prev].sort((a, b) => {
-                  const companyA = a.tenants?.company_name || a.tenants?.name || '';
-                  const companyB = b.tenants?.company_name || b.tenants?.name || '';
+                  const companyA = a.booking_type === 'external'
+                    ? a.external_customers?.company_name || ''
+                    : a.tenants?.company_name || a.tenants?.name || '';
+                  const companyB = b.booking_type === 'external'
+                    ? b.external_customers?.company_name || ''
+                    : b.tenants?.company_name || b.tenants?.name || '';
                   const companyCompare = companyA.localeCompare(companyB);
                   if (companyCompare !== 0) return companyCompare;
                   const dateCompare = a.booking_date.localeCompare(b.booking_date);
@@ -1126,6 +1131,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
               .select(`
                 *,
                 tenants(name, company_name),
+                external_customers(id, company_name, contact_name, email, phone, street, postal_code, city, country),
                 office_spaces(space_number)
               `)
               .eq('id', bookingId)
