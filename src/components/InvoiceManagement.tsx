@@ -753,7 +753,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       items.push(...lease.lease_spaces.map(ls => {
           const spaceName = ls.space.space_number;
           const spaceType = ls.space.space_type;
-          const squareFootage = ls.space.square_footage;
+          const squareFootageRaw = ls.space.square_footage;
+          const squareFootage = typeof squareFootageRaw === 'string' ? parseFloat(squareFootageRaw) : squareFootageRaw;
           const diversenCalc = (ls.space as any).diversen_calculation;
 
           let displayName = spaceName;
@@ -765,7 +766,15 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           }
 
           const isDiversenFixed = spaceType === 'diversen' && (!diversenCalc || diversenCalc === 'fixed');
-          const quantity = isDiversenFixed ? 1 : (squareFootage || 1);
+          let quantity = 1;
+
+          if (isDiversenFixed) {
+            quantity = 1;
+          } else if (squareFootage && !isNaN(squareFootage) && squareFootage > 0) {
+            quantity = squareFootage;
+          } else {
+            quantity = 1;
+          }
 
           return {
             description: displayName,
@@ -1601,6 +1610,16 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             const pricePerSqm = typeof ls.price_per_sqm === 'string' ? parseFloat(ls.price_per_sqm) : ls.price_per_sqm;
             const monthlyRent = typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent;
 
+            console.log('Processing lease space:', {
+              spaceName,
+              spaceType,
+              squareFootage,
+              diversenCalc,
+              pricePerSqm,
+              monthlyRent,
+              square_footage_raw: ls.space.square_footage
+            });
+
             let displayName = spaceName;
             if (spaceType === 'bedrijfsruimte') {
               const numOnly = spaceName.replace(/^(Bedrijfsruimte|Hal)\s*/i, '').trim();
@@ -1610,7 +1629,18 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             }
 
             const isDiversenFixed = spaceType === 'diversen' && (!diversenCalc || diversenCalc === 'fixed');
-            const quantity = isDiversenFixed ? 1 : (squareFootage || 1);
+            let quantity = 1;
+
+            if (isDiversenFixed) {
+              quantity = 1;
+            } else if (squareFootage && !isNaN(squareFootage) && squareFootage > 0) {
+              quantity = squareFootage;
+            } else {
+              quantity = 1;
+              console.warn('Square footage is invalid for', spaceName, '- using quantity 1');
+            }
+
+            console.log('Final quantity for', displayName, ':', quantity);
 
             lineItemsToInsert.push({
               invoice_id: newInvoice.id,

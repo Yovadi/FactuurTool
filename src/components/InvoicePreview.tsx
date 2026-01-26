@@ -381,7 +381,7 @@ export function InvoicePreview({
                         <td className={`px-4 py-3 text-right font-semibold ${amountClass}`}>
                           € {isDiscount || space.monthly_rent < 0 ? '-' : ''}{absoluteAmount.toFixed(2)}
                         </td>
-                        <td className="px-4 py-3 text-right text-gray-100">{invoice.vat_rate.toFixed(0)}%</td>
+                        <td className="px-4 py-3 text-right text-gray-100">{invoice.vat_rate === 0 ? 'N.v.t.' : `${invoice.vat_rate.toFixed(0)}%`}</td>
                       </tr>
                     );
                   })}
@@ -416,7 +416,7 @@ export function InvoicePreview({
                 <span>€ {invoice.subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-gray-300">
-                <span>BTW ({invoice.vat_rate.toFixed(0)}%):</span>
+                <span>{invoice.vat_rate === 0 ? 'BTW niet van toepassing' : `BTW (${invoice.vat_rate.toFixed(0)}%)`}:</span>
                 <span>€ {invoice.vat_amount.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-lg font-bold text-gray-100 pt-2 border-t border-dark-700">

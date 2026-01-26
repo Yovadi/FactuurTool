@@ -404,7 +404,8 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
     if (isDiscount || space.monthly_rent < 0) {
       pdf.text('', col5X - 2, yPosition, { align: 'right' });
     } else {
-      pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col5X - 2, yPosition, { align: 'right' });
+      const vatText = invoice.vat_rate === 0 ? 'N.v.t.' : `${invoice.vat_rate.toFixed(0)}%`;
+      pdf.text(vatText, col5X - 2, yPosition, { align: 'right' });
     }
 
     yPosition += 7;
@@ -442,7 +443,8 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
   pdf.text(`€ ${invoice.subtotal.toFixed(2)}`, pageWidth - margin, yPosition, { align: 'right' });
 
   yPosition += 6;
-  pdf.text(`BTW (${invoice.vat_rate.toFixed(0)}%):`, pageWidth - margin - 70, yPosition);
+  const vatLabel = invoice.vat_rate === 0 ? 'BTW niet van toepassing' : `BTW (${invoice.vat_rate.toFixed(0)}%)`;
+  pdf.text(`${vatLabel}:`, pageWidth - margin - 70, yPosition);
   pdf.text(`€ ${invoice.vat_amount.toFixed(2)}`, pageWidth - margin, yPosition, { align: 'right' });
 
   yPosition += 8;
