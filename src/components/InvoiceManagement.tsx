@@ -1,6 +1,6 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { supabase, type Invoice, type Lease, type Tenant, type ExternalCustomer, type LeaseSpace, type OfficeSpace, type InvoiceLineItem } from '../lib/supabase';
-import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, CreditCard as Edit, Search, CreditCard as Edit2, AlertCircle, CheckSquare, Square, Check, X, Home } from 'lucide-react';
+import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, CreditCard as Edit, Search, CreditCard as Edit2, AlertCircle, CheckSquare, Square, Check, X, Home, Zap } from 'lucide-react';
 import { generateInvoicePDF } from '../utils/pdfGenerator';
 import { InvoicePreview } from './InvoicePreview';
 import { checkAndRunScheduledJobs } from '../utils/scheduledJobs';
@@ -2958,12 +2958,33 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
       {/* Genereer Facturen Modal */}
       {showGenerateModal && (() => {
         const targetMonth = invoiceMonth;
-        const leasesToGenerate = targetMonth ? leases.filter(lease => {
+
+        const calculateFlexAmount = (lease: any, month: string) => {
+          if (lease.flex_pricing_model === 'monthly_unlimited') {
+            return lease.flex_monthly_rate || 0;
+          } else if (lease.flex_pricing_model === 'daily') {
+            const [year, monthNum] = month.split('-').map(Number);
+            const daysInMonth = new Date(year, monthNum, 0).getDate();
+            const workingDays = Math.round(daysInMonth * (5/7));
+            return (lease.flex_daily_rate || 0) * workingDays;
+          } else if (lease.flex_pricing_model === 'credit_based') {
+            const creditsPerWeek = lease.credits_per_week || 0;
+            const weeksInMonth = 4.33;
+            const monthlyCredits = Math.round(creditsPerWeek * weeksInMonth);
+            return monthlyCredits * (lease.flex_credit_rate || 0);
+          }
+          return 0;
+        };
+
+        const allLeasesToGenerate = targetMonth ? leases.filter(lease => {
           const existingInvoice = invoices.find(
             inv => inv.lease_id === lease.id && inv.invoice_month === targetMonth
           );
           return !existingInvoice;
         }) : [];
+
+        const regularLeasesToGenerate = allLeasesToGenerate.filter(l => l.lease_type !== 'flex');
+        const flexLeasesToGenerate = allLeasesToGenerate.filter(l => l.lease_type === 'flex');
 
         const customersWithBookings = targetMonth ? [...tenants, ...externalCustomers.map(ec => ({
           ...ec,
@@ -2994,7 +3015,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
         return (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-dark-900 rounded-lg shadow-xl border border-dark-700 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="bg-dark-900 rounded-lg shadow-xl border border-dark-700 max-w-5xl w-full max-h-[90vh] overflow-y-auto">
               <div className="sticky top-0 bg-dark-800 px-6 py-4 border-b border-dark-700 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-gray-100">Facturen Genereren</h2>
                 <button
@@ -3012,11 +3033,11 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               </div>
 
               <div className="p-6 space-y-4">
-                {invoiceMonth && (leasesToGenerate.length > 0 || customersWithBookings.length > 0) ? (
+                {invoiceMonth && (regularLeasesToGenerate.length > 0 || flexLeasesToGenerate.length > 0 || customersWithBookings.length > 0) ? (
                   <div className="space-y-4">
                     {/* Maandkeuze en Overzicht tellers - naast elkaar */}
                     <div className="bg-dark-800 rounded-lg p-4">
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                         {/* Maandkeuze - Links */}
                         <div className="space-y-2">
                           <h4 className="text-sm font-medium text-gray-300">
@@ -3055,14 +3076,26 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                         </div>
 
                         {/* Huurcontracten Teller */}
-                        {leasesToGenerate.length > 0 && (
+                        {regularLeasesToGenerate.length > 0 && (
                           <div className="bg-dark-700 rounded-lg p-3">
                             <div className="flex items-center gap-2 text-emerald-500 mb-1">
                               <Home size={16} />
                               <span className="text-sm font-medium">Huurcontracten</span>
                             </div>
-                            <div className="text-2xl font-bold text-gray-100">{selectedLeases.size}</div>
-                            <div className="text-xs text-gray-400">van {leasesToGenerate.length} beschikbaar</div>
+                            <div className="text-2xl font-bold text-gray-100">{Array.from(selectedLeases).filter(id => regularLeasesToGenerate.some(l => l.id === id)).length}</div>
+                            <div className="text-xs text-gray-400">van {regularLeasesToGenerate.length} beschikbaar</div>
+                          </div>
+                        )}
+
+                        {/* Flex Teller */}
+                        {flexLeasesToGenerate.length > 0 && (
+                          <div className="bg-dark-700 rounded-lg p-3">
+                            <div className="flex items-center gap-2 text-amber-500 mb-1">
+                              <Zap size={16} />
+                              <span className="text-sm font-medium">Flex contracten</span>
+                            </div>
+                            <div className="text-2xl font-bold text-gray-100">{Array.from(selectedLeases).filter(id => flexLeasesToGenerate.some(l => l.id === id)).length}</div>
+                            <div className="text-xs text-gray-400">van {flexLeasesToGenerate.length} beschikbaar</div>
                           </div>
                         )}
 
@@ -3080,37 +3113,35 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                       </div>
                     </div>
 
-                    {/* Gedetailleerde selectie - 2 kolommen naast elkaar */}
-                    <div className="grid grid-cols-2 gap-4">
+                    {/* Gedetailleerde selectie - 3 kolommen naast elkaar */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {/* Huurcontracten */}
-                      {leasesToGenerate.length > 0 && (
+                      {regularLeasesToGenerate.length > 0 && (
                           <div className="space-y-3">
                             <div className="flex items-center justify-between">
                               <h4 className="text-sm font-medium text-gray-300 flex items-center gap-2">
                                 <Home size={16} className="text-emerald-500" />
-                                Huurcontracten ({leasesToGenerate.length})
+                                Huurcontracten ({regularLeasesToGenerate.length})
                               </h4>
                             </div>
                             <div className="flex gap-2 text-xs">
                               <button
-                                onClick={() => selectAllLeases(leasesToGenerate.map(l => l.id))}
+                                onClick={() => selectAllLeases(regularLeasesToGenerate.map(l => l.id))}
                                 className="text-gold-500 hover:text-gold-400"
                               >
                                 Alles
                               </button>
                               <span className="text-gray-600">|</span>
                               <button
-                                onClick={() => deselectAllLeases()}
+                                onClick={() => setSelectedLeases(new Set(Array.from(selectedLeases).filter(id => !regularLeasesToGenerate.some(l => l.id === id))))}
                                 className="text-gray-500 hover:text-gray-400"
                               >
                                 Niets
                               </button>
                             </div>
                             <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
-                              {leasesToGenerate.map(lease => {
-                                const rentAmount = lease.lease_type === 'flex'
-                                  ? (lease.flex_monthly_rate || 0)
-                                  : lease.lease_spaces.reduce((sum, ls) => sum + ls.monthly_rent, 0);
+                              {regularLeasesToGenerate.map(lease => {
+                                const rentAmount = lease.lease_spaces.reduce((sum, ls) => sum + ls.monthly_rent, 0);
                                 const total = Math.round((rentAmount + lease.security_deposit) * 100) / 100;
 
                                 return (
@@ -3134,7 +3165,70 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                                         {lease.tenant?.company_name}
                                       </div>
                                       <div className="text-xs text-gray-400">
-                                        {lease.lease_type === 'flex' ? 'Flexplek' : `${lease.lease_spaces.length} ruimte(s)`}
+                                        {lease.lease_spaces.length} ruimte(s)
+                                      </div>
+                                    </div>
+                                    <div className="text-sm font-medium text-gray-200 flex-shrink-0">
+                                      €{total.toFixed(2)}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Flex contracten */}
+                        {flexLeasesToGenerate.length > 0 && (
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <h4 className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                                <Zap size={16} className="text-amber-500" />
+                                Flex contracten ({flexLeasesToGenerate.length})
+                              </h4>
+                            </div>
+                            <div className="flex gap-2 text-xs">
+                              <button
+                                onClick={() => selectAllLeases(flexLeasesToGenerate.map(l => l.id))}
+                                className="text-gold-500 hover:text-gold-400"
+                              >
+                                Alles
+                              </button>
+                              <span className="text-gray-600">|</span>
+                              <button
+                                onClick={() => setSelectedLeases(new Set(Array.from(selectedLeases).filter(id => !flexLeasesToGenerate.some(l => l.id === id))))}
+                                className="text-gray-500 hover:text-gray-400"
+                              >
+                                Niets
+                              </button>
+                            </div>
+                            <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
+                              {flexLeasesToGenerate.map(lease => {
+                                const rentAmount = calculateFlexAmount(lease, targetMonth);
+                                const total = Math.round((rentAmount + lease.security_deposit) * 100) / 100;
+
+                                return (
+                                  <div
+                                    key={lease.id}
+                                    onClick={() => toggleLeaseSelection(lease.id)}
+                                    className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-all ${
+                                      selectedLeases.has(lease.id)
+                                        ? 'bg-amber-900/20 border-amber-700'
+                                        : 'bg-dark-800 border-dark-700 hover:border-dark-600'
+                                    }`}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedLeases.has(lease.id)}
+                                      onChange={() => {}}
+                                      className="w-4 h-4 rounded border-dark-600 text-amber-600 focus:ring-amber-500 flex-shrink-0"
+                                    />
+                                    <div className="flex-1 min-w-0">
+                                      <div className="text-sm font-medium text-gray-200 truncate">
+                                        {lease.tenant?.company_name}
+                                      </div>
+                                      <div className="text-xs text-gray-400">
+                                        Flexplek
                                       </div>
                                     </div>
                                     <div className="text-sm font-medium text-gray-200 flex-shrink-0">
