@@ -551,7 +551,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
 
     const insertData: any = {
       space_id: selectedRoomForBooking.id,
-      booking_type: bookingType,
+      booking_type: formBookingType,
       booking_date: selectedCells[0].date,
       start_time: startTime,
       end_time: endTime,
