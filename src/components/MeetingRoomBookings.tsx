@@ -356,12 +356,14 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
 
     if (bookingType === 'tenant') {
       const tenantId = loggedInTenantId || formData.tenant_id;
-      insertData.tenant_id = tenantId;
+      insertData.tenant_id = tenantId || null;
       insertData.external_customer_id = null;
     } else {
       insertData.tenant_id = null;
-      insertData.external_customer_id = formData.external_customer_id;
+      insertData.external_customer_id = formData.external_customer_id || null;
     }
+
+    console.log('Insert data:', JSON.stringify(insertData, null, 2));
 
     const { data, error } = await supabase
       .from('meeting_room_bookings')

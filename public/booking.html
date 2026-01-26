@@ -2014,9 +2014,13 @@
 
             if (authenticatedUser.userType === 'tenant') {
                 bookingData.tenant_id = authenticatedUser.id;
+                bookingData.external_customer_id = null;
             } else {
+                bookingData.tenant_id = null;
                 bookingData.external_customer_id = authenticatedUser.id;
             }
+
+            console.log('Booking data being inserted:', bookingData);
 
             const { error } = await sb.from('meeting_room_bookings').insert(bookingData);
 
