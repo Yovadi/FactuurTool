@@ -37,7 +37,7 @@ function convertLineItemsToSpaces(items: InvoiceLineItem[]) {
     } else if (item.description.startsWith('Kantoor ')) {
       spaceType = 'kantoor';
       isKnownSpaceType = true;
-    } else if (item.description.startsWith('Buitenterrein ')) {
+    } else if (item.description.toLowerCase().startsWith('buitenterrein')) {
       spaceType = 'buitenterrein';
       isKnownSpaceType = true;
     } else if (item.description.toLowerCase().includes('vergader') || item.description.toLowerCase().includes('meeting')) {
