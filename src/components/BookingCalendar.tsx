@@ -565,9 +565,11 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
 
     if (formBookingType === 'tenant') {
       const tenantIdToUse = loggedInTenantId || formData.tenant_id;
-      insertData.tenant_id = tenantIdToUse;
+      insertData.tenant_id = tenantIdToUse || null;
+      insertData.external_customer_id = null;
     } else {
-      insertData.external_customer_id = formData.external_customer_id;
+      insertData.tenant_id = null;
+      insertData.external_customer_id = formData.external_customer_id || null;
     }
 
     const { data: newBooking, error } = await supabase
