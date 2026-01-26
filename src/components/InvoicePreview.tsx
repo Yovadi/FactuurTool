@@ -291,16 +291,14 @@ export function InvoicePreview({
                                 cleanLine = cleanLine.substring(0, cleanLine.lastIndexOf('=')).trim();
                               }
 
-                              // Check if this is a discount line (starts with "Totale korting" or "Korting")
                               const isDiscount = cleanLine.toLowerCase().startsWith('totale korting') || cleanLine.toLowerCase().startsWith('korting');
                               const amountText = amount ? (isDiscount ? `€ -${amount}` : `€ ${amount}`) : '';
-                              const vatText = vatAmount ? (isDiscount ? `€ -${vatAmount}` : `€ ${vatAmount}`) : '';
 
                               return (
                                 <tr key={`line-${lineIndex}`} className={lineIndex % 2 === 0 ? 'bg-dark-800' : 'bg-dark-850'}>
                                   <td className={`px-4 py-3 text-left ${isDiscount ? 'text-green-400' : 'text-gray-100'}`}>{cleanLine}</td>
                                   <td className={`px-4 py-3 text-right ${isDiscount ? 'text-green-400' : 'text-gray-100'}`}>{amountText}</td>
-                                  <td className="px-4 py-3 text-right text-gray-400">{vatText}</td>
+                                  <td className="px-4 py-3 text-right text-gray-400">{isDiscount ? '' : `€ ${vatAmount}`}</td>
                                 </tr>
                               );
                             }

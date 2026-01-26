@@ -308,12 +308,14 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
         const amountText = isDiscount ? `€ -${amount}` : `€ ${amount}`;
         pdf.text(amountText, col4X + 15, yPosition, { align: 'right' });
 
-        // Calculate and show VAT amount
-        const amountValue = parseFloat(amount);
-        const vatAmount = ((amountValue * invoice.vat_rate) / 100).toFixed(2);
-        const vatText = isDiscount ? `€ -${vatAmount}` : `€ ${vatAmount}`;
-        pdf.setTextColor(isDiscount ? 34 : 60, isDiscount ? 197 : 60, isDiscount ? 94 : 60);
-        pdf.text(vatText, col5X - 2, yPosition, { align: 'right' });
+        if (isDiscount) {
+          pdf.text('', col5X - 2, yPosition, { align: 'right' });
+        } else {
+          const amountValue = parseFloat(amount);
+          const vatAmount = ((amountValue * invoice.vat_rate) / 100).toFixed(2);
+          pdf.setTextColor(60, 60, 60);
+          pdf.text(`€ ${vatAmount}`, col5X - 2, yPosition, { align: 'right' });
+        }
       } else {
         pdf.setTextColor(60, 60, 60);
         pdf.text('', col5X - 2, yPosition, { align: 'right' });
@@ -399,7 +401,11 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
     pdf.text(amountText, col4X + 15, yPosition, { align: 'right' });
 
     pdf.setTextColor(60, 60, 60);
-    pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col5X - 2, yPosition, { align: 'right' });
+    if (isDiscount || space.monthly_rent < 0) {
+      pdf.text('', col5X - 2, yPosition, { align: 'right' });
+    } else {
+      pdf.text(`${invoice.vat_rate.toFixed(0)}%`, col5X - 2, yPosition, { align: 'right' });
+    }
 
     yPosition += 7;
     });
