@@ -385,15 +385,6 @@ export function SpaceTypeRates() {
                   </div>
                 )}
 
-                {rate.is_annual && rate.space_type !== 'bedrijfsruimte' && rate.space_type !== 'buitenterrein' && (
-                  <div className="pt-2 border-t border-dark-700">
-                    <div className="flex items-center gap-2 text-xs text-amber-400">
-                      <AlertCircle size={12} />
-                      <span>Jaarlijks tarief (gedeeld door 12)</span>
-                    </div>
-                  </div>
-                )}
-
                 {rate.description && (
                   <div className="pt-2 border-t border-dark-700">
                     <p className="text-xs text-gray-400">{rate.description}</p>
@@ -803,18 +794,20 @@ export function SpaceTypeRates() {
               )}
 
 
-              <div className="flex items-center gap-3 p-4 bg-dark-900 rounded-lg">
-                <input
-                  type="checkbox"
-                  id="is_annual"
-                  checked={formData.is_annual}
-                  onChange={(e) => setFormData({ ...formData, is_annual: e.target.checked })}
-                  className="w-4 h-4 text-gold-500 border-dark-600 rounded focus:ring-2 focus:ring-gold-500"
-                />
-                <label htmlFor="is_annual" className="text-sm text-gray-300">
-                  Dit is een jaarlijks tarief (automatisch delen door 12 voor maandelijkse facturering)
-                </label>
-              </div>
+              {(formData.space_type === 'bedrijfsruimte' || formData.space_type === 'buitenterrein') && (
+                <div className="flex items-center gap-3 p-4 bg-dark-900 rounded-lg">
+                  <input
+                    type="checkbox"
+                    id="is_annual"
+                    checked={formData.is_annual}
+                    onChange={(e) => setFormData({ ...formData, is_annual: e.target.checked })}
+                    className="w-4 h-4 text-gold-500 border-dark-600 rounded focus:ring-2 focus:ring-gold-500"
+                  />
+                  <label htmlFor="is_annual" className="text-sm text-gray-300">
+                    Dit is een jaarlijks tarief (automatisch delen door 12 voor maandelijkse facturering)
+                  </label>
+                </div>
+              )}
 
               <div className="space-y-3">
                 <div>
@@ -876,8 +869,7 @@ export function SpaceTypeRates() {
           <p><strong className="text-gold-500">Per uur:</strong> Prijs wordt berekend per uur gebruik (voor vergaderruimtes)</p>
           <p><strong className="text-gold-500">Per dag:</strong> Dagprijs × aantal gebruikte dagen (alleen voor flexplekken)</p>
           <p><strong className="text-gold-500">Aangepast:</strong> Combinatie van m²-prijs en vast bedrag mogelijk</p>
-          <p className="pt-2 border-t border-dark-700"><strong className="text-gold-500">Bedrijfsruimte & Buitenterrein:</strong> Deze ruimtetypes hebben altijd een jaarlijks tarief dat automatisch gedeeld wordt door 12 voor maandelijkse facturering</p>
-          <p><strong className="text-gold-500">Jaarlijks tarief:</strong> Wanneer aangevinkt wordt het opgegeven tarief automatisch gedeeld door 12 voor maandelijkse facturering</p>
+          <p className="pt-2 border-t border-dark-700"><strong className="text-gold-500">Bedrijfsruimte & Buitenterrein:</strong> Deze ruimtetypes kunnen een jaarlijks tarief hebben dat automatisch gedeeld wordt door 12 voor maandelijkse facturering</p>
           <p><strong className="text-gold-500">Gemeubileerd:</strong> Voor kantoren kun je aparte tarieven instellen voor gemeubileerde en niet-gemeubileerde ruimtes</p>
           <p><strong className="text-gold-500">Flexplek:</strong> Flexplekken gebruiken altijd de "per dag" berekeningsmethode</p>
         </div>
