@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
-import { Users, Calendar, Save, X, Plus, Trash2, Check, Building2, Mail, Phone, Euro, CreditCard, CalendarDays } from 'lucide-react';
+import { Users, Calendar, Save, X, Plus, Trash2, Check, Building2, Mail, Phone, Euro, CreditCard, CalendarDays, ChevronLeft, ChevronRight, LayoutGrid, CalendarRange, UserCheck } from 'lucide-react';
 import FlexDayBooking from './FlexDayBooking';
 import { Toast } from './Toast';
 import { ConfirmModal } from './ConfirmModal';
@@ -81,6 +81,17 @@ type ConfirmDialog = {
   variant?: 'default' | 'danger';
 } | null;
 
+type FlexDayBookingType = {
+  id: string;
+  lease_id: string;
+  space_id: string;
+  booking_date: string;
+  is_half_day: boolean;
+  created_at: string;
+};
+
+type ViewMode = 'spaces' | 'calendar';
+
 export function FlexOccupancy() {
   const [occupancies, setOccupancies] = useState<SpaceOccupancy[]>([]);
   const [loading, setLoading] = useState(true);
@@ -111,6 +122,17 @@ export function FlexOccupancy() {
   });
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialog>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('calendar');
+  const [selectedWeekStart, setSelectedWeekStart] = useState<Date>(() => {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + diff);
+    monday.setHours(0, 0, 0, 0);
+    return monday;
+  });
+  const [flexDayBookings, setFlexDayBookings] = useState<FlexDayBookingType[]>([]);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info') => {
     const id = Date.now();
@@ -132,6 +154,12 @@ export function FlexOccupancy() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (viewMode === 'calendar') {
+      loadFlexDayBookings();
+    }
+  }, [selectedWeekStart, viewMode]);
 
   const loadData = async () => {
     setLoading(true);
@@ -188,6 +216,111 @@ export function FlexOccupancy() {
 
     setOccupancies(occupanciesData);
     setLoading(false);
+  };
+
+  const loadFlexDayBookings = async () => {
+    const weekEnd = new Date(selectedWeekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+
+    const startStr = selectedWeekStart.toISOString().split('T')[0];
+    const endStr = weekEnd.toISOString().split('T')[0];
+
+    const { data } = await supabase
+      .from('flex_day_bookings')
+      .select('*')
+      .gte('booking_date', startStr)
+      .lte('booking_date', endStr);
+
+    setFlexDayBookings(data || []);
+  };
+
+  const goToPreviousWeek = () => {
+    setSelectedWeekStart(prev => {
+      const newDate = new Date(prev);
+      newDate.setDate(newDate.getDate() - 7);
+      return newDate;
+    });
+  };
+
+  const goToNextWeek = () => {
+    setSelectedWeekStart(prev => {
+      const newDate = new Date(prev);
+      newDate.setDate(newDate.getDate() + 7);
+      return newDate;
+    });
+  };
+
+  const goToCurrentWeek = () => {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + diff);
+    monday.setHours(0, 0, 0, 0);
+    setSelectedWeekStart(monday);
+  };
+
+  const getWeekDays = useMemo(() => {
+    const days = [];
+    for (let i = 0; i < 5; i++) {
+      const date = new Date(selectedWeekStart);
+      date.setDate(date.getDate() + i);
+      days.push(date);
+    }
+    return days;
+  }, [selectedWeekStart]);
+
+  const isToday = (date: Date) => {
+    const today = new Date();
+    return date.toDateString() === today.toDateString();
+  };
+
+  const getFlexersForDay = (date: Date) => {
+    const dateStr = date.toISOString().split('T')[0];
+    const dayKey = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][date.getDay()];
+
+    const presentFlexers: Array<{
+      lease: Lease;
+      space: Space;
+      schedule: FlexSchedule | null;
+      booking: FlexDayBookingType | null;
+      isHalfDay: boolean;
+    }> = [];
+
+    const flexSpaces = occupancies.filter(occ => occ.space.space_type === 'Flexplek');
+
+    for (const occ of flexSpaces) {
+      for (const { schedule, lease } of occ.flexSchedules) {
+        const booking = flexDayBookings.find(
+          b => b.lease_id === lease.id && b.space_id === occ.space.id && b.booking_date === dateStr
+        );
+
+        if (booking) {
+          presentFlexers.push({
+            lease,
+            space: occ.space,
+            schedule,
+            booking,
+            isHalfDay: booking.is_half_day
+          });
+        } else if ((schedule as any)[dayKey]) {
+          presentFlexers.push({
+            lease,
+            space: occ.space,
+            schedule,
+            booking: null,
+            isHalfDay: false
+          });
+        }
+      }
+    }
+
+    return presentFlexers;
+  };
+
+  const getTotalCapacityForDay = () => {
+    const flexSpaces = occupancies.filter(occ => occ.space.space_type === 'Flexplek');
+    return flexSpaces.reduce((sum, occ) => sum + (occ.space.flex_capacity || 1), 0);
   };
 
   const handleAddSchedule = async () => {
@@ -312,17 +445,185 @@ export function FlexOccupancy() {
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-100">Bezetting Overzicht</h1>
-            <p className="text-gray-400 mt-1">Volledige overzicht van wie waar zit - vaste huurders en flexwerkers</p>
+            <p className="text-gray-400 mt-1">
+              {viewMode === 'calendar'
+                ? 'Weekoverzicht van aanwezige flexwerkers'
+                : 'Volledige overzicht van wie waar zit - vaste huurders en flexwerkers'
+              }
+            </p>
           </div>
-          <button
-            onClick={() => setShowAddForm(!showAddForm)}
-            className="flex items-center gap-2 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors"
-          >
-            {showAddForm ? <X size={20} /> : <Plus size={20} />}
-            {showAddForm ? 'Annuleren' : 'Flex Planning Toevoegen'}
-          </button>
+          <div className="flex items-center gap-3">
+            <div className="flex bg-dark-800 rounded-lg p-1">
+              <button
+                onClick={() => setViewMode('calendar')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                  viewMode === 'calendar'
+                    ? 'bg-gold-500 text-white'
+                    : 'text-gray-400 hover:text-gray-200'
+                }`}
+              >
+                <CalendarRange size={18} />
+                Agenda
+              </button>
+              <button
+                onClick={() => setViewMode('spaces')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                  viewMode === 'spaces'
+                    ? 'bg-gold-500 text-white'
+                    : 'text-gray-400 hover:text-gray-200'
+                }`}
+              >
+                <LayoutGrid size={18} />
+                Ruimtes
+              </button>
+            </div>
+            {viewMode === 'spaces' && (
+              <button
+                onClick={() => setShowAddForm(!showAddForm)}
+                className="flex items-center gap-2 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors"
+              >
+                {showAddForm ? <X size={20} /> : <Plus size={20} />}
+                {showAddForm ? 'Annuleren' : 'Flex Planning Toevoegen'}
+              </button>
+            )}
+          </div>
         </div>
 
+        {viewMode === 'calendar' && (
+          <div className="space-y-6">
+            <div className="bg-dark-900 rounded-lg border border-dark-700 p-4">
+              <div className="flex items-center justify-between mb-4">
+                <button
+                  onClick={goToPreviousWeek}
+                  className="p-2 text-gray-400 hover:text-white hover:bg-dark-700 rounded-lg transition-colors"
+                >
+                  <ChevronLeft size={24} />
+                </button>
+                <div className="flex items-center gap-4">
+                  <h2 className="text-lg font-semibold text-gray-100">
+                    Week {Math.ceil((selectedWeekStart.getDate() + new Date(selectedWeekStart.getFullYear(), selectedWeekStart.getMonth(), 1).getDay()) / 7)} - {selectedWeekStart.toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })}
+                  </h2>
+                  <button
+                    onClick={goToCurrentWeek}
+                    className="px-3 py-1 text-sm bg-dark-700 text-gray-300 rounded hover:bg-dark-600 transition-colors"
+                  >
+                    Vandaag
+                  </button>
+                </div>
+                <button
+                  onClick={goToNextWeek}
+                  className="p-2 text-gray-400 hover:text-white hover:bg-dark-700 rounded-lg transition-colors"
+                >
+                  <ChevronRight size={24} />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-5 gap-4">
+                {getWeekDays.map((date, index) => {
+                  const flexers = getFlexersForDay(date);
+                  const totalCapacity = getTotalCapacityForDay();
+                  const occupiedCount = flexers.length;
+                  const availableCount = totalCapacity - occupiedCount;
+                  const dayNames = ['Zo', 'Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za'];
+
+                  return (
+                    <div
+                      key={index}
+                      className={`bg-dark-800 rounded-lg border transition-colors ${
+                        isToday(date) ? 'border-gold-500' : 'border-dark-700'
+                      }`}
+                    >
+                      <div className={`p-3 border-b border-dark-700 ${isToday(date) ? 'bg-gold-500/10' : ''}`}>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-gray-400">{dayNames[date.getDay()]}</span>
+                          <span className={`text-lg font-bold ${isToday(date) ? 'text-gold-500' : 'text-gray-100'}`}>
+                            {date.getDate()}
+                          </span>
+                        </div>
+                        <div className="mt-2 flex items-center justify-between">
+                          <span className="text-xs text-gray-500">Bezetting</span>
+                          <span className={`text-xs font-medium ${
+                            occupiedCount === 0 ? 'text-gray-500' :
+                            occupiedCount >= totalCapacity ? 'text-red-400' :
+                            'text-green-400'
+                          }`}>
+                            {occupiedCount}/{totalCapacity}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="p-3 min-h-[200px]">
+                        {flexers.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center h-full text-gray-500 text-sm">
+                            <Users size={24} className="mb-2 opacity-50" />
+                            <span>Geen flexers</span>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            {flexers.map((flexer, idx) => (
+                              <div
+                                key={idx}
+                                className={`p-2 rounded-lg text-sm ${
+                                  flexer.booking
+                                    ? 'bg-gold-500/20 border border-gold-500/30'
+                                    : 'bg-blue-500/10 border border-blue-500/20'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <UserCheck size={14} className={flexer.booking ? 'text-gold-400' : 'text-blue-400'} />
+                                  <span className="font-medium text-gray-100 truncate">
+                                    {flexer.lease.tenants.company_name}
+                                  </span>
+                                  {flexer.isHalfDay && (
+                                    <span className="text-xs px-1.5 py-0.5 bg-purple-500/20 text-purple-400 rounded">
+                                      1/2
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="mt-1 text-xs text-gray-400 truncate">
+                                  {flexer.space.space_number}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {availableCount > 0 && (
+                        <div className="px-3 pb-3">
+                          <div className="text-xs text-center py-1.5 rounded bg-green-500/10 text-green-400 border border-green-500/20">
+                            {availableCount} {availableCount === 1 ? 'plek' : 'plekken'} vrij
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="bg-dark-900 rounded-lg border border-dark-700 p-4">
+              <h3 className="text-sm font-medium text-gray-400 mb-3">Legenda</h3>
+              <div className="flex gap-6">
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded bg-gold-500/20 border border-gold-500/30"></div>
+                  <span className="text-sm text-gray-300">Geboekt (specifieke dag)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded bg-blue-500/10 border border-blue-500/20"></div>
+                  <span className="text-sm text-gray-300">Vaste planning</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded border-2 border-gold-500"></div>
+                  <span className="text-sm text-gray-300">Vandaag</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {viewMode === 'spaces' && (
+          <>
         <div className="mb-6 space-y-4">
           <div className="flex gap-4">
             <div className="flex-1">
@@ -834,6 +1135,8 @@ export function FlexOccupancy() {
             );
           })}
           </div>
+        )}
+          </>
         )}
       </div>
 
