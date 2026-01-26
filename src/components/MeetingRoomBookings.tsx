@@ -82,6 +82,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationId, setNotificationId] = useState(0);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [meetingRoomVatInclusive, setMeetingRoomVatInclusive] = useState(false);
 
   const getWeekNumber = (date: Date): number => {
     const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -124,6 +125,16 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       .select('id, space_number, hourly_rate, half_day_rate, full_day_rate')
       .eq('space_type', 'Meeting Room')
       .order('space_number');
+
+    const { data: meetingRoomRates } = await supabase
+      .from('space_type_rates')
+      .select('vat_inclusive')
+      .eq('space_type', 'Meeting Room')
+      .maybeSingle();
+
+    if (meetingRoomRates) {
+      setMeetingRoomVatInclusive(meetingRoomRates.vat_inclusive || false);
+    }
 
     let bookingsQuery = supabase
       .from('meeting_room_bookings')
@@ -595,6 +606,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     const invoiceMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
 
     const vatRate = 21;
+    const vatInclusive = meetingRoomVatInclusive;
 
     let existingInvoiceQuery = supabase
       .from('invoices')
@@ -637,7 +649,13 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       : '';
 
     if (existingInvoice) {
-      const newSubtotal = parseFloat(existingInvoice.subtotal) + booking.total_amount;
+      let bookingSubtotal: number;
+      if (vatInclusive) {
+        bookingSubtotal = booking.total_amount / (1 + vatRate / 100);
+      } else {
+        bookingSubtotal = booking.total_amount;
+      }
+      const newSubtotal = parseFloat(existingInvoice.subtotal) + bookingSubtotal;
       const newVatAmount = newSubtotal * (vatRate / 100);
       const newTotal = newSubtotal + newVatAmount;
 
@@ -678,7 +696,12 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       dueDate.setDate(dueDate.getDate() + 14);
       const dueDateStr = dueDate.toISOString().split('T')[0];
 
-      const subtotal = booking.total_amount;
+      let subtotal: number;
+      if (vatInclusive) {
+        subtotal = booking.total_amount / (1 + vatRate / 100);
+      } else {
+        subtotal = booking.total_amount;
+      }
       const vatAmount = subtotal * (vatRate / 100);
       const totalAmount = subtotal + vatAmount;
 
@@ -706,7 +729,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
         subtotal: subtotal,
         vat_amount: vatAmount,
         vat_rate: vatRate,
-        vat_inclusive: false,
+        vat_inclusive: vatInclusive,
         amount: totalAmount,
         notes: notes
       };

@@ -40,6 +40,7 @@ export function SpaceTypeRates() {
     daily_rate: '',
     daily_rate_furnished: '',
     is_annual: false,
+    vat_inclusive: false,
     description: '',
     description_furnished: ''
   });
@@ -96,6 +97,7 @@ export function SpaceTypeRates() {
       daily_rate: parseFloat(formData.daily_rate) || 0,
       daily_rate_furnished: parseFloat(formData.daily_rate_furnished) || 0,
       is_annual: formData.is_annual,
+      vat_inclusive: formData.vat_inclusive,
       description: formData.description,
       description_furnished: formData.description_furnished
     };
@@ -147,6 +149,7 @@ export function SpaceTypeRates() {
       daily_rate: rate.daily_rate?.toString() || '',
       daily_rate_furnished: rate.daily_rate_furnished?.toString() || '',
       is_annual: rate.is_annual,
+      vat_inclusive: rate.vat_inclusive || false,
       description: rate.description || '',
       description_furnished: rate.description_furnished || ''
     });
@@ -169,6 +172,7 @@ export function SpaceTypeRates() {
       daily_rate: '',
       daily_rate_furnished: '',
       is_annual: false,
+      vat_inclusive: false,
       description: '',
       description_furnished: ''
     });
@@ -306,6 +310,11 @@ export function SpaceTypeRates() {
                         </div>
                       </div>
                     )}
+                    <div className="pt-2 border-t border-dark-700">
+                      <span className={`text-xs px-2 py-0.5 rounded ${rate.vat_inclusive ? 'bg-amber-500/20 text-amber-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                        {rate.vat_inclusive ? 'Incl. BTW' : 'Excl. BTW'}
+                      </span>
+                    </div>
                   </div>
                 )}
 
@@ -639,6 +648,24 @@ export function SpaceTypeRates() {
                         />
                       </div>
                     </div>
+                  </div>
+                  <div className="pt-3 border-t border-dark-700">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.vat_inclusive}
+                        onChange={(e) => setFormData({ ...formData, vat_inclusive: e.target.checked })}
+                        className="w-4 h-4 text-gold-500 border-dark-600 rounded focus:ring-2 focus:ring-gold-500"
+                      />
+                      <span className="text-sm text-gray-300">
+                        Tarieven zijn inclusief BTW
+                      </span>
+                    </label>
+                    <p className="text-xs text-gray-500 mt-1 ml-7">
+                      {formData.vat_inclusive
+                        ? 'BTW wordt berekend uit het totaalbedrag (incl. BTW)'
+                        : 'BTW wordt opgeteld bij het subtotaal (excl. BTW)'}
+                    </p>
                   </div>
                   <p className="text-xs text-gray-400">
                     Dagdeel = halve dag (bijv. ochtend of middag). Vul minimaal 1 tarief in.
