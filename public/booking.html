@@ -1916,7 +1916,7 @@
 
                 const hourlyRate = selectedRoom.hourly_rate || 25;
                 const subtotal = totalHours * hourlyRate;
-                const discountPercentage = authenticatedUser.meeting_discount_percentage || 0;
+                const discountPercentage = parseFloat(authenticatedUser.meeting_discount_percentage) || 0;
                 const discountAmount = (subtotal * discountPercentage) / 100;
                 const totalAmount = subtotal - discountAmount;
 
@@ -1992,9 +1992,15 @@
             let totalAmount = totalHours * hourlyRate;
 
             // Calculate discount from customer's meeting_discount_percentage
-            const discountPercentage = authenticatedUser.meeting_discount_percentage || 0;
+            console.log('=== DISCOUNT DEBUG ===');
+            console.log('authenticatedUser:', authenticatedUser);
+            console.log('meeting_discount_percentage RAW:', authenticatedUser.meeting_discount_percentage);
+            const discountPercentage = parseFloat(authenticatedUser.meeting_discount_percentage) || 0;
+            console.log('discountPercentage PARSED:', discountPercentage);
             const discountAmount = (totalAmount * discountPercentage) / 100;
+            console.log('totalAmount:', totalAmount, 'discountAmount:', discountAmount);
             const finalAmount = totalAmount - discountAmount;
+            console.log('finalAmount:', finalAmount);
 
             const bookingData = {
                 space_id: roomId,
@@ -2176,7 +2182,7 @@
             let totalAmount = totalHours * hourlyRate;
 
             // Apply discount for recurring bookings from authenticated user's meeting_discount_percentage
-            const discountPercentage = authenticatedUser.meeting_discount_percentage || 0;
+            const discountPercentage = parseFloat(authenticatedUser.meeting_discount_percentage) || 0;
             const discountAmount = (totalAmount * discountPercentage) / 100;
             const finalAmount = totalAmount - discountAmount;
 
