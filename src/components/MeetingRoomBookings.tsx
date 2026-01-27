@@ -121,12 +121,12 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
 
     const { data: tenantsData } = await supabase
       .from('tenants')
-      .select('id, name, company_name')
+      .select('id, name, company_name, meeting_discount_percentage')
       .order('name');
 
     const { data: externalCustomersData } = await supabase
       .from('external_customers')
-      .select('id, company_name, contact_name, email, phone, street, postal_code, city, country')
+      .select('id, company_name, contact_name, email, phone, street, postal_code, city, country, meeting_discount_percentage')
       .order('company_name');
 
     const { data: spacesData } = await supabase
@@ -365,10 +365,10 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     if (bookingType === 'tenant') {
       const tenantId = loggedInTenantId || formData.tenant_id;
       const selectedTenant = tenants.find(t => t.id === tenantId);
-      discountPercentage = selectedTenant?.meeting_discount_percentage || 10;
+      discountPercentage = Number(selectedTenant?.meeting_discount_percentage) || 0;
     } else {
       const selectedCustomer = externalCustomers.find(c => c.id === formData.external_customer_id);
-      discountPercentage = selectedCustomer?.meeting_discount_percentage || 0;
+      discountPercentage = Number(selectedCustomer?.meeting_discount_percentage) || 0;
     }
     const discountAmount = (totalAmount * discountPercentage) / 100;
     const finalAmount = totalAmount - discountAmount;
@@ -1048,10 +1048,10 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                     if (bookingType === 'tenant') {
                       const tenantId = loggedInTenantId || formData.tenant_id;
                       const selectedTenant = tenants.find(t => t.id === tenantId);
-                      discountPercentage = selectedTenant?.meeting_discount_percentage || 10;
+                      discountPercentage = Number(selectedTenant?.meeting_discount_percentage) || 0;
                     } else {
                       const selectedCustomer = externalCustomers.find(c => c.id === formData.external_customer_id);
-                      discountPercentage = selectedCustomer?.meeting_discount_percentage || 0;
+                      discountPercentage = Number(selectedCustomer?.meeting_discount_percentage) || 0;
                     }
                     const discountAmount = (rateInfo.totalAmount * discountPercentage) / 100;
                     const finalAmount = rateInfo.totalAmount - discountAmount;
