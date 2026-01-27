@@ -1534,8 +1534,8 @@
             const pinError = document.getElementById('pinError');
 
             const [tenantsRes, customersRes] = await Promise.all([
-                sb.from('tenants').select('id, name, company_name, booking_pin_code').eq('booking_pin_code', pin),
-                sb.from('external_customers').select('id, company_name, contact_name, booking_pin_code').eq('booking_pin_code', pin)
+                sb.from('tenants').select('id, name, company_name, booking_pin_code, meeting_discount_percentage').eq('booking_pin_code', pin),
+                sb.from('external_customers').select('id, company_name, contact_name, booking_pin_code, meeting_discount_percentage').eq('booking_pin_code', pin)
             ]);
 
             if (tenantsRes.data && tenantsRes.data.length > 0) {
@@ -1916,7 +1916,7 @@
 
                 const hourlyRate = selectedRoom.hourly_rate || 25;
                 const subtotal = totalHours * hourlyRate;
-                const discountPercentage = authenticatedUser.userType === 'tenant' ? 10 : 0;
+                const discountPercentage = authenticatedUser.meeting_discount_percentage || 0;
                 const discountAmount = (subtotal * discountPercentage) / 100;
                 const totalAmount = subtotal - discountAmount;
 
@@ -1991,8 +1991,8 @@
             const hourlyRate = selectedRoom.hourly_rate || 25;
             let totalAmount = totalHours * hourlyRate;
 
-            // Calculate tenant discount (10% for tenants, 0% for external customers)
-            const discountPercentage = authenticatedUser.userType === 'tenant' ? 10 : 0;
+            // Calculate discount from customer's meeting_discount_percentage
+            const discountPercentage = authenticatedUser.meeting_discount_percentage || 0;
             const discountAmount = (totalAmount * discountPercentage) / 100;
             const finalAmount = totalAmount - discountAmount;
 
@@ -2175,8 +2175,8 @@
             const totalHours = (endHour + endMinute / 60) - (startHour + startMinute / 60);
             let totalAmount = totalHours * hourlyRate;
 
-            // Apply 10% tenant discount for recurring bookings (always tenant bookings)
-            const discountPercentage = 10;
+            // Apply discount for recurring bookings from authenticated user's meeting_discount_percentage
+            const discountPercentage = authenticatedUser.meeting_discount_percentage || 0;
             const discountAmount = (totalAmount * discountPercentage) / 100;
             const finalAmount = totalAmount - discountAmount;
 
