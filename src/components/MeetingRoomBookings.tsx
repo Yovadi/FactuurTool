@@ -123,11 +123,13 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       .from('tenants')
       .select('id, name, company_name, meeting_discount_percentage')
       .order('name');
+    console.log('Loaded tenants:', tenantsData);
 
     const { data: externalCustomersData } = await supabase
       .from('external_customers')
       .select('id, company_name, contact_name, email, phone, street, postal_code, city, country, meeting_discount_percentage')
       .order('company_name');
+    console.log('Loaded external customers:', externalCustomersData);
 
     const { data: spacesData } = await supabase
       .from('office_spaces')
@@ -364,14 +366,25 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     let discountPercentage = 0;
     if (bookingType === 'tenant') {
       const tenantId = loggedInTenantId || formData.tenant_id;
-      const selectedTenant = tenants.find(t => t.id === tenantId);
-      discountPercentage = Number(selectedTenant?.meeting_discount_percentage) || 0;
+      const { data: tenantData } = await supabase
+        .from('tenants')
+        .select('meeting_discount_percentage')
+        .eq('id', tenantId)
+        .single();
+      discountPercentage = Number(tenantData?.meeting_discount_percentage) || 0;
+      console.log('Tenant discount percentage:', discountPercentage, 'from data:', tenantData);
     } else {
-      const selectedCustomer = externalCustomers.find(c => c.id === formData.external_customer_id);
-      discountPercentage = Number(selectedCustomer?.meeting_discount_percentage) || 0;
+      const { data: customerData } = await supabase
+        .from('external_customers')
+        .select('meeting_discount_percentage')
+        .eq('id', formData.external_customer_id)
+        .single();
+      discountPercentage = Number(customerData?.meeting_discount_percentage) || 0;
+      console.log('Customer discount percentage:', discountPercentage, 'from data:', customerData);
     }
     const discountAmount = (totalAmount * discountPercentage) / 100;
     const finalAmount = totalAmount - discountAmount;
+    console.log('Booking calculation - Total:', totalAmount, 'Discount%:', discountPercentage, 'Discount amount:', discountAmount, 'Final:', finalAmount);
 
     const insertData: any = {
       space_id: formData.space_id,
@@ -1049,9 +1062,11 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                       const tenantId = loggedInTenantId || formData.tenant_id;
                       const selectedTenant = tenants.find(t => t.id === tenantId);
                       discountPercentage = Number(selectedTenant?.meeting_discount_percentage) || 0;
+                      console.log('Preview - Tenant:', selectedTenant?.name, 'Discount:', discountPercentage, 'Full tenant data:', selectedTenant);
                     } else {
                       const selectedCustomer = externalCustomers.find(c => c.id === formData.external_customer_id);
                       discountPercentage = Number(selectedCustomer?.meeting_discount_percentage) || 0;
+                      console.log('Preview - Customer:', selectedCustomer?.company_name, 'Discount:', discountPercentage, 'Full customer data:', selectedCustomer);
                     }
                     const discountAmount = (rateInfo.totalAmount * discountPercentage) / 100;
                     const finalAmount = rateInfo.totalAmount - discountAmount;
