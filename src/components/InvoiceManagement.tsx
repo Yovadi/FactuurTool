@@ -1826,12 +1826,29 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             continue;
           }
 
-          const totalAmount = bookings.reduce((sum, booking) => sum + booking.total_amount, 0);
+          const customerDiscountPercentage = isExternal
+            ? (customer as any).meeting_discount_percentage || 0
+            : (customer as any).meeting_discount_percentage || 0;
 
-          const { subtotal, vatAmount, total } = calculateVAT(totalAmount, 21, false);
+          let totalBeforeDiscount = 0;
+          let totalDiscountAmount = 0;
+
+          bookings.forEach(booking => {
+            const bookingAmount = booking.total_amount || 0;
+            const bookingDiscount = booking.discount_amount || 0;
+            const beforeDiscount = bookingAmount + bookingDiscount;
+            totalBeforeDiscount += beforeDiscount;
+            totalDiscountAmount += bookingDiscount;
+          });
+
+          if (customerDiscountPercentage > 0 && totalDiscountAmount === 0) {
+            totalDiscountAmount = Math.round(totalBeforeDiscount * (customerDiscountPercentage / 100) * 100) / 100;
+          }
+
+          const finalAmount = totalBeforeDiscount - totalDiscountAmount;
+          const { subtotal, vatAmount, total } = calculateVAT(finalAmount, 21, false);
 
           const notesLines = ['Vergaderruimte boekingen:'];
-          let totalDiscountAmount = 0;
           bookings.forEach(booking => {
             let rateDescription = '';
             if (booking.rate_type === 'half_day') {
@@ -1842,17 +1859,15 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               rateDescription = `${Math.round(booking.total_hours)}u`;
             }
 
-            const beforeDiscountAmount = (booking.total_amount || 0) + (booking.discount_amount || 0);
+            const bookingAmount = booking.total_amount || 0;
+            const bookingDiscount = booking.discount_amount || 0;
+            const beforeDiscountAmount = bookingAmount + bookingDiscount;
             const bookingLine = `- ${booking.space?.space_number || 'Vergaderruimte'} - ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)} (${rateDescription}) = €${beforeDiscountAmount.toFixed(2)}`;
             notesLines.push(bookingLine);
-
-            if (booking.discount_amount && booking.discount_amount > 0) {
-              totalDiscountAmount += booking.discount_amount;
-            }
           });
 
-          if (totalDiscountAmount > 0 && bookings.length > 0 && bookings[0].discount_percentage) {
-            notesLines.push(`- Totale korting ${Math.round(bookings[0].discount_percentage)}% huurderkorting = €${totalDiscountAmount.toFixed(2)}`);
+          if (totalDiscountAmount > 0 && customerDiscountPercentage > 0) {
+            notesLines.push(`- Totale korting ${Math.round(customerDiscountPercentage)}% huurderkorting = €${totalDiscountAmount.toFixed(2)}`);
           }
 
           const invoiceNotes = notesLines.join('\n');
@@ -1883,14 +1898,34 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             continue;
           }
 
-          const lineItems = bookings.map(booking => ({
-            invoice_id: newInvoice.id,
-            description: `${booking.space?.space_number || 'Vergaderruimte'} - ${new Date(booking.booking_date).toLocaleDateString('nl-NL')} ${booking.start_time}-${booking.end_time}`,
-            quantity: booking.total_hours,
-            unit_price: booking.hourly_rate,
-            amount: booking.total_amount,
-            booking_id: booking.id
-          }));
+          const lineItems = bookings.map(booking => {
+            const bookingAmount = booking.total_amount || 0;
+            const bookingDiscount = booking.discount_amount || 0;
+            const beforeDiscountAmount = bookingAmount + bookingDiscount;
+
+            return {
+              invoice_id: newInvoice.id,
+              description: `${booking.space?.space_number || 'Vergaderruimte'} - ${new Date(booking.booking_date).toLocaleDateString('nl-NL')} ${booking.start_time}-${booking.end_time}`,
+              quantity: booking.total_hours,
+              unit_price: booking.hourly_rate,
+              amount: beforeDiscountAmount,
+              booking_id: booking.id
+            };
+          });
+
+          if (totalDiscountAmount > 0 && customerDiscountPercentage > 0) {
+            const spaceName = bookings.length === 1
+              ? bookings[0].space?.space_number || 'Vergaderruimte'
+              : 'Vergaderruimtes';
+            lineItems.push({
+              invoice_id: newInvoice.id,
+              description: `Korting ${Math.round(customerDiscountPercentage)}% op ${spaceName}`,
+              quantity: 1,
+              unit_price: -totalDiscountAmount,
+              amount: -totalDiscountAmount,
+              booking_id: null
+            });
+          }
 
           const { error: lineItemsError } = await supabase
             .from('invoice_line_items')
