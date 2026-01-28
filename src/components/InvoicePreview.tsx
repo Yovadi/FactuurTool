@@ -255,9 +255,8 @@ export function InvoicePreview({
                 <table className="w-full">
                   <thead>
                     <tr className="bg-amber-500 text-white">
-                      <th className="px-4 py-2 text-left font-semibold">Omschrijving</th>
-                      <th className="px-4 py-2 text-right font-semibold">Bedrag</th>
-                      <th className="px-4 py-2 text-right font-semibold">BTW</th>
+                      <th className="px-4 py-2 text-left font-semibold w-[70%]">Omschrijving</th>
+                      <th className="px-4 py-2 text-right font-semibold w-[30%]">Bedrag</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -271,7 +270,7 @@ export function InvoicePreview({
                             if (line.includes(':') && !line.includes('(') && !line.startsWith('-')) {
                               return (
                                 <tr key={lineIndex}>
-                                  <td colSpan={3} className="px-4 py-2 font-semibold text-gray-100 bg-dark-800">
+                                  <td colSpan={2} className="px-4 py-2 font-semibold text-gray-100 bg-dark-800">
                                     {line.replace(':', '')}
                                   </td>
                                 </tr>
@@ -281,13 +280,10 @@ export function InvoicePreview({
                             if (line.startsWith('-')) {
                               let cleanLine = line.replace(/^-\s*/, '');
                               let amount = '';
-                              let vatAmount = '';
 
                               const amountMatch = cleanLine.match(/=\s*€([\d.]+)\s*$/);
                               if (amountMatch) {
                                 amount = amountMatch[1];
-                                const amountValue = parseFloat(amount);
-                                vatAmount = ((amountValue * invoice.vat_rate) / 100).toFixed(2);
                                 cleanLine = cleanLine.substring(0, cleanLine.lastIndexOf('=')).trim();
                               }
 
@@ -298,7 +294,6 @@ export function InvoicePreview({
                                 <tr key={`line-${lineIndex}`} className={lineIndex % 2 === 0 ? 'bg-dark-800' : 'bg-dark-850'}>
                                   <td className={`px-4 py-3 text-left ${isDiscount ? 'text-green-400' : 'text-gray-100'}`}>{cleanLine}</td>
                                   <td className={`px-4 py-3 text-right ${isDiscount ? 'text-green-400' : 'text-gray-100'}`}>{amountText}</td>
-                                  <td className="px-4 py-3 text-right text-gray-400">{isDiscount ? '' : `€ ${vatAmount}`}</td>
                                 </tr>
                               );
                             }
