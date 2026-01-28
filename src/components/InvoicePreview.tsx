@@ -314,11 +314,10 @@ export function InvoicePreview({
               <table className="w-full">
                 <thead>
                   <tr className="bg-amber-500 text-white">
-                    <th className="px-4 py-2 text-left font-semibold w-[35%]">Omschrijving</th>
-                    <th className="px-4 py-2 text-right font-semibold w-[18%]">Hoeveelheid</th>
-                    <th className="px-4 py-2 text-right font-semibold w-[22%]">Tarief</th>
-                    <th className="px-4 py-2 text-right font-semibold w-[15%]">Bedrag</th>
-                    <th className="px-4 py-2 text-right font-semibold w-[10%]">BTW</th>
+                    <th className="px-4 py-2 text-left font-semibold w-[40%]">Omschrijving</th>
+                    <th className="px-4 py-2 text-right font-semibold w-[20%]">Hoeveelheid</th>
+                    <th className="px-4 py-2 text-right font-semibold w-[20%]">Tarief</th>
+                    <th className="px-4 py-2 text-right font-semibold w-[20%]">Bedrag</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -381,7 +380,6 @@ export function InvoicePreview({
                         <td className={`px-4 py-3 text-right font-semibold ${amountClass}`}>
                           € {isDiscount || space.monthly_rent < 0 ? '-' : ''}{absoluteAmount.toFixed(2)}
                         </td>
-                        <td className="px-4 py-3 text-right text-gray-100">{invoice.vat_rate === 0 ? 'N.v.t.' : `${invoice.vat_rate.toFixed(0)}%`}</td>
                       </tr>
                     );
                   })}
