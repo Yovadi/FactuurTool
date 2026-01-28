@@ -1102,10 +1102,15 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
   };
 
   const viewInvoiceDetails = async (invoice: InvoiceWithDetails) => {
-    const { data: items } = await supabase
-      .from('invoice_line_items')
-      .select('*')
-      .eq('invoice_id', invoice.id);
+    let items = (invoice as any).line_items;
+
+    if (!items || items.length === 0) {
+      const { data } = await supabase
+        .from('invoice_line_items')
+        .select('*')
+        .eq('invoice_id', invoice.id);
+      items = data;
+    }
 
     const spaces = convertLineItemsToSpaces(items || []);
     setPreviewInvoice({ invoice: { ...invoice, line_items: items } as any, spaces });
@@ -1986,21 +1991,27 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
   const showInvoicePreview = async (invoice: InvoiceWithDetails) => {
     setLoadingPreview(true);
     try {
-      const { data: items, error } = await supabase
-        .from('invoice_line_items')
-        .select(`
-          *,
-          booking:meeting_room_bookings(
-            booking_date,
-            start_time,
-            end_time,
-            total_hours
-          )
-        `)
-        .eq('invoice_id', invoice.id);
+      let items = (invoice as any).line_items;
 
-      if (error) {
-        console.error('Error loading line items:', error);
+      if (!items || items.length === 0) {
+        const { data, error } = await supabase
+          .from('invoice_line_items')
+          .select(`
+            *,
+            booking:meeting_room_bookings(
+              booking_date,
+              start_time,
+              end_time,
+              total_hours
+            )
+          `)
+          .eq('invoice_id', invoice.id);
+
+        if (error) {
+          console.error('Error loading line items:', error);
+        }
+
+        items = data;
       }
 
       console.log('Loaded line items:', items);
