@@ -212,38 +212,38 @@ export function Dashboard() {
   }
 
   return (
-    <div className="h-full bg-dark-950 overflow-y-auto p-6">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-100 mb-2">Overzicht</h1>
-        <p className="text-gray-300">Overzicht van je kantoorgebouw beheer</p>
+    <div className="h-full bg-dark-950 overflow-y-auto p-3 sm:p-4 md:p-6">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-100 mb-2">Overzicht</h1>
+        <p className="text-sm sm:text-base text-gray-300">Overzicht van je kantoorgebouw beheer</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-dark-700 rounded-lg">
-              <Users className="text-gold-500" size={24} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4 sm:p-6">
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <div className="p-2 sm:p-3 bg-dark-700 rounded-lg">
+              <Users className="text-gold-500" size={20} />
             </div>
           </div>
           <div>
-            <p className="text-sm text-gray-300 mb-1">Totaal Huurders</p>
-            <div className="h-12 flex items-center">
-              <p className="text-3xl font-bold text-gray-100">{stats.totalTenants}</p>
+            <p className="text-xs sm:text-sm text-gray-300 mb-1">Totaal Huurders</p>
+            <div className="h-10 sm:h-12 flex items-center">
+              <p className="text-2xl sm:text-3xl font-bold text-gray-100">{stats.totalTenants}</p>
             </div>
             <p className="text-xs text-gray-400 mt-1 h-5 invisible">.</p>
           </div>
         </div>
 
-        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-dark-700 rounded-lg">
-              <Building className="text-green-400" size={24} />
+        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4 sm:p-6">
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <div className="p-2 sm:p-3 bg-dark-700 rounded-lg">
+              <Building className="text-green-400" size={20} />
             </div>
           </div>
           <div>
-            <p className="text-sm text-gray-300 mb-1">Totaal Ruimtes</p>
-            <div className="h-12 flex items-center">
-              <p className="text-3xl font-bold text-gray-100">{stats.totalSpaces}</p>
+            <p className="text-xs sm:text-sm text-gray-300 mb-1">Totaal Ruimtes</p>
+            <div className="h-10 sm:h-12 flex items-center">
+              <p className="text-2xl sm:text-3xl font-bold text-gray-100">{stats.totalSpaces}</p>
             </div>
             <p className="text-xs text-gray-400 mt-1 h-5">
               {stats.occupiedSpaces} bezet, {stats.totalSpaces - stats.occupiedSpaces} beschikbaar
@@ -251,16 +251,16 @@ export function Dashboard() {
           </div>
         </div>
 
-        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-dark-700 rounded-lg">
-              <Building className="text-blue-400" size={24} />
+        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4 sm:p-6">
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <div className="p-2 sm:p-3 bg-dark-700 rounded-lg">
+              <Building className="text-blue-400" size={20} />
             </div>
           </div>
           <div>
-            <p className="text-sm text-gray-300 mb-1">Bezettingsgraad</p>
-            <div className="h-12 flex items-center">
-              <p className="text-3xl font-bold text-gray-100">{occupancyRate}%</p>
+            <p className="text-xs sm:text-sm text-gray-300 mb-1">Bezettingsgraad</p>
+            <div className="h-10 sm:h-12 flex items-center">
+              <p className="text-2xl sm:text-3xl font-bold text-gray-100">{occupancyRate}%</p>
             </div>
             <div className="w-full bg-dark-800 rounded-full h-2 mt-1">
               <div
@@ -271,16 +271,16 @@ export function Dashboard() {
           </div>
         </div>
 
-        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-dark-700 rounded-lg">
-              <CalendarClock className="text-purple-400" size={24} />
+        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4 sm:p-6">
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <div className="p-2 sm:p-3 bg-dark-700 rounded-lg">
+              <CalendarClock className="text-purple-400" size={20} />
             </div>
           </div>
           <div>
-            <p className="text-sm text-gray-300 mb-1">Vergaderruimte Boekingen</p>
-            <div className="h-12 flex items-center">
-              <p className="text-3xl font-bold text-gray-100">{stats.todayBookings}</p>
+            <p className="text-xs sm:text-sm text-gray-300 mb-1">Vergaderruimte Boekingen</p>
+            <div className="h-10 sm:h-12 flex items-center">
+              <p className="text-2xl sm:text-3xl font-bold text-gray-100">{stats.todayBookings}</p>
             </div>
             <p className="text-xs text-gray-400 mt-1 h-5">
               {stats.upcomingBookings} komende week
@@ -289,8 +289,8 @@ export function Dashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4 sm:p-6">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2 bg-dark-700 rounded-lg">
               <DollarSign className="text-green-400" size={20} />

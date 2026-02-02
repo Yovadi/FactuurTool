@@ -119,4 +119,71 @@
     scroll-margin: 0;
     outline: none;
   }
+
+  /* Responsive table container */
+  .table-container {
+    @apply overflow-x-auto -mx-4 sm:mx-0;
+  }
+
+  .table-container table {
+    @apply min-w-full;
+  }
+
+  /* Ensure tables scroll horizontally on mobile */
+  @media (max-width: 1024px) {
+    .overflow-x-auto {
+      -webkit-overflow-scrolling: touch;
+    }
+
+    table {
+      min-width: 800px;
+    }
+  }
+
+  /* Touch-friendly tap targets */
+  @media (max-width: 1024px) {
+    button:not(.no-min-size),
+    a:not(.no-min-size) {
+      min-height: 44px;
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+
+    input[type="checkbox"],
+    input[type="radio"] {
+      min-height: 24px;
+      min-width: 24px;
+    }
+  }
+
+  /* Responsive spacing utilities */
+  .responsive-padding {
+    @apply p-3 sm:p-4 md:p-6;
+  }
+
+  .responsive-gap {
+    @apply gap-3 sm:gap-4 md:gap-6;
+  }
+
+  /* Mobile-friendly forms */
+  @media (max-width: 640px) {
+    input:not([type="checkbox"]):not([type="radio"]),
+    select,
+    textarea {
+      font-size: 16px;
+      min-height: 44px;
+    }
+
+    label {
+      font-size: 14px;
+    }
+  }
+
+  /* Mobile modal adjustments */
+  @media (max-width: 640px) {
+    .fixed.inset-0 > div {
+      max-height: 90vh;
+      margin: 5vh auto;
+    }
+  }
 }

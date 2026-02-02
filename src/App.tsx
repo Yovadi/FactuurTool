@@ -1,6 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { UpdateDialog } from './components/UpdateDialog';
-import { LayoutDashboard, Users, Building, Settings, CalendarClock, LogOut, TrendingUp, FileText, Building2, Calculator, Euro, UserCheck, UserMinus, BarChart3, Loader2 } from 'lucide-react';
+import { LayoutDashboard, Users, Building, Settings, CalendarClock, LogOut, TrendingUp, FileText, Building2, Calculator, Euro, UserCheck, UserMinus, BarChart3, Loader2, Menu, X } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
 const Dashboard = lazy(() => import('./components/Dashboard').then(m => ({ default: m.Dashboard })));
@@ -44,6 +44,7 @@ function App() {
   const [isElectron, setIsElectron] = useState(false);
   const [prefilledInvoiceData, setPrefilledInvoiceData] = useState<PrefilledInvoiceData | null>(null);
   const [appVersion, setAppVersion] = useState<string>('');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [updateDialog, setUpdateDialog] = useState<UpdateDialogState>({
     show: false,
     type: 'update-not-available'
@@ -248,16 +249,47 @@ function App() {
         />
       )}
 
-      <div className="flex-1 max-w-[1920px] w-full mx-auto p-6 overflow-hidden">
-        <div className="flex gap-6 h-full">
-          <aside className="w-64 flex-shrink-0 h-full flex flex-col overflow-hidden">
-            <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2 flex flex-col flex-shrink-0">
-              <div className="px-4 py-3 mb-2">
-                <h2 className="text-xl font-bold text-gold-500">HAL5 Facturatie</h2>
-                <p className="text-sm text-gray-400 mt-1">Beheer systeem</p>
-                {appVersion && (
-                  <p className="text-xs text-gray-500 mt-1">Versie {appVersion}</p>
-                )}
+      <button
+        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        className="lg:hidden fixed top-3 left-3 z-50 p-3 bg-dark-900 border border-dark-700 rounded-lg text-gray-100 hover:bg-dark-800 transition-colors shadow-lg"
+        aria-label="Toggle menu"
+      >
+        {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+      </button>
+
+      {mobileMenuOpen && (
+        <div
+          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-30"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
+      <div className="flex-1 max-w-[1920px] w-full mx-auto lg:p-6 p-0 overflow-hidden">
+        <div className="flex gap-0 lg:gap-6 h-full">
+          <aside className={`
+            w-72 sm:w-80 lg:w-64 flex-shrink-0 h-full flex flex-col overflow-hidden
+            fixed lg:relative inset-y-0 left-0 z-40
+            transform transition-transform duration-300 ease-in-out
+            ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+            lg:transform-none
+            p-4 lg:p-0
+          `}>
+            <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2 flex flex-col flex-shrink-0 h-full overflow-y-auto">
+              <div className="px-4 py-3 mb-2 flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-gold-500">HAL5 Facturatie</h2>
+                  <p className="text-sm text-gray-400 mt-1">Beheer systeem</p>
+                  {appVersion && (
+                    <p className="text-xs text-gray-500 mt-1">Versie {appVersion}</p>
+                  )}
+                </div>
+                <button
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="lg:hidden p-1 text-gray-400 hover:text-gray-200"
+                  aria-label="Close menu"
+                >
+                  <X size={20} />
+                </button>
               </div>
               <nav className="space-y-1 pb-2">
                 {navigation.map((item) => {
@@ -271,6 +303,7 @@ function App() {
                           onClick={(e) => {
                             e.preventDefault();
                             setActiveTab(item.children![0].id);
+                            setMobileMenuOpen(false);
                           }}
                           className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${
                             isActive ? 'text-gold-500 hover:text-gold-400' : 'text-gray-100 hover:text-white'
@@ -288,6 +321,7 @@ function App() {
                                 onClick={(e) => {
                                   e.preventDefault();
                                   setActiveTab(child.id);
+                                  setMobileMenuOpen(false);
                                 }}
                                 className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                                   isChildActive
@@ -311,6 +345,7 @@ function App() {
                       onClick={(e) => {
                         e.preventDefault();
                         setActiveTab(item.id as Tab);
+                        setMobileMenuOpen(false);
                       }}
                       className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
                         isActive
@@ -335,6 +370,7 @@ function App() {
                       onClick={(e) => {
                         e.preventDefault();
                         setActiveTab(item.id as Tab);
+                        setMobileMenuOpen(false);
                       }}
                       className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
                         isActive
@@ -351,7 +387,7 @@ function App() {
             </div>
           </aside>
 
-          <main className="flex-1 min-w-0 h-full flex flex-col overflow-hidden bg-dark-950">
+          <main className="flex-1 min-w-0 h-full flex flex-col overflow-hidden bg-dark-950 lg:mt-0 mt-0">
             <Suspense fallback={<LoadingFallback />}>
               {activeTab === 'dashboard' && <Dashboard />}
               {activeTab === 'tenants' && <TenantManagement />}
