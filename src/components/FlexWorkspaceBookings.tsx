@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Calendar, Plus, X, Check, AlertCircle, Trash2, CalendarDays, CheckCircle, XCircle, Info, Filter, Building2, Users } from 'lucide-react';
-import { InlineDatePicker } from './InlineDatePicker';
+import { Calendar, Plus, X, Check, AlertCircle, Trash2, CalendarDays, CheckCircle, XCircle, Info, Filter, Building2 } from 'lucide-react';
 
 type NotificationType = 'success' | 'error' | 'info';
 
@@ -9,12 +8,6 @@ type Notification = {
   id: number;
   message: string;
   type: NotificationType;
-};
-
-type Tenant = {
-  id: string;
-  name: string;
-  company_name: string;
 };
 
 type ExternalCustomer = {
@@ -38,46 +31,31 @@ type FlexSpace = {
 type FlexBooking = {
   id: string;
   space_id: string;
-  lease_id: string | null;
-  external_customer_id: string | null;
+  external_customer_id: string;
   booking_date: string;
   is_half_day: boolean;
   half_day_period?: 'morning' | 'afternoon';
   invoice_id: string | null;
   created_at: string;
   office_spaces?: { space_number: string };
-  leases?: {
-    tenants: { name: string; company_name: string };
-  };
   external_customers?: ExternalCustomer;
-};
-
-type Lease = {
-  id: string;
-  tenant_id: string;
-  lease_type: string;
-  status: string;
-  tenants: Tenant;
 };
 
 export function FlexWorkspaceBookings() {
   const [bookings, setBookings] = useState<FlexBooking[]>([]);
   const [allBookings, setAllBookings] = useState<FlexBooking[]>([]);
   const [flexSpaces, setFlexSpaces] = useState<FlexSpace[]>([]);
-  const [leases, setLeases] = useState<Lease[]>([]);
   const [externalCustomers, setExternalCustomers] = useState<ExternalCustomer[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [selectedView, setSelectedView] = useState<'list' | 'calendar'>('list');
-  const [selectedFilter, setSelectedFilter] = useState<'all' | 'internal' | 'external' | 'upcoming' | 'invoiced'>('all');
-  const [customerType, setCustomerType] = useState<'lease' | 'external'>('lease');
+  const [selectedFilter, setSelectedFilter] = useState<'all' | 'upcoming' | 'invoiced'>('all');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationId, setNotificationId] = useState(0);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     space_id: '',
-    lease_id: '',
     external_customer_id: '',
     booking_date: new Date().toISOString().split('T')[0],
     is_half_day: false,
@@ -95,17 +73,15 @@ export function FlexWorkspaceBookings() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [bookingsRes, spacesRes, leasesRes, customersRes] = await Promise.all([
+      const [bookingsRes, spacesRes, customersRes] = await Promise.all([
         supabase
           .from('flex_day_bookings')
           .select(`
             *,
             office_spaces(space_number),
-            leases(
-              tenants(name, company_name)
-            ),
             external_customers(id, company_name, contact_name, email, phone, street, postal_code, city, country)
           `)
+          .not('external_customer_id', 'is', null)
           .order('booking_date', { ascending: false }),
         supabase
           .from('office_spaces')
@@ -114,23 +90,16 @@ export function FlexWorkspaceBookings() {
           .eq('is_available', true)
           .order('space_number'),
         supabase
-          .from('leases')
-          .select('id, tenant_id, lease_type, status, tenants(id, name, company_name)')
-          .eq('lease_type', 'flex')
-          .eq('status', 'active')
-          .order('tenants(company_name)'),
-        supabase
           .from('external_customers')
           .select('*')
           .order('company_name')
       ]);
 
       if (bookingsRes.data) {
-        setAllBookings(bookingsRes.data);
-        setBookings(bookingsRes.data);
+        setAllBookings(bookingsRes.data as FlexBooking[]);
+        setBookings(bookingsRes.data as FlexBooking[]);
       }
       if (spacesRes.data) setFlexSpaces(spacesRes.data);
-      if (leasesRes.data) setLeases(leasesRes.data as Lease[]);
       if (customersRes.data) setExternalCustomers(customersRes.data);
     } catch (error) {
       console.error('Error loading data:', error);
@@ -144,12 +113,6 @@ export function FlexWorkspaceBookings() {
     let filtered = [...allBookings];
 
     switch (selectedFilter) {
-      case 'internal':
-        filtered = filtered.filter(b => b.lease_id !== null);
-        break;
-      case 'external':
-        filtered = filtered.filter(b => b.external_customer_id !== null);
-        break;
       case 'upcoming':
         const today = new Date().toISOString().split('T')[0];
         filtered = filtered.filter(b => b.booking_date >= today);
@@ -179,29 +142,19 @@ export function FlexWorkspaceBookings() {
       return;
     }
 
-    if (customerType === 'lease' && !formData.lease_id) {
-      showNotification('Selecteer een huurder', 'error');
-      return;
-    }
-
-    if (customerType === 'external' && !formData.external_customer_id) {
+    if (!formData.external_customer_id) {
       showNotification('Selecteer een externe klant', 'error');
       return;
     }
 
     try {
-      const bookingData: any = {
+      const bookingData = {
         space_id: formData.space_id,
+        external_customer_id: formData.external_customer_id,
         booking_date: formData.booking_date,
         is_half_day: formData.is_half_day,
         half_day_period: formData.is_half_day ? formData.half_day_period : null
       };
-
-      if (customerType === 'lease') {
-        bookingData.lease_id = formData.lease_id;
-      } else {
-        bookingData.external_customer_id = formData.external_customer_id;
-      }
 
       const { data, error } = await supabase
         .from('flex_day_bookings')
@@ -209,9 +162,6 @@ export function FlexWorkspaceBookings() {
         .select(`
           *,
           office_spaces(space_number),
-          leases(
-            tenants(name, company_name)
-          ),
           external_customers(id, company_name, contact_name, email, phone, street, postal_code, city, country)
         `)
         .single();
@@ -219,7 +169,7 @@ export function FlexWorkspaceBookings() {
       if (error) throw error;
 
       if (data) {
-        setAllBookings(prev => [data, ...prev]);
+        setAllBookings(prev => [data as FlexBooking, ...prev]);
         showNotification('Flexplekboeking succesvol aangemaakt', 'success');
         setShowForm(false);
         resetForm();
@@ -228,8 +178,8 @@ export function FlexWorkspaceBookings() {
       console.error('Error creating booking:', error);
       const message = error.message?.includes('unique_flex_booking')
         ? 'Deze datum is al geboekt voor deze klant'
-        : error.message?.includes('exceed')
-        ? 'Maandlimiet bereikt voor deze klant'
+        : error.message?.includes('flex_day_bookings_customer_check')
+        ? 'Externe klant is verplicht voor flexplekken'
         : 'Fout bij aanmaken boeking';
       showNotification(message, 'error');
     }
@@ -257,23 +207,11 @@ export function FlexWorkspaceBookings() {
   const resetForm = () => {
     setFormData({
       space_id: '',
-      lease_id: '',
       external_customer_id: '',
       booking_date: new Date().toISOString().split('T')[0],
       is_half_day: false,
       half_day_period: 'morning'
     });
-    setCustomerType('lease');
-  };
-
-  const getCustomerName = (booking: FlexBooking) => {
-    if (booking.lease_id && booking.leases?.tenants) {
-      return booking.leases.tenants.company_name || booking.leases.tenants.name;
-    }
-    if (booking.external_customer_id && booking.external_customers) {
-      return booking.external_customers.company_name;
-    }
-    return 'Onbekend';
   };
 
   const formatDate = (dateStr: string) => {
@@ -324,7 +262,10 @@ export function FlexWorkspaceBookings() {
 
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-bold text-gray-100">Flexplek Boekingen</h1>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-100">Flexplek Boekingen</h1>
+            <p className="text-sm text-gray-400 mt-1">Beheer externe flexplekboekingen</p>
+          </div>
           <button
             onClick={() => setShowForm(true)}
             className="flex items-center gap-2 px-4 py-2 bg-gold-500 text-white rounded-lg hover:bg-gold-600 transition-colors font-medium"
@@ -362,14 +303,12 @@ export function FlexWorkspaceBookings() {
         </div>
 
         {selectedView === 'list' && (
-          <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-4">
-            <div className="flex items-center gap-2 mb-4">
+          <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-4 mb-4">
+            <div className="flex items-center gap-2">
               <Filter size={18} className="text-gray-400" />
               <div className="flex gap-2 flex-wrap">
                 {[
                   { value: 'all', label: 'Alle' },
-                  { value: 'internal', label: 'Intern' },
-                  { value: 'external', label: 'Extern' },
                   { value: 'upcoming', label: 'Komend' },
                   { value: 'invoiced', label: 'Gefactureerd' }
                 ].map(filter => (
@@ -408,33 +347,14 @@ export function FlexWorkspaceBookings() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="bg-dark-800 rounded-lg p-4 space-y-2">
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setCustomerType('lease')}
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
-                      customerType === 'lease'
-                        ? 'bg-gold-500 text-white'
-                        : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
-                    }`}
-                  >
-                    <Users size={18} />
-                    Interne Huurder
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCustomerType('external')}
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
-                      customerType === 'external'
-                        ? 'bg-gold-500 text-white'
-                        : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
-                    }`}
-                  >
-                    <Building2 size={18} />
-                    Externe Klant
-                  </button>
+              <div className="bg-dark-800 rounded-lg p-4">
+                <div className="flex items-center gap-2 text-sm text-gray-300">
+                  <Building2 size={18} className="text-gold-500" />
+                  <span className="font-medium">Externe klant boeking</span>
                 </div>
+                <p className="text-xs text-gray-400 mt-1 ml-6">
+                  Flexplekken zijn altijd voor externe klanten
+                </p>
               </div>
 
               <div>
@@ -454,47 +374,31 @@ export function FlexWorkspaceBookings() {
                     </option>
                   ))}
                 </select>
+                {flexSpaces.length === 0 && (
+                  <p className="text-xs text-amber-400 mt-1">
+                    Geen flexruimtes beschikbaar. Configureer ruimtes als flexruimte in Producten.
+                  </p>
+                )}
               </div>
 
-              {customerType === 'lease' ? (
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Huurder *
-                  </label>
-                  <select
-                    value={formData.lease_id}
-                    onChange={(e) => setFormData({ ...formData, lease_id: e.target.value })}
-                    className="w-full px-4 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-100 focus:outline-none focus:border-gold-500"
-                    required
-                  >
-                    <option value="">Selecteer huurder</option>
-                    {leases.map(lease => (
-                      <option key={lease.id} value={lease.id}>
-                        {lease.tenants.company_name || lease.tenants.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ) : (
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Externe Klant *
-                  </label>
-                  <select
-                    value={formData.external_customer_id}
-                    onChange={(e) => setFormData({ ...formData, external_customer_id: e.target.value })}
-                    className="w-full px-4 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-100 focus:outline-none focus:border-gold-500"
-                    required
-                  >
-                    <option value="">Selecteer klant</option>
-                    {externalCustomers.map(customer => (
-                      <option key={customer.id} value={customer.id}>
-                        {customer.company_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Externe Klant *
+                </label>
+                <select
+                  value={formData.external_customer_id}
+                  onChange={(e) => setFormData({ ...formData, external_customer_id: e.target.value })}
+                  className="w-full px-4 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-100 focus:outline-none focus:border-gold-500"
+                  required
+                >
+                  <option value="">Selecteer klant</option>
+                  {externalCustomers.map(customer => (
+                    <option key={customer.id} value={customer.id}>
+                      {customer.company_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -587,9 +491,6 @@ export function FlexWorkspaceBookings() {
                     Klant
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Type
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                     Periode
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
@@ -603,7 +504,7 @@ export function FlexWorkspaceBookings() {
               <tbody className="divide-y divide-dark-700">
                 {bookings.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
+                    <td colSpan={6} className="px-6 py-8 text-center text-gray-400">
                       Geen boekingen gevonden
                     </td>
                   </tr>
@@ -620,27 +521,8 @@ export function FlexWorkspaceBookings() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm font-medium text-gray-100">
-                          {getCustomerName(booking)}
+                          {booking.external_customers?.company_name || '-'}
                         </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
-                          booking.lease_id
-                            ? 'bg-blue-900/50 text-blue-300 border border-blue-700'
-                            : 'bg-orange-900/50 text-orange-300 border border-orange-700'
-                        }`}>
-                          {booking.lease_id ? (
-                            <>
-                              <Users size={12} />
-                              Intern
-                            </>
-                          ) : (
-                            <>
-                              <Building2 size={12} />
-                              Extern
-                            </>
-                          )}
-                        </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-300">
