@@ -57,7 +57,7 @@ type Booking = {
   discount_amount?: number;
   rate_type?: 'hourly' | 'half_day' | 'full_day';
   applied_rate?: number;
-  status: 'confirmed' | 'cancelled' | 'completed';
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
   notes: string;
   invoice_id: string | null;
   booking_type: 'tenant' | 'external';
@@ -1386,14 +1386,18 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                     <td className="px-4 py-3 w-[9%]">
                       <span
                         className={`inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full ${
-                          booking.status === 'confirmed'
+                          booking.status === 'pending'
+                            ? 'bg-yellow-900/50 text-yellow-300 border border-yellow-700/50'
+                            : booking.status === 'confirmed'
                             ? 'bg-blue-900/50 text-blue-300 border border-blue-700/50'
                             : booking.status === 'completed'
                             ? 'bg-green-900/50 text-green-300 border border-green-700/50'
                             : 'bg-red-900/50 text-red-300 border border-red-700/50'
                         }`}
                       >
-                        {booking.status === 'confirmed'
+                        {booking.status === 'pending'
+                          ? 'In afwachting'
+                          : booking.status === 'confirmed'
                           ? 'Bevestigd'
                           : booking.status === 'completed'
                           ? 'Voltooid'
@@ -1417,6 +1421,15 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                     </td>
                     <td className="px-4 py-3 w-[24%]">
                       <div className="flex items-center justify-center gap-3">
+                        {!loggedInTenantId && booking.status === 'pending' && (
+                          <button
+                            onClick={() => handleStatusChange(booking.id, 'confirmed')}
+                            className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                            title="Bevestig boeking"
+                          >
+                            <CheckCircle size={20} />
+                          </button>
+                        )}
                         {!loggedInTenantId && booking.status === 'confirmed' && (
                           <button
                             onClick={() => handleStatusChange(booking.id, 'completed')}
@@ -1435,7 +1448,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                             <RotateCcw size={20} />
                           </button>
                         )}
-                        {booking.status === 'confirmed' && (
+                        {(booking.status === 'pending' || booking.status === 'confirmed') && (
                           <button
                             onClick={() => handleStatusChange(booking.id, 'cancelled')}
                             className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"

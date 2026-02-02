@@ -579,6 +579,43 @@
             line-height: 1.2;
         }
 
+        .booking-badge.own-booking {
+            color: #86EFAC;
+            opacity: 1;
+        }
+
+        .booking-badge.pending-badge {
+            color: #FCD34D;
+            opacity: 1;
+        }
+
+        .delete-booking-btn {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background-color: rgba(127, 29, 29, 0.9);
+            border: 1px solid #991B1B;
+            color: white;
+            font-size: 1rem;
+            font-weight: bold;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            transition: all 0.2s;
+            z-index: 20;
+        }
+
+        .delete-booking-btn:hover {
+            background-color: #991B1B;
+            transform: scale(1.1);
+        }
+
         .booking-name {
             font-size: 0.75rem;
             font-weight: 600;
@@ -1136,6 +1173,23 @@
             background-color: rgba(220, 38, 38, 0.2);
             color: #FCA5A5;
             border: 1px solid rgba(220, 38, 38, 0.3);
+        }
+
+        .status-badge.pending {
+            background-color: rgba(234, 179, 8, 0.2);
+            color: #FCD34D;
+            border: 1px solid rgba(234, 179, 8, 0.3);
+            cursor: pointer;
+        }
+
+        .status-badge.pending:hover {
+            background-color: rgba(234, 179, 8, 0.3);
+        }
+
+        .status-badge.confirmed {
+            background-color: rgba(34, 197, 94, 0.2);
+            color: #86EFAC;
+            border: 1px solid rgba(34, 197, 94, 0.3);
         }
 
         .no-bookings {
@@ -1735,10 +1789,24 @@
                             ? (booking.tenants?.company_name || booking.tenants?.name || '')
                             : booking.external_customers?.company_name || '';
 
+                        // Check if this is the user's own booking
+                        const isOwnBooking = authenticatedUser && (
+                            (authenticatedUser.userType === 'tenant' && booking.tenant_id === authenticatedUser.id) ||
+                            (authenticatedUser.userType === 'external' && booking.external_customer_id === authenticatedUser.id)
+                        );
+                        const isPending = booking.status === 'pending';
+                        const canDelete = isOwnBooking && isPending;
+
+                        let badges = '';
+                        if (booking.external_customer_id) badges += '<div class="booking-badge">EXTERN</div>';
+                        if (isOwnBooking) badges += '<div class="booking-badge own-booking">MIJN BOEKING</div>';
+                        if (isPending) badges += '<div class="booking-badge pending-badge">IN AFWACHTING</div>';
+
                         block.innerHTML = `
-                            ${booking.external_customer_id ? '<div class="booking-badge">EXTERN</div>' : ''}
+                            ${badges}
                             <div class="booking-name">${displayName}</div>
                             <div class="booking-time">${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)}</div>
+                            ${canDelete ? '<button class="delete-booking-btn" onclick="deleteBooking(event, \'' + booking.id + '\')">×</button>' : ''}
                         `;
 
                         dayColumn.appendChild(block);
@@ -2108,6 +2176,29 @@
             updateRecurringUI();
         }
 
+        async function deleteBooking(event, bookingId) {
+            event.stopPropagation();
+
+            if (!confirm('Weet je zeker dat je deze boeking wilt annuleren?')) {
+                return;
+            }
+
+            try {
+                const { error } = await sb
+                    .from('meeting_room_bookings')
+                    .delete()
+                    .eq('id', bookingId);
+
+                if (error) throw error;
+
+                showToast('Boeking succesvol geannuleerd', 'success');
+                await loadData();
+            } catch (error) {
+                console.error('Error deleting booking:', error);
+                showToast('Fout bij annuleren van boeking: ' + error.message, 'error');
+            }
+        }
+
         function logout() {
             authenticatedUser = null;
             localStorage.removeItem('booking_authenticated_user');
@@ -2426,13 +2517,21 @@
             });
             const weekNum = getWeekNumber(date);
 
-            const canCancel = status === 'upcoming';
+            // Only allow cancellation for upcoming bookings with 'pending' status
+            const canCancel = status === 'upcoming' && booking.status === 'pending';
             const onClickAttr = canCancel ? `onclick="handleBookingClick('${booking.id}')"` : '';
             const rowClass = canCancel ? 'can-cancel' : '';
 
-            const statusBadge = canCancel
-                ? '<span class="status-badge can-cancel">Klik om te annuleren</span>'
-                : '<span class="status-badge past">Voltooid</span>';
+            let statusBadge;
+            if (booking.status === 'pending') {
+                statusBadge = '<span class="status-badge pending">In afwachting - Klik om te annuleren</span>';
+            } else if (booking.status === 'confirmed') {
+                statusBadge = '<span class="status-badge confirmed">Bevestigd</span>';
+            } else if (booking.status === 'completed') {
+                statusBadge = '<span class="status-badge past">Voltooid</span>';
+            } else {
+                statusBadge = '<span class="status-badge past">Voltooid</span>';
+            }
 
             const discountBadge = booking.discount_percentage > 0
                 ? `<span style="font-size: 0.75rem; color: #22C55E; margin-left: 0.25rem;">(-${booking.discount_percentage}%)</span>`
