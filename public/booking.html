@@ -206,7 +206,7 @@
         /* Main calendar layout */
         .calendar-layout {
             display: flex;
-            gap: 0;
+            gap: 1.5rem;
             flex: 1;
             overflow: hidden;
         }
@@ -431,21 +431,29 @@
             flex: 1;
             overflow: auto;
             background-color: #0F0F10;
+            position: relative;
         }
 
         .week-grid {
             min-width: 900px;
-            display: grid;
-            grid-template-columns: 80px repeat(7, 1fr);
+            position: relative;
         }
 
         .week-grid-header {
             position: sticky;
             top: 0;
-            z-index: 20;
+            z-index: 30;
             background-color: #2A2A2D;
             border-bottom: 1px solid #3A3A3E;
-            display: contents;
+            display: grid;
+            grid-template-columns: 80px repeat(7, 1fr);
+            min-width: 900px;
+        }
+
+        .week-grid-body {
+            display: grid;
+            grid-template-columns: 80px repeat(7, 1fr);
+            min-width: 900px;
         }
 
         .header-corner {
@@ -1714,10 +1722,14 @@
             const gridEl = document.getElementById('weekGrid');
             gridEl.innerHTML = '';
 
-            // Header row
+            // Create header section
+            const headerSection = document.createElement('div');
+            headerSection.className = 'week-grid-header';
+
+            // Header corner
             const headerCorner = document.createElement('div');
             headerCorner.className = 'header-corner';
-            gridEl.appendChild(headerCorner);
+            headerSection.appendChild(headerCorner);
 
             const weekDays = [];
             for (let i = 0; i < 7; i++) {
@@ -1731,8 +1743,14 @@
                     <div class="day-label">${date.toLocaleDateString('nl-NL', { weekday: 'short' }).toUpperCase()}</div>
                     <div class="day-number ${isToday(date) ? 'today-number' : ''}">${date.getDate()}</div>
                 `;
-                gridEl.appendChild(header);
+                headerSection.appendChild(header);
             }
+
+            gridEl.appendChild(headerSection);
+
+            // Create body section
+            const bodySection = document.createElement('div');
+            bodySection.className = 'week-grid-body';
 
             // Time column
             const timeColumn = document.createElement('div');
@@ -1743,7 +1761,7 @@
                 slot.textContent = time.endsWith(':00') ? time : '';
                 timeColumn.appendChild(slot);
             });
-            gridEl.appendChild(timeColumn);
+            bodySection.appendChild(timeColumn);
 
             // Day columns
             weekDays.forEach(date => {
@@ -1813,8 +1831,10 @@
                     }
                 });
 
-                gridEl.appendChild(dayColumn);
+                bodySection.appendChild(dayColumn);
             });
+
+            gridEl.appendChild(bodySection);
 
             // Scroll to 8:00 AM
             setTimeout(() => {
