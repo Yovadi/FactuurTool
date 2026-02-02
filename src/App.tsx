@@ -1,6 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { UpdateDialog } from './components/UpdateDialog';
-import { LayoutDashboard, Users, Building, Settings, CalendarClock, LogOut, TrendingUp, FileText, Building2, Calculator, Euro, UserCheck, UserMinus, BarChart3, Loader2, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Users, Building, Settings, CalendarClock, Calendar, LogOut, TrendingUp, FileText, Building2, Calculator, Euro, UserCheck, UserMinus, BarChart3, Loader2, Menu, X } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
 const Dashboard = lazy(() => import('./components/Dashboard').then(m => ({ default: m.Dashboard })));
@@ -11,11 +11,12 @@ const SpaceTypeRates = lazy(() => import('./components/SpaceTypeRates').then(m =
 const FlexOccupancy = lazy(() => import('./components/FlexOccupancy').then(m => ({ default: m.FlexOccupancy })));
 const VerhuurderTabs = lazy(() => import('./components/VerhuurderTabs').then(m => ({ default: m.VerhuurderTabs })));
 const MeetingRoomBookings = lazy(() => import('./components/MeetingRoomBookings').then(m => ({ default: m.MeetingRoomBookings })));
+const FlexWorkspaceBookings = lazy(() => import('./components/FlexWorkspaceBookings').then(m => ({ default: m.FlexWorkspaceBookings })));
 const Analytics = lazy(() => import('./components/Analytics').then(m => ({ default: m.Analytics })));
 const DebiteurenTabs = lazy(() => import('./components/DebiteurenTabs').then(m => ({ default: m.DebiteurenTabs })));
 const CrediteurenTabs = lazy(() => import('./components/CrediteurenTabs').then(m => ({ default: m.CrediteurenTabs })));
 
-type Tab = 'dashboard' | 'tenants' | 'spaces-spaces' | 'spaces-rates' | 'contracts' | 'occupancy' | 'bookings' | 'financial-debtors' | 'financial-creditors' | 'analytics' | 'settings';
+type Tab = 'dashboard' | 'tenants' | 'spaces-spaces' | 'spaces-rates' | 'contracts' | 'occupancy' | 'bookings' | 'flex-bookings' | 'financial-debtors' | 'financial-creditors' | 'analytics' | 'settings';
 
 type MenuSection = {
   id: string;
@@ -188,6 +189,7 @@ function App() {
     { id: 'contracts', label: 'Contracten', icon: FileText },
     { id: 'occupancy', label: 'Bezetting', icon: BarChart3 },
     { id: 'bookings', label: 'Vergaderruimte', icon: CalendarClock },
+    { id: 'flex-bookings', label: 'Flexplekken', icon: Calendar },
     {
       id: 'financial',
       label: 'Facturatie',
@@ -396,6 +398,7 @@ function App() {
               {activeTab === 'contracts' && <LeaseManagement />}
               {activeTab === 'occupancy' && <FlexOccupancy />}
               {activeTab === 'bookings' && <MeetingRoomBookings />}
+              {activeTab === 'flex-bookings' && <FlexWorkspaceBookings />}
               {activeTab === 'financial-debtors' && (
                 <DebiteurenTabs
                   onCreateCreditNote={(invoice, tenant, spaces) => {
