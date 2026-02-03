@@ -1185,7 +1185,7 @@ export function FlexWorkspaceBookings() {
                   <p className="text-lg font-medium">Weekend - Geen flexplekken beschikbaar</p>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-4 max-h-[calc(100vh-320px)] overflow-y-auto pr-2">
                   {Array.from({ length: selectedSpace.flex_capacity }, (_, i) => i + 1).map((slotNumber) => {
                     const timeSegments = getTimeSegments(slotNumber, selectedDateStr);
                     const hasBookings = timeSegments.some(seg => seg.booking !== null);
