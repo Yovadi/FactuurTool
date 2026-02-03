@@ -113,8 +113,13 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
   });
 
   useEffect(() => {
+    console.log('MeetingRoomBookings component mounted, loading data...');
     loadData();
   }, []);
+
+  useEffect(() => {
+    console.log('Meeting room rates state updated:', meetingRoomRates);
+  }, [meetingRoomRates]);
 
   const loadData = async () => {
     setLoading(true);
@@ -1083,6 +1088,15 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                   {(() => {
                     const totalHours = calculateTotalHours(formData.start_time, formData.end_time);
                     const hasRates = meetingRoomRates.hourly_rate > 0;
+                    console.log('Form preview calculation:', {
+                      totalHours,
+                      hasRates,
+                      meetingRoomRates: {
+                        hourly: meetingRoomRates.hourly_rate,
+                        halfDay: meetingRoomRates.half_day_rate,
+                        fullDay: meetingRoomRates.full_day_rate
+                      }
+                    });
                     const rateInfo = hasRates ? calculateOptimalRate(
                       totalHours,
                       meetingRoomRates.hourly_rate,
