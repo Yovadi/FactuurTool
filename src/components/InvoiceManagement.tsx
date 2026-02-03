@@ -124,6 +124,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   const [selectedLeases, setSelectedLeases] = useState<Set<string>>(new Set());
   const [selectedCustomers, setSelectedCustomers] = useState<Set<string>>(new Set());
   const [meetingRoomBookings, setMeetingRoomBookings] = useState<any[]>([]);
+  const [flexDayBookings, setFlexDayBookings] = useState<any[]>([]);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [showDetailSelection, setShowDetailSelection] = useState(true);
 
@@ -462,6 +463,25 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       .order('booking_date', { ascending: false });
 
     setMeetingRoomBookings(bookingsData || []);
+
+    const { data: flexBookingsData } = await supabase
+      .from('flex_day_bookings')
+      .select(`
+        id,
+        booking_date,
+        start_time,
+        end_time,
+        total_hours,
+        total_amount,
+        invoice_id,
+        tenant_id,
+        external_customer_id,
+        space:office_spaces(space_number)
+      `)
+      .eq('status', 'completed')
+      .order('booking_date', { ascending: false });
+
+    setFlexDayBookings(flexBookingsData || []);
     setLoading(false);
   };
 
@@ -553,7 +573,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       ...ec,
       isExternal: true
     }))].filter(customer => {
-      const bookings = meetingRoomBookings.filter(booking => {
+      const meetingBookings = meetingRoomBookings.filter(booking => {
         const bookingDate = new Date(booking.booking_date);
         const bookingYearMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
         const isForSelectedMonth = bookingYearMonth === invoiceMonth;
@@ -564,7 +584,18 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         return isForSelectedMonth && isUnbilled && isForCustomer;
       });
 
-      if (bookings.length === 0) return false;
+      const flexBookings = flexDayBookings.filter(booking => {
+        const bookingDate = new Date(booking.booking_date);
+        const bookingYearMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
+        const isForSelectedMonth = bookingYearMonth === invoiceMonth;
+        const isUnbilled = !booking.invoice_id;
+        const isForCustomer = (customer as any).isExternal
+          ? booking.external_customer_id === customer.id
+          : booking.tenant_id === customer.id;
+        return isForSelectedMonth && isUnbilled && isForCustomer;
+      });
+
+      if (meetingBookings.length === 0 && flexBookings.length === 0) return false;
 
       const existingInvoice = invoices.find(inv => {
         const matchesCustomer = (customer as any).isExternal
@@ -579,7 +610,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     setSelectedLeases(new Set(leasesToGenerate.map(l => l.id)));
     setSelectedCustomers(new Set(customersWithBookingsIds));
     setShowDetailSelection(false);
-  }, [invoiceMonth, showGenerateModal, showDetailSelection, leases, invoices, tenants, externalCustomers, meetingRoomBookings]);
+  }, [invoiceMonth, showGenerateModal, showDetailSelection, leases, invoices, tenants, externalCustomers, meetingRoomBookings, flexDayBookings]);
 
   const startEditInvoice = async (invoice: InvoiceWithDetails) => {
     const { data: items } = await supabase
@@ -3189,7 +3220,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
           ...ec,
           isExternal: true
         }))].filter(customer => {
-          const bookings = meetingRoomBookings.filter(booking => {
+          const meetingBookings = meetingRoomBookings.filter(booking => {
             const bookingDate = new Date(booking.booking_date);
             const bookingYearMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
             const isForSelectedMonth = bookingYearMonth === targetMonth;
@@ -3200,7 +3231,18 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             return isForSelectedMonth && isUnbilled && isForCustomer;
           });
 
-          if (bookings.length === 0) return false;
+          const flexBookings = flexDayBookings.filter(booking => {
+            const bookingDate = new Date(booking.booking_date);
+            const bookingYearMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
+            const isForSelectedMonth = bookingYearMonth === targetMonth;
+            const isUnbilled = !booking.invoice_id;
+            const isForCustomer = (customer as any).isExternal
+              ? booking.external_customer_id === customer.id
+              : booking.tenant_id === customer.id;
+            return isForSelectedMonth && isUnbilled && isForCustomer;
+          });
+
+          if (meetingBookings.length === 0 && flexBookings.length === 0) return false;
 
           const existingInvoice = invoices.find(inv => {
             const matchesCustomer = (customer as any).isExternal
@@ -3482,7 +3524,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                             </div>
                             <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
                               {customersWithBookings.map(customer => {
-                                const customerBookings = meetingRoomBookings.filter(booking => {
+                                const customerMeetingBookings = meetingRoomBookings.filter(booking => {
                                   const bookingDate = new Date(booking.booking_date);
                                   const bookingYearMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
                                   const isForSelectedMonth = bookingYearMonth === targetMonth;
@@ -3492,6 +3534,19 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                                     : booking.tenant_id === customer.id;
                                   return isForSelectedMonth && isUnbilled && isForCustomer;
                                 });
+
+                                const customerFlexBookings = flexDayBookings.filter(booking => {
+                                  const bookingDate = new Date(booking.booking_date);
+                                  const bookingYearMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
+                                  const isForSelectedMonth = bookingYearMonth === targetMonth;
+                                  const isUnbilled = !booking.invoice_id;
+                                  const isForCustomer = (customer as any).isExternal
+                                    ? booking.external_customer_id === customer.id
+                                    : booking.tenant_id === customer.id;
+                                  return isForSelectedMonth && isUnbilled && isForCustomer;
+                                });
+
+                                const customerBookings = [...customerMeetingBookings, ...customerFlexBookings];
 
                                 const total = customerBookings.reduce((sum, booking) => {
                                   return sum + booking.total_amount;
