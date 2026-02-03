@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { TenantManagement } from './TenantManagement';
 import { LeaseManagement } from './LeaseManagement';
-import { FlexOccupancy } from './FlexOccupancy';
-import { Users, FileText, TrendingUp } from 'lucide-react';
+import { Users, FileText } from 'lucide-react';
 
-type RentalTab = 'fulltime' | 'contracts' | 'flex';
+type RentalTab = 'fulltime' | 'contracts';
 
 export function RentalManagement() {
   const [activeTab, setActiveTab] = useState<RentalTab>('fulltime');
@@ -12,7 +11,6 @@ export function RentalManagement() {
   const tabs = [
     { id: 'fulltime' as RentalTab, label: 'Huurders', icon: Users },
     { id: 'contracts' as RentalTab, label: 'Huur Contracten', icon: FileText },
-    { id: 'flex' as RentalTab, label: 'Flex Bezetting', icon: TrendingUp },
   ];
 
   return (
@@ -43,7 +41,6 @@ export function RentalManagement() {
       <div>
         {activeTab === 'fulltime' && <TenantManagement />}
         {activeTab === 'contracts' && <LeaseManagement />}
-        {activeTab === 'flex' && <FlexOccupancy />}
       </div>
     </div>
   );

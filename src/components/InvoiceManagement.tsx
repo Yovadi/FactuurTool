@@ -170,23 +170,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     console.log('Fetching bookings for customer:', customerId, 'type:', customerType);
     console.log('Date range:', startDateStr, 'to', endDateStr);
 
-    // First check what bookings exist for this customer without status/invoice filters
-    let debugQuery = supabase
-      .from('meeting_room_bookings')
-      .select('id, booking_date, status, invoice_id, tenant_id, external_customer_id')
-      .gte('booking_date', startDateStr)
-      .lte('booking_date', endDateStr);
-
-    if (customerType === 'tenant') {
-      debugQuery = debugQuery.eq('tenant_id', customerId);
-    } else {
-      debugQuery = debugQuery.eq('external_customer_id', customerId);
-    }
-
-    const { data: allBookings } = await debugQuery;
-    console.log('All bookings for customer (no filters):', allBookings);
-
-    let query = supabase
+    // Fetch meeting room bookings
+    let meetingQuery = supabase
       .from('meeting_room_bookings')
       .select(`
         id,
@@ -210,23 +195,110 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       .is('invoice_id', null);
 
     if (customerType === 'tenant') {
-      query = query.eq('tenant_id', customerId);
+      meetingQuery = meetingQuery.eq('tenant_id', customerId);
     } else {
-      query = query.eq('external_customer_id', customerId);
+      meetingQuery = meetingQuery.eq('external_customer_id', customerId);
+    }
+
+    const { data: meetingBookings, error: meetingError } = await meetingQuery;
+
+    if (meetingError) {
+      console.error('Error fetching meeting room bookings:', meetingError);
+    }
+
+    // Fetch flex day bookings
+    let flexQuery = supabase
+      .from('flex_day_bookings')
+      .select(`
+        id,
+        booking_date,
+        start_time,
+        end_time,
+        total_hours,
+        total_amount,
+        hourly_rate,
+        is_half_day,
+        half_day_period,
+        invoice_id,
+        office_spaces(space_number)
+      `)
+      .gte('booking_date', startDateStr)
+      .lte('booking_date', endDateStr)
+      .is('invoice_id', null);
+
+    if (customerType === 'tenant') {
+      flexQuery = flexQuery.not('tenant_id', 'is', null).eq('tenant_id', customerId);
+    } else {
+      flexQuery = flexQuery.not('external_customer_id', 'is', null).eq('external_customer_id', customerId);
+    }
+
+    const { data: flexBookings, error: flexError } = await flexQuery;
+
+    if (flexError) {
+      console.error('Error fetching flex day bookings:', flexError);
+    }
+
+    // Combine all bookings
+    const allBookings = [
+      ...(meetingBookings || []).map(booking => ({
+        ...booking,
+        space: booking.office_spaces,
+        booking_type: 'meeting_room'
+      })),
+      ...(flexBookings || []).map(booking => ({
+        ...booking,
+        space: booking.office_spaces,
+        status: 'completed',
+        booking_type: 'flex'
+      }))
+    ];
+
+    console.log('Total bookings found:', allBookings.length, '(meeting:', meetingBookings?.length || 0, 'flex:', flexBookings?.length || 0, ')');
+
+    return allBookings;
+  };
+
+  const fetchFlexDayBookings = async (customerId: string, customerType: 'tenant' | 'external', year: number, month: number) => {
+    const startDateStr = `${year}-${String(month).padStart(2, '0')}-01`;
+    const lastDay = new Date(year, month, 0).getDate();
+    const endDateStr = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
+    let query = supabase
+      .from('flex_day_bookings')
+      .select(`
+        id,
+        booking_date,
+        start_time,
+        end_time,
+        total_hours,
+        total_amount,
+        hourly_rate,
+        is_half_day,
+        half_day_period,
+        invoice_id,
+        office_spaces(space_number)
+      `)
+      .gte('booking_date', startDateStr)
+      .lte('booking_date', endDateStr)
+      .is('invoice_id', null);
+
+    if (customerType === 'tenant') {
+      query = query.not('tenant_id', 'is', null).eq('tenant_id', customerId);
+    } else {
+      query = query.not('external_customer_id', 'is', null).eq('external_customer_id', customerId);
     }
 
     const { data: bookings, error } = await query;
 
     if (error) {
-      console.error('Error fetching meeting room bookings:', error);
+      console.error('Error fetching flex day bookings:', error);
       return [];
     }
 
-    console.log('Filtered bookings (completed + no invoice):', bookings?.length || 0, bookings);
-
     return (bookings || []).map(booking => ({
       ...booking,
-      space: booking.office_spaces
+      space: booking.office_spaces,
+      status: 'completed'
     }));
   };
 
@@ -251,6 +323,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     quantity?: string;
     space_type?: string;
     bookingId?: string;
+    bookingType?: 'meeting_room' | 'flex';
   }>>([]);
 
   useEffect(() => {
@@ -707,13 +780,24 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         .map(item => item.bookingId);
 
       if (allBookingIds.length > 0) {
-        const { error: bookingUpdateError } = await supabase
+        // Update meeting room bookings
+        const { error: meetingBookingError } = await supabase
           .from('meeting_room_bookings')
           .update({ invoice_id: newInvoice.id })
           .in('id', allBookingIds);
 
-        if (bookingUpdateError) {
-          console.error('Error linking bookings to invoice:', bookingUpdateError);
+        if (meetingBookingError) {
+          console.error('Error linking meeting room bookings to invoice:', meetingBookingError);
+        }
+
+        // Update flex day bookings
+        const { error: flexBookingError } = await supabase
+          .from('flex_day_bookings')
+          .update({ invoice_id: newInvoice.id })
+          .in('id', allBookingIds);
+
+        if (flexBookingError) {
+          console.error('Error linking flex day bookings to invoice:', flexBookingError);
         }
       }
 
@@ -1391,6 +1475,11 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             .from('meeting_room_bookings')
             .update({ invoice_id: newInvoice.id })
             .in('id', allBookingIds);
+
+          await supabase
+            .from('flex_day_bookings')
+            .update({ invoice_id: newInvoice.id })
+            .in('id', allBookingIds);
         }
 
         successCount++;
@@ -1942,6 +2031,11 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
           if (allBookingIds.length > 0) {
             await supabase
               .from('meeting_room_bookings')
+              .update({ invoice_id: newInvoice.id })
+              .in('id', allBookingIds);
+
+            await supabase
+              .from('flex_day_bookings')
               .update({ invoice_id: newInvoice.id })
               .in('id', allBookingIds);
           }

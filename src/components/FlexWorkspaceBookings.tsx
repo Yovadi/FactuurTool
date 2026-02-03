@@ -35,6 +35,11 @@ type FlexBooking = {
   booking_date: string;
   is_half_day: boolean;
   half_day_period?: 'morning' | 'afternoon';
+  start_time?: string;
+  end_time?: string;
+  hourly_rate: number;
+  total_hours: number;
+  total_amount: number;
   invoice_id: string | null;
   created_at: string;
   office_spaces?: { space_number: string };
@@ -83,16 +88,20 @@ export function FlexWorkspaceBookings() {
   const [quickFormData, setQuickFormData] = useState({
     space_id: '',
     external_customer_id: '',
-    is_half_day: false,
-    half_day_period: 'morning' as 'morning' | 'afternoon'
+    booking_type: 'full_day' as 'full_day' | 'half_day' | 'hourly',
+    half_day_period: 'morning' as 'morning' | 'afternoon',
+    start_time: '09:00',
+    end_time: '17:00'
   });
 
   const [formData, setFormData] = useState({
     space_id: '',
     external_customer_id: '',
     booking_date: new Date().toISOString().split('T')[0],
-    is_half_day: false,
-    half_day_period: 'morning' as 'morning' | 'afternoon'
+    booking_type: 'full_day' as 'full_day' | 'half_day' | 'hourly',
+    half_day_period: 'morning' as 'morning' | 'afternoon',
+    start_time: '09:00',
+    end_time: '17:00'
   });
 
   useEffect(() => {
@@ -259,13 +268,40 @@ export function FlexWorkspaceBookings() {
     }
 
     try {
-      const bookingData = {
+      const { data: spaceData } = await supabase
+        .from('office_spaces')
+        .select('hourly_rate')
+        .eq('id', formData.space_id)
+        .single();
+
+      const hourlyRate = spaceData?.hourly_rate || 0;
+
+      let bookingData: any = {
         space_id: formData.space_id,
         external_customer_id: formData.external_customer_id,
         booking_date: formData.booking_date,
-        is_half_day: formData.is_half_day,
-        half_day_period: formData.is_half_day ? formData.half_day_period : null
+        is_half_day: formData.booking_type === 'half_day',
+        half_day_period: formData.booking_type === 'half_day' ? formData.half_day_period : null,
+        hourly_rate: hourlyRate,
+        total_hours: 0,
+        total_amount: 0
       };
+
+      if (formData.booking_type === 'hourly') {
+        const [startHour, startMin] = formData.start_time.split(':').map(Number);
+        const [endHour, endMin] = formData.end_time.split(':').map(Number);
+        const totalHours = (endHour + endMin / 60) - (startHour + startMin / 60);
+
+        if (totalHours <= 0) {
+          showNotification('Eindtijd moet na starttijd zijn', 'error');
+          return;
+        }
+
+        bookingData.start_time = formData.start_time;
+        bookingData.end_time = formData.end_time;
+        bookingData.total_hours = totalHours;
+        bookingData.total_amount = totalHours * hourlyRate;
+      }
 
       const { data, error } = await supabase
         .from('flex_day_bookings')
@@ -334,8 +370,10 @@ export function FlexWorkspaceBookings() {
       space_id: '',
       external_customer_id: '',
       booking_date: new Date().toISOString().split('T')[0],
-      is_half_day: false,
-      half_day_period: 'morning'
+      booking_type: 'full_day',
+      half_day_period: 'morning',
+      start_time: '09:00',
+      end_time: '17:00'
     });
   };
 
@@ -344,8 +382,10 @@ export function FlexWorkspaceBookings() {
     setQuickFormData({
       space_id: '',
       external_customer_id: '',
-      is_half_day: false,
-      half_day_period: 'morning'
+      booking_type: 'full_day',
+      half_day_period: 'morning',
+      start_time: '09:00',
+      end_time: '17:00'
     });
     setShowQuickBooking(true);
   };
@@ -364,13 +404,46 @@ export function FlexWorkspaceBookings() {
     }
 
     try {
-      const bookingData = {
+      const selectedSpace = flexSpaces.find(s => s.id === quickFormData.space_id);
+      if (!selectedSpace) {
+        showNotification('Geselecteerde ruimte niet gevonden', 'error');
+        return;
+      }
+
+      const { data: spaceData } = await supabase
+        .from('office_spaces')
+        .select('hourly_rate')
+        .eq('id', quickFormData.space_id)
+        .single();
+
+      const hourlyRate = spaceData?.hourly_rate || 0;
+
+      let bookingData: any = {
         space_id: quickFormData.space_id,
         external_customer_id: quickFormData.external_customer_id,
         booking_date: quickBookingDate,
-        is_half_day: quickFormData.is_half_day,
-        half_day_period: quickFormData.is_half_day ? quickFormData.half_day_period : null
+        is_half_day: quickFormData.booking_type === 'half_day',
+        half_day_period: quickFormData.booking_type === 'half_day' ? quickFormData.half_day_period : null,
+        hourly_rate: hourlyRate,
+        total_hours: 0,
+        total_amount: 0
       };
+
+      if (quickFormData.booking_type === 'hourly') {
+        const [startHour, startMin] = quickFormData.start_time.split(':').map(Number);
+        const [endHour, endMin] = quickFormData.end_time.split(':').map(Number);
+        const totalHours = (endHour + endMin / 60) - (startHour + startMin / 60);
+
+        if (totalHours <= 0) {
+          showNotification('Eindtijd moet na starttijd zijn', 'error');
+          return;
+        }
+
+        bookingData.start_time = quickFormData.start_time;
+        bookingData.end_time = quickFormData.end_time;
+        bookingData.total_hours = totalHours;
+        bookingData.total_amount = totalHours * hourlyRate;
+      }
 
       const { data, error } = await supabase
         .from('flex_day_bookings')
@@ -600,18 +673,47 @@ export function FlexWorkspaceBookings() {
               </div>
 
               <div className="space-y-4">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={formData.is_half_day}
-                    onChange={(e) => setFormData({ ...formData, is_half_day: e.target.checked })}
-                    className="w-4 h-4 rounded border-dark-600 bg-dark-800 text-gold-500 focus:ring-gold-500 focus:ring-offset-dark-900"
-                  />
-                  <span className="text-sm font-medium text-gray-300">Halve dag</span>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Boekingstype *
                 </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, booking_type: 'full_day' })}
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      formData.booking_type === 'full_day'
+                        ? 'bg-gold-500 text-white'
+                        : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
+                    }`}
+                  >
+                    Hele dag
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, booking_type: 'half_day' })}
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      formData.booking_type === 'half_day'
+                        ? 'bg-gold-500 text-white'
+                        : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
+                    }`}
+                  >
+                    Halve dag
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, booking_type: 'hourly' })}
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      formData.booking_type === 'hourly'
+                        ? 'bg-gold-500 text-white'
+                        : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
+                    }`}
+                  >
+                    Per uur
+                  </button>
+                </div>
 
-                {formData.is_half_day && (
-                  <div className="flex gap-2 ml-6">
+                {formData.booking_type === 'half_day' && (
+                  <div className="flex gap-2">
                     <button
                       type="button"
                       onClick={() => setFormData({ ...formData, half_day_period: 'morning' })}
@@ -634,6 +736,35 @@ export function FlexWorkspaceBookings() {
                     >
                       Middag
                     </button>
+                  </div>
+                )}
+
+                {formData.booking_type === 'hourly' && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Starttijd *
+                      </label>
+                      <input
+                        type="time"
+                        value={formData.start_time}
+                        onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
+                        className="w-full px-4 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-100 focus:outline-none focus:border-gold-500"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Eindtijd *
+                      </label>
+                      <input
+                        type="time"
+                        value={formData.end_time}
+                        onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
+                        className="w-full px-4 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-100 focus:outline-none focus:border-gold-500"
+                        required
+                      />
+                    </div>
                   </div>
                 )}
               </div>
@@ -679,6 +810,9 @@ export function FlexWorkspaceBookings() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                     Periode
                   </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                    Bedrag
+                  </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                     Status
                   </th>
@@ -690,7 +824,7 @@ export function FlexWorkspaceBookings() {
               <tbody className="divide-y divide-dark-700">
                 {bookings.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center text-gray-400">
+                    <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
                       Geen boekingen gevonden
                     </td>
                   </tr>
@@ -712,11 +846,22 @@ export function FlexWorkspaceBookings() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-300">
-                          {booking.is_half_day
+                          {booking.start_time && booking.end_time
+                            ? `${booking.start_time} - ${booking.end_time} (${booking.total_hours.toFixed(1)}u)`
+                            : booking.is_half_day
                             ? `Halve dag (${booking.half_day_period === 'morning' ? 'Ochtend' : 'Middag'})`
                             : 'Hele dag'
                           }
                         </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                        {booking.start_time && booking.end_time ? (
+                          <div className="text-sm font-medium text-gray-100">
+                            €{booking.total_amount.toFixed(2)}
+                          </div>
+                        ) : (
+                          <div className="text-sm text-gray-400">-</div>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {booking.invoice_id ? (
@@ -928,18 +1073,47 @@ export function FlexWorkspaceBookings() {
               </div>
 
               <div className="space-y-4">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={quickFormData.is_half_day}
-                    onChange={(e) => setQuickFormData({ ...quickFormData, is_half_day: e.target.checked })}
-                    className="w-4 h-4 rounded border-dark-600 bg-dark-800 text-gold-500 focus:ring-gold-500 focus:ring-offset-dark-900"
-                  />
-                  <span className="text-sm font-medium text-gray-300">Halve dag</span>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Boekingstype *
                 </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setQuickFormData({ ...quickFormData, booking_type: 'full_day' })}
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      quickFormData.booking_type === 'full_day'
+                        ? 'bg-gold-500 text-white'
+                        : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
+                    }`}
+                  >
+                    Hele dag
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setQuickFormData({ ...quickFormData, booking_type: 'half_day' })}
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      quickFormData.booking_type === 'half_day'
+                        ? 'bg-gold-500 text-white'
+                        : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
+                    }`}
+                  >
+                    Halve dag
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setQuickFormData({ ...quickFormData, booking_type: 'hourly' })}
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      quickFormData.booking_type === 'hourly'
+                        ? 'bg-gold-500 text-white'
+                        : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
+                    }`}
+                  >
+                    Per uur
+                  </button>
+                </div>
 
-                {quickFormData.is_half_day && (
-                  <div className="flex gap-2 ml-6">
+                {quickFormData.booking_type === 'half_day' && (
+                  <div className="flex gap-2">
                     <button
                       type="button"
                       onClick={() => setQuickFormData({ ...quickFormData, half_day_period: 'morning' })}
@@ -962,6 +1136,35 @@ export function FlexWorkspaceBookings() {
                     >
                       Middag
                     </button>
+                  </div>
+                )}
+
+                {quickFormData.booking_type === 'hourly' && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Starttijd *
+                      </label>
+                      <input
+                        type="time"
+                        value={quickFormData.start_time}
+                        onChange={(e) => setQuickFormData({ ...quickFormData, start_time: e.target.value })}
+                        className="w-full px-4 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-100 focus:outline-none focus:border-gold-500"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Eindtijd *
+                      </label>
+                      <input
+                        type="time"
+                        value={quickFormData.end_time}
+                        onChange={(e) => setQuickFormData({ ...quickFormData, end_time: e.target.value })}
+                        className="w-full px-4 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-100 focus:outline-none focus:border-gold-500"
+                        required
+                      />
+                    </div>
                   </div>
                 )}
               </div>
