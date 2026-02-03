@@ -2754,6 +2754,10 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               if (inv.lease_id !== null && inv.lease?.lease_type === 'flex') return 'flex';
               if (inv.lease_id !== null) return 'huur';
               if (inv.notes?.includes('Vergaderruimte gebruik') || inv.notes?.includes('Vergaderruimte boekingen')) return 'vergaderruimte';
+              if (inv.notes?.includes('Flex werkplek gebruik') || inv.notes?.includes('Flex werkplek boekingen')) return 'flex';
+              if (inv.line_items && inv.line_items.some((item: any) => item.booking_id !== null)) {
+                return 'vergaderruimte';
+              }
               return 'handmatig';
             };
 
