@@ -2856,9 +2856,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                     <th className="text-left px-4 py-3 font-semibold w-[8%]">Factuur Nr.</th>
                     <th className="text-left px-4 py-3 font-semibold w-[20%]">Omschrijving</th>
                     <th className="text-left px-4 py-3 font-semibold w-[8%]">Maand</th>
-                    <th className="text-left px-4 py-3 font-semibold w-[10%]">Factuur Datum</th>
-                    <th className="text-left px-4 py-3 font-semibold w-[10%]">Vervaldatum</th>
-                    <th className="text-right px-4 py-3 font-semibold w-[8%]">Bedrag</th>
+                    <th className="text-left px-4 py-3 font-semibold w-[12%]">Factuur Datum</th>
+                    <th className="text-right px-4 py-3 font-semibold w-[10%]">Bedrag</th>
                     <th className="text-center px-4 py-3 font-semibold w-[8%]">Status</th>
                     <th className="text-right px-4 py-3 font-semibold w-[13%]">Acties</th>
                   </tr>
@@ -2866,7 +2865,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                 <tbody>
                   {invoices.length === 0 ? (
                     <tr>
-                      <td colSpan={10} className="px-4 py-8 text-center text-gray-400">
+                      <td colSpan={9} className="px-4 py-8 text-center text-gray-400">
                         Geen facturen in deze categorie
                       </td>
                     </tr>
@@ -2982,12 +2981,6 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                             </td>
                             <td className="px-4 py-3 text-gray-300 text-sm">
                               {new Date(invoice.invoice_date).toLocaleDateString('nl-NL')}
-                            </td>
-                            <td className="px-4 py-3 text-gray-300 text-sm">
-                              <div className="flex items-center gap-1">
-                                <Calendar size={14} className="text-gold-500" />
-                                {new Date(invoice.due_date).toLocaleDateString('nl-NL')}
-                              </div>
                             </td>
                             <td className="px-4 py-3 text-right">
                               <div className="text-gray-100 font-bold">
