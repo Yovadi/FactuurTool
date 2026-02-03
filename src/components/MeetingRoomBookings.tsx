@@ -185,20 +185,10 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     const { data: bookingsData } = await bookingsQuery;
 
     const sortedBookings = (bookingsData || []).sort((a, b) => {
-      const companyA = a.booking_type === 'external'
-        ? a.external_customers?.company_name || ''
-        : a.tenants?.company_name || a.tenants?.name || '';
-      const companyB = b.booking_type === 'external'
-        ? b.external_customers?.company_name || ''
-        : b.tenants?.company_name || b.tenants?.name || '';
-
-      const companyCompare = companyA.localeCompare(companyB);
-      if (companyCompare !== 0) return companyCompare;
-
-      const dateCompare = a.booking_date.localeCompare(b.booking_date);
+      const dateCompare = b.booking_date.localeCompare(a.booking_date);
       if (dateCompare !== 0) return dateCompare;
 
-      return a.start_time.localeCompare(b.start_time);
+      return b.start_time.localeCompare(a.start_time);
     });
 
     setTenants(tenantsData || []);
