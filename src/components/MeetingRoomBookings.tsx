@@ -598,11 +598,12 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     // Verwijder de boeking uit de notes
     let rateDescription = '';
     if (booking.rate_type === 'half_day') {
-      rateDescription = 'dagdeel';
+      rateDescription = `dagdeel tarief €${(booking.applied_rate || 0).toFixed(2)}`;
     } else if (booking.rate_type === 'full_day') {
-      rateDescription = 'hele dag';
+      rateDescription = `hele dag tarief €${(booking.applied_rate || 0).toFixed(2)}`;
     } else {
-      rateDescription = `${booking.total_hours}u`;
+      const hourlyRate = booking.applied_rate || (booking.hourly_rate || 0);
+      rateDescription = `${booking.total_hours}u × €${hourlyRate.toFixed(2)}`;
     }
 
     // Calculate original amount (before discount)
@@ -693,11 +694,12 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
 
     let rateDescription = '';
     if (booking.rate_type === 'half_day') {
-      rateDescription = 'dagdeel';
+      rateDescription = `dagdeel tarief €${(booking.applied_rate || 0).toFixed(2)}`;
     } else if (booking.rate_type === 'full_day') {
-      rateDescription = 'hele dag';
+      rateDescription = `hele dag tarief €${(booking.applied_rate || 0).toFixed(2)}`;
     } else {
-      rateDescription = `${booking.total_hours}u`;
+      const hourlyRate = booking.applied_rate || (booking.hourly_rate || 0);
+      rateDescription = `${booking.total_hours}u × €${hourlyRate.toFixed(2)}`;
     }
 
     // Calculate original amount (before discount)
