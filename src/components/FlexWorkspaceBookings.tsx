@@ -543,14 +543,24 @@ export function FlexWorkspaceBookings() {
         targetSlot = availableSlotsData[0];
       }
 
-      const { data: spaceData } = await supabase
+      const { data: spaceData, error: spaceError } = await supabase
         .from('office_spaces')
-        .select('hourly_rate, half_day_rate, full_day_rate')
+        .select('hourly_rate, half_day_rate, full_day_rate, is_furnished')
         .eq('id', quickFormData.space_id)
         .single();
 
-      if (!spaceData) {
+      if (spaceError || !spaceData) {
+        console.error('Error fetching space data:', spaceError);
         showNotification('Ruimte tarieven niet gevonden', 'error');
+        return;
+      }
+
+      const hourlyRate = spaceData.hourly_rate || 0;
+      const halfDayRate = spaceData.half_day_rate || 0;
+      const fullDayRate = spaceData.full_day_rate || 0;
+
+      if (hourlyRate === 0 && halfDayRate === 0 && fullDayRate === 0) {
+        showNotification('Deze ruimte heeft geen tarieven ingesteld. Ga naar Producten → Ruimte Tarieven om tarieven in te stellen.', 'error');
         return;
       }
 
@@ -558,14 +568,19 @@ export function FlexWorkspaceBookings() {
         quickFormData.start_time,
         quickFormData.end_time,
         {
-          hourly_rate: spaceData.hourly_rate || 0,
-          half_day_rate: spaceData.half_day_rate || 0,
-          full_day_rate: spaceData.full_day_rate || 0
+          hourly_rate: hourlyRate,
+          half_day_rate: halfDayRate,
+          full_day_rate: fullDayRate
         }
       );
 
       if (calculation.totalHours <= 0) {
         showNotification('Eindtijd moet na starttijd zijn', 'error');
+        return;
+      }
+
+      if (calculation.totalAmount === 0) {
+        showNotification('Kan geen tarief berekenen. Controleer of de tarieven correct zijn ingesteld.', 'error');
         return;
       }
 
@@ -603,11 +618,27 @@ export function FlexWorkspaceBookings() {
       }
     } catch (error: any) {
       console.error('Error creating booking:', error);
-      const message = error.message?.includes('unique_flex_slot_booking')
-        ? 'Deze plek is al geboekt voor deze datum'
-        : error.message?.includes('flex_day_bookings_customer_check')
-        ? 'Externe klant is verplicht voor flexplekken'
-        : 'Fout bij aanmaken boeking';
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      });
+
+      let message = 'Fout bij aanmaken boeking';
+
+      if (error.message?.includes('unique_flex_slot_booking')) {
+        message = 'Deze plek is al geboekt voor deze datum';
+      } else if (error.message?.includes('flex_day_bookings_customer_check')) {
+        message = 'Externe klant is verplicht voor flexplekken';
+      } else if (error.message?.includes('booking_date_not_past')) {
+        message = 'Kan geen boeking maken in het verleden';
+      } else if (error.message?.includes('check_valid_booking_times')) {
+        message = 'Eindtijd moet na starttijd liggen';
+      } else if (error.message) {
+        message = `Fout: ${error.message}`;
+      }
+
       showNotification(message, 'error');
     }
   };
