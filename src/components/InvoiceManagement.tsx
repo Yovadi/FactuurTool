@@ -581,6 +581,18 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         const isForCustomer = (customer as any).isExternal
           ? booking.external_customer_id === customer.id
           : booking.tenant_id === customer.id;
+
+        if (customer.company_name?.includes('Youri')) {
+          console.log('Checking Youri booking:', {
+            bookingDate: booking.booking_date,
+            bookingYearMonth,
+            invoiceMonth,
+            isForSelectedMonth,
+            isUnbilled,
+            isForCustomer
+          });
+        }
+
         return isForSelectedMonth && isUnbilled && isForCustomer;
       });
 
@@ -594,6 +606,15 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           : booking.tenant_id === customer.id;
         return isForSelectedMonth && isUnbilled && isForCustomer;
       });
+
+      if (customer.company_name?.includes('Youri')) {
+        console.log('Youri bookings found:', {
+          meetingCount: meetingBookings.length,
+          flexCount: flexBookings.length,
+          invoiceMonth,
+          totalMeetingBookings: meetingRoomBookings.length
+        });
+      }
 
       if (meetingBookings.length === 0 && flexBookings.length === 0) return false;
 
