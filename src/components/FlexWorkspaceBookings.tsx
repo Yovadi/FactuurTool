@@ -88,8 +88,6 @@ export function FlexWorkspaceBookings() {
   const [quickFormData, setQuickFormData] = useState({
     space_id: '',
     external_customer_id: '',
-    booking_type: 'full_day' as 'full_day' | 'half_day' | 'hourly',
-    half_day_period: 'morning' as 'morning' | 'afternoon',
     start_time: '09:00',
     end_time: '17:00'
   });
@@ -98,8 +96,6 @@ export function FlexWorkspaceBookings() {
     space_id: '',
     external_customer_id: '',
     booking_date: new Date().toISOString().split('T')[0],
-    booking_type: 'full_day' as 'full_day' | 'half_day' | 'hourly',
-    half_day_period: 'morning' as 'morning' | 'afternoon',
     start_time: '09:00',
     end_time: '17:00'
   });
@@ -270,38 +266,42 @@ export function FlexWorkspaceBookings() {
     try {
       const { data: spaceData } = await supabase
         .from('office_spaces')
-        .select('hourly_rate')
+        .select('hourly_rate, half_day_rate, full_day_rate')
         .eq('id', formData.space_id)
         .single();
 
-      const hourlyRate = spaceData?.hourly_rate || 0;
+      if (!spaceData) {
+        showNotification('Ruimte tarieven niet gevonden', 'error');
+        return;
+      }
 
-      let bookingData: any = {
+      const calculation = calculateRateAndAmount(
+        formData.start_time,
+        formData.end_time,
+        {
+          hourly_rate: spaceData.hourly_rate || 0,
+          half_day_rate: spaceData.half_day_rate || 0,
+          full_day_rate: spaceData.full_day_rate || 0
+        }
+      );
+
+      if (calculation.totalHours <= 0) {
+        showNotification('Eindtijd moet na starttijd zijn', 'error');
+        return;
+      }
+
+      const bookingData: any = {
         space_id: formData.space_id,
         external_customer_id: formData.external_customer_id,
         booking_date: formData.booking_date,
-        is_half_day: formData.booking_type === 'half_day',
-        half_day_period: formData.booking_type === 'half_day' ? formData.half_day_period : null,
-        hourly_rate: hourlyRate,
-        total_hours: 0,
-        total_amount: 0
+        start_time: formData.start_time,
+        end_time: formData.end_time,
+        hourly_rate: spaceData.hourly_rate || 0,
+        total_hours: calculation.totalHours,
+        total_amount: calculation.totalAmount,
+        is_half_day: calculation.isHalfDay,
+        half_day_period: calculation.halfDayPeriod
       };
-
-      if (formData.booking_type === 'hourly') {
-        const [startHour, startMin] = formData.start_time.split(':').map(Number);
-        const [endHour, endMin] = formData.end_time.split(':').map(Number);
-        const totalHours = (endHour + endMin / 60) - (startHour + startMin / 60);
-
-        if (totalHours <= 0) {
-          showNotification('Eindtijd moet na starttijd zijn', 'error');
-          return;
-        }
-
-        bookingData.start_time = formData.start_time;
-        bookingData.end_time = formData.end_time;
-        bookingData.total_hours = totalHours;
-        bookingData.total_amount = totalHours * hourlyRate;
-      }
 
       const { data, error } = await supabase
         .from('flex_day_bookings')
@@ -317,7 +317,8 @@ export function FlexWorkspaceBookings() {
 
       if (data) {
         setAllBookings(prev => [data as FlexBooking, ...prev]);
-        showNotification('Flexplekboeking succesvol aangemaakt', 'success');
+        const rateTypeText = calculation.rateUsed === 'hourly' ? 'uurtarief' : calculation.rateUsed === 'half_day' ? 'halve dag tarief' : 'hele dag tarief';
+        showNotification(`Flexplekboeking aangemaakt (${rateTypeText})`, 'success');
         setShowForm(false);
         resetForm();
       }
@@ -370,11 +371,46 @@ export function FlexWorkspaceBookings() {
       space_id: '',
       external_customer_id: '',
       booking_date: new Date().toISOString().split('T')[0],
-      booking_type: 'full_day',
-      half_day_period: 'morning',
       start_time: '09:00',
       end_time: '17:00'
     });
+  };
+
+  const calculateRateAndAmount = (startTime: string, endTime: string, spaceRates: { hourly_rate: number; half_day_rate: number; full_day_rate: number }) => {
+    const [startHour, startMin] = startTime.split(':').map(Number);
+    const [endHour, endMin] = endTime.split(':').map(Number);
+    const totalHours = (endHour + endMin / 60) - (startHour + startMin / 60);
+
+    if (totalHours <= 0) {
+      return { totalHours: 0, totalAmount: 0, rateUsed: 'none', isHalfDay: false, halfDayPeriod: null };
+    }
+
+    if (totalHours <= 4) {
+      return {
+        totalHours,
+        totalAmount: totalHours * spaceRates.hourly_rate,
+        rateUsed: 'hourly',
+        isHalfDay: false,
+        halfDayPeriod: null
+      };
+    } else if (totalHours <= 6) {
+      const halfDayPeriod = startHour < 13 ? 'morning' : 'afternoon';
+      return {
+        totalHours,
+        totalAmount: spaceRates.half_day_rate,
+        rateUsed: 'half_day',
+        isHalfDay: true,
+        halfDayPeriod
+      };
+    } else {
+      return {
+        totalHours,
+        totalAmount: spaceRates.full_day_rate,
+        rateUsed: 'full_day',
+        isHalfDay: false,
+        halfDayPeriod: null
+      };
+    }
   };
 
   const handleCalendarDayClick = (dateStr: string) => {
@@ -382,8 +418,6 @@ export function FlexWorkspaceBookings() {
     setQuickFormData({
       space_id: '',
       external_customer_id: '',
-      booking_type: 'full_day',
-      half_day_period: 'morning',
       start_time: '09:00',
       end_time: '17:00'
     });
@@ -404,46 +438,44 @@ export function FlexWorkspaceBookings() {
     }
 
     try {
-      const selectedSpace = flexSpaces.find(s => s.id === quickFormData.space_id);
-      if (!selectedSpace) {
-        showNotification('Geselecteerde ruimte niet gevonden', 'error');
-        return;
-      }
-
       const { data: spaceData } = await supabase
         .from('office_spaces')
-        .select('hourly_rate')
+        .select('hourly_rate, half_day_rate, full_day_rate')
         .eq('id', quickFormData.space_id)
         .single();
 
-      const hourlyRate = spaceData?.hourly_rate || 0;
+      if (!spaceData) {
+        showNotification('Ruimte tarieven niet gevonden', 'error');
+        return;
+      }
 
-      let bookingData: any = {
+      const calculation = calculateRateAndAmount(
+        quickFormData.start_time,
+        quickFormData.end_time,
+        {
+          hourly_rate: spaceData.hourly_rate || 0,
+          half_day_rate: spaceData.half_day_rate || 0,
+          full_day_rate: spaceData.full_day_rate || 0
+        }
+      );
+
+      if (calculation.totalHours <= 0) {
+        showNotification('Eindtijd moet na starttijd zijn', 'error');
+        return;
+      }
+
+      const bookingData: any = {
         space_id: quickFormData.space_id,
         external_customer_id: quickFormData.external_customer_id,
         booking_date: quickBookingDate,
-        is_half_day: quickFormData.booking_type === 'half_day',
-        half_day_period: quickFormData.booking_type === 'half_day' ? quickFormData.half_day_period : null,
-        hourly_rate: hourlyRate,
-        total_hours: 0,
-        total_amount: 0
+        start_time: quickFormData.start_time,
+        end_time: quickFormData.end_time,
+        hourly_rate: spaceData.hourly_rate || 0,
+        total_hours: calculation.totalHours,
+        total_amount: calculation.totalAmount,
+        is_half_day: calculation.isHalfDay,
+        half_day_period: calculation.halfDayPeriod
       };
-
-      if (quickFormData.booking_type === 'hourly') {
-        const [startHour, startMin] = quickFormData.start_time.split(':').map(Number);
-        const [endHour, endMin] = quickFormData.end_time.split(':').map(Number);
-        const totalHours = (endHour + endMin / 60) - (startHour + startMin / 60);
-
-        if (totalHours <= 0) {
-          showNotification('Eindtijd moet na starttijd zijn', 'error');
-          return;
-        }
-
-        bookingData.start_time = quickFormData.start_time;
-        bookingData.end_time = quickFormData.end_time;
-        bookingData.total_hours = totalHours;
-        bookingData.total_amount = totalHours * hourlyRate;
-      }
 
       const { data, error } = await supabase
         .from('flex_day_bookings')
@@ -459,7 +491,8 @@ export function FlexWorkspaceBookings() {
 
       if (data) {
         setAllBookings(prev => [data as FlexBooking, ...prev]);
-        showNotification('Flexplekboeking succesvol aangemaakt', 'success');
+        const rateTypeText = calculation.rateUsed === 'hourly' ? 'uurtarief' : calculation.rateUsed === 'half_day' ? 'halve dag tarief' : 'hele dag tarief';
+        showNotification(`Flexplekboeking aangemaakt (${rateTypeText})`, 'success');
         setShowQuickBooking(false);
       }
     } catch (error: any) {
@@ -674,99 +707,37 @@ export function FlexWorkspaceBookings() {
 
               <div className="space-y-4">
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Boekingstype *
+                  Tijd *
                 </label>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, booking_type: 'full_day' })}
-                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      formData.booking_type === 'full_day'
-                        ? 'bg-gold-500 text-white'
-                        : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
-                    }`}
-                  >
-                    Hele dag
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, booking_type: 'half_day' })}
-                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      formData.booking_type === 'half_day'
-                        ? 'bg-gold-500 text-white'
-                        : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
-                    }`}
-                  >
-                    Halve dag
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, booking_type: 'hourly' })}
-                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      formData.booking_type === 'hourly'
-                        ? 'bg-gold-500 text-white'
-                        : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
-                    }`}
-                  >
-                    Per uur
-                  </button>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Starttijd
+                    </label>
+                    <input
+                      type="time"
+                      value={formData.start_time}
+                      onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
+                      className="w-full px-4 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-100 focus:outline-none focus:border-gold-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Eindtijd
+                    </label>
+                    <input
+                      type="time"
+                      value={formData.end_time}
+                      onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
+                      className="w-full px-4 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-100 focus:outline-none focus:border-gold-500"
+                      required
+                    />
+                  </div>
                 </div>
-
-                {formData.booking_type === 'half_day' && (
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, half_day_period: 'morning' })}
-                      className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
-                        formData.half_day_period === 'morning'
-                          ? 'bg-gold-500 text-white'
-                          : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
-                      }`}
-                    >
-                      Ochtend
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, half_day_period: 'afternoon' })}
-                      className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
-                        formData.half_day_period === 'afternoon'
-                          ? 'bg-gold-500 text-white'
-                          : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
-                      }`}
-                    >
-                      Middag
-                    </button>
-                  </div>
-                )}
-
-                {formData.booking_type === 'hourly' && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Starttijd *
-                      </label>
-                      <input
-                        type="time"
-                        value={formData.start_time}
-                        onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
-                        className="w-full px-4 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-100 focus:outline-none focus:border-gold-500"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Eindtijd *
-                      </label>
-                      <input
-                        type="time"
-                        value={formData.end_time}
-                        onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
-                        className="w-full px-4 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-100 focus:outline-none focus:border-gold-500"
-                        required
-                      />
-                    </div>
-                  </div>
-                )}
+                <p className="text-xs text-gray-400 mt-2">
+                  Tarief wordt automatisch berekend: tot 4 uur = uurtarief, 4-6 uur = halve dag, meer dan 6 uur = hele dag
+                </p>
               </div>
 
               <div className="flex gap-3 pt-4">
@@ -1074,99 +1045,37 @@ export function FlexWorkspaceBookings() {
 
               <div className="space-y-4">
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Boekingstype *
+                  Tijd *
                 </label>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setQuickFormData({ ...quickFormData, booking_type: 'full_day' })}
-                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      quickFormData.booking_type === 'full_day'
-                        ? 'bg-gold-500 text-white'
-                        : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
-                    }`}
-                  >
-                    Hele dag
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setQuickFormData({ ...quickFormData, booking_type: 'half_day' })}
-                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      quickFormData.booking_type === 'half_day'
-                        ? 'bg-gold-500 text-white'
-                        : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
-                    }`}
-                  >
-                    Halve dag
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setQuickFormData({ ...quickFormData, booking_type: 'hourly' })}
-                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      quickFormData.booking_type === 'hourly'
-                        ? 'bg-gold-500 text-white'
-                        : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
-                    }`}
-                  >
-                    Per uur
-                  </button>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Starttijd
+                    </label>
+                    <input
+                      type="time"
+                      value={quickFormData.start_time}
+                      onChange={(e) => setQuickFormData({ ...quickFormData, start_time: e.target.value })}
+                      className="w-full px-4 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-100 focus:outline-none focus:border-gold-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Eindtijd
+                    </label>
+                    <input
+                      type="time"
+                      value={quickFormData.end_time}
+                      onChange={(e) => setQuickFormData({ ...quickFormData, end_time: e.target.value })}
+                      className="w-full px-4 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-100 focus:outline-none focus:border-gold-500"
+                      required
+                    />
+                  </div>
                 </div>
-
-                {quickFormData.booking_type === 'half_day' && (
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setQuickFormData({ ...quickFormData, half_day_period: 'morning' })}
-                      className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
-                        quickFormData.half_day_period === 'morning'
-                          ? 'bg-gold-500 text-white'
-                          : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
-                      }`}
-                    >
-                      Ochtend
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setQuickFormData({ ...quickFormData, half_day_period: 'afternoon' })}
-                      className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
-                        quickFormData.half_day_period === 'afternoon'
-                          ? 'bg-gold-500 text-white'
-                          : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
-                      }`}
-                    >
-                      Middag
-                    </button>
-                  </div>
-                )}
-
-                {quickFormData.booking_type === 'hourly' && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Starttijd *
-                      </label>
-                      <input
-                        type="time"
-                        value={quickFormData.start_time}
-                        onChange={(e) => setQuickFormData({ ...quickFormData, start_time: e.target.value })}
-                        className="w-full px-4 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-100 focus:outline-none focus:border-gold-500"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Eindtijd *
-                      </label>
-                      <input
-                        type="time"
-                        value={quickFormData.end_time}
-                        onChange={(e) => setQuickFormData({ ...quickFormData, end_time: e.target.value })}
-                        className="w-full px-4 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-100 focus:outline-none focus:border-gold-500"
-                        required
-                      />
-                    </div>
-                  </div>
-                )}
+                <p className="text-xs text-gray-400 mt-2">
+                  Tarief wordt automatisch berekend: tot 4 uur = uurtarief, 4-6 uur = halve dag, meer dan 6 uur = hele dag
+                </p>
               </div>
 
               <div className="flex gap-3 pt-4">
