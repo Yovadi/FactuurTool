@@ -2730,36 +2730,36 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             return new Date(b.invoice_date).getTime() - new Date(a.invoice_date).getTime();
           };
 
+          const getInvoiceType = (inv: InvoiceWithDetails): InvoiceTypeFilter => {
+            if (inv.lease_id !== null && inv.lease?.lease_type === 'flex') return 'flex';
+            if (inv.lease_id !== null) return 'huur';
+            if (inv.notes?.includes('Vergaderruimte gebruik') || inv.notes?.includes('Vergaderruimte boekingen')) return 'vergaderruimte';
+            if (inv.notes?.includes('Flex werkplek gebruik') || inv.notes?.includes('Flex werkplek boekingen')) return 'flex';
+            if (inv.line_items && inv.line_items.some((item: any) => item.booking_id !== null)) {
+              return 'vergaderruimte';
+            }
+            return 'handmatig';
+          };
+
           const draftHuurInvoices = allDraftInvoices
-            .filter(inv => inv.lease_id !== null && inv.lease?.lease_type !== 'flex')
+            .filter(inv => getInvoiceType(inv) === 'huur')
             .sort(sortByTenantAndDate);
 
           const draftFlexInvoices = allDraftInvoices
-            .filter(inv => inv.lease_id !== null && inv.lease?.lease_type === 'flex')
+            .filter(inv => getInvoiceType(inv) === 'flex')
             .sort(sortByTenantAndDate);
 
           const draftMeetingRoomInvoices = allDraftInvoices
-            .filter(inv => inv.lease_id === null && (inv.notes?.includes('Vergaderruimte gebruik') || inv.notes?.includes('Vergaderruimte boekingen')))
+            .filter(inv => getInvoiceType(inv) === 'vergaderruimte')
             .sort(sortByTenantAndDate);
 
           const draftManualInvoices = allDraftInvoices
-            .filter(inv => inv.lease_id === null && !inv.notes?.includes('Vergaderruimte gebruik') && !inv.notes?.includes('Vergaderruimte boekingen'))
+            .filter(inv => getInvoiceType(inv) === 'handmatig')
             .sort(sortByTenantAndDate);
 
             const openInvoices = invoices
               .filter(inv => inv.status !== 'paid' && inv.status !== 'draft')
               .sort(sortByTenantAndDate);
-
-            const getInvoiceType = (inv: InvoiceWithDetails): InvoiceTypeFilter => {
-              if (inv.lease_id !== null && inv.lease?.lease_type === 'flex') return 'flex';
-              if (inv.lease_id !== null) return 'huur';
-              if (inv.notes?.includes('Vergaderruimte gebruik') || inv.notes?.includes('Vergaderruimte boekingen')) return 'vergaderruimte';
-              if (inv.notes?.includes('Flex werkplek gebruik') || inv.notes?.includes('Flex werkplek boekingen')) return 'flex';
-              if (inv.line_items && inv.line_items.some((item: any) => item.booking_id !== null)) {
-                return 'vergaderruimte';
-              }
-              return 'handmatig';
-            };
 
             const filterOpenInvoices = (type: InvoiceTypeFilter) => {
               if (type === 'all') return openInvoices;
@@ -2767,6 +2767,28 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             };
 
             const filteredOpenInvoices = filterOpenInvoices(invoiceTypeFilter);
+
+            console.log('DEBUG Invoice Filtering:', {
+              invoiceTypeFilter,
+              totalInvoices: invoices.length,
+              draftCount: allDraftInvoices.length,
+              openCount: openInvoices.length,
+              filteredOpenCount: filteredOpenInvoices.length,
+              draftByType: {
+                huur: draftHuurInvoices.length,
+                flex: draftFlexInvoices.length,
+                vergaderruimte: draftMeetingRoomInvoices.length,
+                handmatig: draftManualInvoices.length
+              },
+              openInvoicesTypes: openInvoices.map(inv => ({
+                number: inv.invoice_number,
+                type: getInvoiceType(inv),
+                hasLineItems: !!inv.line_items,
+                lineItemsCount: inv.line_items?.length || 0,
+                hasBookingIds: inv.line_items?.some((item: any) => item.booking_id !== null) || false,
+                notes: inv.notes?.substring(0, 50)
+              }))
+            });
 
           const renderInvoiceTable = (invoices: typeof draftHuurInvoices, title: string, borderColor: string, buttonConfig?: { label: string; onClick: () => void; color: string; disabled?: boolean }) => {
             const selectedInThisTable = invoices.filter(inv => selectedInvoices.has(inv.id)).length;
