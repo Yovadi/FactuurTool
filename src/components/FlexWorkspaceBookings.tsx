@@ -48,6 +48,7 @@ type FlexBooking = {
   total_hours: number;
   total_amount: number;
   invoice_id: string | null;
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
   created_at: string;
   office_spaces?: { space_number: string };
   external_customers?: ExternalCustomer;
@@ -87,6 +88,7 @@ type SlotBooking = {
   bookingId?: string;
   scheduleId?: string;
   isInvoiced?: boolean;
+  status?: 'pending' | 'confirmed' | 'cancelled' | 'completed';
   time?: string;
   isHalfDay?: boolean;
   halfDayPeriod?: 'morning' | 'afternoon';
@@ -389,6 +391,38 @@ export function FlexWorkspaceBookings() {
     }
   };
 
+  const handleStatusChange = async (bookingId: string, newStatus: 'confirmed' | 'cancelled' | 'completed') => {
+    const booking = allBookings.find(b => b.id === bookingId);
+
+    if (!booking) {
+      showNotification('Boeking niet gevonden.', 'error');
+      return;
+    }
+
+    if (newStatus === 'cancelled' && booking.invoice_id) {
+      showNotification('Kan gefactureerde boeking niet annuleren.', 'error');
+      return;
+    }
+
+    const { error } = await supabase
+      .from('flex_day_bookings')
+      .update({ status: newStatus })
+      .eq('id', bookingId);
+
+    if (error) {
+      console.error('Error updating status:', error.message);
+      showNotification('Fout bij het bijwerken van de status.', 'error');
+      return;
+    }
+
+    setAllBookings(prev =>
+      prev.map(b => (b.id === bookingId ? { ...b, status: newStatus } : b))
+    );
+
+    const statusText = newStatus === 'confirmed' ? 'geaccepteerd' : newStatus === 'cancelled' ? 'geannuleerd' : 'voltooid';
+    showNotification(`Boeking is ${statusText}.`, 'success');
+  };
+
   const handleDelete = async () => {
     if (!deleteConfirmId) return;
 
@@ -684,7 +718,8 @@ export function FlexWorkspaceBookings() {
         customerId: booking.external_customer_id,
         bookingId: booking.id,
         isInvoiced: booking.invoice_id !== null,
-        time: booking.start_time && booking.end_time ? `${booking.start_time}-${booking.end_time}` : undefined,
+        status: booking.status,
+        time: booking.start_time && booking.end_time ? `${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)}` : undefined,
         isHalfDay: booking.is_half_day,
         halfDayPeriod: booking.half_day_period,
         startTime: booking.start_time,
@@ -1097,8 +1132,12 @@ export function FlexWorkspaceBookings() {
 
             <div className="flex flex-wrap gap-4 text-xs text-gray-400 mb-4">
               <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-orange-600"></div>
+                <span>In afwachting (pending)</span>
+              </div>
+              <div className="flex items-center gap-2">
                 <div className="w-4 h-4 rounded bg-gold-500"></div>
-                <span>Eenmalige boeking</span>
+                <span>Bevestigd</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 rounded bg-blue-500"></div>
@@ -1205,18 +1244,23 @@ export function FlexWorkspaceBookings() {
                                       }
 
                                       const booking = segment.booking!;
+                                      const isPending = booking.type === 'booking' && booking.status === 'pending';
                                       const bgColor = booking.type === 'booking'
-                                        ? booking.isInvoiced
+                                        ? booking.status === 'pending'
+                                          ? 'bg-orange-600'
+                                          : booking.isInvoiced || booking.status === 'completed'
                                           ? 'bg-green-600'
+                                          : booking.status === 'cancelled'
+                                          ? 'bg-red-600/70'
                                           : 'bg-gold-500'
                                         : 'bg-blue-500';
 
                                       return (
                                         <div
                                           key={idx}
-                                          className={`h-full ${bgColor} border-r border-dark-900 flex flex-col items-center justify-center p-1 cursor-pointer hover:brightness-110 transition-all`}
+                                          className={`relative h-full ${bgColor} border-r border-dark-900 flex flex-col items-center justify-center p-1 cursor-pointer hover:brightness-110 transition-all group`}
                                           style={{ width: `${widthPercent}%` }}
-                                          title={`${booking.customerName}\n${booking.time || ''}`}
+                                          title={`${booking.customerName}\n${booking.time || ''}\nStatus: ${booking.status || 'bevestigd'}`}
                                         >
                                           <div className="text-white text-[10px] font-bold text-center leading-tight line-clamp-2 px-0.5">
                                             {booking.customerName}
@@ -1224,6 +1268,30 @@ export function FlexWorkspaceBookings() {
                                           {booking.time && (
                                             <div className="text-white text-[9px] font-semibold mt-0.5 bg-black/20 px-1 rounded">
                                               {booking.time}
+                                            </div>
+                                          )}
+                                          {isPending && booking.bookingId && (
+                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/80 transition-all flex items-center justify-center gap-0.5 opacity-0 group-hover:opacity-100">
+                                              <button
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleStatusChange(booking.bookingId!, 'confirmed');
+                                                }}
+                                                className="p-1 bg-green-600 hover:bg-green-700 text-white rounded transition-colors"
+                                                title="Accepteren"
+                                              >
+                                                <Check size={14} />
+                                              </button>
+                                              <button
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleStatusChange(booking.bookingId!, 'cancelled');
+                                                }}
+                                                className="p-1 bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
+                                                title="Weigeren"
+                                              >
+                                                <X size={14} />
+                                              </button>
                                             </div>
                                           )}
                                         </div>
@@ -1328,7 +1396,7 @@ export function FlexWorkspaceBookings() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-300">
                           {booking.start_time && booking.end_time
-                            ? `${booking.start_time} - ${booking.end_time} (${booking.total_hours.toFixed(1)}u)`
+                            ? `${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)} (${booking.total_hours.toFixed(1)}u)`
                             : booking.is_half_day
                             ? `Halve dag (${booking.half_day_period === 'morning' ? 'Ochtend' : 'Middag'})`
                             : 'Hele dag'
@@ -1345,28 +1413,70 @@ export function FlexWorkspaceBookings() {
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {booking.invoice_id ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-900/50 text-green-300 border border-green-700">
-                            <CheckCircle size={12} />
-                            Gefactureerd
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-800 text-gray-300 border border-gray-700">
-                            <Calendar size={12} />
-                            Gepland
-                          </span>
-                        )}
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                            booking.status === 'pending'
+                              ? 'bg-orange-900/50 text-orange-300 border border-orange-700'
+                              : booking.status === 'confirmed'
+                              ? 'bg-blue-900/50 text-blue-300 border border-blue-700'
+                              : booking.status === 'completed' || booking.invoice_id
+                              ? 'bg-green-900/50 text-green-300 border border-green-700'
+                              : 'bg-red-900/50 text-red-300 border border-red-700'
+                          }`}
+                        >
+                          {booking.status === 'pending' ? (
+                            <>
+                              <AlertCircle size={12} />
+                              In afwachting
+                            </>
+                          ) : booking.status === 'confirmed' ? (
+                            <>
+                              <Check size={12} />
+                              Bevestigd
+                            </>
+                          ) : booking.status === 'completed' || booking.invoice_id ? (
+                            <>
+                              <CheckCircle size={12} />
+                              {booking.invoice_id ? 'Gefactureerd' : 'Voltooid'}
+                            </>
+                          ) : (
+                            <>
+                              <XCircle size={12} />
+                              Geannuleerd
+                            </>
+                          )}
+                        </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
-                        {!booking.invoice_id && (
-                          <button
-                            onClick={() => setDeleteConfirmId(booking.id)}
-                            className="p-1.5 text-gray-400 hover:text-red-400 transition-colors"
-                            title="Verwijder boeking"
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        )}
+                        <div className="flex items-center justify-end gap-1">
+                          {booking.status === 'pending' && (
+                            <>
+                              <button
+                                onClick={() => handleStatusChange(booking.id, 'confirmed')}
+                                className="p-1.5 text-green-400 hover:text-green-300 hover:bg-green-900/30 rounded transition-colors"
+                                title="Accepteren"
+                              >
+                                <Check size={18} />
+                              </button>
+                              <button
+                                onClick={() => handleStatusChange(booking.id, 'cancelled')}
+                                className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-900/30 rounded transition-colors"
+                                title="Weigeren"
+                              >
+                                <X size={18} />
+                              </button>
+                            </>
+                          )}
+                          {!booking.invoice_id && booking.status !== 'cancelled' && (
+                            <button
+                              onClick={() => setDeleteConfirmId(booking.id)}
+                              className="p-1.5 text-gray-400 hover:text-red-400 transition-colors"
+                              title="Verwijder boeking"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))
