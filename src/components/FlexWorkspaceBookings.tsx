@@ -733,7 +733,7 @@ export function FlexWorkspaceBookings() {
 
       const schedule = schedules.find(
         s => s.space_id === selectedResourceSpace &&
-             s.slot_number === slotNumber &&
+             (s.slot_number === slotNumber || (s.slot_number === null && slotNumber === 1)) &&
              typeof s[dayName] === 'boolean' &&
              s[dayName] === true
       );

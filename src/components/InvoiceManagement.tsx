@@ -238,15 +238,20 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         hourly_rate,
         is_half_day,
         half_day_period,
+        status,
         invoice_id,
+        lease_id,
+        external_customer_id,
+        leases(tenant_id),
         office_spaces(space_number)
       `)
       .gte('booking_date', startDateStr)
       .lte('booking_date', endDateStr)
+      .eq('status', 'completed')
       .is('invoice_id', null);
 
     if (customerType === 'tenant') {
-      flexQuery = flexQuery.not('tenant_id', 'is', null).eq('tenant_id', customerId);
+      flexQuery = flexQuery.not('lease_id', 'is', null);
     } else {
       flexQuery = flexQuery.not('external_customer_id', 'is', null).eq('external_customer_id', customerId);
     }
@@ -257,6 +262,11 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       console.error('Error fetching flex day bookings:', flexError);
     }
 
+    // Filter flex bookings for tenant type
+    const filteredFlexBookings = customerType === 'tenant'
+      ? (flexBookings || []).filter(booking => booking.leases?.tenant_id === customerId)
+      : flexBookings || [];
+
     // Combine all bookings
     const allBookings = [
       ...(meetingBookings || []).map(booking => ({
@@ -264,7 +274,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         space: booking.office_spaces,
         booking_type: 'meeting_room'
       })),
-      ...(flexBookings || []).map(booking => ({
+      ...(filteredFlexBookings).map(booking => ({
         ...booking,
         space: booking.office_spaces,
         status: 'completed',
@@ -294,15 +304,20 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         hourly_rate,
         is_half_day,
         half_day_period,
+        status,
         invoice_id,
+        lease_id,
+        external_customer_id,
+        leases(tenant_id),
         office_spaces(space_number)
       `)
       .gte('booking_date', startDateStr)
       .lte('booking_date', endDateStr)
+      .eq('status', 'completed')
       .is('invoice_id', null);
 
     if (customerType === 'tenant') {
-      query = query.not('tenant_id', 'is', null).eq('tenant_id', customerId);
+      query = query.not('lease_id', 'is', null);
     } else {
       query = query.not('external_customer_id', 'is', null).eq('external_customer_id', customerId);
     }
@@ -314,7 +329,12 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       return [];
     }
 
-    return (bookings || []).map(booking => ({
+    // Filter for tenant type based on lease tenant_id
+    const filteredBookings = customerType === 'tenant'
+      ? (bookings || []).filter(booking => booking.leases?.tenant_id === customerId)
+      : bookings || [];
+
+    return filteredBookings.map(booking => ({
       ...booking,
       space: booking.office_spaces,
       status: 'completed'
