@@ -1130,31 +1130,39 @@ export function FlexWorkspaceBookings() {
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-4 text-xs text-gray-400 mb-4">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded bg-orange-600"></div>
-                <span>In afwachting (pending)</span>
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="bg-dark-800 rounded-lg p-3 border border-dark-700">
+                <div className="text-xs font-semibold text-gray-400 mb-2 uppercase">Boekingen Status</div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded bg-orange-600"></div>
+                    <span className="text-gray-300">Pending</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded bg-gold-500"></div>
+                    <span className="text-gray-300">Bevestigd</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded bg-blue-500"></div>
+                    <span className="text-gray-300">Contract</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded bg-green-600"></div>
+                    <span className="text-gray-300">Gefactureerd</span>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded bg-gold-500"></div>
-                <span>Bevestigd</span>
+              <div className="bg-emerald-900/20 rounded-lg p-3 border border-emerald-700/50">
+                <div className="text-xs font-semibold text-emerald-400 mb-2 uppercase flex items-center gap-1">
+                  <Check size={14} />
+                  Beschikbaarheid
+                </div>
+                <div className="text-xs text-emerald-300">
+                  <strong>Groene blokken</strong> = Beschikbare tijd<br/>
+                  Hover over <strong>oranje (pending)</strong> boekingen om te accepteren/weigeren<br/>
+                  Klik op groene tijd om een nieuwe boeking te maken
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded bg-blue-500"></div>
-                <span>Flex contract (vast)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded bg-green-600"></div>
-                <span>Gefactureerd</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded bg-emerald-900/30 border border-emerald-600"></div>
-                <span>Beschikbaar</span>
-              </div>
-            </div>
-            <div className="text-xs text-gray-500 mb-4 bg-dark-800 rounded-lg p-2 border border-dark-700">
-              <Info size={14} className="inline mr-1" />
-              De tijdlijn toont de werkdag van 08:00 tot 18:00. Gekleurde blokken zijn boekingen, groene delen zijn beschikbaar. Klik op beschikbare tijd om te boeken.
             </div>
           </div>
 
@@ -1176,6 +1184,21 @@ export function FlexWorkspaceBookings() {
                       {weekDays.map((date) => {
                         const isToday = date.toISOString().split('T')[0] === new Date().toISOString().split('T')[0];
                         const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+                        const dateStr = date.toISOString().split('T')[0];
+
+                        const dayStats = Array.from({ length: selectedSpace.flex_capacity || 0 }, (_, i) => i + 1)
+                          .map(slot => {
+                            const segments = getTimeSegments(slot, dateStr);
+                            const totalAvailable = segments
+                              .filter(s => s.isAvailable)
+                              .reduce((sum, s) => sum + (s.endHour - s.startHour), 0);
+                            return totalAvailable;
+                          });
+
+                        const totalAvailableHours = dayStats.reduce((sum, hours) => sum + hours, 0);
+                        const maxPossibleHours = (selectedSpace.flex_capacity || 0) * 10;
+                        const availabilityPercent = maxPossibleHours > 0 ? (totalAvailableHours / maxPossibleHours) * 100 : 0;
+
                         return (
                           <th
                             key={date.toISOString()}
@@ -1187,6 +1210,15 @@ export function FlexWorkspaceBookings() {
                             <div className={isToday ? 'text-gold-500 font-bold' : ''}>
                               {date.getDate()}/{date.getMonth() + 1}
                             </div>
+                            {!isWeekend && (
+                              <div className={`mt-1 text-[10px] font-semibold ${
+                                availabilityPercent > 66 ? 'text-green-400' :
+                                availabilityPercent > 33 ? 'text-orange-400' :
+                                availabilityPercent > 0 ? 'text-red-400' : 'text-gray-500'
+                              }`}>
+                                {availabilityPercent.toFixed(0)}% vrij
+                              </div>
+                            )}
                           </th>
                         );
                       })}
@@ -1220,7 +1252,7 @@ export function FlexWorkspaceBookings() {
                                   -
                                 </div>
                               ) : hasBookings ? (
-                                <div className="relative w-full h-[90px] bg-dark-800 rounded border border-dark-600 overflow-hidden">
+                                <div className="relative w-full h-[90px] bg-dark-800 rounded border border-dark-600 overflow-hidden group">
                                   <div className="absolute inset-0 flex">
                                     {timeSegments.map((segment, idx) => {
                                       const totalHours = 10;
@@ -1232,12 +1264,15 @@ export function FlexWorkspaceBookings() {
                                           <button
                                             key={idx}
                                             onClick={() => handleResourceSlotClick(dateStr, slotNumber)}
-                                            className="h-full bg-emerald-900/30 border-r border-dark-600 hover:bg-emerald-800/40 transition-colors flex items-center justify-center group relative"
+                                            className="h-full bg-emerald-500/40 border-r border-emerald-700 hover:bg-emerald-500/60 transition-colors flex items-center justify-center group/btn relative"
                                             style={{ width: `${widthPercent}%` }}
                                             title={`Beschikbaar: ${Math.floor(segment.startHour)}:${String((segment.startHour % 1) * 60).padStart(2, '0')} - ${Math.floor(segment.endHour)}:${String((segment.endHour % 1) * 60).padStart(2, '0')}`}
                                           >
-                                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                              <Plus size={16} className="text-emerald-400" />
+                                            <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                              <Plus size={20} className="text-emerald-200 opacity-60 group-hover/btn:opacity-100 transition-opacity" />
+                                              <span className="text-[9px] text-emerald-200 font-semibold opacity-60 group-hover/btn:opacity-100">
+                                                {segmentHours.toFixed(1)}u
+                                              </span>
                                             </div>
                                           </button>
                                         );
@@ -1311,9 +1346,10 @@ export function FlexWorkspaceBookings() {
                               ) : (
                                 <button
                                   onClick={() => handleResourceSlotClick(dateStr, slotNumber)}
-                                  className="w-full h-[90px] flex items-center justify-center text-lg text-gray-500 hover:bg-dark-700 hover:text-gray-300 rounded border border-dashed border-dark-700 transition-colors font-bold bg-emerald-900/10 hover:bg-emerald-900/20"
+                                  className="w-full h-[90px] flex flex-col items-center justify-center rounded border-2 border-dashed border-emerald-600/40 transition-all font-bold bg-emerald-500/20 hover:bg-emerald-500/30 hover:border-emerald-500/60 group"
                                 >
-                                  +
+                                  <Plus size={28} className="text-emerald-300 group-hover:scale-110 transition-transform" />
+                                  <span className="text-xs text-emerald-300 font-semibold mt-1">10 uur vrij</span>
                                 </button>
                               )}
                             </td>
@@ -1335,6 +1371,16 @@ export function FlexWorkspaceBookings() {
         </div>
       ) : selectedView === 'list' ? (
         <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 overflow-hidden">
+          {bookings.filter(b => b.status === 'pending').length > 0 && (
+            <div className="bg-orange-900/20 border-b border-orange-700/50 px-6 py-3">
+              <div className="flex items-center gap-2 text-orange-300">
+                <AlertCircle size={18} />
+                <span className="text-sm font-semibold">
+                  {bookings.filter(b => b.status === 'pending').length} boeking(en) wachten op goedkeuring
+                </span>
+              </div>
+            </div>
+          )}
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -1374,7 +1420,12 @@ export function FlexWorkspaceBookings() {
                   </tr>
                 ) : (
                   bookings.map((booking) => (
-                    <tr key={booking.id} className="hover:bg-dark-800 transition-colors">
+                    <tr
+                      key={booking.id}
+                      className={`hover:bg-dark-800 transition-colors ${
+                        booking.status === 'pending' ? 'bg-orange-900/10 border-l-4 border-orange-600' : ''
+                      }`}
+                    >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-300">{formatDate(booking.booking_date)}</div>
                       </td>
@@ -1448,29 +1499,31 @@ export function FlexWorkspaceBookings() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <div className="flex items-center justify-end gap-1">
+                        <div className="flex items-center justify-end gap-2">
                           {booking.status === 'pending' && (
                             <>
                               <button
                                 onClick={() => handleStatusChange(booking.id, 'confirmed')}
-                                className="p-1.5 text-green-400 hover:text-green-300 hover:bg-green-900/30 rounded transition-colors"
+                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors"
                                 title="Accepteren"
                               >
-                                <Check size={18} />
+                                <Check size={16} />
+                                Accepteren
                               </button>
                               <button
                                 onClick={() => handleStatusChange(booking.id, 'cancelled')}
-                                className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-900/30 rounded transition-colors"
+                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors"
                                 title="Weigeren"
                               >
-                                <X size={18} />
+                                <X size={16} />
+                                Weigeren
                               </button>
                             </>
                           )}
-                          {!booking.invoice_id && booking.status !== 'cancelled' && (
+                          {!booking.invoice_id && booking.status !== 'cancelled' && booking.status !== 'pending' && (
                             <button
                               onClick={() => setDeleteConfirmId(booking.id)}
-                              className="p-1.5 text-gray-400 hover:text-red-400 transition-colors"
+                              className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-900/20 rounded transition-colors"
                               title="Verwijder boeking"
                             >
                               <Trash2 size={18} />
