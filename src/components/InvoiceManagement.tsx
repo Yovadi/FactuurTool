@@ -578,6 +578,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         const bookingYearMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
         const isForSelectedMonth = bookingYearMonth === invoiceMonth;
         const isUnbilled = !booking.invoice_id;
+        const isCompleted = booking.status === 'completed';
         const isForCustomer = (customer as any).isExternal
           ? booking.external_customer_id === customer.id
           : booking.tenant_id === customer.id;
@@ -589,11 +590,13 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
             invoiceMonth,
             isForSelectedMonth,
             isUnbilled,
+            isCompleted,
+            status: booking.status,
             isForCustomer
           });
         }
 
-        return isForSelectedMonth && isUnbilled && isForCustomer;
+        return isForSelectedMonth && isUnbilled && isCompleted && isForCustomer;
       });
 
       const flexBookings = flexDayBookings.filter(booking => {
@@ -601,10 +604,11 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         const bookingYearMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
         const isForSelectedMonth = bookingYearMonth === invoiceMonth;
         const isUnbilled = !booking.invoice_id;
+        const isCompleted = booking.status === 'completed';
         const isForCustomer = (customer as any).isExternal
           ? booking.external_customer_id === customer.id
           : booking.tenant_id === customer.id;
-        return isForSelectedMonth && isUnbilled && isForCustomer;
+        return isForSelectedMonth && isUnbilled && isCompleted && isForCustomer;
       });
 
       if (customer.company_name?.includes('Youri')) {
