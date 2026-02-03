@@ -275,7 +275,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
     const firstDay = new Date(baseMonth.getFullYear(), baseMonth.getMonth(), 1);
     const lastDay = new Date(baseMonth.getFullYear(), baseMonth.getMonth() + 3, 0);
 
-    const [bookingsRes, spacesRes, tenantsRes, customersRes, allBookingsRes] = await Promise.all([
+    const [bookingsRes, spacesRes, tenantsRes, customersRes, allBookingsRes, ratesRes] = await Promise.all([
       supabase
         .from('meeting_room_bookings')
         .select(`
@@ -299,7 +299,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
         .order('start_time'),
       supabase
         .from('office_spaces')
-        .select('id, space_number, hourly_rate, half_day_rate, full_day_rate')
+        .select('id, space_number')
         .eq('space_type', 'Meeting Room')
         .order('space_number'),
       supabase
@@ -315,7 +315,12 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
         .select('id, booking_date, start_time, end_time, tenant_id, external_customer_id, status')
         .gte('booking_date', formatLocalDate(firstDay))
         .lte('booking_date', formatLocalDate(lastDay))
-        .neq('status', 'cancelled')
+        .neq('status', 'cancelled'),
+      supabase
+        .from('space_type_rates')
+        .select('hourly_rate, half_day_rate, full_day_rate, vat_inclusive')
+        .eq('space_type', 'Meeting Room')
+        .maybeSingle()
     ]);
 
     setAllBookings(allBookingsRes.data || []);
@@ -339,7 +344,22 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
     console.log('Week days with bookings:', days.map(d => ({ date: d.dateStr, bookings: d.bookings.length })));
 
     setWeekDays(days);
-    const rooms = spacesRes.data || [];
+
+    const rates = ratesRes.data || {
+      hourly_rate: 25,
+      half_day_rate: null,
+      full_day_rate: null,
+      vat_inclusive: false
+    };
+
+    const rooms = (spacesRes.data || []).map(room => ({
+      ...room,
+      hourly_rate: Number(rates.hourly_rate) || 25,
+      half_day_rate: rates.half_day_rate ? Number(rates.half_day_rate) : undefined,
+      full_day_rate: rates.full_day_rate ? Number(rates.full_day_rate) : undefined
+    }));
+
+    console.log('Meeting rooms with rates:', rooms);
     setMeetingRooms(rooms);
 
     // Automatically select the first room if there's only one
