@@ -687,19 +687,16 @@ export function FlexWorkspaceBookings() {
     }
   };
 
-  const getWeekDays = () => {
-    const start = new Date(currentDate);
-    const day = start.getDay();
-    const diff = start.getDate() - day + (day === 0 ? -6 : 1);
-    start.setDate(diff);
+  const previousDay = () => {
+    const newDate = new Date(currentDate);
+    newDate.setDate(newDate.getDate() - 1);
+    setCurrentDate(newDate);
+  };
 
-    const days = [];
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(start);
-      date.setDate(start.getDate() + i);
-      days.push(date);
-    }
-    return days;
+  const nextDay = () => {
+    const newDate = new Date(currentDate);
+    newDate.setDate(newDate.getDate() + 1);
+    setCurrentDate(newDate);
   };
 
   const getAllSlotBookings = (slotNumber: number, dateStr: string): SlotBooking[] => {
@@ -830,7 +827,9 @@ export function FlexWorkspaceBookings() {
   };
 
   const selectedSpace = flexSpaces.find(s => s.id === selectedResourceSpace);
-  const weekDays = getWeekDays();
+  const selectedDateStr = currentDate.toISOString().split('T')[0];
+  const isToday = selectedDateStr === new Date().toISOString().split('T')[0];
+  const isWeekend = currentDate.getDay() === 0 || currentDate.getDay() === 6;
 
   if (loading) {
     return (
@@ -1108,22 +1107,34 @@ export function FlexWorkspaceBookings() {
                   ))}
                 </select>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <button
-                  onClick={previousWeek}
+                  onClick={previousDay}
                   className="p-2 text-gray-400 hover:text-gray-300 hover:bg-dark-800 rounded-lg transition-colors"
+                  title="Vorige dag"
                 >
                   <ChevronLeft size={20} />
                 </button>
+                <div className={`px-4 py-2 rounded-lg font-semibold ${
+                  isToday ? 'bg-gold-900/30 text-gold-400 border border-gold-700' : 'bg-dark-800 text-gray-300'
+                }`}>
+                  {new Intl.DateTimeFormat('nl-NL', {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
+                  }).format(currentDate)}
+                </div>
                 <button
                   onClick={goToToday}
-                  className="px-3 py-1.5 text-sm bg-dark-800 text-gray-300 rounded-lg hover:bg-dark-700 transition-colors"
+                  className="px-3 py-1.5 text-sm bg-dark-800 text-gray-300 rounded-lg hover:bg-dark-700 transition-colors font-medium"
                 >
                   Vandaag
                 </button>
                 <button
-                  onClick={nextWeek}
+                  onClick={nextDay}
                   className="p-2 text-gray-400 hover:text-gray-300 hover:bg-dark-800 rounded-lg transition-colors"
+                  title="Volgende dag"
                 >
                   <ChevronRight size={20} />
                 </button>
@@ -1167,199 +1178,163 @@ export function FlexWorkspaceBookings() {
           </div>
 
           {selectedSpace && selectedSpace.flex_capacity ? (
-            <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full table-fixed" style={{ minWidth: '1300px' }}>
-                  <colgroup>
-                    <col style={{ width: '120px' }} />
-                    {weekDays.map((_, idx) => (
-                      <col key={idx} style={{ width: '170px' }} />
-                    ))}
-                  </colgroup>
-                  <thead>
-                    <tr className="bg-dark-800 border-b border-dark-700">
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider sticky left-0 bg-dark-800 z-10">
-                        Plek
-                      </th>
-                      {weekDays.map((date) => {
-                        const isToday = date.toISOString().split('T')[0] === new Date().toISOString().split('T')[0];
-                        const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-                        const dateStr = date.toISOString().split('T')[0];
+            <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-6">
+              {isWeekend ? (
+                <div className="text-center py-12 text-gray-400">
+                  <Calendar size={48} className="mx-auto mb-4 opacity-50" />
+                  <p className="text-lg font-medium">Weekend - Geen flexplekken beschikbaar</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {Array.from({ length: selectedSpace.flex_capacity }, (_, i) => i + 1).map((slotNumber) => {
+                    const timeSegments = getTimeSegments(slotNumber, selectedDateStr);
+                    const hasBookings = timeSegments.some(seg => seg.booking !== null);
 
-                        const dayStats = Array.from({ length: selectedSpace.flex_capacity || 0 }, (_, i) => i + 1)
-                          .map(slot => {
-                            const segments = getTimeSegments(slot, dateStr);
-                            const totalAvailable = segments
-                              .filter(s => s.isAvailable)
-                              .reduce((sum, s) => sum + (s.endHour - s.startHour), 0);
-                            return totalAvailable;
-                          });
+                    const totalAvailable = timeSegments
+                      .filter(s => s.isAvailable)
+                      .reduce((sum, s) => sum + (s.endHour - s.startHour), 0);
 
-                        const totalAvailableHours = dayStats.reduce((sum, hours) => sum + hours, 0);
-                        const maxPossibleHours = (selectedSpace.flex_capacity || 0) * 10;
-                        const availabilityPercent = maxPossibleHours > 0 ? (totalAvailableHours / maxPossibleHours) * 100 : 0;
-
-                        return (
-                          <th
-                            key={date.toISOString()}
-                            className={`px-4 py-3 text-center text-xs font-medium uppercase tracking-wider ${
-                              isToday ? 'text-gold-400' : isWeekend ? 'text-gray-500' : 'text-gray-400'
-                            }`}
-                          >
-                            <div>{new Intl.DateTimeFormat('nl-NL', { weekday: 'short' }).format(date)}</div>
-                            <div className={isToday ? 'text-gold-500 font-bold' : ''}>
-                              {date.getDate()}/{date.getMonth() + 1}
+                    return (
+                      <div
+                        key={slotNumber}
+                        className="bg-dark-800 rounded-lg border border-dark-700 p-4 hover:border-dark-600 transition-colors"
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-dark-700 border border-dark-600">
+                              <User size={20} className="text-gray-400" />
                             </div>
-                            {!isWeekend && (
-                              <div className={`mt-1 text-[10px] font-semibold ${
-                                availabilityPercent > 66 ? 'text-green-400' :
-                                availabilityPercent > 33 ? 'text-orange-400' :
-                                availabilityPercent > 0 ? 'text-red-400' : 'text-gray-500'
+                            <div>
+                              <div className="text-lg font-bold text-gray-100">Plek {slotNumber}</div>
+                              <div className={`text-sm font-semibold ${
+                                totalAvailable > 7 ? 'text-green-400' :
+                                totalAvailable > 4 ? 'text-orange-400' :
+                                totalAvailable > 0 ? 'text-red-400' : 'text-gray-500'
                               }`}>
-                                {availabilityPercent.toFixed(0)}% vrij
+                                {totalAvailable > 0 ? `${totalAvailable} uur beschikbaar` : 'Volledig geboekt'}
                               </div>
-                            )}
-                          </th>
-                        );
-                      })}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-dark-700">
-                    {Array.from({ length: selectedSpace.flex_capacity }, (_, i) => i + 1).map((slotNumber) => (
-                      <tr key={slotNumber} className="hover:bg-dark-800 transition-colors">
-                        <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-100 sticky left-0 bg-dark-900 z-10">
-                          <div className="flex items-center gap-2">
-                            <User size={16} className="text-gray-400" />
-                            Plek {slotNumber}
+                            </div>
                           </div>
-                        </td>
-                        {weekDays.map((date) => {
-                          const dateStr = date.toISOString().split('T')[0];
-                          const timeSegments = getTimeSegments(slotNumber, dateStr);
-                          const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-                          const isToday = dateStr === new Date().toISOString().split('T')[0];
-                          const hasBookings = timeSegments.some(seg => seg.booking !== null);
+                        </div>
 
-                          return (
-                            <td
-                              key={dateStr}
-                              className={`px-2 py-2 ${
-                                isWeekend ? 'bg-dark-950' : ''
-                              } ${isToday ? 'ring-2 ring-gold-500 ring-inset' : ''}`}
-                            >
-                              {isWeekend ? (
-                                <div className="w-full h-[90px] flex items-center justify-center text-gray-600 text-sm">
-                                  -
-                                </div>
-                              ) : hasBookings ? (
-                                <div className="relative w-full h-[90px] bg-dark-800 rounded border border-dark-600 overflow-hidden group">
-                                  <div className="absolute inset-0 flex">
-                                    {timeSegments.map((segment, idx) => {
-                                      const totalHours = 10;
-                                      const segmentHours = segment.endHour - segment.startHour;
-                                      const widthPercent = (segmentHours / totalHours) * 100;
+                        {hasBookings ? (
+                          <div className="relative w-full h-[200px] bg-dark-900 rounded-lg border border-dark-600 overflow-hidden">
+                            <div className="absolute inset-0 flex">
+                              {timeSegments.map((segment, idx) => {
+                                const totalHours = 10;
+                                const segmentHours = segment.endHour - segment.startHour;
+                                const widthPercent = (segmentHours / totalHours) * 100;
 
-                                      if (segment.isAvailable) {
-                                        return (
-                                          <button
-                                            key={idx}
-                                            onClick={() => handleResourceSlotClick(dateStr, slotNumber)}
-                                            className="h-full bg-emerald-500/40 border-r border-emerald-700 hover:bg-emerald-500/60 transition-colors flex items-center justify-center group/btn relative"
-                                            style={{ width: `${widthPercent}%` }}
-                                            title={`Beschikbaar: ${Math.floor(segment.startHour)}:${String((segment.startHour % 1) * 60).padStart(2, '0')} - ${Math.floor(segment.endHour)}:${String((segment.endHour % 1) * 60).padStart(2, '0')}`}
-                                          >
-                                            <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                              <Plus size={20} className="text-emerald-200 opacity-60 group-hover/btn:opacity-100 transition-opacity" />
-                                              <span className="text-[9px] text-emerald-200 font-semibold opacity-60 group-hover/btn:opacity-100">
-                                                {segmentHours.toFixed(1)}u
-                                              </span>
-                                            </div>
-                                          </button>
-                                        );
-                                      }
+                                if (segment.isAvailable) {
+                                  return (
+                                    <button
+                                      key={idx}
+                                      onClick={() => handleResourceSlotClick(selectedDateStr, slotNumber)}
+                                      className="h-full bg-emerald-500/50 border-r-2 border-emerald-700 hover:bg-emerald-500/70 transition-colors flex items-center justify-center group/btn relative"
+                                      style={{ width: `${widthPercent}%` }}
+                                      title={`Beschikbaar: ${Math.floor(segment.startHour)}:${String((segment.startHour % 1) * 60).padStart(2, '0')} - ${Math.floor(segment.endHour)}:${String((segment.endHour % 1) * 60).padStart(2, '0')}`}
+                                    >
+                                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                        <Plus size={32} className="text-emerald-200 group-hover/btn:scale-110 transition-transform" />
+                                        <span className="text-sm text-emerald-200 font-bold mt-2">
+                                          {segmentHours.toFixed(1)} uur
+                                        </span>
+                                        <span className="text-xs text-emerald-300 font-semibold">
+                                          Klik om te boeken
+                                        </span>
+                                      </div>
+                                    </button>
+                                  );
+                                }
 
-                                      const booking = segment.booking!;
-                                      const isPending = booking.type === 'booking' && booking.status === 'pending';
-                                      const bgColor = booking.type === 'booking'
-                                        ? booking.status === 'pending'
-                                          ? 'bg-orange-600'
-                                          : booking.isInvoiced || booking.status === 'completed'
-                                          ? 'bg-green-600'
-                                          : booking.status === 'cancelled'
-                                          ? 'bg-red-600/70'
-                                          : 'bg-gold-500'
-                                        : 'bg-blue-500';
+                                const booking = segment.booking!;
+                                const isPending = booking.type === 'booking' && booking.status === 'pending';
+                                const bgColor = booking.type === 'booking'
+                                  ? booking.status === 'pending'
+                                    ? 'bg-orange-600'
+                                    : booking.isInvoiced || booking.status === 'completed'
+                                    ? 'bg-green-600'
+                                    : booking.status === 'cancelled'
+                                    ? 'bg-red-600/70'
+                                    : 'bg-gold-500'
+                                  : 'bg-blue-500';
 
-                                      return (
-                                        <div
-                                          key={idx}
-                                          className={`relative h-full ${bgColor} border-r border-dark-900 flex flex-col items-center justify-center p-1 cursor-pointer hover:brightness-110 transition-all group`}
-                                          style={{ width: `${widthPercent}%` }}
-                                          title={`${booking.customerName}\n${booking.time || ''}\nStatus: ${booking.status || 'bevestigd'}`}
+                                return (
+                                  <div
+                                    key={idx}
+                                    className={`relative h-full ${bgColor} border-r-2 border-dark-900 flex flex-col items-center justify-center p-3 cursor-pointer hover:brightness-110 transition-all group`}
+                                    style={{ width: `${widthPercent}%` }}
+                                    title={`${booking.customerName}\n${booking.time || ''}\nStatus: ${booking.status || 'bevestigd'}`}
+                                  >
+                                    <div className="text-white text-base font-bold text-center leading-tight mb-2">
+                                      {booking.customerName}
+                                    </div>
+                                    {booking.time && (
+                                      <div className="text-white text-sm font-semibold bg-black/30 px-2 py-1 rounded">
+                                        {booking.time}
+                                      </div>
+                                    )}
+                                    {booking.totalHours && (
+                                      <div className="text-white text-xs font-medium mt-1 opacity-90">
+                                        {booking.totalHours} uur
+                                      </div>
+                                    )}
+                                    {isPending && booking.bookingId && (
+                                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/90 transition-all flex items-center justify-center gap-3 opacity-0 group-hover:opacity-100">
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleStatusChange(booking.bookingId!, 'confirmed');
+                                          }}
+                                          className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-semibold"
+                                          title="Accepteren"
                                         >
-                                          <div className="text-white text-[10px] font-bold text-center leading-tight line-clamp-2 px-0.5">
-                                            {booking.customerName}
-                                          </div>
-                                          {booking.time && (
-                                            <div className="text-white text-[9px] font-semibold mt-0.5 bg-black/20 px-1 rounded">
-                                              {booking.time}
-                                            </div>
-                                          )}
-                                          {isPending && booking.bookingId && (
-                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/80 transition-all flex items-center justify-center gap-0.5 opacity-0 group-hover:opacity-100">
-                                              <button
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  handleStatusChange(booking.bookingId!, 'confirmed');
-                                                }}
-                                                className="p-1 bg-green-600 hover:bg-green-700 text-white rounded transition-colors"
-                                                title="Accepteren"
-                                              >
-                                                <Check size={14} />
-                                              </button>
-                                              <button
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  handleStatusChange(booking.bookingId!, 'cancelled');
-                                                }}
-                                                className="p-1 bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
-                                                title="Weigeren"
-                                              >
-                                                <X size={14} />
-                                              </button>
-                                            </div>
-                                          )}
-                                        </div>
-                                      );
-                                    })}
+                                          <Check size={20} />
+                                          Accepteren
+                                        </button>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleStatusChange(booking.bookingId!, 'cancelled');
+                                          }}
+                                          className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-semibold"
+                                          title="Weigeren"
+                                        >
+                                          <X size={20} />
+                                          Weigeren
+                                        </button>
+                                      </div>
+                                    )}
                                   </div>
+                                );
+                              })}
+                            </div>
 
-                                  <div className="absolute bottom-0 left-0 right-0 h-3 bg-dark-900/80 flex text-[8px] text-gray-500 font-medium">
-                                    <div className="flex-1 border-r border-dark-700 flex items-center justify-center">08</div>
-                                    <div className="flex-1 border-r border-dark-700 flex items-center justify-center">10</div>
-                                    <div className="flex-1 border-r border-dark-700 flex items-center justify-center">12</div>
-                                    <div className="flex-1 border-r border-dark-700 flex items-center justify-center">14</div>
-                                    <div className="flex-1 border-r border-dark-700 flex items-center justify-center">16</div>
-                                    <div className="flex-1 flex items-center justify-center">18</div>
-                                  </div>
-                                </div>
-                              ) : (
-                                <button
-                                  onClick={() => handleResourceSlotClick(dateStr, slotNumber)}
-                                  className="w-full h-[90px] flex flex-col items-center justify-center rounded border-2 border-dashed border-emerald-600/40 transition-all font-bold bg-emerald-500/20 hover:bg-emerald-500/30 hover:border-emerald-500/60 group"
-                                >
-                                  <Plus size={28} className="text-emerald-300 group-hover:scale-110 transition-transform" />
-                                  <span className="text-xs text-emerald-300 font-semibold mt-1">10 uur vrij</span>
-                                </button>
-                              )}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                            <div className="absolute bottom-0 left-0 right-0 h-8 bg-dark-900/95 flex text-xs text-gray-400 font-semibold border-t border-dark-700">
+                              <div className="flex-1 border-r border-dark-700 flex items-center justify-center">08:00</div>
+                              <div className="flex-1 border-r border-dark-700 flex items-center justify-center">10:00</div>
+                              <div className="flex-1 border-r border-dark-700 flex items-center justify-center">12:00</div>
+                              <div className="flex-1 border-r border-dark-700 flex items-center justify-center">14:00</div>
+                              <div className="flex-1 border-r border-dark-700 flex items-center justify-center">16:00</div>
+                              <div className="flex-1 flex items-center justify-center">18:00</div>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handleResourceSlotClick(selectedDateStr, slotNumber)}
+                            className="w-full h-[200px] flex flex-col items-center justify-center rounded-lg border-3 border-dashed border-emerald-600/50 transition-all font-bold bg-emerald-500/20 hover:bg-emerald-500/30 hover:border-emerald-500/70 hover:scale-[1.01] group"
+                          >
+                            <Plus size={48} className="text-emerald-300 group-hover:scale-110 transition-transform mb-3" />
+                            <span className="text-xl text-emerald-300 font-bold">Volledig Beschikbaar</span>
+                            <span className="text-sm text-emerald-400 font-semibold mt-2">10 uur vrij (08:00 - 18:00)</span>
+                            <span className="text-xs text-emerald-500 font-medium mt-1">Klik om te boeken</span>
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           ) : (
             <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-8 text-center">
