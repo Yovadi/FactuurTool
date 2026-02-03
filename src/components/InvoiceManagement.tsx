@@ -2852,14 +2852,14 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                         )}
                       </button>
                     </th>
-                    <th className="text-left px-4 py-3 font-semibold w-[15%]">Klant</th>
-                    <th className="text-left px-4 py-3 font-semibold w-[8%]">Factuur Nr.</th>
-                    <th className="text-left px-4 py-3 font-semibold w-[20%]">Omschrijving</th>
-                    <th className="text-left px-4 py-3 font-semibold w-[8%]">Maand</th>
+                    <th className="text-left px-4 py-3 font-semibold w-[19%]">Klant</th>
+                    <th className="text-left px-4 py-3 font-semibold w-[10%]">Factuur Nr.</th>
+                    <th className="text-left px-4 py-3 font-semibold w-[10%]">Maand</th>
                     <th className="text-left px-4 py-3 font-semibold w-[12%]">Factuur Datum</th>
+                    <th className="text-left px-4 py-3 font-semibold w-[12%]">Omschrijving</th>
                     <th className="text-right px-4 py-3 font-semibold w-[10%]">Bedrag</th>
-                    <th className="text-center px-4 py-3 font-semibold w-[8%]">Status</th>
-                    <th className="text-right px-4 py-3 font-semibold w-[13%]">Acties</th>
+                    <th className="text-center px-4 py-3 font-semibold w-[10%]">Status</th>
+                    <th className="text-right px-4 py-3 font-semibold w-[16%]">Acties</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2901,6 +2901,14 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                             </td>
                             <td className="px-4 py-3 text-purple-600 font-medium text-sm">
                               {invoice.invoice_number.replace(/^INV-/, '')}
+                            </td>
+                            <td className="px-4 py-3 text-gray-300 text-sm">
+                              {invoice.invoice_month ?
+                                new Date(invoice.invoice_month + '-01').toLocaleDateString('nl-NL', { month: 'short', year: 'numeric' })
+                              : '-'}
+                            </td>
+                            <td className="px-4 py-3 text-gray-300 text-sm">
+                              {new Date(invoice.invoice_date).toLocaleDateString('nl-NL')}
                             </td>
                             <td className="px-4 py-3 text-gray-300 text-sm">
                               {invoice.line_items && invoice.line_items.length > 0 ? (
@@ -2973,14 +2981,6 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                                   );
                                 })()
                               ) : '-'}
-                            </td>
-                            <td className="px-4 py-3 text-gray-300 text-sm">
-                              {invoice.invoice_month ?
-                                new Date(invoice.invoice_month + '-01').toLocaleDateString('nl-NL', { month: 'short', year: 'numeric' })
-                              : '-'}
-                            </td>
-                            <td className="px-4 py-3 text-gray-300 text-sm">
-                              {new Date(invoice.invoice_date).toLocaleDateString('nl-NL')}
                             </td>
                             <td className="px-4 py-3 text-right">
                               <div className="text-gray-100 font-bold">
