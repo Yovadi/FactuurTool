@@ -384,16 +384,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     updateInvoicedMonthsCounts();
   }, [invoices]);
 
-  useEffect(() => {
-    const updateMonthForFilter = async () => {
-      if (!showGenerateModal) return;
-      const defaultMonth = await getDefaultInvoiceMonth(invoiceTypeFilter);
-      setInvoiceMonth(defaultMonth);
-      setShowDetailSelection(true);
-    };
-    updateMonthForFilter();
-  }, [invoiceTypeFilter]);
-
   const loadData = async () => {
     setLoading(true);
 
