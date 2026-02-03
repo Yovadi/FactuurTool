@@ -78,6 +78,14 @@ export function FlexWorkspaceBookings() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [calendarDays, setCalendarDays] = useState<CalendarDay[]>([]);
+  const [showQuickBooking, setShowQuickBooking] = useState(false);
+  const [quickBookingDate, setQuickBookingDate] = useState('');
+  const [quickFormData, setQuickFormData] = useState({
+    space_id: '',
+    external_customer_id: '',
+    is_half_day: false,
+    half_day_period: 'morning' as 'morning' | 'afternoon'
+  });
 
   const [formData, setFormData] = useState({
     space_id: '',
@@ -124,8 +132,8 @@ export function FlexWorkspaceBookings() {
           .not('external_customer_id', 'is', null),
         supabase
           .from('office_spaces')
-          .select('id, space_number, flex_capacity')
-          .eq('is_flex_space', true)
+          .select('id, space_number, flex_capacity, space_type')
+          .eq('space_type', 'Flexplek')
           .eq('is_available', true)
           .order('space_number'),
         supabase
@@ -329,6 +337,67 @@ export function FlexWorkspaceBookings() {
       is_half_day: false,
       half_day_period: 'morning'
     });
+  };
+
+  const handleCalendarDayClick = (dateStr: string) => {
+    setQuickBookingDate(dateStr);
+    setQuickFormData({
+      space_id: '',
+      external_customer_id: '',
+      is_half_day: false,
+      half_day_period: 'morning'
+    });
+    setShowQuickBooking(true);
+  };
+
+  const handleQuickBookingSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!quickFormData.space_id) {
+      showNotification('Selecteer een flexruimte', 'error');
+      return;
+    }
+
+    if (!quickFormData.external_customer_id) {
+      showNotification('Selecteer een externe klant', 'error');
+      return;
+    }
+
+    try {
+      const bookingData = {
+        space_id: quickFormData.space_id,
+        external_customer_id: quickFormData.external_customer_id,
+        booking_date: quickBookingDate,
+        is_half_day: quickFormData.is_half_day,
+        half_day_period: quickFormData.is_half_day ? quickFormData.half_day_period : null
+      };
+
+      const { data, error } = await supabase
+        .from('flex_day_bookings')
+        .insert([bookingData])
+        .select(`
+          *,
+          office_spaces(space_number),
+          external_customers(id, company_name, contact_name, email, phone, street, postal_code, city, country)
+        `)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setAllBookings(prev => [data as FlexBooking, ...prev]);
+        showNotification('Flexplekboeking succesvol aangemaakt', 'success');
+        setShowQuickBooking(false);
+      }
+    } catch (error: any) {
+      console.error('Error creating booking:', error);
+      const message = error.message?.includes('unique_flex_booking')
+        ? 'Deze datum is al geboekt voor deze klant'
+        : error.message?.includes('flex_day_bookings_customer_check')
+        ? 'Externe klant is verplicht voor flexplekken'
+        : 'Fout bij aanmaken boeking';
+      showNotification(message, 'error');
+    }
   };
 
   const formatDate = (dateStr: string) => {
@@ -733,7 +802,8 @@ export function FlexWorkspaceBookings() {
               return (
                 <div
                   key={index}
-                  className={`bg-dark-900 min-h-24 p-2 ${
+                  onClick={() => handleCalendarDayClick(day.dateStr)}
+                  className={`bg-dark-900 min-h-24 p-2 cursor-pointer hover:bg-dark-800 transition-colors ${
                     !day.isCurrentMonth ? 'opacity-40' : ''
                   } ${isToday ? 'ring-2 ring-gold-500 ring-inset' : ''}`}
                 >
@@ -791,6 +861,127 @@ export function FlexWorkspaceBookings() {
                 Verwijderen
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showQuickBooking && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
+          <div className="bg-dark-900 rounded-lg p-6 max-w-lg w-full mx-4 my-8 border border-dark-700">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h2 className="text-xl font-bold text-gray-100">Nieuwe Boeking</h2>
+                <p className="text-sm text-gray-400 mt-1">
+                  {formatDate(quickBookingDate)}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowQuickBooking(false)}
+                className="text-gray-400 hover:text-gray-300"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <form onSubmit={handleQuickBookingSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Flexruimte *
+                </label>
+                <select
+                  value={quickFormData.space_id}
+                  onChange={(e) => setQuickFormData({ ...quickFormData, space_id: e.target.value })}
+                  className="w-full px-4 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-100 focus:outline-none focus:border-gold-500"
+                  required
+                >
+                  <option value="">Selecteer ruimte</option>
+                  {flexSpaces.map(space => (
+                    <option key={space.id} value={space.id}>
+                      {space.space_number} {space.flex_capacity && `(max ${space.flex_capacity} personen)`}
+                    </option>
+                  ))}
+                </select>
+                {flexSpaces.length === 0 && (
+                  <p className="text-xs text-amber-400 mt-1">
+                    Geen flexruimtes beschikbaar met label "Flexplek"
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Externe Klant *
+                </label>
+                <select
+                  value={quickFormData.external_customer_id}
+                  onChange={(e) => setQuickFormData({ ...quickFormData, external_customer_id: e.target.value })}
+                  className="w-full px-4 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-100 focus:outline-none focus:border-gold-500"
+                  required
+                >
+                  <option value="">Selecteer klant</option>
+                  {externalCustomers.map(customer => (
+                    <option key={customer.id} value={customer.id}>
+                      {customer.company_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-4">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={quickFormData.is_half_day}
+                    onChange={(e) => setQuickFormData({ ...quickFormData, is_half_day: e.target.checked })}
+                    className="w-4 h-4 rounded border-dark-600 bg-dark-800 text-gold-500 focus:ring-gold-500 focus:ring-offset-dark-900"
+                  />
+                  <span className="text-sm font-medium text-gray-300">Halve dag</span>
+                </label>
+
+                {quickFormData.is_half_day && (
+                  <div className="flex gap-2 ml-6">
+                    <button
+                      type="button"
+                      onClick={() => setQuickFormData({ ...quickFormData, half_day_period: 'morning' })}
+                      className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+                        quickFormData.half_day_period === 'morning'
+                          ? 'bg-gold-500 text-white'
+                          : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
+                      }`}
+                    >
+                      Ochtend
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setQuickFormData({ ...quickFormData, half_day_period: 'afternoon' })}
+                      className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+                        quickFormData.half_day_period === 'afternoon'
+                          ? 'bg-gold-500 text-white'
+                          : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
+                      }`}
+                    >
+                      Middag
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowQuickBooking(false)}
+                  className="flex-1 px-4 py-2 bg-dark-800 text-gray-300 rounded-lg hover:bg-dark-700 transition-colors font-medium"
+                >
+                  Annuleren
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-gold-500 text-white rounded-lg hover:bg-gold-600 transition-colors font-medium"
+                >
+                  Boeking Aanmaken
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
