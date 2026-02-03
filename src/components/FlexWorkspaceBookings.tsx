@@ -88,6 +88,8 @@ type SlotBooking = {
   scheduleId?: string;
   isInvoiced?: boolean;
   time?: string;
+  isHalfDay?: boolean;
+  halfDayPeriod?: 'morning' | 'afternoon';
 };
 
 export function FlexWorkspaceBookings() {
@@ -639,7 +641,9 @@ export function FlexWorkspaceBookings() {
         customerId: booking.external_customer_id,
         bookingId: booking.id,
         isInvoiced: booking.invoice_id !== null,
-        time: booking.start_time && booking.end_time ? `${booking.start_time}-${booking.end_time}` : undefined
+        time: booking.start_time && booking.end_time ? `${booking.start_time}-${booking.end_time}` : undefined,
+        isHalfDay: booking.is_half_day,
+        halfDayPeriod: booking.half_day_period
       };
     }
 
@@ -1000,7 +1004,13 @@ export function FlexWorkspaceBookings() {
           {selectedSpace && selectedSpace.flex_capacity ? (
             <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full table-fixed" style={{ minWidth: '1200px' }}>
+                  <colgroup>
+                    <col style={{ width: '120px' }} />
+                    {weekDays.map((_, idx) => (
+                      <col key={idx} style={{ width: '154px' }} />
+                    ))}
+                  </colgroup>
                   <thead>
                     <tr className="bg-dark-800 border-b border-dark-700">
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider sticky left-0 bg-dark-800 z-10">
@@ -1028,7 +1038,7 @@ export function FlexWorkspaceBookings() {
                   <tbody className="divide-y divide-dark-700">
                     {Array.from({ length: selectedSpace.flex_capacity }, (_, i) => i + 1).map((slotNumber) => (
                       <tr key={slotNumber} className="hover:bg-dark-800 transition-colors">
-                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-100 sticky left-0 bg-dark-900 z-10">
+                        <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-100 sticky left-0 bg-dark-900 z-10">
                           <div className="flex items-center gap-2">
                             <User size={16} className="text-gray-400" />
                             Plek {slotNumber}
@@ -1043,30 +1053,35 @@ export function FlexWorkspaceBookings() {
                           return (
                             <td
                               key={dateStr}
-                              className={`px-2 py-2 text-center ${
+                              className={`px-3 py-3 text-center ${
                                 isWeekend ? 'bg-dark-950' : ''
                               } ${isToday ? 'ring-2 ring-gold-500 ring-inset' : ''}`}
                             >
                               {slotBooking ? (
                                 <div
-                                  className={`text-xs px-2 py-2 rounded cursor-pointer transition-colors ${
+                                  className={`text-sm px-3 py-3 rounded cursor-pointer transition-colors min-h-[70px] flex flex-col justify-center ${
                                     slotBooking.type === 'booking'
                                       ? slotBooking.isInvoiced
-                                        ? 'bg-green-900/50 text-green-300 border border-green-700 hover:bg-green-900/70'
-                                        : 'bg-gold-900/50 text-gold-300 border border-gold-700 hover:bg-gold-900/70'
-                                      : 'bg-blue-900/50 text-blue-300 border border-blue-700 hover:bg-blue-900/70'
+                                        ? 'bg-green-900/50 text-green-200 border border-green-700 hover:bg-green-900/70'
+                                        : 'bg-gold-900/50 text-gold-200 border border-gold-700 hover:bg-gold-900/70'
+                                      : 'bg-blue-900/50 text-blue-200 border border-blue-700 hover:bg-blue-900/70'
                                   }`}
                                   title={`${slotBooking.customerName}${slotBooking.time ? ` (${slotBooking.time})` : ''}`}
                                 >
-                                  <div className="font-medium truncate">{slotBooking.customerName}</div>
+                                  <div className="font-semibold text-sm leading-tight mb-1">{slotBooking.customerName}</div>
+                                  {slotBooking.isHalfDay && slotBooking.halfDayPeriod && (
+                                    <div className="inline-flex items-center justify-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-white/20 mb-1">
+                                      {slotBooking.halfDayPeriod === 'morning' ? '🌅 Ochtend' : '🌆 Middag'}
+                                    </div>
+                                  )}
                                   {slotBooking.time && (
-                                    <div className="text-[10px] opacity-75 mt-0.5">{slotBooking.time}</div>
+                                    <div className="text-xs opacity-90 font-medium">{slotBooking.time}</div>
                                   )}
                                 </div>
                               ) : (
                                 <button
                                   onClick={() => handleResourceSlotClick(dateStr, slotNumber)}
-                                  className="w-full px-2 py-2 text-xs text-gray-500 hover:bg-dark-700 hover:text-gray-300 rounded border border-dashed border-dark-700 transition-colors"
+                                  className="w-full px-3 py-3 min-h-[70px] text-sm text-gray-500 hover:bg-dark-700 hover:text-gray-300 rounded border border-dashed border-dark-700 transition-colors font-medium"
                                   disabled={isWeekend}
                                 >
                                   {isWeekend ? '-' : '+'}
