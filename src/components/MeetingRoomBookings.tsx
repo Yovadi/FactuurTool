@@ -145,9 +145,9 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
 
     if (ratesData) {
       setMeetingRoomRates({
-        hourly_rate: ratesData.hourly_rate || 0,
-        half_day_rate: ratesData.half_day_rate,
-        full_day_rate: ratesData.full_day_rate,
+        hourly_rate: Number(ratesData.hourly_rate) || 0,
+        half_day_rate: ratesData.half_day_rate ? Number(ratesData.half_day_rate) : null,
+        full_day_rate: ratesData.full_day_rate ? Number(ratesData.full_day_rate) : null,
         vat_inclusive: ratesData.vat_inclusive || false
       });
     }
@@ -356,12 +356,18 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     }
 
     const totalHours = calculateTotalHours(formData.start_time, formData.end_time);
+    console.log('Booking calculation - Hours:', totalHours, 'Rates:', {
+      hourly: meetingRoomRates.hourly_rate,
+      halfDay: meetingRoomRates.half_day_rate,
+      fullDay: meetingRoomRates.full_day_rate
+    });
     const { rateType, appliedRate, totalAmount } = calculateOptimalRate(
       totalHours,
       meetingRoomRates.hourly_rate || formData.hourly_rate,
       meetingRoomRates.half_day_rate || undefined,
       meetingRoomRates.full_day_rate || undefined
     );
+    console.log('Optimal rate result:', { rateType, appliedRate, totalAmount });
 
     let discountPercentage = 0;
     if (bookingType === 'tenant') {

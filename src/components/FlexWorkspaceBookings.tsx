@@ -279,9 +279,9 @@ export function FlexWorkspaceBookings() {
         formData.start_time,
         formData.end_time,
         {
-          hourly_rate: spaceData.hourly_rate || 0,
-          half_day_rate: spaceData.half_day_rate || 0,
-          full_day_rate: spaceData.full_day_rate || 0
+          hourly_rate: Number(spaceData.hourly_rate) || 0,
+          half_day_rate: Number(spaceData.half_day_rate) || 0,
+          full_day_rate: Number(spaceData.full_day_rate) || 0
         }
       );
 
@@ -296,7 +296,7 @@ export function FlexWorkspaceBookings() {
         booking_date: formData.booking_date,
         start_time: formData.start_time,
         end_time: formData.end_time,
-        hourly_rate: spaceData.hourly_rate || 0,
+        hourly_rate: Number(spaceData.hourly_rate) || 0,
         total_hours: calculation.totalHours,
         total_amount: calculation.totalAmount,
         is_half_day: calculation.isHalfDay,
