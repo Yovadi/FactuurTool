@@ -3082,11 +3082,11 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                           {filteredOpenInvoices.filter(inv => selectedInvoices.has(inv.id)).length} Geselecteerd
                         </div>
                         <button
-                          onClick={() => handleBatchStatusChange('sent')}
-                          className="flex items-center gap-2 bg-amber-600 text-white px-3 py-1.5 rounded-lg hover:bg-amber-700 transition-colors text-sm"
+                          onClick={() => handleBatchStatusChange('paid')}
+                          className="flex items-center gap-2 bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition-colors text-sm"
                         >
-                          <Send size={16} />
-                          Markeer Verzonden
+                          <CheckCircle size={16} />
+                          Markeer als Betaald
                         </button>
                         <button
                           onClick={handleBatchDelete}
