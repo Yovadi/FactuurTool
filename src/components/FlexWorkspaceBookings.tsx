@@ -376,7 +376,11 @@ export function FlexWorkspaceBookings() {
     });
   };
 
-  const calculateRateAndAmount = (startTime: string, endTime: string, spaceRates: { hourly_rate: number; half_day_rate: number; full_day_rate: number }) => {
+  const calculateRateAndAmount = (
+    startTime: string,
+    endTime: string,
+    spaceRates: { hourly_rate: number; half_day_rate: number; full_day_rate: number }
+  ) => {
     const [startHour, startMin] = startTime.split(':').map(Number);
     const [endHour, endMin] = endTime.split(':').map(Number);
     const totalHours = (endHour + endMin / 60) - (startHour + startMin / 60);
@@ -385,24 +389,9 @@ export function FlexWorkspaceBookings() {
       return { totalHours: 0, totalAmount: 0, rateUsed: 'none', isHalfDay: false, halfDayPeriod: null };
     }
 
-    if (totalHours <= 4) {
-      return {
-        totalHours,
-        totalAmount: totalHours * spaceRates.hourly_rate,
-        rateUsed: 'hourly',
-        isHalfDay: false,
-        halfDayPeriod: null
-      };
-    } else if (totalHours <= 6) {
-      const halfDayPeriod = startHour < 13 ? 'morning' : 'afternoon';
-      return {
-        totalHours,
-        totalAmount: spaceRates.half_day_rate,
-        rateUsed: 'half_day',
-        isHalfDay: true,
-        halfDayPeriod
-      };
-    } else {
+    const hourlyTotal = totalHours * spaceRates.hourly_rate;
+
+    if (totalHours >= 8 && spaceRates.full_day_rate && spaceRates.full_day_rate < hourlyTotal) {
       return {
         totalHours,
         totalAmount: spaceRates.full_day_rate,
@@ -411,6 +400,34 @@ export function FlexWorkspaceBookings() {
         halfDayPeriod: null
       };
     }
+
+    if (totalHours >= 4 && spaceRates.half_day_rate && spaceRates.half_day_rate < hourlyTotal) {
+      if (spaceRates.full_day_rate && totalHours >= 8 && spaceRates.full_day_rate < spaceRates.half_day_rate) {
+        return {
+          totalHours,
+          totalAmount: spaceRates.full_day_rate,
+          rateUsed: 'full_day',
+          isHalfDay: false,
+          halfDayPeriod: null
+        };
+      }
+      const halfDayPeriod = startHour < 13 ? 'morning' : 'afternoon';
+      return {
+        totalHours,
+        totalAmount: spaceRates.half_day_rate,
+        rateUsed: 'half_day',
+        isHalfDay: true,
+        halfDayPeriod
+      };
+    }
+
+    return {
+      totalHours,
+      totalAmount: hourlyTotal,
+      rateUsed: 'hourly',
+      isHalfDay: false,
+      halfDayPeriod: null
+    };
   };
 
   const handleCalendarDayClick = (dateStr: string) => {
@@ -736,7 +753,7 @@ export function FlexWorkspaceBookings() {
                   </div>
                 </div>
                 <p className="text-xs text-gray-400 mt-2">
-                  Tarief wordt automatisch berekend: tot 4 uur = uurtarief, 4-6 uur = halve dag, meer dan 6 uur = hele dag
+                  Tarief wordt automatisch berekend op basis van voordeligste optie: minder dan 4 uur = uurtarief, vanaf 4 uur = halve dag (indien voordeliger), vanaf 8 uur = hele dag (indien voordeliger)
                 </p>
               </div>
 
@@ -1074,7 +1091,7 @@ export function FlexWorkspaceBookings() {
                   </div>
                 </div>
                 <p className="text-xs text-gray-400 mt-2">
-                  Tarief wordt automatisch berekend: tot 4 uur = uurtarief, 4-6 uur = halve dag, meer dan 6 uur = hele dag
+                  Tarief wordt automatisch berekend op basis van voordeligste optie: minder dan 4 uur = uurtarief, vanaf 4 uur = halve dag (indien voordeliger), vanaf 8 uur = hele dag (indien voordeliger)
                 </p>
               </div>
 
