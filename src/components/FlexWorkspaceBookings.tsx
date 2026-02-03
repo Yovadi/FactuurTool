@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Calendar, Plus, X, Check, AlertCircle, Trash2, CalendarDays, CheckCircle, XCircle, Info, Filter, Building2 } from 'lucide-react';
+import { Calendar, Plus, X, Check, AlertCircle, Trash2, CalendarDays, CheckCircle, XCircle, Info, Filter, Building2, ChevronLeft, ChevronRight } from 'lucide-react';
 
 type NotificationType = 'success' | 'error' | 'info';
 
@@ -41,9 +41,32 @@ type FlexBooking = {
   external_customers?: ExternalCustomer;
 };
 
+type FlexSchedule = {
+  id: string;
+  space_id: string;
+  lease_id: string | null;
+  external_customer_id: string | null;
+  monday: boolean;
+  tuesday: boolean;
+  wednesday: boolean;
+  thursday: boolean;
+  friday: boolean;
+  office_spaces?: { space_number: string };
+  external_customers?: ExternalCustomer;
+};
+
+type CalendarDay = {
+  date: Date;
+  dateStr: string;
+  isCurrentMonth: boolean;
+  bookings: FlexBooking[];
+  schedules: FlexSchedule[];
+};
+
 export function FlexWorkspaceBookings() {
   const [bookings, setBookings] = useState<FlexBooking[]>([]);
   const [allBookings, setAllBookings] = useState<FlexBooking[]>([]);
+  const [schedules, setSchedules] = useState<FlexSchedule[]>([]);
   const [flexSpaces, setFlexSpaces] = useState<FlexSpace[]>([]);
   const [externalCustomers, setExternalCustomers] = useState<ExternalCustomer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,6 +76,8 @@ export function FlexWorkspaceBookings() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationId, setNotificationId] = useState(0);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [calendarDays, setCalendarDays] = useState<CalendarDay[]>([]);
 
   const [formData, setFormData] = useState({
     space_id: '',
@@ -70,10 +95,16 @@ export function FlexWorkspaceBookings() {
     applyFilters();
   }, [selectedFilter, allBookings]);
 
+  useEffect(() => {
+    if (selectedView === 'calendar') {
+      generateCalendar();
+    }
+  }, [currentDate, allBookings, schedules, selectedView]);
+
   const loadData = async () => {
     setLoading(true);
     try {
-      const [bookingsRes, spacesRes, customersRes] = await Promise.all([
+      const [bookingsRes, schedulesRes, spacesRes, customersRes] = await Promise.all([
         supabase
           .from('flex_day_bookings')
           .select(`
@@ -83,6 +114,14 @@ export function FlexWorkspaceBookings() {
           `)
           .not('external_customer_id', 'is', null)
           .order('booking_date', { ascending: false }),
+        supabase
+          .from('flex_schedules')
+          .select(`
+            *,
+            office_spaces(space_number),
+            external_customers(id, company_name, contact_name, email, phone, street, postal_code, city, country)
+          `)
+          .not('external_customer_id', 'is', null),
         supabase
           .from('office_spaces')
           .select('id, space_number, flex_capacity')
@@ -99,6 +138,7 @@ export function FlexWorkspaceBookings() {
         setAllBookings(bookingsRes.data as FlexBooking[]);
         setBookings(bookingsRes.data as FlexBooking[]);
       }
+      if (schedulesRes.data) setSchedules(schedulesRes.data as FlexSchedule[]);
       if (spacesRes.data) setFlexSpaces(spacesRes.data);
       if (customersRes.data) setExternalCustomers(customersRes.data);
     } catch (error) {
@@ -107,6 +147,69 @@ export function FlexWorkspaceBookings() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const generateCalendar = () => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+
+    let dayOfWeek = firstDay.getDay();
+    dayOfWeek = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+
+    const days: CalendarDay[] = [];
+
+    for (let i = 0; i < dayOfWeek; i++) {
+      const date = new Date(year, month, -dayOfWeek + i + 1);
+      const dateStr = date.toISOString().split('T')[0];
+      days.push({
+        date,
+        dateStr,
+        isCurrentMonth: false,
+        bookings: allBookings.filter(b => b.booking_date === dateStr),
+        schedules: getSchedulesForDate(date)
+      });
+    }
+
+    for (let day = 1; day <= lastDay.getDate(); day++) {
+      const date = new Date(year, month, day);
+      const dateStr = date.toISOString().split('T')[0];
+      days.push({
+        date,
+        dateStr,
+        isCurrentMonth: true,
+        bookings: allBookings.filter(b => b.booking_date === dateStr),
+        schedules: getSchedulesForDate(date)
+      });
+    }
+
+    const remainingDays = 42 - days.length;
+    for (let i = 1; i <= remainingDays; i++) {
+      const date = new Date(year, month + 1, i);
+      const dateStr = date.toISOString().split('T')[0];
+      days.push({
+        date,
+        dateStr,
+        isCurrentMonth: false,
+        bookings: allBookings.filter(b => b.booking_date === dateStr),
+        schedules: getSchedulesForDate(date)
+      });
+    }
+
+    setCalendarDays(days);
+  };
+
+  const getSchedulesForDate = (date: Date): FlexSchedule[] => {
+    const dayOfWeek = date.getDay();
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const dayName = dayNames[dayOfWeek] as keyof FlexSchedule;
+
+    return schedules.filter(schedule => {
+      const dayValue = schedule[dayName];
+      return typeof dayValue === 'boolean' && dayValue === true;
+    });
   };
 
   const applyFilters = () => {
@@ -185,16 +288,18 @@ export function FlexWorkspaceBookings() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async () => {
+    if (!deleteConfirmId) return;
+
     try {
       const { error } = await supabase
         .from('flex_day_bookings')
         .delete()
-        .eq('id', id);
+        .eq('id', deleteConfirmId);
 
       if (error) throw error;
 
-      setAllBookings(prev => prev.filter(b => b.id !== id));
+      setAllBookings(prev => prev.filter(b => b.id !== deleteConfirmId));
       showNotification('Boeking verwijderd', 'success');
     } catch (error) {
       console.error('Error deleting booking:', error);
@@ -202,6 +307,18 @@ export function FlexWorkspaceBookings() {
     } finally {
       setDeleteConfirmId(null);
     }
+  };
+
+  const previousMonth = () => {
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+  };
+
+  const nextMonth = () => {
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+  };
+
+  const goToToday = () => {
+    setCurrentDate(new Date());
   };
 
   const resetForm = () => {
@@ -547,34 +664,13 @@ export function FlexWorkspaceBookings() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         {!booking.invoice_id && (
-                          <>
-                            {deleteConfirmId === booking.id ? (
-                              <div className="flex items-center justify-end gap-2">
-                                <button
-                                  onClick={() => handleDelete(booking.id)}
-                                  className="p-1.5 text-red-400 hover:text-red-300 transition-colors"
-                                  title="Bevestig verwijderen"
-                                >
-                                  <Check size={18} />
-                                </button>
-                                <button
-                                  onClick={() => setDeleteConfirmId(null)}
-                                  className="p-1.5 text-gray-400 hover:text-gray-300 transition-colors"
-                                  title="Annuleer"
-                                >
-                                  <X size={18} />
-                                </button>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => setDeleteConfirmId(booking.id)}
-                                className="p-1.5 text-gray-400 hover:text-red-400 transition-colors"
-                                title="Verwijder boeking"
-                              >
-                                <Trash2 size={18} />
-                              </button>
-                            )}
-                          </>
+                          <button
+                            onClick={() => setDeleteConfirmId(booking.id)}
+                            className="p-1.5 text-gray-400 hover:text-red-400 transition-colors"
+                            title="Verwijder boeking"
+                          >
+                            <Trash2 size={18} />
+                          </button>
                         )}
                       </td>
                     </tr>
@@ -585,10 +681,116 @@ export function FlexWorkspaceBookings() {
           </div>
         </div>
       ) : (
-        <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-6">
-          <div className="text-center text-gray-400 py-12">
-            <CalendarDays size={48} className="mx-auto mb-4 opacity-50" />
-            <p>Kalenderweergave komt binnenkort beschikbaar</p>
+        <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 overflow-hidden">
+          <div className="p-4 border-b border-dark-700">
+            <div className="flex items-center justify-between mb-4">
+              <button
+                onClick={previousMonth}
+                className="p-2 text-gray-400 hover:text-gray-300 hover:bg-dark-800 rounded-lg transition-colors"
+              >
+                <ChevronLeft size={20} />
+              </button>
+              <h2 className="text-lg font-semibold text-gray-100">
+                {new Intl.DateTimeFormat('nl-NL', { month: 'long', year: 'numeric' }).format(currentDate)}
+              </h2>
+              <div className="flex gap-2">
+                <button
+                  onClick={goToToday}
+                  className="px-3 py-1.5 text-sm bg-dark-800 text-gray-300 rounded-lg hover:bg-dark-700 transition-colors"
+                >
+                  Vandaag
+                </button>
+                <button
+                  onClick={nextMonth}
+                  className="p-2 text-gray-400 hover:text-gray-300 hover:bg-dark-800 rounded-lg transition-colors"
+                >
+                  <ChevronRight size={20} />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex gap-4 text-xs text-gray-400">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-gold-500"></div>
+                <span>Eenmalige boeking</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                <span>Flex contract (terugkerend)</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-7 gap-px bg-dark-700">
+            {['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'].map((day) => (
+              <div key={day} className="bg-dark-800 px-2 py-3 text-center text-xs font-medium text-gray-400">
+                {day}
+              </div>
+            ))}
+
+            {calendarDays.map((day, index) => {
+              const isToday = day.dateStr === new Date().toISOString().split('T')[0];
+              return (
+                <div
+                  key={index}
+                  className={`bg-dark-900 min-h-24 p-2 ${
+                    !day.isCurrentMonth ? 'opacity-40' : ''
+                  } ${isToday ? 'ring-2 ring-gold-500 ring-inset' : ''}`}
+                >
+                  <div className={`text-sm mb-1 ${isToday ? 'text-gold-500 font-bold' : 'text-gray-400'}`}>
+                    {day.date.getDate()}
+                  </div>
+                  <div className="space-y-1">
+                    {day.schedules.map((schedule) => (
+                      <div
+                        key={schedule.id}
+                        className="text-xs px-1.5 py-0.5 rounded bg-blue-900/50 text-blue-300 border border-blue-700 truncate"
+                        title={schedule.external_customers?.company_name}
+                      >
+                        {schedule.external_customers?.company_name}
+                      </div>
+                    ))}
+                    {day.bookings.map((booking) => (
+                      <div
+                        key={booking.id}
+                        className="text-xs px-1.5 py-0.5 rounded bg-gold-900/50 text-gold-300 border border-gold-700 truncate"
+                        title={`${booking.external_customers?.company_name} - ${booking.is_half_day ? (booking.half_day_period === 'morning' ? 'Ochtend' : 'Middag') : 'Hele dag'}`}
+                      >
+                        {booking.external_customers?.company_name}
+                        {booking.is_half_day && (
+                          <span className="ml-1">({booking.half_day_period === 'morning' ? 'O' : 'M'})</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {deleteConfirmId && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
+          <div className="bg-dark-900 rounded-lg p-6 w-full max-w-md my-8 mx-4 border border-dark-700">
+            <h3 className="text-xl font-bold text-gray-100 mb-4">Boeking verwijderen</h3>
+            <p className="text-gray-300 mb-4">
+              Weet je zeker dat je deze boeking wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setDeleteConfirmId(null)}
+                className="px-4 py-2 bg-dark-700 text-gray-200 rounded-lg hover:bg-dark-600 transition-colors"
+              >
+                Annuleren
+              </button>
+              <button
+                onClick={handleDelete}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+              >
+                Verwijderen
+              </button>
+            </div>
           </div>
         </div>
       )}
