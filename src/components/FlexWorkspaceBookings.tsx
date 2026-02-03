@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Calendar, Plus, X, Check, AlertCircle, Trash2, CalendarDays, CheckCircle, XCircle, Info, Filter, Building2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, Plus, X, Check, AlertCircle, Trash2, CalendarDays, CheckCircle, XCircle, Info, Filter, Building2, ChevronLeft, ChevronRight, Grid3x3, User } from 'lucide-react';
 
 type NotificationType = 'success' | 'error' | 'info';
 
@@ -22,6 +22,12 @@ type ExternalCustomer = {
   country: string;
 };
 
+type Tenant = {
+  id: string;
+  company_name: string;
+  contact_name: string;
+};
+
 type FlexSpace = {
   id: string;
   space_number: string;
@@ -33,6 +39,7 @@ type FlexBooking = {
   space_id: string;
   external_customer_id: string;
   booking_date: string;
+  slot_number: number | null;
   is_half_day: boolean;
   half_day_period?: 'morning' | 'afternoon';
   start_time?: string;
@@ -51,6 +58,7 @@ type FlexSchedule = {
   space_id: string;
   lease_id: string | null;
   external_customer_id: string | null;
+  slot_number: number | null;
   monday: boolean;
   tuesday: boolean;
   wednesday: boolean;
@@ -58,6 +66,10 @@ type FlexSchedule = {
   friday: boolean;
   office_spaces?: { space_number: string };
   external_customers?: ExternalCustomer;
+  leases?: {
+    tenant_id: string;
+    tenants?: Tenant;
+  };
 };
 
 type CalendarDay = {
@@ -68,6 +80,16 @@ type CalendarDay = {
   schedules: FlexSchedule[];
 };
 
+type SlotBooking = {
+  type: 'booking' | 'schedule';
+  customerName: string;
+  customerId: string;
+  bookingId?: string;
+  scheduleId?: string;
+  isInvoiced?: boolean;
+  time?: string;
+};
+
 export function FlexWorkspaceBookings() {
   const [bookings, setBookings] = useState<FlexBooking[]>([]);
   const [allBookings, setAllBookings] = useState<FlexBooking[]>([]);
@@ -76,7 +98,7 @@ export function FlexWorkspaceBookings() {
   const [externalCustomers, setExternalCustomers] = useState<ExternalCustomer[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [selectedView, setSelectedView] = useState<'list' | 'calendar'>('list');
+  const [selectedView, setSelectedView] = useState<'list' | 'calendar' | 'resource'>('resource');
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'upcoming' | 'invoiced'>('all');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationId, setNotificationId] = useState(0);
@@ -85,6 +107,8 @@ export function FlexWorkspaceBookings() {
   const [calendarDays, setCalendarDays] = useState<CalendarDay[]>([]);
   const [showQuickBooking, setShowQuickBooking] = useState(false);
   const [quickBookingDate, setQuickBookingDate] = useState('');
+  const [quickBookingSlot, setQuickBookingSlot] = useState<number | null>(null);
+  const [selectedResourceSpace, setSelectedResourceSpace] = useState<string>('');
   const [quickFormData, setQuickFormData] = useState({
     space_id: '',
     external_customer_id: '',
@@ -114,6 +138,12 @@ export function FlexWorkspaceBookings() {
     }
   }, [currentDate, allBookings, schedules, selectedView]);
 
+  useEffect(() => {
+    if (flexSpaces.length > 0 && !selectedResourceSpace) {
+      setSelectedResourceSpace(flexSpaces[0].id);
+    }
+  }, [flexSpaces]);
+
   const loadData = async () => {
     setLoading(true);
     try {
@@ -132,9 +162,9 @@ export function FlexWorkspaceBookings() {
           .select(`
             *,
             office_spaces(space_number),
-            external_customers(id, company_name, contact_name, email, phone, street, postal_code, city, country)
-          `)
-          .not('external_customer_id', 'is', null),
+            external_customers(id, company_name, contact_name, email, phone, street, postal_code, city, country),
+            leases(tenant_id, tenants(id, company_name, contact_name))
+          `),
         supabase
           .from('office_spaces')
           .select('id, space_number, flex_capacity, space_type')
@@ -264,6 +294,19 @@ export function FlexWorkspaceBookings() {
     }
 
     try {
+      const { data: availableSlotsData } = await supabase
+        .rpc('get_available_flex_slots', {
+          p_space_id: formData.space_id,
+          p_booking_date: formData.booking_date
+        });
+
+      if (!availableSlotsData || availableSlotsData.length === 0) {
+        showNotification('Geen beschikbare plekken voor deze datum', 'error');
+        return;
+      }
+
+      const firstAvailableSlot = availableSlotsData[0];
+
       const { data: spaceData } = await supabase
         .from('office_spaces')
         .select('hourly_rate, half_day_rate, full_day_rate')
@@ -294,6 +337,7 @@ export function FlexWorkspaceBookings() {
         space_id: formData.space_id,
         external_customer_id: formData.external_customer_id,
         booking_date: formData.booking_date,
+        slot_number: firstAvailableSlot,
         start_time: formData.start_time,
         end_time: formData.end_time,
         hourly_rate: Number(spaceData.hourly_rate) || 0,
@@ -318,14 +362,14 @@ export function FlexWorkspaceBookings() {
       if (data) {
         setAllBookings(prev => [data as FlexBooking, ...prev]);
         const rateTypeText = calculation.rateUsed === 'hourly' ? 'uurtarief' : calculation.rateUsed === 'half_day' ? 'halve dag tarief' : 'hele dag tarief';
-        showNotification(`Flexplekboeking aangemaakt (${rateTypeText})`, 'success');
+        showNotification(`Flexplekboeking aangemaakt op Plek ${firstAvailableSlot} (${rateTypeText})`, 'success');
         setShowForm(false);
         resetForm();
       }
     } catch (error: any) {
       console.error('Error creating booking:', error);
-      const message = error.message?.includes('unique_flex_booking')
-        ? 'Deze datum is al geboekt voor deze klant'
+      const message = error.message?.includes('unique_flex_slot_booking')
+        ? 'Deze plek is al geboekt voor deze datum'
         : error.message?.includes('flex_day_bookings_customer_check')
         ? 'Externe klant is verplicht voor flexplekken'
         : 'Fout bij aanmaken boeking';
@@ -352,6 +396,18 @@ export function FlexWorkspaceBookings() {
     } finally {
       setDeleteConfirmId(null);
     }
+  };
+
+  const previousWeek = () => {
+    const newDate = new Date(currentDate);
+    newDate.setDate(newDate.getDate() - 7);
+    setCurrentDate(newDate);
+  };
+
+  const nextWeek = () => {
+    const newDate = new Date(currentDate);
+    newDate.setDate(newDate.getDate() + 7);
+    setCurrentDate(newDate);
   };
 
   const previousMonth = () => {
@@ -432,8 +488,21 @@ export function FlexWorkspaceBookings() {
 
   const handleCalendarDayClick = (dateStr: string) => {
     setQuickBookingDate(dateStr);
+    setQuickBookingSlot(null);
     setQuickFormData({
       space_id: '',
+      external_customer_id: '',
+      start_time: '09:00',
+      end_time: '17:00'
+    });
+    setShowQuickBooking(true);
+  };
+
+  const handleResourceSlotClick = (dateStr: string, slotNumber: number) => {
+    setQuickBookingDate(dateStr);
+    setQuickBookingSlot(slotNumber);
+    setQuickFormData({
+      space_id: selectedResourceSpace,
       external_customer_id: '',
       start_time: '09:00',
       end_time: '17:00'
@@ -455,6 +524,23 @@ export function FlexWorkspaceBookings() {
     }
 
     try {
+      let targetSlot = quickBookingSlot;
+
+      if (!targetSlot) {
+        const { data: availableSlotsData } = await supabase
+          .rpc('get_available_flex_slots', {
+            p_space_id: quickFormData.space_id,
+            p_booking_date: quickBookingDate
+          });
+
+        if (!availableSlotsData || availableSlotsData.length === 0) {
+          showNotification('Geen beschikbare plekken voor deze datum', 'error');
+          return;
+        }
+
+        targetSlot = availableSlotsData[0];
+      }
+
       const { data: spaceData } = await supabase
         .from('office_spaces')
         .select('hourly_rate, half_day_rate, full_day_rate')
@@ -485,6 +571,7 @@ export function FlexWorkspaceBookings() {
         space_id: quickFormData.space_id,
         external_customer_id: quickFormData.external_customer_id,
         booking_date: quickBookingDate,
+        slot_number: targetSlot,
         start_time: quickFormData.start_time,
         end_time: quickFormData.end_time,
         hourly_rate: spaceData.hourly_rate || 0,
@@ -509,18 +596,78 @@ export function FlexWorkspaceBookings() {
       if (data) {
         setAllBookings(prev => [data as FlexBooking, ...prev]);
         const rateTypeText = calculation.rateUsed === 'hourly' ? 'uurtarief' : calculation.rateUsed === 'half_day' ? 'halve dag tarief' : 'hele dag tarief';
-        showNotification(`Flexplekboeking aangemaakt (${rateTypeText})`, 'success');
+        showNotification(`Flexplekboeking aangemaakt op Plek ${targetSlot} (${rateTypeText})`, 'success');
         setShowQuickBooking(false);
       }
     } catch (error: any) {
       console.error('Error creating booking:', error);
-      const message = error.message?.includes('unique_flex_booking')
-        ? 'Deze datum is al geboekt voor deze klant'
+      const message = error.message?.includes('unique_flex_slot_booking')
+        ? 'Deze plek is al geboekt voor deze datum'
         : error.message?.includes('flex_day_bookings_customer_check')
         ? 'Externe klant is verplicht voor flexplekken'
         : 'Fout bij aanmaken boeking';
       showNotification(message, 'error');
     }
+  };
+
+  const getWeekDays = () => {
+    const start = new Date(currentDate);
+    const day = start.getDay();
+    const diff = start.getDate() - day + (day === 0 ? -6 : 1);
+    start.setDate(diff);
+
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(start);
+      date.setDate(start.getDate() + i);
+      days.push(date);
+    }
+    return days;
+  };
+
+  const getSlotBooking = (slotNumber: number, dateStr: string): SlotBooking | null => {
+    const booking = allBookings.find(
+      b => b.space_id === selectedResourceSpace &&
+           b.slot_number === slotNumber &&
+           b.booking_date === dateStr
+    );
+
+    if (booking) {
+      return {
+        type: 'booking',
+        customerName: booking.external_customers?.company_name || 'Onbekend',
+        customerId: booking.external_customer_id,
+        bookingId: booking.id,
+        isInvoiced: booking.invoice_id !== null,
+        time: booking.start_time && booking.end_time ? `${booking.start_time}-${booking.end_time}` : undefined
+      };
+    }
+
+    const date = new Date(dateStr);
+    const dayOfWeek = date.getDay();
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const dayName = dayNames[dayOfWeek] as keyof FlexSchedule;
+
+    const schedule = schedules.find(
+      s => s.space_id === selectedResourceSpace &&
+           s.slot_number === slotNumber &&
+           typeof s[dayName] === 'boolean' &&
+           s[dayName] === true
+    );
+
+    if (schedule) {
+      const customerName = schedule.external_customers?.company_name ||
+                          schedule.leases?.tenants?.company_name ||
+                          'Onbekend';
+      return {
+        type: 'schedule',
+        customerName,
+        customerId: schedule.external_customer_id || schedule.lease_id || '',
+        scheduleId: schedule.id
+      };
+    }
+
+    return null;
   };
 
   const formatDate = (dateStr: string) => {
@@ -532,6 +679,9 @@ export function FlexWorkspaceBookings() {
       year: 'numeric'
     }).format(date);
   };
+
+  const selectedSpace = flexSpaces.find(s => s.id === selectedResourceSpace);
+  const weekDays = getWeekDays();
 
   if (loading) {
     return (
@@ -586,6 +736,17 @@ export function FlexWorkspaceBookings() {
 
         <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2 mb-4">
           <div className="flex gap-2">
+            <button
+              onClick={() => setSelectedView('resource')}
+              className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
+                selectedView === 'resource'
+                  ? 'bg-gold-500 text-white'
+                  : 'text-gray-300 hover:bg-dark-800'
+              }`}
+            >
+              <Grid3x3 size={18} />
+              Planning
+            </button>
             <button
               onClick={() => setSelectedView('list')}
               className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
@@ -679,7 +840,7 @@ export function FlexWorkspaceBookings() {
                   <option value="">Selecteer ruimte</option>
                   {flexSpaces.map(space => (
                     <option key={space.id} value={space.id}>
-                      {space.space_number} {space.flex_capacity && `(max ${space.flex_capacity} personen)`}
+                      {space.space_number} {space.flex_capacity && `(max ${space.flex_capacity} plekken)`}
                     </option>
                   ))}
                 </select>
@@ -753,7 +914,7 @@ export function FlexWorkspaceBookings() {
                   </div>
                 </div>
                 <p className="text-xs text-gray-400 mt-2">
-                  Tarief wordt automatisch berekend op basis van voordeligste optie: minder dan 4 uur = uurtarief, vanaf 4 uur = halve dag (indien voordeliger), vanaf 8 uur = hele dag (indien voordeliger)
+                  De eerste beschikbare plek wordt automatisch toegewezen. Tarief wordt automatisch berekend.
                 </p>
               </div>
 
@@ -780,7 +941,155 @@ export function FlexWorkspaceBookings() {
         </div>
       )}
 
-      {selectedView === 'list' ? (
+      {selectedView === 'resource' ? (
+        <div className="space-y-4">
+          <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-4">
+                <label className="text-sm font-medium text-gray-300">Flexruimte:</label>
+                <select
+                  value={selectedResourceSpace}
+                  onChange={(e) => setSelectedResourceSpace(e.target.value)}
+                  className="px-4 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-100 focus:outline-none focus:border-gold-500"
+                >
+                  {flexSpaces.map(space => (
+                    <option key={space.id} value={space.id}>
+                      {space.space_number} {space.flex_capacity && `(${space.flex_capacity} plekken)`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={previousWeek}
+                  className="p-2 text-gray-400 hover:text-gray-300 hover:bg-dark-800 rounded-lg transition-colors"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+                <button
+                  onClick={goToToday}
+                  className="px-3 py-1.5 text-sm bg-dark-800 text-gray-300 rounded-lg hover:bg-dark-700 transition-colors"
+                >
+                  Vandaag
+                </button>
+                <button
+                  onClick={nextWeek}
+                  className="p-2 text-gray-400 hover:text-gray-300 hover:bg-dark-800 rounded-lg transition-colors"
+                >
+                  <ChevronRight size={20} />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex gap-4 text-xs text-gray-400 mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded bg-gold-500"></div>
+                <span>Eenmalige boeking</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded bg-blue-500"></div>
+                <span>Flex contract (vast)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded bg-green-500"></div>
+                <span>Gefactureerd</span>
+              </div>
+            </div>
+          </div>
+
+          {selectedSpace && selectedSpace.flex_capacity ? (
+            <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-dark-800 border-b border-dark-700">
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider sticky left-0 bg-dark-800 z-10">
+                        Plek
+                      </th>
+                      {weekDays.map((date) => {
+                        const isToday = date.toISOString().split('T')[0] === new Date().toISOString().split('T')[0];
+                        const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+                        return (
+                          <th
+                            key={date.toISOString()}
+                            className={`px-4 py-3 text-center text-xs font-medium uppercase tracking-wider ${
+                              isToday ? 'text-gold-400' : isWeekend ? 'text-gray-500' : 'text-gray-400'
+                            }`}
+                          >
+                            <div>{new Intl.DateTimeFormat('nl-NL', { weekday: 'short' }).format(date)}</div>
+                            <div className={isToday ? 'text-gold-500 font-bold' : ''}>
+                              {date.getDate()}/{date.getMonth() + 1}
+                            </div>
+                          </th>
+                        );
+                      })}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-dark-700">
+                    {Array.from({ length: selectedSpace.flex_capacity }, (_, i) => i + 1).map((slotNumber) => (
+                      <tr key={slotNumber} className="hover:bg-dark-800 transition-colors">
+                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-100 sticky left-0 bg-dark-900 z-10">
+                          <div className="flex items-center gap-2">
+                            <User size={16} className="text-gray-400" />
+                            Plek {slotNumber}
+                          </div>
+                        </td>
+                        {weekDays.map((date) => {
+                          const dateStr = date.toISOString().split('T')[0];
+                          const slotBooking = getSlotBooking(slotNumber, dateStr);
+                          const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+                          const isToday = dateStr === new Date().toISOString().split('T')[0];
+
+                          return (
+                            <td
+                              key={dateStr}
+                              className={`px-2 py-2 text-center ${
+                                isWeekend ? 'bg-dark-950' : ''
+                              } ${isToday ? 'ring-2 ring-gold-500 ring-inset' : ''}`}
+                            >
+                              {slotBooking ? (
+                                <div
+                                  className={`text-xs px-2 py-2 rounded cursor-pointer transition-colors ${
+                                    slotBooking.type === 'booking'
+                                      ? slotBooking.isInvoiced
+                                        ? 'bg-green-900/50 text-green-300 border border-green-700 hover:bg-green-900/70'
+                                        : 'bg-gold-900/50 text-gold-300 border border-gold-700 hover:bg-gold-900/70'
+                                      : 'bg-blue-900/50 text-blue-300 border border-blue-700 hover:bg-blue-900/70'
+                                  }`}
+                                  title={`${slotBooking.customerName}${slotBooking.time ? ` (${slotBooking.time})` : ''}`}
+                                >
+                                  <div className="font-medium truncate">{slotBooking.customerName}</div>
+                                  {slotBooking.time && (
+                                    <div className="text-[10px] opacity-75 mt-0.5">{slotBooking.time}</div>
+                                  )}
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => handleResourceSlotClick(dateStr, slotNumber)}
+                                  className="w-full px-2 py-2 text-xs text-gray-500 hover:bg-dark-700 hover:text-gray-300 rounded border border-dashed border-dark-700 transition-colors"
+                                  disabled={isWeekend}
+                                >
+                                  {isWeekend ? '-' : '+'}
+                                </button>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-8 text-center">
+              <p className="text-gray-400">
+                Deze flexruimte heeft geen capaciteit ingesteld. Configureer de capaciteit in Producten.
+              </p>
+            </div>
+          )}
+        </div>
+      ) : selectedView === 'list' ? (
         <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -791,6 +1100,9 @@ export function FlexWorkspaceBookings() {
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                     Ruimte
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                    Plek
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                     Klant
@@ -812,7 +1124,7 @@ export function FlexWorkspaceBookings() {
               <tbody className="divide-y divide-dark-700">
                 {bookings.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
+                    <td colSpan={8} className="px-6 py-8 text-center text-gray-400">
                       Geen boekingen gevonden
                     </td>
                   </tr>
@@ -825,6 +1137,11 @@ export function FlexWorkspaceBookings() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-100">
                           {booking.office_spaces?.space_number || '-'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-300">
+                          {booking.slot_number ? `Plek ${booking.slot_number}` : '-'}
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -1006,6 +1323,7 @@ export function FlexWorkspaceBookings() {
                 <h2 className="text-xl font-bold text-gray-100">Nieuwe Boeking</h2>
                 <p className="text-sm text-gray-400 mt-1">
                   {formatDate(quickBookingDate)}
+                  {quickBookingSlot && ` - Plek ${quickBookingSlot}`}
                 </p>
               </div>
               <button
@@ -1017,29 +1335,29 @@ export function FlexWorkspaceBookings() {
             </div>
 
             <form onSubmit={handleQuickBookingSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Flexruimte *
-                </label>
-                <select
-                  value={quickFormData.space_id}
-                  onChange={(e) => setQuickFormData({ ...quickFormData, space_id: e.target.value })}
-                  className="w-full px-4 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-100 focus:outline-none focus:border-gold-500"
-                  required
-                >
-                  <option value="">Selecteer ruimte</option>
-                  {flexSpaces.map(space => (
-                    <option key={space.id} value={space.id}>
-                      {space.space_number} {space.flex_capacity && `(max ${space.flex_capacity} personen)`}
-                    </option>
-                  ))}
-                </select>
-                {flexSpaces.length === 0 && (
-                  <p className="text-xs text-amber-400 mt-1">
-                    Geen flexruimtes beschikbaar met label "Flexplek"
+              {!quickBookingSlot && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Flexruimte *
+                  </label>
+                  <select
+                    value={quickFormData.space_id}
+                    onChange={(e) => setQuickFormData({ ...quickFormData, space_id: e.target.value })}
+                    className="w-full px-4 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-100 focus:outline-none focus:border-gold-500"
+                    required
+                  >
+                    <option value="">Selecteer ruimte</option>
+                    {flexSpaces.map(space => (
+                      <option key={space.id} value={space.id}>
+                        {space.space_number} {space.flex_capacity && `(max ${space.flex_capacity} plekken)`}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Eerste beschikbare plek wordt automatisch toegewezen
                   </p>
-                )}
-              </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -1091,7 +1409,7 @@ export function FlexWorkspaceBookings() {
                   </div>
                 </div>
                 <p className="text-xs text-gray-400 mt-2">
-                  Tarief wordt automatisch berekend op basis van voordeligste optie: minder dan 4 uur = uurtarief, vanaf 4 uur = halve dag (indien voordeliger), vanaf 8 uur = hele dag (indien voordeliger)
+                  Tarief wordt automatisch berekend op basis van voordeligste optie
                 </p>
               </div>
 
