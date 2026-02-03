@@ -99,11 +99,11 @@ export function CreditNotePreview({ creditNote, companySettings, onClose, onDown
             {onSend && (
               <button
                 onClick={onSend}
-                className="flex items-center gap-1.5 bg-green-600 hover:bg-green-500 text-white transition-colors px-3 py-1.5 rounded-lg"
+                className="flex items-center gap-1.5 bg-teal-600 hover:bg-teal-500 text-white transition-colors px-3 py-1.5 rounded-lg"
                 title="Versturen"
               >
                 <Send size={18} />
-                <span className="text-sm font-medium">Verzenden</span>
+                <span className="text-sm font-medium">Versturen</span>
               </button>
             )}
             {onDelete && (
