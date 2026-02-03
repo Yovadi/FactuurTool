@@ -366,6 +366,24 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
     setPreviewCreditNote(creditNote);
   };
 
+  const handleSendCreditNote = async (creditNote: CreditNote) => {
+    if (!creditNote.tenant_id && !creditNote.external_customer_id) {
+      alert('Geen klantgegevens beschikbaar voor verzending.');
+      return;
+    }
+
+    const customerEmail = creditNote.tenant_id
+      ? creditNote.tenants?.email
+      : creditNote.external_customers?.email;
+
+    if (!customerEmail) {
+      alert('Geen e-mailadres beschikbaar voor deze klant.');
+      return;
+    }
+
+    alert(`Credit nota verzenden naar ${customerEmail} is nog niet geïmplementeerd.\n\nDeze functionaliteit vereist e-mail integratie.`);
+  };
+
   const handleDownloadPDF = async (creditNote: CreditNote) => {
     if (!creditNote.credit_note_line_items || creditNote.credit_note_line_items.length === 0) {
       return;
@@ -809,7 +827,7 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
             setPreviewCreditNote(null);
             setApplyingCreditNote(previewCreditNote);
           }}
-          onSend={undefined}
+          onSend={() => handleSendCreditNote(previewCreditNote)}
         />
       )}
 

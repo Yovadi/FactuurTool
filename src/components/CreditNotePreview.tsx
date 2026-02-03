@@ -69,50 +69,50 @@ export function CreditNotePreview({ creditNote, companySettings, onClose, onDown
             {onApply && (
               <button
                 onClick={onApply}
-                className="flex items-center gap-1 text-gold-400 hover:text-gold-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
+                className="flex items-center gap-1.5 bg-amber-600 hover:bg-amber-500 text-white transition-colors px-3 py-1.5 rounded-lg"
                 title="Toepassen"
               >
-                <Link size={20} />
+                <Link size={18} />
                 <span className="text-sm font-medium">Toepassen</span>
-              </button>
-            )}
-            {onSend && (
-              <button
-                onClick={onSend}
-                className="flex items-center gap-1 text-gray-300 hover:text-gray-100 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
-                title="Versturen"
-              >
-                <Send size={20} />
-                <span className="text-sm font-medium">Versturen</span>
               </button>
             )}
             {onEdit && (
               <button
                 onClick={onEdit}
-                className="flex items-center gap-1 text-gray-300 hover:text-gray-100 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
+                className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white transition-colors px-3 py-1.5 rounded-lg"
                 title="Bewerken"
               >
-                <Edit size={20} />
+                <Edit size={18} />
                 <span className="text-sm font-medium">Bewerken</span>
               </button>
             )}
             {onDownload && (
               <button
                 onClick={onDownload}
-                className="flex items-center gap-1 text-gold-400 hover:text-gold-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
+                className="flex items-center gap-1.5 bg-green-600 hover:bg-green-500 text-white transition-colors px-3 py-1.5 rounded-lg"
                 title="Download PDF"
               >
-                <Download size={20} />
+                <Download size={18} />
                 <span className="text-sm font-medium">Download</span>
+              </button>
+            )}
+            {onSend && (
+              <button
+                onClick={onSend}
+                className="flex items-center gap-1.5 bg-green-600 hover:bg-green-500 text-white transition-colors px-3 py-1.5 rounded-lg"
+                title="Versturen"
+              >
+                <Send size={18} />
+                <span className="text-sm font-medium">Verzenden</span>
               </button>
             )}
             {onDelete && (
               <button
                 onClick={onDelete}
-                className="flex items-center gap-1 text-red-400 hover:text-red-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-dark-800"
+                className="flex items-center gap-1.5 bg-red-600 hover:bg-red-500 text-white transition-colors px-3 py-1.5 rounded-lg"
                 title="Verwijderen"
               >
-                <Trash2 size={20} />
+                <Trash2 size={18} />
               </button>
             )}
             <button

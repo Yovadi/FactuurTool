@@ -143,13 +143,22 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       .eq('space_type', 'Meeting Room')
       .maybeSingle();
 
+    console.log('Raw rates data from DB:', ratesData);
+
     if (ratesData) {
-      setMeetingRoomRates({
+      const convertedRates = {
         hourly_rate: Number(ratesData.hourly_rate) || 0,
         half_day_rate: ratesData.half_day_rate ? Number(ratesData.half_day_rate) : null,
         full_day_rate: ratesData.full_day_rate ? Number(ratesData.full_day_rate) : null,
         vat_inclusive: ratesData.vat_inclusive || false
+      };
+      console.log('Converted rates:', convertedRates);
+      console.log('Types:', {
+        hourly: typeof convertedRates.hourly_rate,
+        halfDay: typeof convertedRates.half_day_rate,
+        fullDay: typeof convertedRates.full_day_rate
       });
+      setMeetingRoomRates(convertedRates);
     }
 
     let bookingsQuery = supabase
@@ -263,17 +272,35 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
   ): { rateType: 'hourly' | 'half_day' | 'full_day'; appliedRate: number; totalAmount: number } => {
     const hourlyTotal = totalHours * hourlyRate;
 
+    console.log('calculateOptimalRate input:', {
+      totalHours,
+      hourlyRate,
+      halfDayRate,
+      fullDayRate,
+      hourlyTotal,
+      types: {
+        totalHours: typeof totalHours,
+        hourlyRate: typeof hourlyRate,
+        halfDayRate: typeof halfDayRate,
+        fullDayRate: typeof fullDayRate
+      }
+    });
+
     if (totalHours >= 8 && fullDayRate && fullDayRate < hourlyTotal) {
+      console.log('Using full day rate:', fullDayRate, '<', hourlyTotal);
       return { rateType: 'full_day', appliedRate: fullDayRate, totalAmount: fullDayRate };
     }
 
     if (totalHours >= 4 && halfDayRate && halfDayRate < hourlyTotal) {
       if (fullDayRate && totalHours >= 8 && fullDayRate < halfDayRate) {
+        console.log('Using full day rate (via half day check):', fullDayRate, '<', halfDayRate);
         return { rateType: 'full_day', appliedRate: fullDayRate, totalAmount: fullDayRate };
       }
+      console.log('Using half day rate:', halfDayRate, '<', hourlyTotal);
       return { rateType: 'half_day', appliedRate: halfDayRate, totalAmount: halfDayRate };
     }
 
+    console.log('Using hourly rate');
     return { rateType: 'hourly', appliedRate: hourlyRate, totalAmount: hourlyTotal };
   };
 
