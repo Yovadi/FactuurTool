@@ -128,10 +128,14 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   const [showDetailSelection, setShowDetailSelection] = useState(true);
 
   useImperativeHandle(ref, () => ({
-    openGenerateModal: () => setShowGenerateModal(true)
+    openGenerateModal: async () => {
+      const defaultMonth = await getDefaultInvoiceMonth(invoiceTypeFilter);
+      setInvoiceMonth(defaultMonth);
+      setShowGenerateModal(true);
+    }
   }));
 
-  const getNextMonthString = async () => {
+  const getDefaultInvoiceMonth = async (type?: InvoiceTypeFilter) => {
     const { data: settings } = await supabase
       .from('company_settings')
       .select('test_mode, test_date')
@@ -147,14 +151,28 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
 
-    const nextMonth = month + 1;
-    const nextYear = nextMonth > 11 ? year + 1 : year;
-    const finalMonth = nextMonth > 11 ? 0 : nextMonth;
+    if (type === 'huur') {
+      const nextMonth = month + 1;
+      const nextYear = nextMonth > 11 ? year + 1 : year;
+      const finalMonth = nextMonth > 11 ? 0 : nextMonth;
+      const result = `${nextYear}-${String(finalMonth + 1).padStart(2, '0')}`;
+      console.log('Default month for rent (next month):', result);
+      return result;
+    } else if (type === 'vergaderruimte' || type === 'flex') {
+      const result = `${year}-${String(month + 1).padStart(2, '0')}`;
+      console.log('Default month for bookings (current month):', result);
+      return result;
+    } else {
+      const nextMonth = month + 1;
+      const nextYear = nextMonth > 11 ? year + 1 : year;
+      const finalMonth = nextMonth > 11 ? 0 : nextMonth;
+      const result = `${nextYear}-${String(finalMonth + 1).padStart(2, '0')}`;
+      return result;
+    }
+  };
 
-    const result = `${nextYear}-${String(finalMonth + 1).padStart(2, '0')}`;
-    console.log('Next month string:', result);
-
-    return result;
+  const getNextMonthString = async () => {
+    return getDefaultInvoiceMonth('huur');
   };
 
   const fetchMeetingRoomBookingsForMonth = async (customerId: string, invoiceMonth: string, customerType: 'tenant' | 'external' = 'tenant') => {
@@ -365,6 +383,16 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   useEffect(() => {
     updateInvoicedMonthsCounts();
   }, [invoices]);
+
+  useEffect(() => {
+    const updateMonthForFilter = async () => {
+      if (!showGenerateModal) return;
+      const defaultMonth = await getDefaultInvoiceMonth(invoiceTypeFilter);
+      setInvoiceMonth(defaultMonth);
+      setShowDetailSelection(true);
+    };
+    updateMonthForFilter();
+  }, [invoiceTypeFilter]);
 
   const loadData = async () => {
     setLoading(true);
@@ -3198,7 +3226,13 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-dark-900 rounded-lg shadow-xl border border-dark-700 max-w-5xl w-full max-h-[90vh] overflow-y-auto">
               <div className="sticky top-0 bg-dark-800 px-6 py-4 border-b border-dark-700 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-100">Facturen Genereren</h2>
+                <h2 className="text-xl font-bold text-gray-100">
+                  {invoiceTypeFilter === 'huur' && 'Huur Facturen Genereren'}
+                  {invoiceTypeFilter === 'vergaderruimte' && 'Vergaderruimte Facturen Genereren'}
+                  {invoiceTypeFilter === 'flex' && 'Flex Facturen Genereren'}
+                  {invoiceTypeFilter === 'handmatig' && 'Handmatige Facturen Genereren'}
+                  {!invoiceTypeFilter && 'Facturen Genereren'}
+                </h2>
                 <button
                   onClick={() => {
                     setShowGenerateModal(false);
@@ -3230,6 +3264,16 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                             onChange={(e) => setInvoiceMonth(e.target.value)}
                             className="w-full px-4 py-2 bg-dark-700 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                           />
+                          {invoiceTypeFilter === 'huur' && (
+                            <p className="text-xs text-emerald-400">
+                              Huur wordt vooraf gefactureerd
+                            </p>
+                          )}
+                          {(invoiceTypeFilter === 'vergaderruimte' || invoiceTypeFilter === 'flex') && (
+                            <p className="text-xs text-blue-400">
+                              Boekingen worden achteraf gefactureerd
+                            </p>
+                          )}
                           {invoiceMonth && (
                             <div className="space-y-2">
                               {((invoicedMonths.leaseCount.get(invoiceMonth) || 0) > 0 || (invoicedMonths.meetingRoomCount.get(invoiceMonth) || 0) > 0) && (
