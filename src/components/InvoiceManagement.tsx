@@ -560,7 +560,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   };
 
   useEffect(() => {
-    if (!invoiceMonth || !showGenerateModal || !showDetailSelection) return;
+    if (!invoiceMonth || !showGenerateModal) return;
 
     const leasesToGenerate = leases.filter(lease => {
       const existingInvoice = invoices.find(
@@ -635,7 +635,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     setSelectedLeases(new Set(leasesToGenerate.map(l => l.id)));
     setSelectedCustomers(new Set(customersWithBookingsIds));
     setShowDetailSelection(false);
-  }, [invoiceMonth, showGenerateModal, showDetailSelection, leases, invoices, tenants, externalCustomers, meetingRoomBookings, flexDayBookings]);
+  }, [invoiceMonth, showGenerateModal, leases, invoices, tenants, externalCustomers, meetingRoomBookings, flexDayBookings]);
 
   const startEditInvoice = async (invoice: InvoiceWithDetails) => {
     const { data: items } = await supabase

@@ -174,7 +174,6 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
         external_customers(id, company_name, contact_name, email, phone, street, postal_code, city, country),
         office_spaces(space_number)
       `)
-      .neq('status', 'cancelled')
       .order('booking_date', { ascending: false })
       .order('start_time', { ascending: false });
 
@@ -1385,7 +1384,14 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                 </tr>
               ) : (
                 bookings.map((booking) => (
-                  <tr key={booking.id} className="hover:bg-dark-800/50 transition-colors">
+                  <tr
+                    key={booking.id}
+                    className={`hover:bg-dark-800/50 transition-colors ${
+                      booking.status === 'cancelled'
+                        ? 'opacity-50 bg-red-900/10'
+                        : ''
+                    }`}
+                  >
                     <td className="px-4 py-3 w-[14%]">
                       <div className="text-sm text-gray-200 font-medium">
                         Week {getWeekNumber(new Date(booking.booking_date + 'T00:00:00'))} - {new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: 'short', year: 'numeric' })}
