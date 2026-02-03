@@ -90,6 +90,16 @@ type SlotBooking = {
   time?: string;
   isHalfDay?: boolean;
   halfDayPeriod?: 'morning' | 'afternoon';
+  startTime?: string;
+  endTime?: string;
+  totalHours?: number;
+};
+
+type TimeSegment = {
+  startHour: number;
+  endHour: number;
+  booking: SlotBooking | null;
+  isAvailable: boolean;
 };
 
 export function FlexWorkspaceBookings() {
@@ -658,15 +668,17 @@ export function FlexWorkspaceBookings() {
     return days;
   };
 
-  const getSlotBooking = (slotNumber: number, dateStr: string): SlotBooking | null => {
-    const booking = allBookings.find(
+  const getAllSlotBookings = (slotNumber: number, dateStr: string): SlotBooking[] => {
+    const slotBookings: SlotBooking[] = [];
+
+    const dayBookings = allBookings.filter(
       b => b.space_id === selectedResourceSpace &&
            b.slot_number === slotNumber &&
            b.booking_date === dateStr
     );
 
-    if (booking) {
-      return {
+    dayBookings.forEach(booking => {
+      slotBookings.push({
         type: 'booking',
         customerName: booking.external_customers?.company_name || 'Onbekend',
         customerId: booking.external_customer_id,
@@ -674,35 +686,102 @@ export function FlexWorkspaceBookings() {
         isInvoiced: booking.invoice_id !== null,
         time: booking.start_time && booking.end_time ? `${booking.start_time}-${booking.end_time}` : undefined,
         isHalfDay: booking.is_half_day,
-        halfDayPeriod: booking.half_day_period
-      };
+        halfDayPeriod: booking.half_day_period,
+        startTime: booking.start_time,
+        endTime: booking.end_time,
+        totalHours: booking.total_hours
+      });
+    });
+
+    if (slotBookings.length === 0) {
+      const date = new Date(dateStr);
+      const dayOfWeek = date.getDay();
+      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const dayName = dayNames[dayOfWeek] as keyof FlexSchedule;
+
+      const schedule = schedules.find(
+        s => s.space_id === selectedResourceSpace &&
+             s.slot_number === slotNumber &&
+             typeof s[dayName] === 'boolean' &&
+             s[dayName] === true
+      );
+
+      if (schedule) {
+        const customerName = schedule.external_customers?.company_name ||
+                            schedule.leases?.tenants?.company_name ||
+                            'Onbekend';
+        slotBookings.push({
+          type: 'schedule',
+          customerName,
+          customerId: schedule.external_customer_id || schedule.lease_id || '',
+          scheduleId: schedule.id
+        });
+      }
     }
 
-    const date = new Date(dateStr);
-    const dayOfWeek = date.getDay();
-    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    const dayName = dayNames[dayOfWeek] as keyof FlexSchedule;
+    return slotBookings;
+  };
 
-    const schedule = schedules.find(
-      s => s.space_id === selectedResourceSpace &&
-           s.slot_number === slotNumber &&
-           typeof s[dayName] === 'boolean' &&
-           s[dayName] === true
-    );
+  const getTimeSegments = (slotNumber: number, dateStr: string): TimeSegment[] => {
+    const segments: TimeSegment[] = [];
+    const slotBookings = getAllSlotBookings(slotNumber, dateStr);
 
-    if (schedule) {
-      const customerName = schedule.external_customers?.company_name ||
-                          schedule.leases?.tenants?.company_name ||
-                          'Onbekend';
-      return {
-        type: 'schedule',
-        customerName,
-        customerId: schedule.external_customer_id || schedule.lease_id || '',
-        scheduleId: schedule.id
-      };
+    if (slotBookings.length === 0 || !slotBookings[0].startTime) {
+      return [{
+        startHour: 8,
+        endHour: 18,
+        booking: null,
+        isAvailable: true
+      }];
     }
 
-    return null;
+    const bookedPeriods: Array<{start: number; end: number; booking: SlotBooking}> = [];
+
+    slotBookings.forEach(booking => {
+      if (booking.startTime && booking.endTime) {
+        const [startHour, startMin] = booking.startTime.split(':').map(Number);
+        const [endHour, endMin] = booking.endTime.split(':').map(Number);
+        const start = startHour + startMin / 60;
+        const end = endHour + endMin / 60;
+        bookedPeriods.push({ start, end, booking });
+      }
+    });
+
+    bookedPeriods.sort((a, b) => a.start - b.start);
+
+    let currentHour = 8;
+    const workdayEnd = 18;
+
+    bookedPeriods.forEach(period => {
+      if (currentHour < period.start) {
+        segments.push({
+          startHour: currentHour,
+          endHour: period.start,
+          booking: null,
+          isAvailable: true
+        });
+      }
+
+      segments.push({
+        startHour: period.start,
+        endHour: period.end,
+        booking: period.booking,
+        isAvailable: false
+      });
+
+      currentHour = Math.max(currentHour, period.end);
+    });
+
+    if (currentHour < workdayEnd) {
+      segments.push({
+        startHour: currentHour,
+        endHour: workdayEnd,
+        booking: null,
+        isAvailable: true
+      });
+    }
+
+    return segments;
   };
 
   const formatDate = (dateStr: string) => {
@@ -1016,30 +1095,38 @@ export function FlexWorkspaceBookings() {
               </div>
             </div>
 
-            <div className="flex gap-4 text-xs text-gray-400 mb-4">
+            <div className="flex flex-wrap gap-4 text-xs text-gray-400 mb-4">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded bg-gold-500"></div>
+                <div className="w-4 h-4 rounded bg-gold-500"></div>
                 <span>Eenmalige boeking</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded bg-blue-500"></div>
+                <div className="w-4 h-4 rounded bg-blue-500"></div>
                 <span>Flex contract (vast)</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded bg-green-500"></div>
+                <div className="w-4 h-4 rounded bg-green-600"></div>
                 <span>Gefactureerd</span>
               </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-emerald-900/30 border border-emerald-600"></div>
+                <span>Beschikbaar</span>
+              </div>
+            </div>
+            <div className="text-xs text-gray-500 mb-4 bg-dark-800 rounded-lg p-2 border border-dark-700">
+              <Info size={14} className="inline mr-1" />
+              De tijdlijn toont de werkdag van 08:00 tot 18:00. Gekleurde blokken zijn boekingen, groene delen zijn beschikbaar. Klik op beschikbare tijd om te boeken.
             </div>
           </div>
 
           {selectedSpace && selectedSpace.flex_capacity ? (
             <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full table-fixed" style={{ minWidth: '1200px' }}>
+                <table className="w-full table-fixed" style={{ minWidth: '1300px' }}>
                   <colgroup>
                     <col style={{ width: '120px' }} />
                     {weekDays.map((_, idx) => (
-                      <col key={idx} style={{ width: '154px' }} />
+                      <col key={idx} style={{ width: '170px' }} />
                     ))}
                   </colgroup>
                   <thead>
@@ -1077,45 +1164,88 @@ export function FlexWorkspaceBookings() {
                         </td>
                         {weekDays.map((date) => {
                           const dateStr = date.toISOString().split('T')[0];
-                          const slotBooking = getSlotBooking(slotNumber, dateStr);
+                          const timeSegments = getTimeSegments(slotNumber, dateStr);
                           const isWeekend = date.getDay() === 0 || date.getDay() === 6;
                           const isToday = dateStr === new Date().toISOString().split('T')[0];
+                          const hasBookings = timeSegments.some(seg => seg.booking !== null);
 
                           return (
                             <td
                               key={dateStr}
-                              className={`px-3 py-3 text-center ${
+                              className={`px-2 py-2 ${
                                 isWeekend ? 'bg-dark-950' : ''
                               } ${isToday ? 'ring-2 ring-gold-500 ring-inset' : ''}`}
                             >
-                              {slotBooking ? (
-                                <div
-                                  className={`text-sm px-3 py-3 rounded cursor-pointer transition-colors min-h-[70px] flex flex-col justify-center ${
-                                    slotBooking.type === 'booking'
-                                      ? slotBooking.isInvoiced
-                                        ? 'bg-green-900/50 text-green-200 border border-green-700 hover:bg-green-900/70'
-                                        : 'bg-gold-900/50 text-gold-200 border border-gold-700 hover:bg-gold-900/70'
-                                      : 'bg-blue-900/50 text-blue-200 border border-blue-700 hover:bg-blue-900/70'
-                                  }`}
-                                  title={`${slotBooking.customerName}${slotBooking.time ? ` (${slotBooking.time})` : ''}`}
-                                >
-                                  <div className="font-semibold text-sm leading-tight mb-1">{slotBooking.customerName}</div>
-                                  {slotBooking.isHalfDay && slotBooking.halfDayPeriod && (
-                                    <div className="inline-flex items-center justify-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-white/20 mb-1">
-                                      {slotBooking.halfDayPeriod === 'morning' ? '🌅 Ochtend' : '🌆 Middag'}
-                                    </div>
-                                  )}
-                                  {slotBooking.time && (
-                                    <div className="text-xs opacity-90 font-medium">{slotBooking.time}</div>
-                                  )}
+                              {isWeekend ? (
+                                <div className="w-full h-[90px] flex items-center justify-center text-gray-600 text-sm">
+                                  -
+                                </div>
+                              ) : hasBookings ? (
+                                <div className="relative w-full h-[90px] bg-dark-800 rounded border border-dark-600 overflow-hidden">
+                                  <div className="absolute inset-0 flex">
+                                    {timeSegments.map((segment, idx) => {
+                                      const totalHours = 10;
+                                      const segmentHours = segment.endHour - segment.startHour;
+                                      const widthPercent = (segmentHours / totalHours) * 100;
+
+                                      if (segment.isAvailable) {
+                                        return (
+                                          <button
+                                            key={idx}
+                                            onClick={() => handleResourceSlotClick(dateStr, slotNumber)}
+                                            className="h-full bg-emerald-900/30 border-r border-dark-600 hover:bg-emerald-800/40 transition-colors flex items-center justify-center group relative"
+                                            style={{ width: `${widthPercent}%` }}
+                                            title={`Beschikbaar: ${Math.floor(segment.startHour)}:${String((segment.startHour % 1) * 60).padStart(2, '0')} - ${Math.floor(segment.endHour)}:${String((segment.endHour % 1) * 60).padStart(2, '0')}`}
+                                          >
+                                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                              <Plus size={16} className="text-emerald-400" />
+                                            </div>
+                                          </button>
+                                        );
+                                      }
+
+                                      const booking = segment.booking!;
+                                      const bgColor = booking.type === 'booking'
+                                        ? booking.isInvoiced
+                                          ? 'bg-green-600'
+                                          : 'bg-gold-500'
+                                        : 'bg-blue-500';
+
+                                      return (
+                                        <div
+                                          key={idx}
+                                          className={`h-full ${bgColor} border-r border-dark-900 flex flex-col items-center justify-center p-1 cursor-pointer hover:brightness-110 transition-all`}
+                                          style={{ width: `${widthPercent}%` }}
+                                          title={`${booking.customerName}\n${booking.time || ''}`}
+                                        >
+                                          <div className="text-white text-[10px] font-bold text-center leading-tight line-clamp-2 px-0.5">
+                                            {booking.customerName}
+                                          </div>
+                                          {booking.time && (
+                                            <div className="text-white text-[9px] font-semibold mt-0.5 bg-black/20 px-1 rounded">
+                                              {booking.time}
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+
+                                  <div className="absolute bottom-0 left-0 right-0 h-3 bg-dark-900/80 flex text-[8px] text-gray-500 font-medium">
+                                    <div className="flex-1 border-r border-dark-700 flex items-center justify-center">08</div>
+                                    <div className="flex-1 border-r border-dark-700 flex items-center justify-center">10</div>
+                                    <div className="flex-1 border-r border-dark-700 flex items-center justify-center">12</div>
+                                    <div className="flex-1 border-r border-dark-700 flex items-center justify-center">14</div>
+                                    <div className="flex-1 border-r border-dark-700 flex items-center justify-center">16</div>
+                                    <div className="flex-1 flex items-center justify-center">18</div>
+                                  </div>
                                 </div>
                               ) : (
                                 <button
                                   onClick={() => handleResourceSlotClick(dateStr, slotNumber)}
-                                  className="w-full px-3 py-3 min-h-[70px] text-sm text-gray-500 hover:bg-dark-700 hover:text-gray-300 rounded border border-dashed border-dark-700 transition-colors font-medium"
-                                  disabled={isWeekend}
+                                  className="w-full h-[90px] flex items-center justify-center text-lg text-gray-500 hover:bg-dark-700 hover:text-gray-300 rounded border border-dashed border-dark-700 transition-colors font-bold bg-emerald-900/10 hover:bg-emerald-900/20"
                                 >
-                                  {isWeekend ? '-' : '+'}
+                                  +
                                 </button>
                               )}
                             </td>
