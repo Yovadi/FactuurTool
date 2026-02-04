@@ -208,6 +208,46 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
   }, [currentDate, baseMonth]);
 
   useEffect(() => {
+    // Subscribe to realtime changes in bookings
+    const meetingRoomChannel = supabase
+      .channel('meeting-room-bookings-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'meeting_room_bookings'
+        },
+        () => {
+          // Reload data without showing loading state for smoother UX
+          loadData(false);
+        }
+      )
+      .subscribe();
+
+    const flexBookingsChannel = supabase
+      .channel('flex-day-bookings-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'flex_day_bookings'
+        },
+        () => {
+          // Reload data without showing loading state for smoother UX
+          loadData(false);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(meetingRoomChannel);
+      supabase.removeChannel(flexBookingsChannel);
+    };
+  }, [currentDate, baseMonth]);
+
+  useEffect(() => {
     // Scroll to 8:00 AM when component mounts or data loads
     if (scrollContainerRef.current && !loading) {
       // 8:00 AM is index 4 in timeSlots (8 - 6 = 2 hours, 2 * 2 = 4)
@@ -1465,9 +1505,16 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                                   </div>
                                 </>
                               ) : (
-                                <div className={`font-semibold ${colors.text} text-xs leading-tight truncate`}>
-                                  {booking.tenants?.company_name || ''}
-                                </div>
+                                <>
+                                  {loggedInTenantId && booking.tenant_id === loggedInTenantId && (
+                                    <div className={`font-medium ${colors.text} text-[10px] uppercase leading-tight opacity-75`}>
+                                      {booking.status === 'confirmed' ? 'BEVESTIGD' : booking.status === 'pending' ? 'IN AFWACHTING' : 'MIJN BOEKING'}
+                                    </div>
+                                  )}
+                                  <div className={`font-semibold ${colors.text} text-xs leading-tight truncate`}>
+                                    {booking.tenants?.company_name || ''}
+                                  </div>
+                                </>
                               )}
                               <div className={`${colors.text} text-[11px] opacity-90 leading-tight mt-0.5`}>
                                 {booking.start_time.substring(0, 5)} - {booking.end_time.substring(0, 5)}

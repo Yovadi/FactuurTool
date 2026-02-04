@@ -83,7 +83,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
           tenants (id, name, company_name, email),
           external_customers (id, company_name, contact_name, email)
         `)
-        .neq('status', 'paid');
+        .not('status', 'in', '(paid,credited)');
 
       if (error) throw error;
 
