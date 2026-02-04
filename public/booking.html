@@ -600,6 +600,11 @@
             opacity: 1;
         }
 
+        .booking-badge.confirmed-badge {
+            color: #86EFAC;
+            opacity: 1;
+        }
+
         .delete-booking-btn {
             position: absolute;
             top: 2px;
@@ -1114,6 +1119,10 @@
 
         .bookings-table tbody tr:hover {
             background-color: rgba(202, 138, 4, 0.05);
+        }
+
+        .bookings-table tbody tr.can-cancel {
+            cursor: pointer;
         }
 
         .bookings-table tbody tr.can-cancel:hover {
@@ -2120,12 +2129,14 @@
                             (authenticatedUser.userType === 'external' && booking.external_customer_id === authenticatedUser.id)
                         );
                         const isPending = booking.status === 'pending';
-                        const canDelete = isOwnBooking && isPending;
+                        const isConfirmed = booking.status === 'confirmed';
+                        const canDelete = isOwnBooking && (isPending || isConfirmed);
 
                         let badges = '';
                         if (booking.external_customer_id) badges += '<div class="booking-badge">EXTERN</div>';
                         if (isOwnBooking) badges += '<div class="booking-badge own-booking">MIJN BOEKING</div>';
                         if (isPending) badges += '<div class="booking-badge pending-badge">IN AFWACHTING</div>';
+                        if (isConfirmed && isOwnBooking) badges += '<div class="booking-badge confirmed-badge">BEVESTIGD</div>';
 
                         block.innerHTML = `
                             ${badges}
@@ -2513,7 +2524,7 @@
             try {
                 const { error } = await sb
                     .from('meeting_room_bookings')
-                    .delete()
+                    .update({ status: 'cancelled' })
                     .eq('id', bookingId);
 
                 if (error) throw error;
@@ -2812,7 +2823,7 @@
 
                 // Render upcoming bookings
                 if (upcoming.length === 0) {
-                    upcomingDiv.innerHTML = '<tr><td colspan="5" class="no-bookings"><div class="no-bookings-icon">📅</div>Geen toekomstige boekingen</td></tr>';
+                    upcomingDiv.innerHTML = '<tr><td colspan="4" class="no-bookings"><div class="no-bookings-icon">📅</div>Geen toekomstige boekingen</td></tr>';
                     document.getElementById('upcomingBookingsTable').style.display = 'none';
                 } else {
                     document.getElementById('upcomingBookingsTable').style.display = 'table';
@@ -2821,7 +2832,7 @@
 
                 // Render past bookings
                 if (past.length === 0) {
-                    pastDiv.innerHTML = '<tr><td colspan="5" class="no-bookings"><div class="no-bookings-icon">✓</div>Geen afgelopen boekingen</td></tr>';
+                    pastDiv.innerHTML = '<tr><td colspan="4" class="no-bookings"><div class="no-bookings-icon">✓</div>Geen afgelopen boekingen</td></tr>';
                     document.getElementById('pastBookingsTable').style.display = 'none';
                 } else {
                     document.getElementById('pastBookingsTable').style.display = 'table';
@@ -2829,8 +2840,8 @@
                 }
             } catch (error) {
                 console.error('Error loading bookings:', error);
-                upcomingDiv.innerHTML = '<tr><td colspan="5" class="no-bookings">Fout bij laden van boekingen</td></tr>';
-                pastDiv.innerHTML = '<tr><td colspan="5" class="no-bookings">Fout bij laden van boekingen</td></tr>';
+                upcomingDiv.innerHTML = '<tr><td colspan="4" class="no-bookings">Fout bij laden van boekingen</td></tr>';
+                pastDiv.innerHTML = '<tr><td colspan="4" class="no-bookings">Fout bij laden van boekingen</td></tr>';
             }
         }
 
@@ -2844,8 +2855,8 @@
             });
             const weekNum = getWeekNumber(date);
 
-            // Only allow cancellation for upcoming bookings with 'pending' status
-            const canCancel = status === 'upcoming' && booking.status === 'pending';
+            // Allow cancellation for upcoming bookings (both pending and confirmed)
+            const canCancel = status === 'upcoming' && (booking.status === 'pending' || booking.status === 'confirmed');
             const onClickAttr = canCancel ? `onclick="handleBookingClick('${booking.id}')"` : '';
             const rowClass = canCancel ? 'can-cancel' : '';
 
@@ -2853,7 +2864,7 @@
             if (booking.status === 'pending') {
                 statusBadge = '<span class="status-badge pending">In afwachting - Klik om te annuleren</span>';
             } else if (booking.status === 'confirmed') {
-                statusBadge = '<span class="status-badge confirmed">Bevestigd</span>';
+                statusBadge = '<span class="status-badge confirmed">Bevestigd - Klik om te annuleren</span>';
             } else if (booking.status === 'completed') {
                 statusBadge = '<span class="status-badge past">Voltooid</span>';
             } else {
