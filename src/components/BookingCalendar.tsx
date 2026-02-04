@@ -18,10 +18,11 @@ type Booking = {
   end_time: string;
   tenant_id?: string;
   external_customer_id?: string;
-  status?: 'confirmed' | 'cancelled' | 'completed';
+  status?: 'pending' | 'confirmed' | 'cancelled' | 'completed';
   invoice_id?: string | null;
   recurring_pattern_id?: string | null;
   is_exception?: boolean;
+  booking_type?: 'meeting_room' | 'flex';
   tenants?: { name: string; company_name: string };
   external_customers?: { company_name: string; contact_name: string };
   office_spaces?: { space_number: string };
@@ -79,10 +80,24 @@ const tenantColors = [
   { bg: 'bg-amber-800', border: 'border-amber-700', text: 'text-amber-50' },
 ];
 
-const getTenantColor = (tenantId: string | undefined) => {
-  if (!tenantId) return tenantColors[0];
+const flexColors = [
+  { bg: 'bg-teal-600', border: 'border-teal-500', text: 'text-teal-50' },
+  { bg: 'bg-cyan-600', border: 'border-cyan-500', text: 'text-cyan-50' },
+  { bg: 'bg-emerald-600', border: 'border-emerald-500', text: 'text-emerald-50' },
+  { bg: 'bg-teal-700', border: 'border-teal-600', text: 'text-teal-50' },
+  { bg: 'bg-cyan-700', border: 'border-cyan-600', text: 'text-cyan-50' },
+  { bg: 'bg-teal-500', border: 'border-teal-400', text: 'text-teal-950' },
+  { bg: 'bg-cyan-500', border: 'border-cyan-400', text: 'text-cyan-950' },
+  { bg: 'bg-emerald-500', border: 'border-emerald-400', text: 'text-emerald-950' },
+  { bg: 'bg-teal-800', border: 'border-teal-700', text: 'text-teal-50' },
+  { bg: 'bg-cyan-800', border: 'border-cyan-700', text: 'text-cyan-50' },
+];
+
+const getTenantColor = (tenantId: string | undefined, isFlex: boolean = false) => {
+  const colors = isFlex ? flexColors : tenantColors;
+  if (!tenantId) return colors[0];
   const hash = tenantId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  return tenantColors[hash % tenantColors.length];
+  return colors[hash % colors.length];
 };
 
 type BookingCalendarProps = {
@@ -275,7 +290,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
     const firstDay = new Date(baseMonth.getFullYear(), baseMonth.getMonth(), 1);
     const lastDay = new Date(baseMonth.getFullYear(), baseMonth.getMonth() + 3, 0);
 
-    const [bookingsRes, spacesRes, tenantsRes, customersRes, allBookingsRes, ratesRes] = await Promise.all([
+    const [bookingsRes, flexBookingsRes, spacesRes, tenantsRes, customersRes, allBookingsRes, allFlexBookingsRes, ratesRes] = await Promise.all([
       supabase
         .from('meeting_room_bookings')
         .select(`
@@ -298,6 +313,27 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
         .neq('status', 'cancelled')
         .order('start_time'),
       supabase
+        .from('flex_day_bookings')
+        .select(`
+          id,
+          booking_date,
+          start_time,
+          end_time,
+          tenant_id,
+          external_customer_id,
+          status,
+          invoice_id,
+          tenants(name, company_name),
+          external_customers(company_name, contact_name),
+          office_spaces(space_number)
+        `)
+        .gte('booking_date', formatLocalDate(weekStart))
+        .lte('booking_date', formatLocalDate(weekEnd))
+        .neq('status', 'cancelled')
+        .not('start_time', 'is', null)
+        .not('end_time', 'is', null)
+        .order('start_time'),
+      supabase
         .from('office_spaces')
         .select('id, space_number')
         .eq('space_type', 'Meeting Room')
@@ -317,13 +353,26 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
         .lte('booking_date', formatLocalDate(lastDay))
         .neq('status', 'cancelled'),
       supabase
+        .from('flex_day_bookings')
+        .select('id, booking_date, start_time, end_time, tenant_id, external_customer_id, status')
+        .gte('booking_date', formatLocalDate(firstDay))
+        .lte('booking_date', formatLocalDate(lastDay))
+        .neq('status', 'cancelled')
+        .not('start_time', 'is', null)
+        .not('end_time', 'is', null),
+      supabase
         .from('space_type_rates')
         .select('hourly_rate, half_day_rate, full_day_rate, vat_inclusive')
         .eq('space_type', 'Meeting Room')
         .maybeSingle()
     ]);
 
-    setAllBookings(allBookingsRes.data || []);
+    // Combine all bookings for mini calendars
+    const combinedAllBookings = [
+      ...(allBookingsRes.data || []).map(b => ({ ...b, booking_type: 'meeting_room' as const })),
+      ...(allFlexBookingsRes.data || []).map(b => ({ ...b, booking_type: 'flex' as const }))
+    ];
+    setAllBookings(combinedAllBookings);
     setExternalCustomers(customersRes.data || []);
 
     const days: WeekDay[] = [];
@@ -331,7 +380,11 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
       const date = new Date(weekStart);
       date.setDate(date.getDate() + i);
       const dateStr = formatLocalDate(date);
-      const dayBookings = (bookingsRes.data || []).filter(b => b.booking_date === dateStr);
+
+      // Combine meeting room and flex bookings for this day
+      const meetingRoomBookings = (bookingsRes.data || []).map(b => ({ ...b, booking_type: 'meeting_room' as const }));
+      const flexBookings = (flexBookingsRes.data || []).map(b => ({ ...b, booking_type: 'flex' as const }));
+      const dayBookings = [...meetingRoomBookings, ...flexBookings].filter(b => b.booking_date === dateStr);
 
       days.push({
         date,
@@ -340,7 +393,8 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
       });
     }
 
-    console.log('Loaded bookings:', bookingsRes.data);
+    console.log('Loaded meeting room bookings:', bookingsRes.data);
+    console.log('Loaded flex bookings:', flexBookingsRes.data);
     console.log('Week days with bookings:', days.map(d => ({ date: d.dateStr, bookings: d.bookings.length })));
 
     setWeekDays(days);
@@ -686,7 +740,9 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
   const handleCancelBooking = async () => {
     if (!selectedBooking) return;
 
-    if (selectedBooking.recurring_pattern_id && deleteOption === 'all') {
+    const isFlex = selectedBooking.booking_type === 'flex';
+
+    if (!isFlex && selectedBooking.recurring_pattern_id && deleteOption === 'all') {
       const today = new Date().toISOString().split('T')[0];
 
       const { error: patternError } = await supabase
@@ -714,9 +770,16 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
 
       showToast('Alle toekomstige boekingen succesvol geannuleerd', 'success');
     } else {
+      const tableName = isFlex ? 'flex_day_bookings' : 'meeting_room_bookings';
+      const updateData: any = { status: 'cancelled' };
+
+      if (!isFlex && selectedBooking.recurring_pattern_id) {
+        updateData.is_exception = true;
+      }
+
       const { error } = await supabase
-        .from('meeting_room_bookings')
-        .update({ status: 'cancelled', is_exception: selectedBooking.recurring_pattern_id ? true : false })
+        .from(tableName)
+        .update(updateData)
         .eq('id', selectedBooking.id);
 
       if (error) {
@@ -747,6 +810,14 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
 
   const handleBookingDrop = async (dateStr: string, time: string) => {
     if (!draggedBooking || !isDraggingBooking) return;
+
+    // Don't allow moving flex bookings
+    if (draggedBooking.booking_type === 'flex') {
+      showToast('Flexplekboekingen kunnen niet worden verplaatst via deze kalender', 'error');
+      setDraggedBooking(null);
+      setIsDraggingBooking(false);
+      return;
+    }
 
     const cellDate = new Date(dateStr + 'T00:00:00');
     const today = new Date();
@@ -1337,23 +1408,25 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                       }}
                     >
                       {booking && (() => {
-                        const colors = getTenantColor(booking.tenant_id);
+                        const isFlex = booking.booking_type === 'flex';
+                        const colors = getTenantColor(booking.tenant_id || booking.external_customer_id, isFlex);
                         const isBeingDragged = draggedBooking?.id === booking.id;
                         const isCompleted = booking.status === 'completed';
+                        const isPending = booking.status === 'pending';
                         const bookingHeight = getBookingHeight(booking) * CELL_HEIGHT - 2;
                         const isSingleSlot = bookingHeight <= 50;
 
                         return (
                           <div
-                            className={`absolute left-1 right-1 ${colors.bg} border-l-4 ${colors.border} rounded shadow-sm px-1.5 py-1 z-10 cursor-move hover:shadow-md transition-shadow select-none flex flex-col justify-center ${isBeingDragged ? 'opacity-50' : isCompleted ? 'opacity-70' : ''}`}
+                            className={`absolute left-1 right-1 ${colors.bg} border-l-4 ${colors.border} rounded shadow-sm px-1.5 py-1 z-10 cursor-move hover:shadow-md transition-shadow select-none flex flex-col justify-center ${isBeingDragged ? 'opacity-50' : isCompleted ? 'opacity-70' : isPending ? 'opacity-80 ring-2 ring-orange-400' : ''}`}
                             style={{
                               height: `${bookingHeight}px`,
                               top: '1px',
                               overflow: 'hidden'
                             }}
-                            title={`${booking.office_spaces?.space_number} - ${booking.external_customer_id ? `Extern: ${booking.external_customers?.company_name}` : booking.tenants?.company_name || ''} (${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)})${isCompleted ? ' - Voltooid' : ''}${booking.invoice_id ? ' - Gefactureerd' : ''}\nKlik om te beheren, sleep om te verplaatsen`}
+                            title={`${isFlex ? 'FLEXPLEK' : booking.office_spaces?.space_number} - ${booking.external_customer_id ? `Extern: ${booking.external_customers?.company_name}` : booking.tenants?.company_name || ''} (${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)})${isCompleted ? ' - Voltooid' : ''}${isPending ? ' - In afwachting' : ''}${booking.invoice_id ? ' - Gefactureerd' : ''}\nKlik om te beheren${isFlex ? '' : ', sleep om te verplaatsen'}`}
                             onMouseDown={(e) => {
-                              if (e.button === 0) {
+                              if (e.button === 0 && !isFlex) {
                                 handleBookingDragStart(booking, e);
                               }
                             }}
@@ -1365,11 +1438,18 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                             }}
                           >
                             <div className="w-full">
+                              {isFlex && (
+                                <div className={`font-medium ${colors.text} text-[9px] uppercase leading-tight opacity-75 mb-0.5`}>
+                                  FLEXPLEK
+                                </div>
+                              )}
                               {booking.external_customer_id ? (
                                 <>
-                                  <div className={`font-medium ${colors.text} text-[10px] uppercase leading-tight opacity-75`}>
-                                    EXTERN
-                                  </div>
+                                  {!isFlex && (
+                                    <div className={`font-medium ${colors.text} text-[10px] uppercase leading-tight opacity-75`}>
+                                      EXTERN
+                                    </div>
+                                  )}
                                   <div className={`font-semibold ${colors.text} text-xs leading-tight truncate`}>
                                     {booking.external_customers?.company_name}
                                   </div>
@@ -1716,7 +1796,14 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
             </div>
 
             <div className="mb-6 space-y-2 text-gray-300">
-              <p><strong>Ruimte:</strong> {selectedBooking.office_spaces?.space_number}</p>
+              {selectedBooking.booking_type === 'flex' ? (
+                <>
+                  <p className="text-teal-400"><strong>Type:</strong> Flexplek Boeking</p>
+                  <p><strong>Ruimte:</strong> {selectedBooking.office_spaces?.space_number}</p>
+                </>
+              ) : (
+                <p><strong>Ruimte:</strong> {selectedBooking.office_spaces?.space_number}</p>
+              )}
               {selectedBooking.external_customer_id ? (
                 <>
                   <p className="text-blue-400"><strong>Type:</strong> Externe boeking</p>
@@ -1733,6 +1820,9 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
               )}
               {selectedBooking.invoice_id && (
                 <p className="text-amber-500"><strong>Let op:</strong> Deze boeking is al gefactureerd</p>
+              )}
+              {selectedBooking.booking_type === 'flex' && (
+                <p className="text-amber-400 text-sm"><strong>Let op:</strong> Flexplekboekingen kunnen niet worden verplaatst via deze kalender</p>
               )}
             </div>
 
