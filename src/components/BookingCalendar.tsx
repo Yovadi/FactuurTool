@@ -740,6 +740,16 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
   const handleCancelBooking = async () => {
     if (!selectedBooking) return;
 
+    if (selectedBooking.status === 'completed') {
+      showToast('Voltooide boekingen kunnen niet worden geannuleerd', 'error');
+      return;
+    }
+
+    if (selectedBooking.status === 'cancelled') {
+      showToast('Deze boeking is al geannuleerd', 'error');
+      return;
+    }
+
     const isFlex = selectedBooking.booking_type === 'flex';
 
     if (!isFlex && selectedBooking.recurring_pattern_id && deleteOption === 'all') {
@@ -1827,7 +1837,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
             </div>
 
             <div className="space-y-3">
-              {selectedBooking.recurring_pattern_id && selectedBooking.status !== 'cancelled' && (
+              {selectedBooking.recurring_pattern_id && selectedBooking.status !== 'cancelled' && selectedBooking.status !== 'completed' && (
                 <div className="bg-dark-800 rounded-lg p-3 space-y-2">
                   <p className="text-sm text-gray-300 font-medium mb-2">Annuleer optie:</p>
                   <label className="flex items-center gap-2 cursor-pointer">
@@ -1854,7 +1864,11 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                   </label>
                 </div>
               )}
-              {selectedBooking.status !== 'cancelled' && (
+              {selectedBooking.status === 'completed' ? (
+                <div className="w-full px-6 py-3 bg-green-900/30 border border-green-700 rounded-lg text-green-300 text-center text-sm">
+                  Deze boeking is voltooid en kan niet meer worden geannuleerd
+                </div>
+              ) : selectedBooking.status !== 'cancelled' ? (
                 <>
                   {loggedInTenantId ? (
                     selectedBooking.tenant_id === loggedInTenantId ? (
@@ -1878,7 +1892,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                     </button>
                   )}
                 </>
-              )}
+              ) : null}
               <button
                 onClick={() => {
                   setShowDeleteConfirm(false);
