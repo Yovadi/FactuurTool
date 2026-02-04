@@ -425,7 +425,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       discount_amount: discountAmount,
       rate_type: rateType,
       applied_rate: appliedRate,
-      status: 'confirmed',
+      status: 'pending',
       notes: formData.notes,
       booking_type: bookingType
     };

@@ -2560,7 +2560,7 @@
                 discount_amount: discountAmount,
                 rate_type: rateType,
                 applied_rate: appliedRate,
-                status: 'confirmed',
+                status: 'pending',
                 booking_type: authenticatedUser.userType,
                 tenant_id: null,
                 external_customer_id: null
@@ -2837,7 +2837,7 @@
                         discount_amount: discountAmount,
                         rate_type: rateType,
                         applied_rate: appliedRate,
-                        status: 'confirmed',
+                        status: 'pending',
                         notes: pattern.notes || '',
                         recurring_pattern_id: pattern.id,
                         is_exception: false,
@@ -3014,9 +3014,9 @@
 
             let statusBadge;
             if (booking.status === 'pending') {
-                statusBadge = '<span class="status-badge pending">In afwachting - Klik om te annuleren</span>';
+                statusBadge = '<span class="status-badge pending">In afwachting van goedkeuring</span>';
             } else if (booking.status === 'confirmed') {
-                statusBadge = '<span class="status-badge confirmed">Bevestigd - Klik om te annuleren</span>';
+                statusBadge = '<span class="status-badge confirmed">Goedgekeurd</span>';
             } else if (booking.status === 'completed') {
                 statusBadge = '<span class="status-badge past">Voltooid</span>';
             } else {

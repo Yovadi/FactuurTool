@@ -636,7 +636,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
       total_amount: totalAmount,
       rate_type: rateType,
       applied_rate: appliedRate,
-      status: 'confirmed'
+      status: 'pending'
     };
 
     if (formBookingType === 'tenant') {

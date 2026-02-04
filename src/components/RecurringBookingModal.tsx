@@ -167,7 +167,7 @@ export function RecurringBookingModal({
           discount_amount: discountAmount,
           rate_type: rateType,
           applied_rate: appliedRate,
-          status: 'confirmed',
+          status: 'pending',
           notes: pattern.notes || '',
           recurring_pattern_id: pattern.id,
           is_exception: false,
