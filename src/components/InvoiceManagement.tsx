@@ -2778,7 +2778,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             .sort(sortByTenantAndDate);
 
             const openInvoices = invoices
-              .filter(inv => inv.status !== 'paid' && inv.status !== 'draft')
+              .filter(inv => inv.status !== 'paid' && inv.status !== 'draft' && inv.status !== 'credited')
               .sort(sortByTenantAndDate);
 
             const filterOpenInvoices = (type: InvoiceTypeFilter) => {
