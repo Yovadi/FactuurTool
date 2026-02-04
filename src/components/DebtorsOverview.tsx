@@ -156,7 +156,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
         .from('invoices')
         .select('id, invoice_number, invoice_date, due_date, amount, status')
         .or(`tenant_id.eq.${debtorId},external_customer_id.eq.${debtorId}`)
-        .neq('status', 'paid')
+        .not('status', 'in', '(paid,credited)')
         .order('invoice_date', { ascending: false });
 
       if (error) throw error;
@@ -186,6 +186,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
           notes,
           tenant_id,
           external_customer_id,
+          applied_credit,
           invoice_line_items (
             id,
             description,
@@ -194,7 +195,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
             amount
           )
         `)
-        .eq('status', 'paid')
+        .in('status', ['paid', 'credited'])
         .order('invoice_date', { ascending: false });
 
       if (error) {
@@ -482,12 +483,12 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
       {activeTab === 'log' && (
         <div className="flex-1 flex flex-col bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
             <h2 className="text-lg font-bold text-gray-100 px-4 py-3 bg-dark-800 border-b border-amber-500 flex-shrink-0">
-              Betaalde Facturen (Logboek)
+              Facturen Logboek (Betaald & Gecrediteerd)
             </h2>
             {paidInvoices.length === 0 ? (
               <div className="bg-dark-900 rounded-lg p-8 text-center">
                 <CheckCircle size={48} className="text-green-500 mx-auto mb-4" />
-                <p className="text-gray-400">Geen betaalde facturen gevonden</p>
+                <p className="text-gray-400">Geen betaalde of gecrediteerde facturen gevonden</p>
               </div>
             ) : (
               <div className="flex flex-col flex-1 overflow-hidden">
@@ -607,11 +608,22 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                             <div className="text-gray-100 font-bold">
                               €{invoice.amount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </div>
+                            {invoice.status === 'credited' && invoice.applied_credit && (
+                              <div className="text-xs text-green-400 mt-1">
+                                -€{invoice.applied_credit.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} credit
+                              </div>
+                            )}
                           </td>
                           <td className="px-4 py-3 text-center">
-                            <span className="inline-block px-2 py-1 rounded-full text-xs font-medium bg-green-900 text-green-400">
-                              BETAALD
-                            </span>
+                            {invoice.status === 'credited' ? (
+                              <span className="inline-block px-2 py-1 rounded-full text-xs font-medium bg-purple-900 text-purple-400">
+                                GECREDITEERD
+                              </span>
+                            ) : (
+                              <span className="inline-block px-2 py-1 rounded-full text-xs font-medium bg-green-900 text-green-400">
+                                BETAALD
+                              </span>
+                            )}
                           </td>
                           <td className="px-4 py-3 text-center">
                             <div className="flex gap-2 justify-center">
