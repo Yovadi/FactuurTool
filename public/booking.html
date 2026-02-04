@@ -2523,8 +2523,25 @@
             const selectedRoom = meetingRooms.find(r => r.id === roomId);
             if (!selectedRoom) return;
 
-            const hourlyRate = selectedRoom.hourly_rate || 25;
-            let totalAmount = totalHours * hourlyRate;
+            // Determine rate type and calculate amount
+            let rateType, appliedRate, totalAmount;
+
+            if (totalHours >= 8) {
+                // Full day rate (8+ hours)
+                rateType = 'full_day';
+                appliedRate = selectedRoom.full_day_rate || (selectedRoom.hourly_rate * 8);
+                totalAmount = appliedRate;
+            } else if (totalHours >= 4) {
+                // Half day rate (4-7 hours)
+                rateType = 'half_day';
+                appliedRate = selectedRoom.half_day_rate || (selectedRoom.hourly_rate * 4);
+                totalAmount = appliedRate;
+            } else {
+                // Hourly rate (< 4 hours)
+                rateType = 'hourly';
+                appliedRate = selectedRoom.hourly_rate || 25;
+                totalAmount = totalHours * appliedRate;
+            }
 
             // Calculate discount from customer's meeting_discount_percentage
             const discountPercentage = parseFloat(authenticatedUser.meeting_discount_percentage) || 0;
@@ -2536,11 +2553,13 @@
                 booking_date: bookingDate,
                 start_time: startTime,
                 end_time: endTime,
-                hourly_rate: hourlyRate,
+                hourly_rate: selectedRoom.hourly_rate || 25,
                 total_hours: totalHours,
                 total_amount: finalAmount,
                 discount_percentage: discountPercentage,
                 discount_amount: discountAmount,
+                rate_type: rateType,
+                applied_rate: appliedRate,
                 status: 'confirmed',
                 booking_type: authenticatedUser.userType,
                 tenant_id: null,
@@ -2758,12 +2777,31 @@
             const endDate = pattern.end_date ? new Date(pattern.end_date) : new Date(startDate.getTime() + 365 * 24 * 60 * 60 * 1000);
 
             const space = meetingRooms.find(s => s.id === pattern.space_id);
-            const hourlyRate = space ? space.hourly_rate || 0 : 0;
+            if (!space) return;
 
             const [startHour, startMinute] = pattern.start_time.split(':').map(Number);
             const [endHour, endMinute] = pattern.end_time.split(':').map(Number);
             const totalHours = (endHour + endMinute / 60) - (startHour + startMinute / 60);
-            let totalAmount = totalHours * hourlyRate;
+
+            // Determine rate type and calculate amount
+            let rateType, appliedRate, totalAmount;
+
+            if (totalHours >= 8) {
+                // Full day rate (8+ hours)
+                rateType = 'full_day';
+                appliedRate = space.full_day_rate || (space.hourly_rate * 8);
+                totalAmount = appliedRate;
+            } else if (totalHours >= 4) {
+                // Half day rate (4-7 hours)
+                rateType = 'half_day';
+                appliedRate = space.half_day_rate || (space.hourly_rate * 4);
+                totalAmount = appliedRate;
+            } else {
+                // Hourly rate (< 4 hours)
+                rateType = 'hourly';
+                appliedRate = space.hourly_rate || 25;
+                totalAmount = totalHours * appliedRate;
+            }
 
             // Apply discount for recurring bookings from authenticated user's meeting_discount_percentage
             const discountPercentage = parseFloat(authenticatedUser.meeting_discount_percentage) || 0;
@@ -2792,11 +2830,13 @@
                         booking_date: currentDate.toISOString().split('T')[0],
                         start_time: pattern.start_time,
                         end_time: pattern.end_time,
-                        hourly_rate: hourlyRate,
+                        hourly_rate: space.hourly_rate || 25,
                         total_hours: totalHours,
                         total_amount: finalAmount,
                         discount_percentage: discountPercentage,
                         discount_amount: discountAmount,
+                        rate_type: rateType,
+                        applied_rate: appliedRate,
                         status: 'confirmed',
                         notes: pattern.notes || '',
                         recurring_pattern_id: pattern.id,
