@@ -1,6 +1,6 @@
 [build]
-publish = "dist"
-command = "npx vite build"
+publish = "public"
+command = "echo 'Using public folder for booking interface only'"
 
 [build.environment]
 NODE_VERSION = "20"
