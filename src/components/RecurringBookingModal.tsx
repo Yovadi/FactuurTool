@@ -104,12 +104,35 @@ export function RecurringBookingModal({
     const endDate = pattern.end_date ? new Date(pattern.end_date) : new Date(startDate.getTime() + 365 * 24 * 60 * 60 * 1000);
 
     const space = spaces.find(s => s.id === pattern.space_id);
-    const hourlyRate = space ? (space as any).hourly_rate || 0 : 0;
+    if (!space) return;
 
     const [startHour, startMinute] = pattern.start_time.split(':').map(Number);
     const [endHour, endMinute] = pattern.end_time.split(':').map(Number);
     const totalHours = (endHour + endMinute / 60) - (startHour + startMinute / 60);
-    const subtotal = totalHours * hourlyRate;
+
+    // Determine rate type and calculate amount
+    let rateType: 'hourly' | 'half_day' | 'full_day';
+    let appliedRate: number;
+    let subtotal: number;
+
+    const spaceAny = space as any;
+
+    if (totalHours >= 8) {
+      // Full day rate (8+ hours)
+      rateType = 'full_day';
+      appliedRate = spaceAny.full_day_rate || (spaceAny.hourly_rate * 8) || 200;
+      subtotal = appliedRate;
+    } else if (totalHours >= 4) {
+      // Half day rate (4-7 hours)
+      rateType = 'half_day';
+      appliedRate = spaceAny.half_day_rate || (spaceAny.hourly_rate * 4) || 100;
+      subtotal = appliedRate;
+    } else {
+      // Hourly rate (< 4 hours)
+      rateType = 'hourly';
+      appliedRate = spaceAny.hourly_rate || 25;
+      subtotal = totalHours * appliedRate;
+    }
 
     const selectedTenant = tenants.find(t => t.id === pattern.tenant_id);
     const discountPercentage = Number(selectedTenant?.meeting_discount_percentage) || 0;
@@ -137,13 +160,13 @@ export function RecurringBookingModal({
           booking_date: currentDate.toISOString().split('T')[0],
           start_time: pattern.start_time,
           end_time: pattern.end_time,
-          hourly_rate: hourlyRate,
+          hourly_rate: (space as any).hourly_rate || 25,
           total_hours: totalHours,
           total_amount: totalAmount,
           discount_percentage: discountPercentage,
           discount_amount: discountAmount,
-          rate_type: 'hourly',
-          applied_rate: hourlyRate,
+          rate_type: rateType,
+          applied_rate: appliedRate,
           status: 'confirmed',
           notes: pattern.notes || '',
           recurring_pattern_id: pattern.id,
