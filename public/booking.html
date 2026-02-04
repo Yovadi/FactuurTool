@@ -1740,11 +1740,11 @@
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                         <div class="form-group">
                             <label class="form-label required">Starttijd</label>
-                            <input type="time" id="bookingStartTime" class="form-select" required>
+                            <select id="bookingStartTime" class="form-select" required></select>
                         </div>
                         <div class="form-group">
                             <label class="form-label required">Eindtijd</label>
-                            <input type="time" id="bookingEndTime" class="form-select" required>
+                            <select id="bookingEndTime" class="form-select" required></select>
                         </div>
                     </div>
                     <div class="form-group">
@@ -1787,11 +1787,11 @@
                         <div class="form-grid">
                             <div class="form-group">
                                 <label class="form-label required">Starttijd</label>
-                                <input type="time" id="recurringStartTime" class="form-select" value="09:00" required>
+                                <select id="recurringStartTime" class="form-select" required></select>
                             </div>
                             <div class="form-group">
                                 <label class="form-label required">Eindtijd</label>
-                                <input type="time" id="recurringEndTime" class="form-select" value="10:00" required>
+                                <select id="recurringEndTime" class="form-select" required></select>
                             </div>
                         </div>
                     </div>
@@ -2332,6 +2332,52 @@
             updateCellSelection();
         }
 
+        // Generate time options (15 minute intervals)
+        function generateTimeOptions() {
+            const options = [];
+            for (let hour = 0; hour < 24; hour++) {
+                for (let minute of [0, 15, 30, 45]) {
+                    const timeStr = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+                    options.push(timeStr);
+                }
+            }
+            return options;
+        }
+
+        // Populate time select dropdowns
+        function populateTimeSelects(startValue = '09:00', endValue = '10:00') {
+            const timeOptions = generateTimeOptions();
+            const startSelect = document.getElementById('bookingStartTime');
+            const endSelect = document.getElementById('bookingEndTime');
+
+            startSelect.innerHTML = '';
+            endSelect.innerHTML = '';
+
+            timeOptions.forEach(time => {
+                const startOption = document.createElement('option');
+                startOption.value = time;
+                startOption.textContent = time;
+                if (time === startValue) startOption.selected = true;
+                startSelect.appendChild(startOption);
+
+                const endOption = document.createElement('option');
+                endOption.value = time;
+                endOption.textContent = time;
+                if (time === endValue) endOption.selected = true;
+                endSelect.appendChild(endOption);
+            });
+        }
+
+        // Round time to nearest 15 minutes
+        function roundToQuarterHour(timeStr) {
+            const [hour, minute] = timeStr.split(':').map(Number);
+            const roundedMinute = Math.round(minute / 15) * 15;
+            if (roundedMinute === 60) {
+                return `${String((hour + 1) % 24).padStart(2, '0')}:00`;
+            }
+            return `${String(hour).padStart(2, '0')}:${String(roundedMinute).padStart(2, '0')}`;
+        }
+
         // Calculate duration helper
         function calculateBookingDuration() {
             const startTime = document.getElementById('bookingStartTime').value;
@@ -2354,6 +2400,14 @@
                 return;
             }
 
+            if (totalMinutes < 60) {
+                document.getElementById('bookingDurationInfo').innerHTML = '<strong>⚠️ Minimum boeking is 1 uur</strong>';
+                document.getElementById('bookingDurationInfo').style.display = 'block';
+                document.getElementById('bookingDurationInfo').style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+                document.getElementById('bookingDurationInfo').style.color = '#FCA5A5';
+                return;
+            }
+
             const hours = Math.floor(totalMinutes / 60);
             const minutes = totalMinutes % 60;
             let durationText = '';
@@ -2368,6 +2422,9 @@
 
         // Booking modal
         function openBookingModal() {
+            let startTime = '09:00';
+            let endTime = '10:00';
+
             // Pre-fill fields if cells are selected
             if (selectedCells.length > 0) {
                 const firstDate = selectedCells[0].date;
@@ -2389,20 +2446,19 @@
                     return;
                 }
 
-                const startTime = times[0];
+                startTime = roundToQuarterHour(times[0]);
                 const endIdx = timeSlots.indexOf(times[times.length - 1]) + 1;
-                const endTime = timeSlots[endIdx] || '22:00';
+                endTime = roundToQuarterHour(timeSlots[endIdx] || '22:00');
 
                 document.getElementById('bookingDate').value = firstDate;
-                document.getElementById('bookingStartTime').value = startTime;
-                document.getElementById('bookingEndTime').value = endTime;
             } else {
                 // Default to today and 9:00-10:00
                 const today = new Date();
                 document.getElementById('bookingDate').valueAsDate = today;
-                document.getElementById('bookingStartTime').value = '09:00';
-                document.getElementById('bookingEndTime').value = '10:00';
             }
+
+            // Populate time dropdowns with 15-minute intervals
+            populateTimeSelects(startTime, endTime);
 
             const roomSelect = document.getElementById('roomSelect');
             roomSelect.innerHTML = '<option value="">Selecteer een vergaderruimte</option>';
@@ -2414,8 +2470,8 @@
             });
 
             // Add event listeners for duration calculation
-            document.getElementById('bookingStartTime').addEventListener('input', calculateBookingDuration);
-            document.getElementById('bookingEndTime').addEventListener('input', calculateBookingDuration);
+            document.getElementById('bookingStartTime').addEventListener('change', calculateBookingDuration);
+            document.getElementById('bookingEndTime').addEventListener('change', calculateBookingDuration);
 
             calculateBookingDuration();
             document.getElementById('bookingModal').classList.add('show');
@@ -2455,6 +2511,11 @@
 
             if (totalMinutes <= 0) {
                 showToast('Eindtijd moet na starttijd liggen', 'error');
+                return;
+            }
+
+            if (totalMinutes < 60) {
+                showToast('Minimum boeking is 1 uur', 'error');
                 return;
             }
 
@@ -2520,6 +2581,28 @@
             select.innerHTML = meetingRooms.map(room =>
                 `<option value="${room.id}">${room.space_number}</option>`
             ).join('');
+
+            // Populate recurring time dropdowns
+            const timeOptions = generateTimeOptions();
+            const startSelect = document.getElementById('recurringStartTime');
+            const endSelect = document.getElementById('recurringEndTime');
+
+            startSelect.innerHTML = '';
+            endSelect.innerHTML = '';
+
+            timeOptions.forEach(time => {
+                const startOption = document.createElement('option');
+                startOption.value = time;
+                startOption.textContent = time;
+                if (time === '09:00') startOption.selected = true;
+                startSelect.appendChild(startOption);
+
+                const endOption = document.createElement('option');
+                endOption.value = time;
+                endOption.textContent = time;
+                if (time === '10:00') endOption.selected = true;
+                endSelect.appendChild(endOption);
+            });
 
             document.getElementById('recurringStartDate').valueAsDate = new Date();
             document.getElementById('recurringModal').classList.add('show');
@@ -2612,6 +2695,16 @@
             const endDate = document.getElementById('recurringEndDate').value || null;
             const notes = document.getElementById('recurringNotes').value;
             const monthDay = document.getElementById('recurringMonthDay').value;
+
+            // Validate minimum 1 hour booking
+            const [startHour, startMin] = startTime.split(':').map(Number);
+            const [endHour, endMin] = endTime.split(':').map(Number);
+            const totalMinutes = (endHour * 60 + endMin) - (startHour * 60 + startMin);
+
+            if (totalMinutes < 60) {
+                showToast('Minimum boeking is 1 uur', 'error');
+                return;
+            }
 
             if (recurringType === 'weekly' && selectedWeekdays.length === 0) {
                 showToast('Selecteer minimaal één dag', 'error');
