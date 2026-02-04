@@ -459,7 +459,13 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     }
 
     if (data) {
-      setBookings([data, ...bookings]);
+      const updatedAllBookings = [data, ...allBookings].sort((a, b) => {
+        const dateCompare = b.booking_date.localeCompare(a.booking_date);
+        if (dateCompare !== 0) return dateCompare;
+        return b.start_time.localeCompare(a.start_time);
+      });
+      setAllBookings(updatedAllBookings);
+      applyFilter(updatedAllBookings, selectedFilter);
     }
 
     showNotification('Boeking succesvol aangemaakt!', 'success');
