@@ -362,8 +362,34 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
     setShowForm(true);
   };
 
-  const handlePreview = (creditNote: CreditNote) => {
-    setPreviewCreditNote(creditNote);
+  const handlePreview = async (creditNote: CreditNote) => {
+    let enrichedCreditNote = { ...creditNote };
+
+    if (!creditNote.tenants && creditNote.tenant_id) {
+      const { data: tenantData } = await supabase
+        .from('tenants')
+        .select('name, company_name, email, billing_address, street, postal_code, city')
+        .eq('id', creditNote.tenant_id)
+        .maybeSingle();
+
+      if (tenantData) {
+        enrichedCreditNote.tenants = tenantData;
+      }
+    }
+
+    if (!creditNote.external_customers && creditNote.external_customer_id) {
+      const { data: customerData } = await supabase
+        .from('external_customers')
+        .select('company_name, contact_name, email, street, postal_code, city, country')
+        .eq('id', creditNote.external_customer_id)
+        .maybeSingle();
+
+      if (customerData) {
+        enrichedCreditNote.external_customers = customerData;
+      }
+    }
+
+    setPreviewCreditNote(enrichedCreditNote);
   };
 
   const handleSendCreditNote = async (creditNote: CreditNote) => {
@@ -826,8 +852,12 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
         <CreditNotePreview
           creditNote={{
             ...previewCreditNote,
-            tenant: (previewCreditNote.tenants as any)?.[0],
-            external_customer: (previewCreditNote.external_customers as any)?.[0],
+            tenant: Array.isArray(previewCreditNote.tenants)
+              ? previewCreditNote.tenants[0]
+              : previewCreditNote.tenants,
+            external_customer: Array.isArray(previewCreditNote.external_customers)
+              ? previewCreditNote.external_customers[0]
+              : previewCreditNote.external_customers,
           }}
           companySettings={companySettings}
           onClose={() => setPreviewCreditNote(null)}
