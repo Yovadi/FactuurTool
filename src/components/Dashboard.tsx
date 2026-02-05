@@ -454,7 +454,7 @@ export function Dashboard() {
           <h3 className="text-lg font-semibold text-gray-100">Financiële Meldingen</h3>
         </div>
 
-        {financialNotifications.length > 0 ? (
+        {(overdueInvoices.length > 0 || outstandingInvoices.length > 0 || draftInvoices.length > 0 || expiredLeases.length > 0 || expiringLeases.length > 0) ? (
           <div className="grid grid-cols-1 gap-3">
             {overdueInvoices.length > 0 && (
               <div className="bg-red-900/20 border-2 border-red-800 rounded-lg p-4">
