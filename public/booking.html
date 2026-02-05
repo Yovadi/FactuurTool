@@ -2145,7 +2145,7 @@
 
                         let badges = '';
                         if (booking.external_customer_id) badges += '<div class="booking-badge">EXTERN</div>';
-                        if (isOwnBooking) badges += '<div class="booking-badge own-booking">MIJN BOEKING</div>';
+                        if (isOwnBooking && !isConfirmed && !isPending) badges += '<div class="booking-badge own-booking">MIJN BOEKING</div>';
                         if (isPending) badges += '<div class="booking-badge pending-badge">IN AFWACHTING</div>';
                         if (isConfirmed && isOwnBooking) badges += '<div class="booking-badge confirmed-badge">BEVESTIGD</div>';
 

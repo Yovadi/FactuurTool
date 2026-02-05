@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { Calendar, Clock, Plus, X, Check, AlertCircle, Trash2, CalendarDays, FileText, CheckCircle, XCircle, Info, RotateCcw, Filter } from 'lucide-react';
 import { BookingCalendar } from './BookingCalendar';
 import { InlineDatePicker } from './InlineDatePicker';
+import { createAdminNotification } from '../utils/notificationHelper';
 
 type NotificationType = 'success' | 'error' | 'info';
 
@@ -511,6 +512,22 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     if (newStatus === 'cancelled') {
       setBookings(prev => prev.filter(b => b.id !== bookingId));
       setAllBookings(prev => prev.filter(b => b.id !== bookingId));
+
+      const customerName = booking.tenant_id
+        ? (booking.tenants?.company_name || 'Onbekende huurder')
+        : (booking.external_customers?.company_name || 'Onbekende klant');
+
+      const bookingDetails = `${booking.office_spaces?.space_number || 'Ruimte'} op ${new Date(booking.booking_date).toLocaleDateString('nl-NL')} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)}`;
+
+      await createAdminNotification(
+        'booking_cancelled',
+        'meeting_room',
+        booking.id,
+        customerName,
+        bookingDetails,
+        booking.tenant_id || undefined,
+        booking.external_customer_id || undefined
+      );
     } else {
       setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: newStatus } : b));
       setAllBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: newStatus } : b));

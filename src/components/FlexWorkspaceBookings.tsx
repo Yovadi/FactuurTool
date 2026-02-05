@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Calendar, Plus, X, Check, AlertCircle, Trash2, CalendarDays, CheckCircle, XCircle, Info, Filter, Building2, ChevronLeft, ChevronRight, Grid3x3, User } from 'lucide-react';
+import { createAdminNotification } from '../utils/notificationHelper';
 
 type NotificationType = 'success' | 'error' | 'info';
 
@@ -418,6 +419,26 @@ export function FlexWorkspaceBookings() {
     setAllBookings(prev =>
       prev.map(b => (b.id === bookingId ? { ...b, status: newStatus } : b))
     );
+
+    if (newStatus === 'cancelled') {
+      const customerName = booking.external_customers?.company_name || 'Onbekende klant';
+      const periodText = booking.start_time && booking.end_time
+        ? `${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)}`
+        : booking.is_half_day
+        ? `Halve dag (${booking.half_day_period === 'morning' ? 'Ochtend' : 'Middag'})`
+        : 'Hele dag';
+      const bookingDetails = `${booking.office_spaces?.space_number || 'Flexwerkplek'} op ${new Date(booking.booking_date).toLocaleDateString('nl-NL')} ${periodText}`;
+
+      await createAdminNotification(
+        'booking_cancelled',
+        'flex_workspace',
+        booking.id,
+        customerName,
+        bookingDetails,
+        undefined,
+        booking.external_customer_id || undefined
+      );
+    }
 
     const statusText = newStatus === 'confirmed' ? 'geaccepteerd' : newStatus === 'cancelled' ? 'geannuleerd' : 'voltooid';
     showNotification(`Boeking is ${statusText}.`, 'success');
