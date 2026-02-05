@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Calendar, Clock, Plus, X, Check, AlertCircle, Trash2, CalendarDays, FileText, CheckCircle, XCircle, Info, RotateCcw, Filter } from 'lucide-react';
+import { Calendar, Clock, Plus, X, Check, AlertCircle, Trash2, CalendarDays, FileText, CheckCircle, XCircle, Info, RotateCcw, Filter, RefreshCw } from 'lucide-react';
 import { BookingCalendar } from './BookingCalendar';
 import { InlineDatePicker } from './InlineDatePicker';
 import { createAdminNotification } from '../utils/notificationHelper';
@@ -915,7 +915,17 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       </div>
 
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-100 mb-4">Vergaderruimte Boekingen</h1>
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-2xl font-bold text-gray-100">Vergaderruimte Boekingen</h1>
+          <button
+            onClick={loadData}
+            className="flex items-center gap-2 px-4 py-2 bg-dark-700 text-gray-300 rounded-lg hover:bg-dark-600 transition-colors font-medium"
+            title="Ververs gegevens"
+          >
+            <RefreshCw size={20} />
+            Ververs
+          </button>
+        </div>
         <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2">
           <div className="flex gap-2">
             <button

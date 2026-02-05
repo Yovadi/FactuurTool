@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Calendar, Plus, X, Check, AlertCircle, Trash2, CalendarDays, CheckCircle, XCircle, Info, Filter, Building2, ChevronLeft, ChevronRight, Grid3x3, User } from 'lucide-react';
+import { Calendar, Plus, X, Check, AlertCircle, Trash2, CalendarDays, CheckCircle, XCircle, Info, Filter, Building2, ChevronLeft, ChevronRight, Grid3x3, User, RefreshCw } from 'lucide-react';
 import { createAdminNotification } from '../utils/notificationHelper';
 
 type NotificationType = 'success' | 'error' | 'info';
@@ -894,13 +894,23 @@ export function FlexWorkspaceBookings() {
             <h1 className="text-2xl font-bold text-gray-100">Flexplek Boekingen</h1>
             <p className="text-sm text-gray-400 mt-1">Beheer externe flexplekboekingen</p>
           </div>
-          <button
-            onClick={() => setShowForm(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-gold-500 text-white rounded-lg hover:bg-gold-600 transition-colors font-medium"
-          >
-            <Plus size={20} />
-            Nieuwe Boeking
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={loadData}
+              className="flex items-center gap-2 px-4 py-2 bg-dark-700 text-gray-300 rounded-lg hover:bg-dark-600 transition-colors font-medium"
+              title="Ververs gegevens"
+            >
+              <RefreshCw size={20} />
+              Ververs
+            </button>
+            <button
+              onClick={() => setShowForm(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-gold-500 text-white rounded-lg hover:bg-gold-600 transition-colors font-medium"
+            >
+              <Plus size={20} />
+              Nieuwe Boeking
+            </button>
+          </div>
         </div>
 
         <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2 mb-4">
