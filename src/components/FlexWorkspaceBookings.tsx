@@ -1495,7 +1495,7 @@ export function FlexWorkspaceBookings() {
                               </button>
                             </>
                           )}
-                          {!booking.invoice_id && booking.status !== 'cancelled' && booking.status !== 'pending' && (
+                          {!booking.invoice_id && booking.status !== 'pending' && (
                             <button
                               onClick={() => setDeleteConfirmId(booking.id)}
                               className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-900/20 rounded transition-colors"
