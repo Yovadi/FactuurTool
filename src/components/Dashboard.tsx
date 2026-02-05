@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Building, Users, AlertCircle, Calendar, Clock, CalendarClock, FileText, DollarSign, CheckCircle } from 'lucide-react';
+import { Building, Users, AlertCircle, Calendar, Clock, CalendarClock, FileText, DollarSign, CheckCircle, Check, XCircle } from 'lucide-react';
 import { SkeletonDashboard } from './SkeletonLoader';
+import { createAdminNotification } from '../utils/notificationHelper';
 
 type DashboardStats = {
   totalTenants: number;
@@ -19,6 +20,27 @@ type Notification = {
   message: string;
 };
 
+type PendingBooking = {
+  id: string;
+  booking_date: string;
+  start_time: string;
+  end_time?: string;
+  is_half_day?: boolean;
+  half_day_period?: 'morning' | 'afternoon';
+  booking_type: 'meeting_room' | 'flex_workspace';
+  tenant_id?: string | null;
+  external_customer_id?: string | null;
+  space: {
+    space_number: string;
+  };
+  tenants?: {
+    company_name: string;
+  };
+  external_customers?: {
+    company_name: string;
+  };
+};
+
 export function Dashboard() {
   const [stats, setStats] = useState<DashboardStats>({
     totalTenants: 0,
@@ -30,11 +52,60 @@ export function Dashboard() {
   });
   const [financialNotifications, setFinancialNotifications] = useState<Notification[]>([]);
   const [bookingNotifications, setBookingNotifications] = useState<Notification[]>([]);
+  const [pendingBookings, setPendingBookings] = useState<PendingBooking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   useEffect(() => {
     loadDashboardStats();
   }, []);
+
+  const showNotification = (message: string, type: 'success' | 'error' | 'info') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 3000);
+  };
+
+  const handleStatusChange = async (booking: PendingBooking, newStatus: 'confirmed' | 'cancelled') => {
+    const tableName = booking.booking_type === 'meeting_room' ? 'meeting_room_bookings' : 'flex_day_bookings';
+
+    const { error } = await supabase
+      .from(tableName)
+      .update({ status: newStatus })
+      .eq('id', booking.id);
+
+    if (error) {
+      console.error('Error updating status:', error);
+      showNotification('Fout bij het bijwerken van de status.', 'error');
+      return;
+    }
+
+    if (newStatus === 'cancelled') {
+      const customerName = booking.booking_type === 'meeting_room'
+        ? (booking.tenant_id ? (booking.tenants?.company_name || 'Onbekende huurder') : (booking.external_customers?.company_name || 'Onbekende klant'))
+        : (booking.external_customers?.company_name || 'Onbekende klant');
+
+      const bookingDetails = booking.booking_type === 'meeting_room'
+        ? `${booking.space.space_number} op ${new Date(booking.booking_date).toLocaleDateString('nl-NL')} ${booking.start_time.substring(0, 5)}-${booking.end_time?.substring(0, 5)}`
+        : booking.start_time && booking.end_time
+        ? `${booking.space.space_number} op ${new Date(booking.booking_date).toLocaleDateString('nl-NL')} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)}`
+        : `${booking.space.space_number} op ${new Date(booking.booking_date).toLocaleDateString('nl-NL')} ${booking.is_half_day ? (booking.half_day_period === 'morning' ? 'Ochtend' : 'Middag') : 'Hele dag'}`;
+
+      await createAdminNotification(
+        'booking_cancelled',
+        booking.booking_type,
+        booking.id,
+        customerName,
+        bookingDetails,
+        booking.booking_type === 'meeting_room' ? booking.tenant_id || undefined : undefined,
+        booking.booking_type === 'meeting_room' ? booking.external_customer_id || undefined : booking.external_customer_id || undefined
+      );
+    }
+
+    setPendingBookings(prev => prev.filter(b => b.id !== booking.id));
+
+    const statusText = newStatus === 'confirmed' ? 'geaccepteerd' : 'geweigerd';
+    showNotification(`Boeking is ${statusText}.`, 'success');
+  };
 
   const loadDashboardStats = async () => {
     setLoading(true);
@@ -63,6 +134,48 @@ export function Dashboard() {
     const { data: bookings } = await supabase
       .from('meeting_room_bookings')
       .select('id, booking_date, start_time, end_time, status');
+
+    const { data: pendingMeetingRooms } = await supabase
+      .from('meeting_room_bookings')
+      .select(`
+        id,
+        booking_date,
+        start_time,
+        end_time,
+        tenant_id,
+        external_customer_id,
+        space:office_spaces(space_number),
+        tenants(company_name),
+        external_customers(company_name)
+      `)
+      .eq('status', 'pending')
+      .order('booking_date', { ascending: true })
+      .order('start_time', { ascending: true })
+      .limit(10);
+
+    const { data: pendingFlexBookings } = await supabase
+      .from('flex_day_bookings')
+      .select(`
+        id,
+        booking_date,
+        start_time,
+        end_time,
+        is_half_day,
+        half_day_period,
+        external_customer_id,
+        space:office_spaces(space_number),
+        external_customers(company_name)
+      `)
+      .eq('status', 'pending')
+      .order('booking_date', { ascending: true })
+      .limit(10);
+
+    const allPendingBookings: PendingBooking[] = [
+      ...(pendingMeetingRooms || []).map(b => ({ ...b, booking_type: 'meeting_room' as const })),
+      ...(pendingFlexBookings || []).map(b => ({ ...b, booking_type: 'flex_workspace' as const }))
+    ].sort((a, b) => new Date(a.booking_date).getTime() - new Date(b.booking_date).getTime());
+
+    setPendingBookings(allPendingBookings);
 
     const activeLeaseSpaceIds = new Set(
       leaseSpaces
@@ -213,6 +326,15 @@ export function Dashboard() {
 
   return (
     <div className="h-full bg-dark-950 overflow-y-auto p-3 sm:p-4 md:p-6">
+      {notification && (
+        <div className={`fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 ${
+          notification.type === 'success' ? 'bg-green-600' :
+          notification.type === 'error' ? 'bg-red-600' : 'bg-blue-600'
+        } text-white`}>
+          {notification.message}
+        </div>
+      )}
+
       <div className="mb-6 sm:mb-8">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-100 mb-2">Overzicht</h1>
         <p className="text-sm sm:text-base text-gray-300">Overzicht van je kantoorgebouw beheer</p>
@@ -567,6 +689,107 @@ export function Dashboard() {
           </div>
         </div>
       </div>
+
+      {pendingBookings.length > 0 && (
+        <div className="mt-6 bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-dark-700 rounded-lg">
+              <AlertCircle className="text-orange-400" size={20} />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-100">Boekingen In Afwachting</h3>
+            <span className="ml-auto bg-orange-900 text-orange-400 px-3 py-1 rounded-full text-sm font-medium">
+              {pendingBookings.length}
+            </span>
+          </div>
+          <div className="bg-dark-800 rounded-lg border border-dark-700 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
+                    <th className="text-left px-4 py-3 font-semibold">Type</th>
+                    <th className="text-left px-4 py-3 font-semibold">Klant</th>
+                    <th className="text-left px-4 py-3 font-semibold">Datum</th>
+                    <th className="text-left px-4 py-3 font-semibold">Tijd</th>
+                    <th className="text-left px-4 py-3 font-semibold">Ruimte</th>
+                    <th className="text-center px-4 py-3 font-semibold">Acties</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pendingBookings.map((booking) => (
+                    <tr
+                      key={booking.id}
+                      className="border-b border-dark-700 hover:bg-dark-700 transition-colors"
+                    >
+                      <td className="px-4 py-3">
+                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                          booking.booking_type === 'meeting_room' ? 'bg-blue-900 text-blue-400' : 'bg-purple-900 text-purple-400'
+                        }`}>
+                          {booking.booking_type === 'meeting_room' ? 'Vergader' : 'Flex'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-gray-100 font-medium">
+                          {booking.booking_type === 'meeting_room'
+                            ? (booking.tenant_id ? booking.tenants?.company_name : booking.external_customers?.company_name)
+                            : booking.external_customers?.company_name}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2 text-gray-300">
+                          <Calendar size={16} className="text-gold-500" />
+                          {new Date(booking.booking_date).toLocaleDateString('nl-NL', {
+                            weekday: 'short',
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric'
+                          })}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2 text-gray-300">
+                          <Clock size={16} className="text-gold-500" />
+                          {booking.booking_type === 'meeting_room'
+                            ? `${booking.start_time} - ${booking.end_time}`
+                            : booking.start_time && booking.end_time
+                            ? `${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)}`
+                            : booking.is_half_day
+                            ? (booking.half_day_period === 'morning' ? 'Ochtend' : 'Middag')
+                            : 'Hele dag'}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-gray-100 font-medium">
+                          {booking.space.space_number}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => handleStatusChange(booking, 'confirmed')}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg transition-colors"
+                            title="Accepteren"
+                          >
+                            <Check size={14} />
+                            Accepteren
+                          </button>
+                          <button
+                            onClick={() => handleStatusChange(booking, 'cancelled')}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-lg transition-colors"
+                            title="Weigeren"
+                          >
+                            <XCircle size={14} />
+                            Weigeren
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
