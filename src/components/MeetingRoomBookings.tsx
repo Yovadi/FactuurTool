@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Calendar, Clock, Plus, X, Check, AlertCircle, Trash2, CalendarDays, FileText, CheckCircle, XCircle, Info, RotateCcw, Filter } from 'lucide-react';
+import { Calendar, Clock, Plus, X, Check, AlertCircle, Trash2, CalendarDays, FileText, CheckCircle, XCircle, Info, RotateCcw, Filter, RefreshCw } from 'lucide-react';
 import { BookingCalendar } from './BookingCalendar';
 import { InlineDatePicker } from './InlineDatePicker';
+import { createAdminNotification } from '../utils/notificationHelper';
 
 type NotificationType = 'success' | 'error' | 'info';
 
@@ -57,6 +58,7 @@ type Booking = {
   discount_amount?: number;
   rate_type?: 'hourly' | 'half_day' | 'full_day';
   applied_rate?: number;
+  vat_rate?: number;
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
   notes: string;
   invoice_id: string | null;
@@ -86,6 +88,8 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationId, setNotificationId] = useState(0);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [vatDialogBooking, setVatDialogBooking] = useState<Booking | null>(null);
+  const [selectedVatRate, setSelectedVatRate] = useState<number>(21);
   const [meetingRoomRates, setMeetingRoomRates] = useState<MeetingRoomRates>({
     hourly_rate: 0,
     half_day_rate: null,
@@ -425,7 +429,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       discount_amount: discountAmount,
       rate_type: rateType,
       applied_rate: appliedRate,
-      status: 'confirmed',
+      status: 'pending',
       notes: formData.notes,
       booking_type: bookingType
     };
@@ -459,7 +463,13 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     }
 
     if (data) {
-      setBookings([data, ...bookings]);
+      const updatedAllBookings = [data, ...allBookings].sort((a, b) => {
+        const dateCompare = b.booking_date.localeCompare(a.booking_date);
+        if (dateCompare !== 0) return dateCompare;
+        return b.start_time.localeCompare(a.start_time);
+      });
+      setAllBookings(updatedAllBookings);
+      applyFilter(updatedAllBookings, selectedFilter);
     }
 
     showNotification('Boeking succesvol aangemaakt!', 'success');
@@ -505,6 +515,22 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     if (newStatus === 'cancelled') {
       setBookings(prev => prev.filter(b => b.id !== bookingId));
       setAllBookings(prev => prev.filter(b => b.id !== bookingId));
+
+      const customerName = booking.tenant_id
+        ? (booking.tenants?.company_name || 'Onbekende huurder')
+        : (booking.external_customers?.company_name || 'Onbekende klant');
+
+      const bookingDetails = `${booking.office_spaces?.space_number || 'Ruimte'} op ${new Date(booking.booking_date).toLocaleDateString('nl-NL')} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)}`;
+
+      await createAdminNotification(
+        'booking_cancelled',
+        'meeting_room',
+        booking.id,
+        customerName,
+        bookingDetails,
+        booking.tenant_id || undefined,
+        booking.external_customer_id || undefined
+      );
     } else {
       setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: newStatus } : b));
       setAllBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: newStatus } : b));
@@ -655,11 +681,10 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     showNotification('Factuur is bijgewerkt.', 'info');
   };
 
-  const createOrUpdateInvoiceForBooking = async (booking: Booking) => {
+  const createOrUpdateInvoiceForBooking = async (booking: Booking, vatRate: number) => {
     const bookingDate = new Date(booking.booking_date + 'T00:00:00');
     const invoiceMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
 
-    const vatRate = 21;
     const vatInclusive = meetingRoomRates.vat_inclusive;
 
     let existingInvoiceQuery = supabase
@@ -825,8 +850,15 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       return;
     }
 
+    setVatDialogBooking(booking);
+    setSelectedVatRate(21);
+  };
+
+  const handleConfirmInvoiceGeneration = async () => {
+    if (!vatDialogBooking) return;
+
     try {
-      await createOrUpdateInvoiceForBooking(booking);
+      await createOrUpdateInvoiceForBooking(vatDialogBooking, selectedVatRate);
 
       const { data: updatedBooking } = await supabase
         .from('meeting_room_bookings')
@@ -836,18 +868,20 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
           external_customers(company_name, contact_name, email, phone, street, postal_code, city, country),
           office_spaces(space_number)
         `)
-        .eq('id', booking.id)
+        .eq('id', vatDialogBooking.id)
         .single();
 
       if (updatedBooking) {
-        setBookings(prev => prev.map(b => b.id === booking.id ? updatedBooking : b));
-        setAllBookings(prev => prev.map(b => b.id === booking.id ? updatedBooking : b));
+        setBookings(prev => prev.map(b => b.id === vatDialogBooking.id ? updatedBooking : b));
+        setAllBookings(prev => prev.map(b => b.id === vatDialogBooking.id ? updatedBooking : b));
       }
 
+      setVatDialogBooking(null);
       await loadData();
     } catch (error) {
       console.error('Error generating invoice:', error);
       showNotification('Fout bij het genereren van de factuur', 'error');
+      setVatDialogBooking(null);
     }
   };
 
@@ -864,7 +898,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
   }
 
   return (
-    <div>
+    <div className="h-full flex flex-col overflow-hidden">
       <div className="fixed top-4 right-4 z-50 space-y-2 max-w-md">
         {notifications.map((notification) => (
           <div
@@ -891,8 +925,18 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
         ))}
       </div>
 
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-100 mb-4">Vergaderruimte Boekingen</h1>
+      <div className="flex-shrink-0 mb-4">
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-2xl font-bold text-gray-100">Vergaderruimte Boekingen</h1>
+          <button
+            onClick={loadData}
+            className="flex items-center gap-2 px-4 py-2 bg-dark-700 text-gray-300 rounded-lg hover:bg-dark-600 transition-colors font-medium"
+            title="Ververs gegevens"
+          >
+            <RefreshCw size={20} />
+            Ververs
+          </button>
+        </div>
         <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2">
           <div className="flex gap-2">
             <button
@@ -1246,8 +1290,8 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
         }} />
         </div>
       ) : (
-        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
-          <div className="flex justify-between items-center px-4 py-3 bg-dark-800 border-b border-amber-500">
+        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden flex-1 min-h-0 flex flex-col">
+          <div className="flex-shrink-0 flex justify-between items-center px-4 py-3 bg-dark-800 border-b border-amber-500">
             <h2 className="text-lg font-bold text-gray-100">
               Vergaderruimte Boekingen
             </h2>
@@ -1345,7 +1389,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
               </div>
             </div>
           </div>
-          <div className="overflow-x-auto overflow-y-auto max-h-[600px]">
+          <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
             <table className="w-full table-fixed min-w-[1000px]">
             <thead className="sticky top-0 z-10">
               <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
@@ -1539,6 +1583,45 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                 className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
               >
                 Verwijderen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {vatDialogBooking && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
+          <div className="bg-dark-900 rounded-lg p-6 w-full max-w-md my-8 mx-4 border border-dark-700">
+            <h3 className="text-xl font-bold text-gray-100 mb-4">BTW percentage selecteren</h3>
+            <p className="text-gray-300 mb-4">
+              Selecteer het BTW percentage voor deze factuur:
+            </p>
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-200 mb-2">
+                BTW percentage
+              </label>
+              <select
+                value={selectedVatRate}
+                onChange={(e) => setSelectedVatRate(Number(e.target.value))}
+                className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+              >
+                <option value={21}>21% BTW</option>
+                <option value={9}>9% BTW</option>
+                <option value={0}>0% BTW (niet van toepassing)</option>
+              </select>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setVatDialogBooking(null)}
+                className="px-4 py-2 bg-dark-700 text-gray-200 rounded-lg hover:bg-dark-600 transition-colors"
+              >
+                Annuleren
+              </button>
+              <button
+                onClick={handleConfirmInvoiceGeneration}
+                className="px-4 py-2 bg-gold-500 hover:bg-gold-600 text-white rounded-lg transition-colors"
+              >
+                Factuur genereren
               </button>
             </div>
           </div>

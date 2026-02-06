@@ -362,8 +362,34 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
     setShowForm(true);
   };
 
-  const handlePreview = (creditNote: CreditNote) => {
-    setPreviewCreditNote(creditNote);
+  const handlePreview = async (creditNote: CreditNote) => {
+    let enrichedCreditNote = { ...creditNote };
+
+    if (!creditNote.tenants && creditNote.tenant_id) {
+      const { data: tenantData } = await supabase
+        .from('tenants')
+        .select('name, company_name, email, billing_address, street, postal_code, city')
+        .eq('id', creditNote.tenant_id)
+        .maybeSingle();
+
+      if (tenantData) {
+        enrichedCreditNote.tenants = tenantData;
+      }
+    }
+
+    if (!creditNote.external_customers && creditNote.external_customer_id) {
+      const { data: customerData } = await supabase
+        .from('external_customers')
+        .select('company_name, contact_name, email, street, postal_code, city, country')
+        .eq('id', creditNote.external_customer_id)
+        .maybeSingle();
+
+      if (customerData) {
+        enrichedCreditNote.external_customers = customerData;
+      }
+    }
+
+    setPreviewCreditNote(enrichedCreditNote);
   };
 
   const handleSendCreditNote = async (creditNote: CreditNote) => {
@@ -372,9 +398,12 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
       return;
     }
 
+    const tenant = Array.isArray(creditNote.tenants) ? creditNote.tenants[0] : creditNote.tenants;
+    const externalCustomer = Array.isArray(creditNote.external_customers) ? creditNote.external_customers[0] : creditNote.external_customers;
+
     const customerEmail = creditNote.tenant_id
-      ? creditNote.tenants?.email
-      : creditNote.external_customers?.email;
+      ? tenant?.email
+      : externalCustomer?.email;
 
     if (!customerEmail) {
       alert('Geen e-mailadres beschikbaar voor deze klant.');
@@ -389,13 +418,16 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
       return;
     }
 
+    const tenant = Array.isArray(creditNote.tenants) ? creditNote.tenants[0] : creditNote.tenants;
+    const externalCustomer = Array.isArray(creditNote.external_customers) ? creditNote.external_customers[0] : creditNote.external_customers;
+
     const customerName = creditNote.tenant_id
-      ? creditNote.tenants?.company_name || 'Onbekend'
-      : creditNote.external_customers?.company_name || 'Onbekend';
+      ? tenant?.company_name || 'Onbekend'
+      : externalCustomer?.company_name || 'Onbekend';
 
     const customerAddress = creditNote.tenant_id
-      ? (creditNote.tenants?.billing_address || `${creditNote.tenants?.street || ''}\n${creditNote.tenants?.postal_code || ''} ${creditNote.tenants?.city || ''}`)
-      : `${creditNote.external_customers?.street}\n${creditNote.external_customers?.postal_code} ${creditNote.external_customers?.city}`;
+      ? (tenant?.billing_address || `${tenant?.street || ''}\n${tenant?.postal_code || ''} ${tenant?.city || ''}`)
+      : `${externalCustomer?.street}\n${externalCustomer?.postal_code} ${externalCustomer?.city}`;
 
     const pdfData = {
       credit_note_number: creditNote.credit_note_number,
@@ -535,9 +567,11 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
                 </thead>
                 <tbody>
                   {creditNotes.map((note) => {
+                    const tenant = Array.isArray(note.tenants) ? note.tenants[0] : note.tenants;
+                    const externalCustomer = Array.isArray(note.external_customers) ? note.external_customers[0] : note.external_customers;
                     const customerName = note.tenant_id
-                      ? note.tenants?.company_name
-                      : note.external_customers?.company_name;
+                      ? tenant?.company_name
+                      : externalCustomer?.company_name;
 
                     return (
                       <tr
@@ -659,11 +693,15 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
                     className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                   >
                     <option value="">Geen</option>
-                    {invoices.map((invoice) => (
-                      <option key={invoice.id} value={invoice.id}>
-                        {invoice.invoice_number} - {invoice.tenant_id ? invoice.tenants?.company_name : invoice.external_customers?.company_name}
-                      </option>
-                    ))}
+                    {invoices.map((invoice) => {
+                      const tenant = Array.isArray(invoice.tenants) ? invoice.tenants[0] : invoice.tenants;
+                      const externalCustomer = Array.isArray(invoice.external_customers) ? invoice.external_customers[0] : invoice.external_customers;
+                      return (
+                        <option key={invoice.id} value={invoice.id}>
+                          {invoice.invoice_number} - {invoice.tenant_id ? tenant?.company_name : externalCustomer?.company_name}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
 
@@ -812,7 +850,15 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
 
       {previewCreditNote && (
         <CreditNotePreview
-          creditNote={previewCreditNote}
+          creditNote={{
+            ...previewCreditNote,
+            tenant: Array.isArray(previewCreditNote.tenants)
+              ? previewCreditNote.tenants[0]
+              : previewCreditNote.tenants,
+            external_customer: Array.isArray(previewCreditNote.external_customers)
+              ? previewCreditNote.external_customers[0]
+              : previewCreditNote.external_customers,
+          }}
           companySettings={companySettings}
           onClose={() => setPreviewCreditNote(null)}
           onDownload={() => handleDownloadPDF(previewCreditNote)}

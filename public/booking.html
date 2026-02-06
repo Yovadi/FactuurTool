@@ -600,6 +600,11 @@
             opacity: 1;
         }
 
+        .booking-badge.confirmed-badge {
+            color: #86EFAC;
+            opacity: 1;
+        }
+
         .delete-booking-btn {
             position: absolute;
             top: 2px;
@@ -1116,6 +1121,10 @@
             background-color: rgba(202, 138, 4, 0.05);
         }
 
+        .bookings-table tbody tr.can-cancel {
+            cursor: pointer;
+        }
+
         .bookings-table tbody tr.can-cancel:hover {
             background-color: rgba(220, 38, 38, 0.1);
         }
@@ -1127,7 +1136,7 @@
         }
 
         .bookings-table .date-cell {
-            width: 25%;
+            width: 35%;
         }
 
         .bookings-table .date-primary {
@@ -1147,16 +1156,11 @@
         }
 
         .bookings-table .time-cell {
-            width: 20%;
-        }
-
-        .bookings-table .amount-cell {
-            width: 20%;
-            font-weight: 600;
+            width: 25%;
         }
 
         .bookings-table .status-cell {
-            width: 15%;
+            width: 20%;
         }
 
         .status-badge {
@@ -1631,7 +1635,6 @@
                                 <th class="date-cell">Datum</th>
                                 <th class="room-cell">Ruimte</th>
                                 <th class="time-cell">Tijd</th>
-                                <th class="amount-cell">Bedrag</th>
                                 <th class="status-cell">Status</th>
                             </tr>
                         </thead>
@@ -1646,7 +1649,6 @@
                                 <th class="date-cell">Datum</th>
                                 <th class="room-cell">Ruimte</th>
                                 <th class="time-cell">Tijd</th>
-                                <th class="amount-cell">Bedrag</th>
                                 <th class="status-cell">Status</th>
                             </tr>
                         </thead>
@@ -1673,6 +1675,10 @@
                         <button onclick="nextWeek()">›</button>
                     </div>
                     <div class="week-actions">
+                        <button onclick="openBookingModal()">
+                            <span>+</span>
+                            Nieuwe Boeking
+                        </button>
                         <button onclick="openRecurringModal()">
                             <span>↻</span>
                             Terugkerende Boeking
@@ -1727,11 +1733,25 @@
             </div>
             <form id="bookingForm" onsubmit="submitBooking(event)">
                 <div class="modal-body">
-                    <div id="selectionInfo" class="info-box"></div>
+                    <div class="form-group">
+                        <label class="form-label required">Datum</label>
+                        <input type="date" id="bookingDate" class="form-select" required>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label class="form-label required">Starttijd</label>
+                            <select id="bookingStartTime" class="form-select" required></select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label required">Eindtijd</label>
+                            <select id="bookingEndTime" class="form-select" required></select>
+                        </div>
+                    </div>
                     <div class="form-group">
                         <label class="form-label required">Vergaderruimte</label>
                         <select id="roomSelect" class="form-select" required></select>
                     </div>
+                    <div id="bookingDurationInfo" style="margin-top: 1rem; padding: 0.75rem; background-color: rgba(59, 130, 246, 0.1); border-radius: 0.375rem; color: #93C5FD; font-size: 0.875rem;"></div>
                 </div>
                 <div class="modal-actions">
                     <button type="button" class="btn btn-secondary" onclick="closeBookingModal()">Annuleren</button>
@@ -1767,11 +1787,11 @@
                         <div class="form-grid">
                             <div class="form-group">
                                 <label class="form-label required">Starttijd</label>
-                                <input type="time" id="recurringStartTime" class="form-select" value="09:00" required>
+                                <select id="recurringStartTime" class="form-select" required></select>
                             </div>
                             <div class="form-group">
                                 <label class="form-label required">Eindtijd</label>
-                                <input type="time" id="recurringEndTime" class="form-select" value="10:00" required>
+                                <select id="recurringEndTime" class="form-select" required></select>
                             </div>
                         </div>
                     </div>
@@ -2120,12 +2140,14 @@
                             (authenticatedUser.userType === 'external' && booking.external_customer_id === authenticatedUser.id)
                         );
                         const isPending = booking.status === 'pending';
-                        const canDelete = isOwnBooking && isPending;
+                        const isConfirmed = booking.status === 'confirmed';
+                        const canDelete = isOwnBooking && (isPending || isConfirmed);
 
                         let badges = '';
                         if (booking.external_customer_id) badges += '<div class="booking-badge">EXTERN</div>';
-                        if (isOwnBooking) badges += '<div class="booking-badge own-booking">MIJN BOEKING</div>';
+                        if (isOwnBooking && !isConfirmed && !isPending) badges += '<div class="booking-badge own-booking">MIJN BOEKING</div>';
                         if (isPending) badges += '<div class="booking-badge pending-badge">IN AFWACHTING</div>';
+                        if (isConfirmed && isOwnBooking) badges += '<div class="booking-badge confirmed-badge">BEVESTIGD</div>';
 
                         block.innerHTML = `
                             ${badges}
@@ -2310,73 +2332,133 @@
             updateCellSelection();
         }
 
-        // Booking modal
-        function openBookingModal() {
-            if (selectedCells.length === 0) {
-                showToast('Selecteer eerst tijdslots', 'error');
-                return;
+        // Generate time options (15 minute intervals, 7:00 - 22:00)
+        function generateTimeOptions() {
+            const options = [];
+            for (let hour = 7; hour <= 22; hour++) {
+                for (let minute of [0, 15, 30, 45]) {
+                    const timeStr = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+                    options.push(timeStr);
+                }
             }
+            return options;
+        }
 
-            const firstDate = selectedCells[0].date;
-            if (!selectedCells.every(c => c.date === firstDate)) {
-                showToast('Selecteer tijdsloten op dezelfde dag', 'error');
-                return;
-            }
+        // Populate time select dropdowns
+        function populateTimeSelects(startValue = '09:00', endValue = '10:00') {
+            const timeOptions = generateTimeOptions();
+            const startSelect = document.getElementById('bookingStartTime');
+            const endSelect = document.getElementById('bookingEndTime');
 
-            const times = selectedCells.map(c => c.time).sort();
-            const isConsecutive = times.every((time, i) => {
-                if (i === 0) return true;
-                const prevIdx = timeSlots.indexOf(times[i - 1]);
-                const currIdx = timeSlots.indexOf(time);
-                return currIdx === prevIdx + 1;
+            startSelect.innerHTML = '';
+            endSelect.innerHTML = '';
+
+            timeOptions.forEach(time => {
+                const startOption = document.createElement('option');
+                startOption.value = time;
+                startOption.textContent = time;
+                if (time === startValue) startOption.selected = true;
+                startSelect.appendChild(startOption);
+
+                const endOption = document.createElement('option');
+                endOption.value = time;
+                endOption.textContent = time;
+                if (time === endValue) endOption.selected = true;
+                endSelect.appendChild(endOption);
             });
+        }
 
-            if (!isConsecutive) {
-                showToast('Selecteer aaneengesloten tijdsloten', 'error');
+        // Round time to nearest 15 minutes
+        function roundToQuarterHour(timeStr) {
+            const [hour, minute] = timeStr.split(':').map(Number);
+            const roundedMinute = Math.round(minute / 15) * 15;
+            if (roundedMinute === 60) {
+                return `${String((hour + 1) % 24).padStart(2, '0')}:00`;
+            }
+            return `${String(hour).padStart(2, '0')}:${String(roundedMinute).padStart(2, '0')}`;
+        }
+
+        // Calculate duration helper
+        function calculateBookingDuration() {
+            const startTime = document.getElementById('bookingStartTime').value;
+            const endTime = document.getElementById('bookingEndTime').value;
+
+            if (!startTime || !endTime) {
+                document.getElementById('bookingDurationInfo').style.display = 'none';
                 return;
             }
-
-            const startTime = times[0];
-            const endIdx = timeSlots.indexOf(times[times.length - 1]) + 1;
-            const endTime = timeSlots[endIdx] || '22:00';
-            const bookingDate = new Date(firstDate + 'T00:00:00');
 
             const [startHour, startMin] = startTime.split(':').map(Number);
             const [endHour, endMin] = endTime.split(':').map(Number);
-            const totalHours = ((endHour * 60 + endMin) - (startHour * 60 + startMin)) / 60;
+            const totalMinutes = (endHour * 60 + endMin) - (startHour * 60 + startMin);
 
-            function updatePricePreview(roomId) {
-                const selectedRoom = meetingRooms.find(r => r.id === roomId);
-                if (!selectedRoom) {
-                    document.getElementById('pricePreview').innerHTML = '';
+            if (totalMinutes <= 0) {
+                document.getElementById('bookingDurationInfo').innerHTML = '<strong>⚠️ Eindtijd moet na starttijd liggen</strong>';
+                document.getElementById('bookingDurationInfo').style.display = 'block';
+                document.getElementById('bookingDurationInfo').style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+                document.getElementById('bookingDurationInfo').style.color = '#FCA5A5';
+                return;
+            }
+
+            if (totalMinutes < 60) {
+                document.getElementById('bookingDurationInfo').innerHTML = '<strong>⚠️ Minimum boeking is 1 uur</strong>';
+                document.getElementById('bookingDurationInfo').style.display = 'block';
+                document.getElementById('bookingDurationInfo').style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+                document.getElementById('bookingDurationInfo').style.color = '#FCA5A5';
+                return;
+            }
+
+            const hours = Math.floor(totalMinutes / 60);
+            const minutes = totalMinutes % 60;
+            let durationText = '';
+            if (hours > 0) durationText += `${hours} uur`;
+            if (minutes > 0) durationText += `${hours > 0 ? ' en ' : ''}${minutes} minuten`;
+
+            document.getElementById('bookingDurationInfo').innerHTML = `<strong>Duur:</strong> ${durationText}`;
+            document.getElementById('bookingDurationInfo').style.display = 'block';
+            document.getElementById('bookingDurationInfo').style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
+            document.getElementById('bookingDurationInfo').style.color = '#93C5FD';
+        }
+
+        // Booking modal
+        function openBookingModal() {
+            let startTime = '09:00';
+            let endTime = '10:00';
+
+            // Pre-fill fields if cells are selected
+            if (selectedCells.length > 0) {
+                const firstDate = selectedCells[0].date;
+                if (!selectedCells.every(c => c.date === firstDate)) {
+                    showToast('Selecteer tijdsloten op dezelfde dag', 'error');
                     return;
                 }
 
-                const hourlyRate = selectedRoom.hourly_rate || 25;
-                const subtotal = totalHours * hourlyRate;
-                const discountPercentage = parseFloat(authenticatedUser.meeting_discount_percentage) || 0;
-                const discountAmount = (subtotal * discountPercentage) / 100;
-                const totalAmount = subtotal - discountAmount;
+                const times = selectedCells.map(c => c.time).sort();
+                const isConsecutive = times.every((time, i) => {
+                    if (i === 0) return true;
+                    const prevIdx = timeSlots.indexOf(times[i - 1]);
+                    const currIdx = timeSlots.indexOf(time);
+                    return currIdx === prevIdx + 1;
+                });
 
-                let priceHtml = `<p><strong>Uurtarief:</strong> €${hourlyRate.toFixed(2)}</p>`;
-                priceHtml += `<p><strong>Subtotaal:</strong> €${subtotal.toFixed(2)}</p>`;
-
-                if (discountPercentage > 0) {
-                    priceHtml += `<p style="color: #22C55E;"><strong>Huurderkorting (${discountPercentage}%):</strong> -€${discountAmount.toFixed(2)}</p>`;
+                if (!isConsecutive) {
+                    showToast('Selecteer aaneengesloten tijdsloten', 'error');
+                    return;
                 }
 
-                priceHtml += `<p style="font-size: 1.125rem; margin-top: 0.5rem;"><strong>Totaal:</strong> €${totalAmount.toFixed(2)}</p>`;
+                startTime = roundToQuarterHour(times[0]);
+                const endIdx = timeSlots.indexOf(times[times.length - 1]) + 1;
+                endTime = roundToQuarterHour(timeSlots[endIdx] || '22:00');
 
-                document.getElementById('pricePreview').innerHTML = priceHtml;
+                document.getElementById('bookingDate').value = firstDate;
+            } else {
+                // Default to today and 9:00-10:00
+                const today = new Date();
+                document.getElementById('bookingDate').valueAsDate = today;
             }
 
-            document.getElementById('selectionInfo').innerHTML = `
-                <h4>Geselecteerde tijd</h4>
-                <p><strong>Datum:</strong> ${bookingDate.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                <p><strong>Tijd:</strong> ${startTime} - ${endTime}</p>
-                <p><strong>Duur:</strong> ${totalHours.toFixed(1)} uur</p>
-                <div id="pricePreview" style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #3A3A3E;"></div>
-            `;
+            // Populate time dropdowns with 15-minute intervals
+            populateTimeSelects(startTime, endTime);
 
             const roomSelect = document.getElementById('roomSelect');
             roomSelect.innerHTML = '<option value="">Selecteer een vergaderruimte</option>';
@@ -2387,10 +2469,11 @@
                 roomSelect.appendChild(option);
             });
 
-            roomSelect.addEventListener('change', (e) => {
-                updatePricePreview(e.target.value);
-            });
+            // Add event listeners for duration calculation
+            document.getElementById('bookingStartTime').addEventListener('change', calculateBookingDuration);
+            document.getElementById('bookingEndTime').addEventListener('change', calculateBookingDuration);
 
+            calculateBookingDuration();
             document.getElementById('bookingModal').classList.add('show');
         }
 
@@ -2413,44 +2496,71 @@
                 return;
             }
 
-            const selectedRoom = meetingRooms.find(r => r.id === roomId);
-            if (!selectedRoom) return;
+            const bookingDate = document.getElementById('bookingDate').value;
+            const startTime = document.getElementById('bookingStartTime').value;
+            const endTime = document.getElementById('bookingEndTime').value;
 
-            const times = selectedCells.map(c => c.time).sort();
-            const startTime = times[0];
-            const endIdx = timeSlots.indexOf(times[times.length - 1]) + 1;
-            const endTime = timeSlots[endIdx] || '22:00';
-            const bookingDate = selectedCells[0].date;
+            if (!bookingDate || !startTime || !endTime) {
+                showToast('Vul alle verplichte velden in', 'error');
+                return;
+            }
 
             const [startHour, startMin] = startTime.split(':').map(Number);
             const [endHour, endMin] = endTime.split(':').map(Number);
-            const totalHours = ((endHour * 60 + endMin) - (startHour * 60 + startMin)) / 60;
+            const totalMinutes = (endHour * 60 + endMin) - (startHour * 60 + startMin);
 
-            const hourlyRate = selectedRoom.hourly_rate || 25;
-            let totalAmount = totalHours * hourlyRate;
+            if (totalMinutes <= 0) {
+                showToast('Eindtijd moet na starttijd liggen', 'error');
+                return;
+            }
+
+            if (totalMinutes < 60) {
+                showToast('Minimum boeking is 1 uur', 'error');
+                return;
+            }
+
+            const totalHours = totalMinutes / 60;
+            const selectedRoom = meetingRooms.find(r => r.id === roomId);
+            if (!selectedRoom) return;
+
+            // Determine rate type and calculate amount
+            let rateType, appliedRate, totalAmount;
+
+            if (totalHours >= 8) {
+                // Full day rate (8+ hours)
+                rateType = 'full_day';
+                appliedRate = selectedRoom.full_day_rate || (selectedRoom.hourly_rate * 8);
+                totalAmount = appliedRate;
+            } else if (totalHours >= 4) {
+                // Half day rate (4-7 hours)
+                rateType = 'half_day';
+                appliedRate = selectedRoom.half_day_rate || (selectedRoom.hourly_rate * 4);
+                totalAmount = appliedRate;
+            } else {
+                // Hourly rate (< 4 hours)
+                rateType = 'hourly';
+                appliedRate = selectedRoom.hourly_rate || 25;
+                totalAmount = totalHours * appliedRate;
+            }
 
             // Calculate discount from customer's meeting_discount_percentage
-            console.log('=== DISCOUNT DEBUG ===');
-            console.log('authenticatedUser:', authenticatedUser);
-            console.log('meeting_discount_percentage RAW:', authenticatedUser.meeting_discount_percentage);
             const discountPercentage = parseFloat(authenticatedUser.meeting_discount_percentage) || 0;
-            console.log('discountPercentage PARSED:', discountPercentage);
             const discountAmount = (totalAmount * discountPercentage) / 100;
-            console.log('totalAmount:', totalAmount, 'discountAmount:', discountAmount);
             const finalAmount = totalAmount - discountAmount;
-            console.log('finalAmount:', finalAmount);
 
             const bookingData = {
                 space_id: roomId,
                 booking_date: bookingDate,
                 start_time: startTime,
                 end_time: endTime,
-                hourly_rate: hourlyRate,
+                hourly_rate: selectedRoom.hourly_rate || 25,
                 total_hours: totalHours,
                 total_amount: finalAmount,
                 discount_percentage: discountPercentage,
                 discount_amount: discountAmount,
-                status: 'confirmed',
+                rate_type: rateType,
+                applied_rate: appliedRate,
+                status: 'pending',
                 booking_type: authenticatedUser.userType,
                 tenant_id: null,
                 external_customer_id: null
@@ -2491,6 +2601,28 @@
                 `<option value="${room.id}">${room.space_number}</option>`
             ).join('');
 
+            // Populate recurring time dropdowns
+            const timeOptions = generateTimeOptions();
+            const startSelect = document.getElementById('recurringStartTime');
+            const endSelect = document.getElementById('recurringEndTime');
+
+            startSelect.innerHTML = '';
+            endSelect.innerHTML = '';
+
+            timeOptions.forEach(time => {
+                const startOption = document.createElement('option');
+                startOption.value = time;
+                startOption.textContent = time;
+                if (time === '09:00') startOption.selected = true;
+                startSelect.appendChild(startOption);
+
+                const endOption = document.createElement('option');
+                endOption.value = time;
+                endOption.textContent = time;
+                if (time === '10:00') endOption.selected = true;
+                endSelect.appendChild(endOption);
+            });
+
             document.getElementById('recurringStartDate').valueAsDate = new Date();
             document.getElementById('recurringModal').classList.add('show');
         }
@@ -2513,7 +2645,7 @@
             try {
                 const { error } = await sb
                     .from('meeting_room_bookings')
-                    .delete()
+                    .update({ status: 'cancelled' })
                     .eq('id', bookingId);
 
                 if (error) throw error;
@@ -2583,6 +2715,16 @@
             const notes = document.getElementById('recurringNotes').value;
             const monthDay = document.getElementById('recurringMonthDay').value;
 
+            // Validate minimum 1 hour booking
+            const [startHour, startMin] = startTime.split(':').map(Number);
+            const [endHour, endMin] = endTime.split(':').map(Number);
+            const totalMinutes = (endHour * 60 + endMin) - (startHour * 60 + startMin);
+
+            if (totalMinutes < 60) {
+                showToast('Minimum boeking is 1 uur', 'error');
+                return;
+            }
+
             if (recurringType === 'weekly' && selectedWeekdays.length === 0) {
                 showToast('Selecteer minimaal één dag', 'error');
                 return;
@@ -2635,12 +2777,31 @@
             const endDate = pattern.end_date ? new Date(pattern.end_date) : new Date(startDate.getTime() + 365 * 24 * 60 * 60 * 1000);
 
             const space = meetingRooms.find(s => s.id === pattern.space_id);
-            const hourlyRate = space ? space.hourly_rate || 0 : 0;
+            if (!space) return;
 
             const [startHour, startMinute] = pattern.start_time.split(':').map(Number);
             const [endHour, endMinute] = pattern.end_time.split(':').map(Number);
             const totalHours = (endHour + endMinute / 60) - (startHour + startMinute / 60);
-            let totalAmount = totalHours * hourlyRate;
+
+            // Determine rate type and calculate amount
+            let rateType, appliedRate, totalAmount;
+
+            if (totalHours >= 8) {
+                // Full day rate (8+ hours)
+                rateType = 'full_day';
+                appliedRate = space.full_day_rate || (space.hourly_rate * 8);
+                totalAmount = appliedRate;
+            } else if (totalHours >= 4) {
+                // Half day rate (4-7 hours)
+                rateType = 'half_day';
+                appliedRate = space.half_day_rate || (space.hourly_rate * 4);
+                totalAmount = appliedRate;
+            } else {
+                // Hourly rate (< 4 hours)
+                rateType = 'hourly';
+                appliedRate = space.hourly_rate || 25;
+                totalAmount = totalHours * appliedRate;
+            }
 
             // Apply discount for recurring bookings from authenticated user's meeting_discount_percentage
             const discountPercentage = parseFloat(authenticatedUser.meeting_discount_percentage) || 0;
@@ -2669,12 +2830,14 @@
                         booking_date: currentDate.toISOString().split('T')[0],
                         start_time: pattern.start_time,
                         end_time: pattern.end_time,
-                        hourly_rate: hourlyRate,
+                        hourly_rate: space.hourly_rate || 25,
                         total_hours: totalHours,
                         total_amount: finalAmount,
                         discount_percentage: discountPercentage,
                         discount_amount: discountAmount,
-                        status: 'confirmed',
+                        rate_type: rateType,
+                        applied_rate: appliedRate,
+                        status: 'pending',
                         notes: pattern.notes || '',
                         recurring_pattern_id: pattern.id,
                         is_exception: false,
@@ -2812,7 +2975,7 @@
 
                 // Render upcoming bookings
                 if (upcoming.length === 0) {
-                    upcomingDiv.innerHTML = '<tr><td colspan="5" class="no-bookings"><div class="no-bookings-icon">📅</div>Geen toekomstige boekingen</td></tr>';
+                    upcomingDiv.innerHTML = '<tr><td colspan="4" class="no-bookings"><div class="no-bookings-icon">📅</div>Geen toekomstige boekingen</td></tr>';
                     document.getElementById('upcomingBookingsTable').style.display = 'none';
                 } else {
                     document.getElementById('upcomingBookingsTable').style.display = 'table';
@@ -2821,7 +2984,7 @@
 
                 // Render past bookings
                 if (past.length === 0) {
-                    pastDiv.innerHTML = '<tr><td colspan="5" class="no-bookings"><div class="no-bookings-icon">✓</div>Geen afgelopen boekingen</td></tr>';
+                    pastDiv.innerHTML = '<tr><td colspan="4" class="no-bookings"><div class="no-bookings-icon">✓</div>Geen afgelopen boekingen</td></tr>';
                     document.getElementById('pastBookingsTable').style.display = 'none';
                 } else {
                     document.getElementById('pastBookingsTable').style.display = 'table';
@@ -2829,8 +2992,8 @@
                 }
             } catch (error) {
                 console.error('Error loading bookings:', error);
-                upcomingDiv.innerHTML = '<tr><td colspan="5" class="no-bookings">Fout bij laden van boekingen</td></tr>';
-                pastDiv.innerHTML = '<tr><td colspan="5" class="no-bookings">Fout bij laden van boekingen</td></tr>';
+                upcomingDiv.innerHTML = '<tr><td colspan="4" class="no-bookings">Fout bij laden van boekingen</td></tr>';
+                pastDiv.innerHTML = '<tr><td colspan="4" class="no-bookings">Fout bij laden van boekingen</td></tr>';
             }
         }
 
@@ -2844,25 +3007,21 @@
             });
             const weekNum = getWeekNumber(date);
 
-            // Only allow cancellation for upcoming bookings with 'pending' status
-            const canCancel = status === 'upcoming' && booking.status === 'pending';
+            // Allow cancellation for upcoming bookings (both pending and confirmed)
+            const canCancel = status === 'upcoming' && (booking.status === 'pending' || booking.status === 'confirmed');
             const onClickAttr = canCancel ? `onclick="handleBookingClick('${booking.id}')"` : '';
             const rowClass = canCancel ? 'can-cancel' : '';
 
             let statusBadge;
             if (booking.status === 'pending') {
-                statusBadge = '<span class="status-badge pending">In afwachting - Klik om te annuleren</span>';
+                statusBadge = '<span class="status-badge pending">In afwachting van goedkeuring</span>';
             } else if (booking.status === 'confirmed') {
-                statusBadge = '<span class="status-badge confirmed">Bevestigd</span>';
+                statusBadge = '<span class="status-badge confirmed">Goedgekeurd</span>';
             } else if (booking.status === 'completed') {
                 statusBadge = '<span class="status-badge past">Voltooid</span>';
             } else {
                 statusBadge = '<span class="status-badge past">Voltooid</span>';
             }
-
-            const discountBadge = booking.discount_percentage > 0
-                ? `<span style="font-size: 0.75rem; color: #22C55E; margin-left: 0.25rem;">(-${booking.discount_percentage}%)</span>`
-                : '';
 
             return `
                 <tr class="${rowClass}" ${onClickAttr}>
@@ -2871,7 +3030,6 @@
                     </td>
                     <td class="room-cell">${room?.space_number || 'Onbekend'}</td>
                     <td class="time-cell">${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)}</td>
-                    <td class="amount-cell">€${booking.total_amount.toFixed(2)}${discountBadge}</td>
                     <td class="status-cell">${statusBadge}</td>
                 </tr>
             `;

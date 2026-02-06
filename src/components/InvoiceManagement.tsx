@@ -2778,7 +2778,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             .sort(sortByTenantAndDate);
 
             const openInvoices = invoices
-              .filter(inv => inv.status !== 'paid' && inv.status !== 'draft')
+              .filter(inv => inv.status !== 'paid' && inv.status !== 'draft' && inv.status !== 'credited')
               .sort(sortByTenantAndDate);
 
             const filterOpenInvoices = (type: InvoiceTypeFilter) => {
@@ -2934,7 +2934,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                               {invoice.line_items && invoice.line_items.length > 0 ? (
                                 (() => {
                                   const isMeetingRoomInvoice = invoice.notes?.toLowerCase().includes('vergaderruimte');
-                                  const bookingLines = invoice.notes ? invoice.notes.split('\n').filter((line: string) => line.trim().startsWith('-')) : [];
+                                  const allLines = invoice.notes ? invoice.notes.split('\n').filter((line: string) => line.trim().startsWith('-')) : [];
+                                  const bookingLines = allLines.filter((line: string) => !line.toLowerCase().includes('korting'));
 
                                   // If more than 10 booking lines in meeting room invoice, show summary
                                   if (isMeetingRoomInvoice && bookingLines.length > 10) {
@@ -2949,7 +2950,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                                     // Check for discount
                                     let hasDiscount = false;
                                     let discountPercentage = 0;
-                                    bookingLines.forEach(line => {
+                                    allLines.forEach(line => {
                                       const discountMatch = line.match(/(\d+)%\s*huurderkorting/);
                                       if (discountMatch) {
                                         hasDiscount = true;
@@ -2974,8 +2975,9 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                                      invoice.notes.includes('Flexwerkplek boekingen:'));
 
                                   if (isBookingInvoice) {
-                                    // Count booking lines (lines that start with "- ")
-                                    const bookingCount = (invoice.notes.match(/^- /gm) || []).length;
+                                    // Count booking lines (lines that start with "- " but exclude discount lines)
+                                    const allLines = invoice.notes.split('\n').filter(line => line.trim().startsWith('- '));
+                                    const bookingCount = allLines.filter(line => !line.toLowerCase().includes('korting')).length;
                                     return (
                                       <div className="text-xs text-gray-400">
                                         {bookingCount} {bookingCount === 1 ? 'boeking' : 'boekingen'}
