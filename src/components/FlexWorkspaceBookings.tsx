@@ -223,6 +223,13 @@ export function FlexWorkspaceBookings() {
     }
   };
 
+  const toLocalDateStr = (date: Date): string => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
   const generateCalendar = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
@@ -237,7 +244,7 @@ export function FlexWorkspaceBookings() {
 
     for (let i = 0; i < dayOfWeek; i++) {
       const date = new Date(year, month, -dayOfWeek + i + 1);
-      const dateStr = date.toISOString().split('T')[0];
+      const dateStr = toLocalDateStr(date);
       days.push({
         date,
         dateStr,
@@ -249,7 +256,7 @@ export function FlexWorkspaceBookings() {
 
     for (let day = 1; day <= lastDay.getDate(); day++) {
       const date = new Date(year, month, day);
-      const dateStr = date.toISOString().split('T')[0];
+      const dateStr = toLocalDateStr(date);
       days.push({
         date,
         dateStr,
@@ -262,7 +269,7 @@ export function FlexWorkspaceBookings() {
     const remainingDays = 42 - days.length;
     for (let i = 1; i <= remainingDays; i++) {
       const date = new Date(year, month + 1, i);
-      const dateStr = date.toISOString().split('T')[0];
+      const dateStr = toLocalDateStr(date);
       days.push({
         date,
         dateStr,
@@ -291,7 +298,7 @@ export function FlexWorkspaceBookings() {
 
     switch (selectedFilter) {
       case 'upcoming':
-        const today = new Date().toISOString().split('T')[0];
+        const today = toLocalDateStr(new Date());
         filtered = filtered.filter(b => b.booking_date >= today);
         break;
       case 'invoiced':
@@ -976,8 +983,9 @@ export function FlexWorkspaceBookings() {
   };
 
   const selectedSpace = flexSpaces.find(s => s.id === selectedResourceSpace);
-  const selectedDateStr = currentDate.toISOString().split('T')[0];
-  const isToday = selectedDateStr === new Date().toISOString().split('T')[0];
+  const selectedDateStr = toLocalDateStr(currentDate);
+  const todayStr = toLocalDateStr(new Date());
+  const isToday = selectedDateStr === todayStr;
   const isWeekend = currentDate.getDay() === 0 || currentDate.getDay() === 6;
 
   if (loading) {
@@ -1721,7 +1729,7 @@ export function FlexWorkspaceBookings() {
             ))}
 
             {calendarDays.map((day, index) => {
-              const isDayToday = day.dateStr === new Date().toISOString().split('T')[0];
+              const isDayToday = day.dateStr === todayStr;
               const totalCapacity = flexSpaces.reduce((sum, s) => sum + (s.flex_capacity || 0), 0);
               const totalBooked = day.bookings.length + day.schedules.length;
               const occupancyPercent = totalCapacity > 0 ? Math.min(100, (totalBooked / totalCapacity) * 100) : 0;
