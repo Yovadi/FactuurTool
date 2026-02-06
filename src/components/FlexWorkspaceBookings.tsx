@@ -954,9 +954,11 @@ export function FlexWorkspaceBookings() {
     return getSlotBookingsForSpace(selectedResourceSpace, slotNumber, dateStr);
   };
 
-  const getTimeSegments = (slotNumber: number, dateStr: string): TimeSegment[] => {
+  const getTimeSegments = (slotNumber: number, dateStr: string, spaceId?: string): TimeSegment[] => {
     const segments: TimeSegment[] = [];
-    const slotBookings = getAllSlotBookings(slotNumber, dateStr);
+    const slotBookings = spaceId
+      ? getSlotBookingsForSpace(spaceId, slotNumber, dateStr)
+      : getAllSlotBookings(slotNumber, dateStr);
 
     if (slotBookings.length === 0 || !slotBookings[0].startTime) {
       return [{
@@ -1903,119 +1905,114 @@ export function FlexWorkspaceBookings() {
                       </div>
                     </div>
 
-                    <div className="p-3 space-y-2">
-                      {slotsWithBookings.map(({ slotNumber, bookings: slotBkgs }) => {
-                        const hasBookings = slotBkgs.length > 0;
-                        const fullyBooked = isSlotFullyBooked(slotBkgs);
-                        const gaps = hasBookings && !fullyBooked ? getAvailableGaps(slotBkgs) : [];
-
-                        if (!hasBookings) {
-                          return (
-                            <button
-                              key={slotNumber}
-                              onClick={() => handleDayPopupSlotClick(space.id, slotNumber)}
-                              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border border-dashed border-emerald-700/40 bg-emerald-900/10 hover:bg-emerald-900/25 hover:border-emerald-600/60 transition-colors group"
-                            >
-                              <div className="w-7 h-7 rounded flex items-center justify-center text-xs font-bold bg-dark-700 text-gray-400 group-hover:bg-emerald-800 group-hover:text-emerald-200 transition-colors">
-                                {slotNumber}
-                              </div>
-                              <div className="flex items-center gap-2 text-sm text-emerald-400 font-medium">
-                                <Plus size={14} />
-                                Beschikbaar - klik om te boeken
-                              </div>
-                            </button>
-                          );
-                        }
+                    <div className="p-3 space-y-3">
+                      {slotsWithBookings.map(({ slotNumber }) => {
+                        const segments = getTimeSegments(slotNumber, selectedCalendarDay.dateStr, space.id);
+                        const hasBookings = segments.some(s => !s.isAvailable);
+                        const totalHours = 10;
 
                         return (
-                          <div key={slotNumber} className="rounded-lg border border-dark-600 overflow-hidden">
-                            {slotBkgs.map((bkg, idx) => {
-                              const isPending = bkg.type === 'booking' && bkg.status === 'pending';
-                              const isSchedule = bkg.type === 'schedule';
+                          <div key={slotNumber}>
+                            <div className="flex items-center gap-2 mb-1.5">
+                              <span className="text-xs font-bold text-gray-300 w-12">Plek {slotNumber}</span>
+                              {!hasBookings && (
+                                <span className="text-xs text-emerald-400 font-medium">Volledig beschikbaar</span>
+                              )}
+                            </div>
+                            <div className="relative w-full h-14 bg-dark-900 rounded-lg border border-dark-600 overflow-hidden">
+                              <div className="absolute inset-0 flex">
+                                {segments.map((segment, idx) => {
+                                  const segmentHours = segment.endHour - segment.startHour;
+                                  const widthPercent = (segmentHours / totalHours) * 100;
+                                  const timeLabel = `${formatHour(segment.startHour)}-${formatHour(segment.endHour)}`;
 
-                              return (
-                                <div
-                                  key={bkg.bookingId || bkg.scheduleId || idx}
-                                  className={`flex items-center justify-between px-3 py-2.5 transition-colors ${
-                                    idx > 0 ? 'border-t border-dark-600' : ''
-                                  } ${
-                                    isSchedule
-                                      ? 'bg-blue-900/20'
-                                      : isPending
-                                      ? 'bg-orange-900/20'
-                                      : bkg.isInvoiced || bkg.status === 'completed'
-                                      ? 'bg-green-900/20'
-                                      : 'bg-gold-900/20'
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-3">
-                                    {idx === 0 && (
-                                      <div className={`w-7 h-7 rounded flex items-center justify-center text-xs font-bold ${
-                                        isSchedule
-                                          ? 'bg-blue-800 text-blue-200'
-                                          : isPending
-                                          ? 'bg-orange-800 text-orange-200'
-                                          : bkg.isInvoiced || bkg.status === 'completed'
-                                          ? 'bg-green-800 text-green-200'
-                                          : 'bg-gold-800 text-gold-200'
-                                      }`}>
-                                        {slotNumber}
-                                      </div>
-                                    )}
-                                    {idx > 0 && <div className="w-7" />}
-                                    <div>
-                                      <div className="text-sm font-semibold text-gray-100">{bkg.customerName}</div>
-                                      <div className="text-xs text-gray-400">
-                                        {isSchedule ? 'Contract' : bkg.time || 'Hele dag'}
-                                        {isPending && <span className="ml-2 text-orange-400 font-medium">In afwachting</span>}
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    {isPending && bkg.bookingId && (
-                                      <>
-                                        <button
-                                          onClick={() => handleStatusChange(bkg.bookingId!, 'confirmed')}
-                                          className="p-1.5 bg-green-700 hover:bg-green-600 text-white rounded transition-colors"
-                                          title="Accepteren"
-                                        >
-                                          <Check size={14} />
-                                        </button>
-                                        <button
-                                          onClick={() => handleStatusChange(bkg.bookingId!, 'cancelled')}
-                                          className="p-1.5 bg-red-700 hover:bg-red-600 text-white rounded transition-colors"
-                                          title="Weigeren"
-                                        >
-                                          <X size={14} />
-                                        </button>
-                                      </>
-                                    )}
-                                    {!isSchedule && bkg.bookingId && !bkg.isInvoiced && bkg.status !== 'pending' && (
+                                  if (segment.isAvailable) {
+                                    return (
                                       <button
-                                        onClick={() => setDeleteConfirmId(bkg.bookingId!)}
-                                        className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-900/20 rounded transition-colors"
-                                        title="Verwijder"
+                                        key={idx}
+                                        onClick={() => handleDayPopupSlotClick(space.id, slotNumber, formatHour(segment.startHour), formatHour(segment.endHour))}
+                                        className="h-full bg-emerald-500/30 border-r border-dark-700 hover:bg-emerald-500/50 transition-colors flex items-center justify-center group/avail"
+                                        style={{ width: `${widthPercent}%` }}
+                                        title={`Beschikbaar: ${timeLabel}`}
                                       >
-                                        <Trash2 size={14} />
+                                        <div className="flex flex-col items-center">
+                                          <Plus size={14} className="text-emerald-300 group-hover/avail:scale-110 transition-transform" />
+                                          {widthPercent > 15 && (
+                                            <span className="text-[10px] text-emerald-300 font-medium mt-0.5">{timeLabel}</span>
+                                          )}
+                                        </div>
                                       </button>
-                                    )}
+                                    );
+                                  }
+
+                                  const booking = segment.booking!;
+                                  const isPending = booking.type === 'booking' && booking.status === 'pending';
+                                  const bgColor = booking.type === 'schedule'
+                                    ? 'bg-blue-500'
+                                    : booking.status === 'pending'
+                                    ? 'bg-orange-600'
+                                    : booking.isInvoiced || booking.status === 'completed'
+                                    ? 'bg-green-600'
+                                    : booking.status === 'cancelled'
+                                    ? 'bg-red-600/70'
+                                    : 'bg-gold-500';
+
+                                  return (
+                                    <div
+                                      key={idx}
+                                      className={`relative h-full ${bgColor} border-r border-dark-900 flex flex-col items-center justify-center px-1 overflow-hidden group/seg`}
+                                      style={{ width: `${widthPercent}%` }}
+                                      title={`${booking.customerName}\n${booking.time || timeLabel}`}
+                                    >
+                                      <div className="text-white text-xs font-bold text-center leading-tight truncate w-full">
+                                        {booking.customerName}
+                                      </div>
+                                      {widthPercent > 12 && (
+                                        <div className="text-white/80 text-[10px] font-medium">
+                                          {booking.time || timeLabel}
+                                        </div>
+                                      )}
+                                      {isPending && booking.bookingId && (
+                                        <div className="absolute inset-0 bg-black/0 group-hover/seg:bg-black/80 transition-all flex items-center justify-center gap-1 opacity-0 group-hover/seg:opacity-100">
+                                          <button
+                                            onClick={(e) => { e.stopPropagation(); handleStatusChange(booking.bookingId!, 'confirmed'); }}
+                                            className="p-1 bg-green-600 hover:bg-green-700 text-white rounded transition-colors"
+                                            title="Accepteren"
+                                          >
+                                            <Check size={14} />
+                                          </button>
+                                          <button
+                                            onClick={(e) => { e.stopPropagation(); handleStatusChange(booking.bookingId!, 'cancelled'); }}
+                                            className="p-1 bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
+                                            title="Weigeren"
+                                          >
+                                            <X size={14} />
+                                          </button>
+                                        </div>
+                                      )}
+                                      {!isPending && booking.type !== 'schedule' && booking.bookingId && !booking.isInvoiced && (
+                                        <div className="absolute inset-0 bg-black/0 group-hover/seg:bg-black/80 transition-all flex items-center justify-center opacity-0 group-hover/seg:opacity-100">
+                                          <button
+                                            onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(booking.bookingId!); }}
+                                            className="p-1 text-red-400 hover:text-red-300 transition-colors"
+                                            title="Verwijder"
+                                          >
+                                            <Trash2 size={14} />
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                              <div className="absolute bottom-0 left-0 right-0 h-4 bg-dark-900/80 flex text-[9px] text-gray-500 font-medium pointer-events-none">
+                                {[8, 10, 12, 14, 16, 18].map((h, i) => (
+                                  <div key={h} className={`flex-1 flex items-center justify-center ${i < 5 ? 'border-r border-dark-700/50' : ''}`}>
+                                    {h}:00
                                   </div>
-                                </div>
-                              );
-                            })}
-                            {gaps.map((gap, idx) => (
-                              <button
-                                key={`gap-${idx}`}
-                                onClick={() => handleDayPopupSlotClick(space.id, slotNumber, gap.start, gap.end)}
-                                className="w-full flex items-center gap-3 px-3 py-2 border-t border-dark-600 bg-emerald-900/10 hover:bg-emerald-900/25 transition-colors group"
-                              >
-                                <div className="w-7" />
-                                <div className="flex items-center gap-2 text-xs text-emerald-400 font-medium">
-                                  <Plus size={12} />
-                                  Vrij {gap.start}-{gap.end} - klik om te boeken
-                                </div>
-                              </button>
-                            ))}
+                                ))}
+                              </div>
+                            </div>
                           </div>
                         );
                       })}
