@@ -58,7 +58,7 @@ type Booking = {
   discount_amount?: number;
   rate_type?: 'hourly' | 'half_day' | 'full_day';
   applied_rate?: number;
-  vat_rate: number;
+  vat_rate?: number;
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
   notes: string;
   invoice_id: string | null;
@@ -88,6 +88,8 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationId, setNotificationId] = useState(0);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [vatDialogBooking, setVatDialogBooking] = useState<Booking | null>(null);
+  const [selectedVatRate, setSelectedVatRate] = useState<number>(21);
   const [meetingRoomRates, setMeetingRoomRates] = useState<MeetingRoomRates>({
     hourly_rate: 0,
     half_day_rate: null,
@@ -111,7 +113,6 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     start_time: '09:00',
     end_time: '10:00',
     hourly_rate: 25,
-    vat_rate: 21,
     notes: ''
   });
 
@@ -428,7 +429,6 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       discount_amount: discountAmount,
       rate_type: rateType,
       applied_rate: appliedRate,
-      vat_rate: formData.vat_rate,
       status: 'pending',
       notes: formData.notes,
       booking_type: bookingType
@@ -482,7 +482,6 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       start_time: '09:00',
       end_time: '10:00',
       hourly_rate: 25,
-      vat_rate: 21,
       notes: ''
     });
   };
@@ -682,11 +681,10 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     showNotification('Factuur is bijgewerkt.', 'info');
   };
 
-  const createOrUpdateInvoiceForBooking = async (booking: Booking) => {
+  const createOrUpdateInvoiceForBooking = async (booking: Booking, vatRate: number) => {
     const bookingDate = new Date(booking.booking_date + 'T00:00:00');
     const invoiceMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
 
-    const vatRate = booking.vat_rate;
     const vatInclusive = meetingRoomRates.vat_inclusive;
 
     let existingInvoiceQuery = supabase
@@ -852,8 +850,15 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       return;
     }
 
+    setVatDialogBooking(booking);
+    setSelectedVatRate(21);
+  };
+
+  const handleConfirmInvoiceGeneration = async () => {
+    if (!vatDialogBooking) return;
+
     try {
-      await createOrUpdateInvoiceForBooking(booking);
+      await createOrUpdateInvoiceForBooking(vatDialogBooking, selectedVatRate);
 
       const { data: updatedBooking } = await supabase
         .from('meeting_room_bookings')
@@ -863,18 +868,20 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
           external_customers(company_name, contact_name, email, phone, street, postal_code, city, country),
           office_spaces(space_number)
         `)
-        .eq('id', booking.id)
+        .eq('id', vatDialogBooking.id)
         .single();
 
       if (updatedBooking) {
-        setBookings(prev => prev.map(b => b.id === booking.id ? updatedBooking : b));
-        setAllBookings(prev => prev.map(b => b.id === booking.id ? updatedBooking : b));
+        setBookings(prev => prev.map(b => b.id === vatDialogBooking.id ? updatedBooking : b));
+        setAllBookings(prev => prev.map(b => b.id === vatDialogBooking.id ? updatedBooking : b));
       }
 
+      setVatDialogBooking(null);
       await loadData();
     } catch (error) {
       console.error('Error generating invoice:', error);
       showNotification('Fout bij het genereren van de factuur', 'error');
+      setVatDialogBooking(null);
     }
   };
 
@@ -1186,22 +1193,6 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                       </div>
                     );
                   })()}
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-200 mb-1">
-                      BTW percentage
-                    </label>
-                    <select
-                      value={formData.vat_rate}
-                      onChange={(e) => setFormData({ ...formData, vat_rate: Number(e.target.value) })}
-                      className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                      required
-                    >
-                      <option value={21}>21% BTW</option>
-                      <option value={9}>9% BTW</option>
-                      <option value={0}>0% BTW (niet van toepassing)</option>
-                    </select>
-                  </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-200 mb-1">
@@ -1592,6 +1583,45 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                 className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
               >
                 Verwijderen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {vatDialogBooking && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
+          <div className="bg-dark-900 rounded-lg p-6 w-full max-w-md my-8 mx-4 border border-dark-700">
+            <h3 className="text-xl font-bold text-gray-100 mb-4">BTW percentage selecteren</h3>
+            <p className="text-gray-300 mb-4">
+              Selecteer het BTW percentage voor deze factuur:
+            </p>
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-200 mb-2">
+                BTW percentage
+              </label>
+              <select
+                value={selectedVatRate}
+                onChange={(e) => setSelectedVatRate(Number(e.target.value))}
+                className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+              >
+                <option value={21}>21% BTW</option>
+                <option value={9}>9% BTW</option>
+                <option value={0}>0% BTW (niet van toepassing)</option>
+              </select>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setVatDialogBooking(null)}
+                className="px-4 py-2 bg-dark-700 text-gray-200 rounded-lg hover:bg-dark-600 transition-colors"
+              >
+                Annuleren
+              </button>
+              <button
+                onClick={handleConfirmInvoiceGeneration}
+                className="px-4 py-2 bg-gold-500 hover:bg-gold-600 text-white rounded-lg transition-colors"
+              >
+                Factuur genereren
               </button>
             </div>
           </div>
