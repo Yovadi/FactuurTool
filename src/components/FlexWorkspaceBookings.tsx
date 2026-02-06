@@ -158,6 +158,7 @@ export function FlexWorkspaceBookings() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [selectedView, setSelectedView] = useState<'list' | 'calendar' | 'resource'>('resource');
+  const [calendarMode, setCalendarMode] = useState<'week' | 'month'>('month');
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'upcoming' | 'invoiced'>('all');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationId, setNotificationId] = useState(0);
@@ -199,7 +200,7 @@ export function FlexWorkspaceBookings() {
     if (selectedView === 'calendar') {
       generateCalendar();
     }
-  }, [currentDate, allBookings, schedules, selectedView]);
+  }, [currentDate, allBookings, schedules, selectedView, calendarMode]);
 
   useEffect(() => {
     if (flexSpaces.length > 0 && !selectedResourceSpace) {
@@ -275,6 +276,37 @@ export function FlexWorkspaceBookings() {
   };
 
   const generateCalendar = () => {
+    if (calendarMode === 'week') {
+      generateWeekCalendar();
+    } else {
+      generateMonthCalendar();
+    }
+  };
+
+  const generateWeekCalendar = () => {
+    const d = new Date(currentDate);
+    let dow = d.getDay();
+    dow = dow === 0 ? 6 : dow - 1;
+    const monday = new Date(d);
+    monday.setDate(d.getDate() - dow);
+
+    const days: CalendarDay[] = [];
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(monday);
+      date.setDate(monday.getDate() + i);
+      const dateStr = toLocalDateStr(date);
+      days.push({
+        date,
+        dateStr,
+        isCurrentMonth: true,
+        bookings: allBookings.filter(b => b.booking_date === dateStr),
+        schedules: getSchedulesForDate(date)
+      });
+    }
+    setCalendarDays(days);
+  };
+
+  const generateMonthCalendar = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
 
@@ -1730,16 +1762,35 @@ export function FlexWorkspaceBookings() {
         <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 overflow-hidden">
           <div className="p-4 border-b border-dark-700">
             <div className="flex items-center justify-between mb-4">
-              <button
-                onClick={previousMonth}
-                className="p-2 text-gray-400 hover:text-gray-300 hover:bg-dark-800 rounded-lg transition-colors"
-              >
-                <ChevronLeft size={20} />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={calendarMode === 'week' ? previousWeek : previousMonth}
+                  className="p-2 text-gray-400 hover:text-gray-300 hover:bg-dark-800 rounded-lg transition-colors"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+              </div>
               <h2 className="text-lg font-semibold text-gray-100">
-                {new Intl.DateTimeFormat('nl-NL', { month: 'long', year: 'numeric' }).format(currentDate)}
+                {calendarMode === 'week'
+                  ? (() => {
+                      const d = new Date(currentDate);
+                      let dow = d.getDay();
+                      dow = dow === 0 ? 6 : dow - 1;
+                      const mon = new Date(d);
+                      mon.setDate(d.getDate() - dow);
+                      const sun = new Date(mon);
+                      sun.setDate(mon.getDate() + 6);
+                      const fmtDay = (dt: Date) => dt.getDate();
+                      const fmtMonth = (dt: Date) => new Intl.DateTimeFormat('nl-NL', { month: 'short' }).format(dt);
+                      if (mon.getMonth() === sun.getMonth()) {
+                        return `${fmtDay(mon)} - ${fmtDay(sun)} ${fmtMonth(mon)} ${mon.getFullYear()}`;
+                      }
+                      return `${fmtDay(mon)} ${fmtMonth(mon)} - ${fmtDay(sun)} ${fmtMonth(sun)} ${sun.getFullYear()}`;
+                    })()
+                  : new Intl.DateTimeFormat('nl-NL', { month: 'long', year: 'numeric' }).format(currentDate)
+                }
               </h2>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
                 <button
                   onClick={goToToday}
                   className="px-3 py-1.5 text-sm bg-dark-800 text-gray-300 rounded-lg hover:bg-dark-700 transition-colors"
@@ -1747,7 +1798,7 @@ export function FlexWorkspaceBookings() {
                   Vandaag
                 </button>
                 <button
-                  onClick={nextMonth}
+                  onClick={calendarMode === 'week' ? nextWeek : nextMonth}
                   className="p-2 text-gray-400 hover:text-gray-300 hover:bg-dark-800 rounded-lg transition-colors"
                 >
                   <ChevronRight size={20} />
@@ -1755,22 +1806,46 @@ export function FlexWorkspaceBookings() {
               </div>
             </div>
 
-            <div className="flex gap-4 text-xs text-gray-400">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-gold-500"></div>
-                <span>Eenmalige boeking</span>
+            <div className="flex items-center justify-between">
+              <div className="flex gap-4 text-xs text-gray-400">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-gold-500"></div>
+                  <span>Eenmalige boeking</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                  <span>Flex contract (terugkerend)</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                <span>Flex contract (terugkerend)</span>
+              <div className="flex bg-dark-800 rounded-lg p-0.5 border border-dark-600">
+                <button
+                  onClick={() => setCalendarMode('week')}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                    calendarMode === 'week'
+                      ? 'bg-gold-500 text-white'
+                      : 'text-gray-400 hover:text-gray-200'
+                  }`}
+                >
+                  Week
+                </button>
+                <button
+                  onClick={() => setCalendarMode('month')}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                    calendarMode === 'month'
+                      ? 'bg-gold-500 text-white'
+                      : 'text-gray-400 hover:text-gray-200'
+                  }`}
+                >
+                  Maand
+                </button>
               </div>
             </div>
           </div>
 
           <div className="grid grid-cols-7 gap-px bg-dark-700">
-            {['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'].map((day) => (
-              <div key={day} className="bg-dark-800 px-2 py-3 text-center text-xs font-medium text-gray-400">
-                {day}
+            {['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'].map((dayName) => (
+              <div key={dayName} className="bg-dark-800 px-2 py-3 text-center text-xs font-medium text-gray-400">
+                {dayName}
               </div>
             ))}
 
@@ -1780,20 +1855,26 @@ export function FlexWorkspaceBookings() {
               const totalBooked = day.bookings.length + day.schedules.length;
               const occupancyPercent = totalCapacity > 0 ? Math.min(100, (totalBooked / totalCapacity) * 100) : 0;
               const isWeekendDay = day.date.getDay() === 0 || day.date.getDay() === 6;
+              const maxItems = calendarMode === 'week' ? 8 : 2;
 
               return (
                 <div
                   key={index}
                   onClick={() => !isWeekendDay && handleCalendarDayClick(day)}
-                  className={`bg-dark-900 min-h-24 p-2 transition-colors ${
+                  className={`bg-dark-900 p-2 transition-colors ${
+                    calendarMode === 'week' ? 'min-h-[280px]' : 'min-h-24'
+                  } ${
                     !day.isCurrentMonth ? 'opacity-40' : ''
                   } ${isDayToday ? 'ring-2 ring-gold-500 ring-inset' : ''} ${
                     isWeekendDay ? 'opacity-30' : 'cursor-pointer hover:bg-dark-800'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <div className={`text-sm ${isDayToday ? 'text-gold-500 font-bold' : 'text-gray-400'}`}>
-                      {day.date.getDate()}
+                    <div className={`${calendarMode === 'week' ? 'text-base font-bold' : 'text-sm'} ${isDayToday ? 'text-gold-500 font-bold' : 'text-gray-400'}`}>
+                      {calendarMode === 'week'
+                        ? new Intl.DateTimeFormat('nl-NL', { day: 'numeric', month: 'short' }).format(day.date)
+                        : day.date.getDate()
+                      }
                     </div>
                     {!isWeekendDay && totalBooked > 0 && (
                       <div className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
@@ -1808,29 +1889,38 @@ export function FlexWorkspaceBookings() {
                     )}
                   </div>
                   <div className="space-y-0.5">
-                    {day.schedules.slice(0, 2).map((schedule) => (
+                    {day.schedules.slice(0, maxItems).map((schedule) => (
                       <div
                         key={schedule.id}
-                        className="text-[10px] px-1.5 py-0.5 rounded bg-blue-900/50 text-blue-300 border border-blue-800/50 truncate"
+                        className={`px-1.5 py-0.5 rounded bg-blue-900/50 text-blue-300 border border-blue-800/50 truncate ${
+                          calendarMode === 'week' ? 'text-xs' : 'text-[10px]'
+                        }`}
                       >
                         {schedule.external_customers?.company_name || schedule.leases?.tenants?.company_name}
                       </div>
                     ))}
-                    {day.bookings.slice(0, 2).map((booking) => (
+                    {day.bookings.slice(0, maxItems).map((booking) => (
                       <div
                         key={booking.id}
-                        className={`text-[10px] px-1.5 py-0.5 rounded truncate ${
+                        className={`px-1.5 py-0.5 rounded truncate ${
+                          calendarMode === 'week' ? 'text-xs' : 'text-[10px]'
+                        } ${
                           booking.status === 'pending'
                             ? 'bg-orange-900/50 text-orange-300 border border-orange-800/50'
                             : 'bg-gold-900/50 text-gold-300 border border-gold-800/50'
                         }`}
                       >
                         {booking.external_customers?.company_name}
+                        {calendarMode === 'week' && booking.start_time && booking.end_time && (
+                          <span className="ml-1 opacity-70">
+                            {booking.start_time.substring(0, 5)}-{booking.end_time.substring(0, 5)}
+                          </span>
+                        )}
                       </div>
                     ))}
-                    {(day.schedules.length + day.bookings.length) > 4 && (
+                    {(day.schedules.length + day.bookings.length) > maxItems * 2 && (
                       <div className="text-[10px] text-gray-500 font-medium pl-1">
-                        +{(day.schedules.length + day.bookings.length) - 4} meer
+                        +{(day.schedules.length + day.bookings.length) - maxItems * 2} meer
                       </div>
                     )}
                   </div>
