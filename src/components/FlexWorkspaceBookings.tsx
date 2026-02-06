@@ -105,6 +105,50 @@ type TimeSegment = {
   isAvailable: boolean;
 };
 
+const BUSINESS_START = 9;
+const BUSINESS_END = 17;
+
+function parseTime(t: string): number {
+  const [h, m] = t.split(':').map(Number);
+  return h + m / 60;
+}
+
+function formatHour(h: number): string {
+  const hours = Math.floor(h);
+  const mins = Math.round((h - hours) * 60);
+  return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+}
+
+function getAvailableGaps(slotBkgs: SlotBooking[]): { start: string; end: string }[] {
+  const bookings = slotBkgs
+    .filter(b => b.type === 'booking' && b.startTime && b.endTime && b.status !== 'cancelled')
+    .map(b => ({ start: parseTime(b.startTime!), end: parseTime(b.endTime!) }))
+    .sort((a, b) => a.start - b.start);
+
+  if (bookings.length === 0) return [{ start: formatHour(BUSINESS_START), end: formatHour(BUSINESS_END) }];
+
+  const gaps: { start: string; end: string }[] = [];
+  let cursor = BUSINESS_START;
+
+  for (const bk of bookings) {
+    if (bk.start > cursor + 0.25) {
+      gaps.push({ start: formatHour(cursor), end: formatHour(bk.start) });
+    }
+    cursor = Math.max(cursor, bk.end);
+  }
+  if (BUSINESS_END > cursor + 0.25) {
+    gaps.push({ start: formatHour(cursor), end: formatHour(BUSINESS_END) });
+  }
+
+  return gaps;
+}
+
+function isSlotFullyBooked(slotBkgs: SlotBooking[]): boolean {
+  if (slotBkgs.some(b => b.type === 'schedule')) return true;
+  if (slotBkgs.length === 0) return false;
+  return getAvailableGaps(slotBkgs).length === 0;
+}
+
 export function FlexWorkspaceBookings() {
   const [bookings, setBookings] = useState<FlexBooking[]>([]);
   const [allBookings, setAllBookings] = useState<FlexBooking[]>([]);
@@ -583,14 +627,14 @@ export function FlexWorkspaceBookings() {
     setDayPopupBookingSlot(null);
   };
 
-  const handleDayPopupSlotClick = (spaceId: string, slotNumber: number) => {
+  const handleDayPopupSlotClick = (spaceId: string, slotNumber: number, startTime?: string, endTime?: string) => {
     setDayPopupBookingSpace(spaceId);
     setDayPopupBookingSlot(slotNumber);
     setQuickFormData({
       space_id: spaceId,
       external_customer_id: '',
-      start_time: '09:00',
-      end_time: '17:00'
+      start_time: startTime || '09:00',
+      end_time: endTime || '17:00'
     });
     setShowDayPopupBookingForm(true);
   };
@@ -1831,7 +1875,9 @@ export function FlexWorkspaceBookings() {
                   return { slotNumber: slotNum, bookings: slotBkgs };
                 });
 
-                const occupiedSlots = slotsWithBookings.filter(s => s.bookings.length > 0).length;
+                const fullyOccupiedSlots = slotsWithBookings.filter(s => isSlotFullyBooked(s.bookings)).length;
+                const partiallyOccupiedSlots = slotsWithBookings.filter(s => s.bookings.length > 0 && !isSlotFullyBooked(s.bookings)).length;
+                const occupiedSlots = fullyOccupiedSlots;
 
                 return (
                   <div key={space.id} className="bg-dark-800 rounded-lg border border-dark-700">
@@ -1846,105 +1892,131 @@ export function FlexWorkspaceBookings() {
                         </div>
                       </div>
                       <div className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-                        occupiedSlots >= capacity
+                        fullyOccupiedSlots >= capacity
                           ? 'bg-red-900/50 text-red-300 border border-red-800/50'
-                          : occupiedSlots > 0
+                          : (fullyOccupiedSlots + partiallyOccupiedSlots) > 0
                           ? 'bg-orange-900/50 text-orange-300 border border-orange-800/50'
                           : 'bg-emerald-900/50 text-emerald-300 border border-emerald-800/50'
                       }`}>
-                        {occupiedSlots}/{capacity} bezet
+                        {fullyOccupiedSlots}/{capacity} bezet
+                        {partiallyOccupiedSlots > 0 && ` (${partiallyOccupiedSlots} deels)`}
                       </div>
                     </div>
 
                     <div className="p-3 space-y-2">
                       {slotsWithBookings.map(({ slotNumber, bookings: slotBkgs }) => {
-                        const isOccupied = slotBkgs.length > 0;
-                        const bkg = slotBkgs[0];
+                        const hasBookings = slotBkgs.length > 0;
+                        const fullyBooked = isSlotFullyBooked(slotBkgs);
+                        const gaps = hasBookings && !fullyBooked ? getAvailableGaps(slotBkgs) : [];
 
-                        if (isOccupied && bkg) {
-                          const isPending = bkg.type === 'booking' && bkg.status === 'pending';
-                          const isSchedule = bkg.type === 'schedule';
-
+                        if (!hasBookings) {
                           return (
-                            <div
+                            <button
                               key={slotNumber}
-                              className={`flex items-center justify-between px-3 py-2.5 rounded-lg border transition-colors ${
-                                isSchedule
-                                  ? 'bg-blue-900/20 border-blue-800/40'
-                                  : isPending
-                                  ? 'bg-orange-900/20 border-orange-800/40'
-                                  : bkg.isInvoiced || bkg.status === 'completed'
-                                  ? 'bg-green-900/20 border-green-800/40'
-                                  : 'bg-gold-900/20 border-gold-800/40'
-                              }`}
+                              onClick={() => handleDayPopupSlotClick(space.id, slotNumber)}
+                              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border border-dashed border-emerald-700/40 bg-emerald-900/10 hover:bg-emerald-900/25 hover:border-emerald-600/60 transition-colors group"
                             >
-                              <div className="flex items-center gap-3">
-                                <div className={`w-7 h-7 rounded flex items-center justify-center text-xs font-bold ${
-                                  isSchedule
-                                    ? 'bg-blue-800 text-blue-200'
-                                    : isPending
-                                    ? 'bg-orange-800 text-orange-200'
-                                    : bkg.isInvoiced || bkg.status === 'completed'
-                                    ? 'bg-green-800 text-green-200'
-                                    : 'bg-gold-800 text-gold-200'
-                                }`}>
-                                  {slotNumber}
-                                </div>
-                                <div>
-                                  <div className="text-sm font-semibold text-gray-100">{bkg.customerName}</div>
-                                  <div className="text-xs text-gray-400">
-                                    {isSchedule ? 'Contract' : bkg.time || 'Hele dag'}
-                                    {isPending && <span className="ml-2 text-orange-400 font-medium">In afwachting</span>}
-                                  </div>
-                                </div>
+                              <div className="w-7 h-7 rounded flex items-center justify-center text-xs font-bold bg-dark-700 text-gray-400 group-hover:bg-emerald-800 group-hover:text-emerald-200 transition-colors">
+                                {slotNumber}
                               </div>
-                              <div className="flex items-center gap-2">
-                                {isPending && bkg.bookingId && (
-                                  <>
-                                    <button
-                                      onClick={() => handleStatusChange(bkg.bookingId!, 'confirmed')}
-                                      className="p-1.5 bg-green-700 hover:bg-green-600 text-white rounded transition-colors"
-                                      title="Accepteren"
-                                    >
-                                      <Check size={14} />
-                                    </button>
-                                    <button
-                                      onClick={() => handleStatusChange(bkg.bookingId!, 'cancelled')}
-                                      className="p-1.5 bg-red-700 hover:bg-red-600 text-white rounded transition-colors"
-                                      title="Weigeren"
-                                    >
-                                      <X size={14} />
-                                    </button>
-                                  </>
-                                )}
-                                {!isSchedule && bkg.bookingId && !bkg.isInvoiced && bkg.status !== 'pending' && (
-                                  <button
-                                    onClick={() => setDeleteConfirmId(bkg.bookingId!)}
-                                    className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-900/20 rounded transition-colors"
-                                    title="Verwijder"
-                                  >
-                                    <Trash2 size={14} />
-                                  </button>
-                                )}
+                              <div className="flex items-center gap-2 text-sm text-emerald-400 font-medium">
+                                <Plus size={14} />
+                                Beschikbaar - klik om te boeken
                               </div>
-                            </div>
+                            </button>
                           );
                         }
 
                         return (
-                          <button
-                            key={slotNumber}
-                            onClick={() => handleDayPopupSlotClick(space.id, slotNumber)}
-                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border border-dashed border-emerald-700/40 bg-emerald-900/10 hover:bg-emerald-900/25 hover:border-emerald-600/60 transition-colors group"
-                          >
-                            <div className="w-7 h-7 rounded flex items-center justify-center text-xs font-bold bg-dark-700 text-gray-400 group-hover:bg-emerald-800 group-hover:text-emerald-200 transition-colors">
-                              {slotNumber}
-                            </div>
-                            <div className="flex items-center gap-2 text-sm text-emerald-400 font-medium">
-                              <Plus size={14} />
-                              Beschikbaar - klik om te boeken
-                            </div>
-                          </button>
+                          <div key={slotNumber} className="rounded-lg border border-dark-600 overflow-hidden">
+                            {slotBkgs.map((bkg, idx) => {
+                              const isPending = bkg.type === 'booking' && bkg.status === 'pending';
+                              const isSchedule = bkg.type === 'schedule';
+
+                              return (
+                                <div
+                                  key={bkg.bookingId || bkg.scheduleId || idx}
+                                  className={`flex items-center justify-between px-3 py-2.5 transition-colors ${
+                                    idx > 0 ? 'border-t border-dark-600' : ''
+                                  } ${
+                                    isSchedule
+                                      ? 'bg-blue-900/20'
+                                      : isPending
+                                      ? 'bg-orange-900/20'
+                                      : bkg.isInvoiced || bkg.status === 'completed'
+                                      ? 'bg-green-900/20'
+                                      : 'bg-gold-900/20'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    {idx === 0 && (
+                                      <div className={`w-7 h-7 rounded flex items-center justify-center text-xs font-bold ${
+                                        isSchedule
+                                          ? 'bg-blue-800 text-blue-200'
+                                          : isPending
+                                          ? 'bg-orange-800 text-orange-200'
+                                          : bkg.isInvoiced || bkg.status === 'completed'
+                                          ? 'bg-green-800 text-green-200'
+                                          : 'bg-gold-800 text-gold-200'
+                                      }`}>
+                                        {slotNumber}
+                                      </div>
+                                    )}
+                                    {idx > 0 && <div className="w-7" />}
+                                    <div>
+                                      <div className="text-sm font-semibold text-gray-100">{bkg.customerName}</div>
+                                      <div className="text-xs text-gray-400">
+                                        {isSchedule ? 'Contract' : bkg.time || 'Hele dag'}
+                                        {isPending && <span className="ml-2 text-orange-400 font-medium">In afwachting</span>}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {isPending && bkg.bookingId && (
+                                      <>
+                                        <button
+                                          onClick={() => handleStatusChange(bkg.bookingId!, 'confirmed')}
+                                          className="p-1.5 bg-green-700 hover:bg-green-600 text-white rounded transition-colors"
+                                          title="Accepteren"
+                                        >
+                                          <Check size={14} />
+                                        </button>
+                                        <button
+                                          onClick={() => handleStatusChange(bkg.bookingId!, 'cancelled')}
+                                          className="p-1.5 bg-red-700 hover:bg-red-600 text-white rounded transition-colors"
+                                          title="Weigeren"
+                                        >
+                                          <X size={14} />
+                                        </button>
+                                      </>
+                                    )}
+                                    {!isSchedule && bkg.bookingId && !bkg.isInvoiced && bkg.status !== 'pending' && (
+                                      <button
+                                        onClick={() => setDeleteConfirmId(bkg.bookingId!)}
+                                        className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-900/20 rounded transition-colors"
+                                        title="Verwijder"
+                                      >
+                                        <Trash2 size={14} />
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                            {gaps.map((gap, idx) => (
+                              <button
+                                key={`gap-${idx}`}
+                                onClick={() => handleDayPopupSlotClick(space.id, slotNumber, gap.start, gap.end)}
+                                className="w-full flex items-center gap-3 px-3 py-2 border-t border-dark-600 bg-emerald-900/10 hover:bg-emerald-900/25 transition-colors group"
+                              >
+                                <div className="w-7" />
+                                <div className="flex items-center gap-2 text-xs text-emerald-400 font-medium">
+                                  <Plus size={12} />
+                                  Vrij {gap.start}-{gap.end} - klik om te boeken
+                                </div>
+                              </button>
+                            ))}
+                          </div>
                         );
                       })}
                     </div>
