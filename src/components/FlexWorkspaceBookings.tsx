@@ -254,8 +254,25 @@ export function FlexWorkspaceBookings() {
       ]);
 
       if (bookingsRes.data) {
-        setAllBookings(bookingsRes.data as FlexBooking[]);
-        setBookings(bookingsRes.data as FlexBooking[]);
+        const todayStr = toLocalDateStr(new Date());
+        const pastConfirmed = (bookingsRes.data as FlexBooking[]).filter(
+          b => b.status === 'confirmed' && b.booking_date < todayStr
+        );
+        if (pastConfirmed.length > 0) {
+          const ids = pastConfirmed.map(b => b.id);
+          await supabase
+            .from('flex_day_bookings')
+            .update({ status: 'completed' })
+            .in('id', ids);
+          const updated = (bookingsRes.data as FlexBooking[]).map(b =>
+            ids.includes(b.id) ? { ...b, status: 'completed' as const } : b
+          );
+          setAllBookings(updated);
+          setBookings(updated);
+        } else {
+          setAllBookings(bookingsRes.data as FlexBooking[]);
+          setBookings(bookingsRes.data as FlexBooking[]);
+        }
       }
       if (schedulesRes.data) setSchedules(schedulesRes.data as FlexSchedule[]);
       if (spacesRes.data) setFlexSpaces(spacesRes.data);
@@ -1888,12 +1905,12 @@ export function FlexWorkspaceBookings() {
                       </div>
                     )}
                   </div>
-                  <div className="space-y-0.5">
+                  <div className="space-y-1">
                     {day.schedules.slice(0, maxItems).map((schedule) => (
                       <div
                         key={schedule.id}
-                        className={`px-1.5 py-0.5 rounded bg-blue-900/50 text-blue-300 border border-blue-800/50 truncate ${
-                          calendarMode === 'week' ? 'text-xs' : 'text-[10px]'
+                        className={`px-2 py-1 rounded bg-blue-800/60 text-blue-200 border border-blue-600/50 truncate font-medium ${
+                          calendarMode === 'week' ? 'text-xs' : 'text-[11px]'
                         }`}
                       >
                         {schedule.external_customers?.company_name || schedule.leases?.tenants?.company_name}
@@ -1902,24 +1919,26 @@ export function FlexWorkspaceBookings() {
                     {day.bookings.slice(0, maxItems).map((booking) => (
                       <div
                         key={booking.id}
-                        className={`px-1.5 py-0.5 rounded truncate ${
-                          calendarMode === 'week' ? 'text-xs' : 'text-[10px]'
+                        className={`px-2 py-1 rounded truncate font-medium ${
+                          calendarMode === 'week' ? 'text-xs' : 'text-[11px]'
                         } ${
                           booking.status === 'pending'
-                            ? 'bg-orange-900/50 text-orange-300 border border-orange-800/50'
-                            : 'bg-gold-900/50 text-gold-300 border border-gold-800/50'
+                            ? 'bg-orange-700/60 text-orange-100 border border-orange-500/50'
+                            : booking.status === 'completed'
+                            ? 'bg-emerald-800/60 text-emerald-200 border border-emerald-600/50'
+                            : 'bg-amber-700/50 text-amber-100 border border-amber-500/50'
                         }`}
                       >
                         {booking.external_customers?.company_name}
                         {calendarMode === 'week' && booking.start_time && booking.end_time && (
-                          <span className="ml-1 opacity-70">
+                          <span className="ml-1 opacity-80">
                             {booking.start_time.substring(0, 5)}-{booking.end_time.substring(0, 5)}
                           </span>
                         )}
                       </div>
                     ))}
                     {(day.schedules.length + day.bookings.length) > maxItems * 2 && (
-                      <div className="text-[10px] text-gray-500 font-medium pl-1">
+                      <div className="text-[11px] text-gray-400 font-medium pl-1">
                         +{(day.schedules.length + day.bookings.length) - maxItems * 2} meer
                       </div>
                     )}

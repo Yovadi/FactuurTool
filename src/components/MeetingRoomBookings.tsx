@@ -187,6 +187,18 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
 
     const { data: bookingsData } = await bookingsQuery;
 
+    const todayAutoStr = new Date().toISOString().split('T')[0];
+    const pastConfirmed = (bookingsData || []).filter(
+      (b: any) => b.status === 'confirmed' && b.booking_date < todayAutoStr
+    );
+    if (pastConfirmed.length > 0) {
+      await supabase
+        .from('meeting_room_bookings')
+        .update({ status: 'completed' })
+        .in('id', pastConfirmed.map((b: any) => b.id));
+      pastConfirmed.forEach((b: any) => { b.status = 'completed'; });
+    }
+
     const sortedBookings = (bookingsData || []).sort((a, b) => {
       const dateCompare = b.booking_date.localeCompare(a.booking_date);
       if (dateCompare !== 0) return dateCompare;

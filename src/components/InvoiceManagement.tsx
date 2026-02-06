@@ -464,6 +464,21 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
     setInvoices(invoicesData as InvoiceWithDetails[] || []);
 
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    const { data: pastConfirmedMeetings } = await supabase
+      .from('meeting_room_bookings')
+      .select('id')
+      .eq('status', 'confirmed')
+      .lt('booking_date', todayStr);
+
+    if (pastConfirmedMeetings && pastConfirmedMeetings.length > 0) {
+      await supabase
+        .from('meeting_room_bookings')
+        .update({ status: 'completed' })
+        .in('id', pastConfirmedMeetings.map(b => b.id));
+    }
+
     const { data: bookingsData } = await supabase
       .from('meeting_room_bookings')
       .select(`
@@ -483,6 +498,18 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       .order('booking_date', { ascending: false });
 
     setMeetingRoomBookings(bookingsData || []);
+    const { data: pastConfirmedFlex } = await supabase
+      .from('flex_day_bookings')
+      .select('id')
+      .eq('status', 'confirmed')
+      .lt('booking_date', todayStr);
+
+    if (pastConfirmedFlex && pastConfirmedFlex.length > 0) {
+      await supabase
+        .from('flex_day_bookings')
+        .update({ status: 'completed' })
+        .in('id', pastConfirmedFlex.map(b => b.id));
+    }
 
     const { data: flexBookingsData } = await supabase
       .from('flex_day_bookings')
