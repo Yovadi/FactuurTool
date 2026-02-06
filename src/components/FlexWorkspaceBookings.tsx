@@ -124,6 +124,10 @@ export function FlexWorkspaceBookings() {
   const [quickBookingDate, setQuickBookingDate] = useState('');
   const [quickBookingSlot, setQuickBookingSlot] = useState<number | null>(null);
   const [selectedResourceSpace, setSelectedResourceSpace] = useState<string>('');
+  const [selectedCalendarDay, setSelectedCalendarDay] = useState<CalendarDay | null>(null);
+  const [dayPopupBookingSpace, setDayPopupBookingSpace] = useState<string>('');
+  const [dayPopupBookingSlot, setDayPopupBookingSlot] = useState<number | null>(null);
+  const [showDayPopupBookingForm, setShowDayPopupBookingForm] = useState(false);
   const [quickFormData, setQuickFormData] = useState({
     space_id: '',
     external_customer_id: '',
@@ -158,6 +162,18 @@ export function FlexWorkspaceBookings() {
       setSelectedResourceSpace(flexSpaces[0].id);
     }
   }, [flexSpaces]);
+
+  useEffect(() => {
+    if (selectedCalendarDay) {
+      const dateStr = selectedCalendarDay.dateStr;
+      const date = new Date(dateStr + 'T00:00:00');
+      setSelectedCalendarDay(prev => prev ? {
+        ...prev,
+        bookings: allBookings.filter(b => b.booking_date === dateStr),
+        schedules: getSchedulesForDate(date)
+      } : null);
+    }
+  }, [allBookings, schedules]);
 
   const loadData = async () => {
     setLoading(true);
@@ -553,16 +569,124 @@ export function FlexWorkspaceBookings() {
     };
   };
 
-  const handleCalendarDayClick = (dateStr: string) => {
-    setQuickBookingDate(dateStr);
-    setQuickBookingSlot(null);
+  const handleCalendarDayClick = (day: CalendarDay) => {
+    setSelectedCalendarDay(day);
+    setShowDayPopupBookingForm(false);
+    setDayPopupBookingSpace('');
+    setDayPopupBookingSlot(null);
+  };
+
+  const handleDayPopupSlotClick = (spaceId: string, slotNumber: number) => {
+    setDayPopupBookingSpace(spaceId);
+    setDayPopupBookingSlot(slotNumber);
     setQuickFormData({
-      space_id: '',
+      space_id: spaceId,
       external_customer_id: '',
       start_time: '09:00',
       end_time: '17:00'
     });
-    setShowQuickBooking(true);
+    setShowDayPopupBookingForm(true);
+  };
+
+  const handleDayPopupBookingSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!quickFormData.external_customer_id) {
+      showNotification('Selecteer een externe klant', 'error');
+      return;
+    }
+
+    if (!dayPopupBookingSpace || !selectedCalendarDay) return;
+
+    try {
+      let targetSlot = dayPopupBookingSlot;
+
+      if (!targetSlot) {
+        const { data: availableSlotsData } = await supabase
+          .rpc('get_available_flex_slots', {
+            p_space_id: dayPopupBookingSpace,
+            p_booking_date: selectedCalendarDay.dateStr
+          });
+
+        if (!availableSlotsData || availableSlotsData.length === 0) {
+          showNotification('Geen beschikbare plekken voor deze datum', 'error');
+          return;
+        }
+        targetSlot = availableSlotsData[0];
+      }
+
+      const { data: spaceData, error: spaceError } = await supabase
+        .from('office_spaces')
+        .select('hourly_rate, half_day_rate, full_day_rate')
+        .eq('id', dayPopupBookingSpace)
+        .single();
+
+      if (spaceError || !spaceData) {
+        showNotification('Ruimte tarieven niet gevonden', 'error');
+        return;
+      }
+
+      const hourlyRate = spaceData.hourly_rate || 0;
+      const halfDayRate = spaceData.half_day_rate || 0;
+      const fullDayRate = spaceData.full_day_rate || 0;
+
+      if (hourlyRate === 0 && halfDayRate === 0 && fullDayRate === 0) {
+        showNotification('Deze ruimte heeft geen tarieven ingesteld.', 'error');
+        return;
+      }
+
+      const calculation = calculateRateAndAmount(
+        quickFormData.start_time,
+        quickFormData.end_time,
+        { hourly_rate: hourlyRate, half_day_rate: halfDayRate, full_day_rate: fullDayRate }
+      );
+
+      if (calculation.totalHours <= 0) {
+        showNotification('Eindtijd moet na starttijd zijn', 'error');
+        return;
+      }
+
+      const bookingData: any = {
+        space_id: dayPopupBookingSpace,
+        external_customer_id: quickFormData.external_customer_id,
+        booking_date: selectedCalendarDay.dateStr,
+        slot_number: targetSlot,
+        start_time: quickFormData.start_time,
+        end_time: quickFormData.end_time,
+        hourly_rate: hourlyRate,
+        total_hours: calculation.totalHours,
+        total_amount: calculation.totalAmount,
+        is_half_day: calculation.isHalfDay,
+        half_day_period: calculation.halfDayPeriod
+      };
+
+      const { data, error } = await supabase
+        .from('flex_day_bookings')
+        .insert([bookingData])
+        .select(`
+          *,
+          office_spaces(space_number),
+          external_customers(id, company_name, contact_name, email, phone, street, postal_code, city, country)
+        `)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setAllBookings(prev => [data as FlexBooking, ...prev]);
+        showNotification(`Flexplekboeking aangemaakt op Plek ${targetSlot}`, 'success');
+        setShowDayPopupBookingForm(false);
+      }
+    } catch (error: any) {
+      console.error('Error creating booking:', error);
+      let message = 'Fout bij aanmaken boeking';
+      if (error.message?.includes('unique_flex_slot_booking')) {
+        message = 'Deze plek is al geboekt voor deze datum';
+      } else if (error.message?.includes('flex_day_bookings_customer_check')) {
+        message = 'Externe klant is verplicht voor flexplekken';
+      }
+      showNotification(message, 'error');
+    }
   };
 
   const handleResourceSlotClick = (dateStr: string, slotNumber: number) => {
@@ -720,11 +844,11 @@ export function FlexWorkspaceBookings() {
     setCurrentDate(newDate);
   };
 
-  const getAllSlotBookings = (slotNumber: number, dateStr: string): SlotBooking[] => {
+  const getSlotBookingsForSpace = (spaceId: string, slotNumber: number, dateStr: string): SlotBooking[] => {
     const slotBookings: SlotBooking[] = [];
 
     const dayBookings = allBookings.filter(
-      b => b.space_id === selectedResourceSpace &&
+      b => b.space_id === spaceId &&
            b.slot_number === slotNumber &&
            b.booking_date === dateStr
     );
@@ -747,13 +871,13 @@ export function FlexWorkspaceBookings() {
     });
 
     if (slotBookings.length === 0) {
-      const date = new Date(dateStr);
+      const date = new Date(dateStr + 'T00:00:00');
       const dayOfWeek = date.getDay();
       const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
       const dayName = dayNames[dayOfWeek] as keyof FlexSchedule;
 
       const schedule = schedules.find(
-        s => s.space_id === selectedResourceSpace &&
+        s => s.space_id === spaceId &&
              (s.slot_number === slotNumber || (s.slot_number === null && slotNumber === 1)) &&
              typeof s[dayName] === 'boolean' &&
              s[dayName] === true
@@ -773,6 +897,10 @@ export function FlexWorkspaceBookings() {
     }
 
     return slotBookings;
+  };
+
+  const getAllSlotBookings = (slotNumber: number, dateStr: string): SlotBooking[] => {
+    return getSlotBookingsForSpace(selectedResourceSpace, slotNumber, dateStr);
   };
 
   const getTimeSegments = (slotNumber: number, dateStr: string): TimeSegment[] => {
@@ -1593,44 +1721,331 @@ export function FlexWorkspaceBookings() {
             ))}
 
             {calendarDays.map((day, index) => {
-              const isToday = day.dateStr === new Date().toISOString().split('T')[0];
+              const isDayToday = day.dateStr === new Date().toISOString().split('T')[0];
+              const totalCapacity = flexSpaces.reduce((sum, s) => sum + (s.flex_capacity || 0), 0);
+              const totalBooked = day.bookings.length + day.schedules.length;
+              const occupancyPercent = totalCapacity > 0 ? Math.min(100, (totalBooked / totalCapacity) * 100) : 0;
+              const isWeekendDay = day.date.getDay() === 0 || day.date.getDay() === 6;
+
               return (
                 <div
                   key={index}
-                  onClick={() => handleCalendarDayClick(day.dateStr)}
-                  className={`bg-dark-900 min-h-24 p-2 cursor-pointer hover:bg-dark-800 transition-colors ${
+                  onClick={() => !isWeekendDay && handleCalendarDayClick(day)}
+                  className={`bg-dark-900 min-h-24 p-2 transition-colors ${
                     !day.isCurrentMonth ? 'opacity-40' : ''
-                  } ${isToday ? 'ring-2 ring-gold-500 ring-inset' : ''}`}
+                  } ${isDayToday ? 'ring-2 ring-gold-500 ring-inset' : ''} ${
+                    isWeekendDay ? 'opacity-30' : 'cursor-pointer hover:bg-dark-800'
+                  }`}
                 >
-                  <div className={`text-sm mb-1 ${isToday ? 'text-gold-500 font-bold' : 'text-gray-400'}`}>
-                    {day.date.getDate()}
+                  <div className="flex items-center justify-between mb-1">
+                    <div className={`text-sm ${isDayToday ? 'text-gold-500 font-bold' : 'text-gray-400'}`}>
+                      {day.date.getDate()}
+                    </div>
+                    {!isWeekendDay && totalBooked > 0 && (
+                      <div className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                        occupancyPercent >= 100
+                          ? 'bg-red-900/60 text-red-300'
+                          : occupancyPercent >= 50
+                          ? 'bg-orange-900/60 text-orange-300'
+                          : 'bg-emerald-900/60 text-emerald-300'
+                      }`}>
+                        {totalBooked}/{totalCapacity}
+                      </div>
+                    )}
                   </div>
-                  <div className="space-y-1">
-                    {day.schedules.map((schedule) => (
+                  <div className="space-y-0.5">
+                    {day.schedules.slice(0, 2).map((schedule) => (
                       <div
                         key={schedule.id}
-                        className="text-xs px-1.5 py-0.5 rounded bg-blue-900/50 text-blue-300 border border-blue-700 truncate"
-                        title={schedule.external_customers?.company_name}
+                        className="text-[10px] px-1.5 py-0.5 rounded bg-blue-900/50 text-blue-300 border border-blue-800/50 truncate"
                       >
-                        {schedule.external_customers?.company_name}
+                        {schedule.external_customers?.company_name || schedule.leases?.tenants?.company_name}
                       </div>
                     ))}
-                    {day.bookings.map((booking) => (
+                    {day.bookings.slice(0, 2).map((booking) => (
                       <div
                         key={booking.id}
-                        className="text-xs px-1.5 py-0.5 rounded bg-gold-900/50 text-gold-300 border border-gold-700 truncate"
-                        title={`${booking.external_customers?.company_name} - ${booking.is_half_day ? (booking.half_day_period === 'morning' ? 'Ochtend' : 'Middag') : 'Hele dag'}`}
+                        className={`text-[10px] px-1.5 py-0.5 rounded truncate ${
+                          booking.status === 'pending'
+                            ? 'bg-orange-900/50 text-orange-300 border border-orange-800/50'
+                            : 'bg-gold-900/50 text-gold-300 border border-gold-800/50'
+                        }`}
                       >
                         {booking.external_customers?.company_name}
-                        {booking.is_half_day && (
-                          <span className="ml-1">({booking.half_day_period === 'morning' ? 'O' : 'M'})</span>
-                        )}
                       </div>
                     ))}
+                    {(day.schedules.length + day.bookings.length) > 4 && (
+                      <div className="text-[10px] text-gray-500 font-medium pl-1">
+                        +{(day.schedules.length + day.bookings.length) - 4} meer
+                      </div>
+                    )}
                   </div>
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {selectedCalendarDay && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 overflow-y-auto p-4">
+          <div className="bg-dark-900 rounded-xl w-full max-w-4xl my-4 border border-dark-700 shadow-2xl max-h-[90vh] flex flex-col">
+            <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-dark-700 bg-dark-800 rounded-t-xl">
+              <div>
+                <h2 className="text-xl font-bold text-gray-100">
+                  {new Intl.DateTimeFormat('nl-NL', {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
+                  }).format(selectedCalendarDay.date)}
+                </h2>
+                <p className="text-sm text-gray-400 mt-0.5">
+                  {selectedCalendarDay.bookings.length + selectedCalendarDay.schedules.length} boeking(en) op deze dag
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedCalendarDay(null)}
+                className="p-2 text-gray-400 hover:text-gray-200 hover:bg-dark-700 rounded-lg transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-5">
+              {flexSpaces.map(space => {
+                const capacity = space.flex_capacity || 0;
+                if (capacity === 0) return null;
+
+                const slotsWithBookings = Array.from({ length: capacity }, (_, i) => {
+                  const slotNum = i + 1;
+                  const slotBkgs = getSlotBookingsForSpace(space.id, slotNum, selectedCalendarDay.dateStr);
+                  return { slotNumber: slotNum, bookings: slotBkgs };
+                });
+
+                const occupiedSlots = slotsWithBookings.filter(s => s.bookings.length > 0).length;
+
+                return (
+                  <div key={space.id} className="bg-dark-800 rounded-lg border border-dark-700">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-dark-700">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-dark-700">
+                          <Grid3x3 size={16} className="text-gold-500" />
+                        </div>
+                        <div>
+                          <span className="text-sm font-bold text-gray-100">{space.space_number}</span>
+                          <span className="text-xs text-gray-400 ml-2">{capacity} plekken</span>
+                        </div>
+                      </div>
+                      <div className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+                        occupiedSlots >= capacity
+                          ? 'bg-red-900/50 text-red-300 border border-red-800/50'
+                          : occupiedSlots > 0
+                          ? 'bg-orange-900/50 text-orange-300 border border-orange-800/50'
+                          : 'bg-emerald-900/50 text-emerald-300 border border-emerald-800/50'
+                      }`}>
+                        {occupiedSlots}/{capacity} bezet
+                      </div>
+                    </div>
+
+                    <div className="p-3 space-y-2">
+                      {slotsWithBookings.map(({ slotNumber, bookings: slotBkgs }) => {
+                        const isOccupied = slotBkgs.length > 0;
+                        const bkg = slotBkgs[0];
+
+                        if (isOccupied && bkg) {
+                          const isPending = bkg.type === 'booking' && bkg.status === 'pending';
+                          const isSchedule = bkg.type === 'schedule';
+
+                          return (
+                            <div
+                              key={slotNumber}
+                              className={`flex items-center justify-between px-3 py-2.5 rounded-lg border transition-colors ${
+                                isSchedule
+                                  ? 'bg-blue-900/20 border-blue-800/40'
+                                  : isPending
+                                  ? 'bg-orange-900/20 border-orange-800/40'
+                                  : bkg.isInvoiced || bkg.status === 'completed'
+                                  ? 'bg-green-900/20 border-green-800/40'
+                                  : 'bg-gold-900/20 border-gold-800/40'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className={`w-7 h-7 rounded flex items-center justify-center text-xs font-bold ${
+                                  isSchedule
+                                    ? 'bg-blue-800 text-blue-200'
+                                    : isPending
+                                    ? 'bg-orange-800 text-orange-200'
+                                    : bkg.isInvoiced || bkg.status === 'completed'
+                                    ? 'bg-green-800 text-green-200'
+                                    : 'bg-gold-800 text-gold-200'
+                                }`}>
+                                  {slotNumber}
+                                </div>
+                                <div>
+                                  <div className="text-sm font-semibold text-gray-100">{bkg.customerName}</div>
+                                  <div className="text-xs text-gray-400">
+                                    {isSchedule ? 'Contract' : bkg.time || 'Hele dag'}
+                                    {isPending && <span className="ml-2 text-orange-400 font-medium">In afwachting</span>}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {isPending && bkg.bookingId && (
+                                  <>
+                                    <button
+                                      onClick={() => handleStatusChange(bkg.bookingId!, 'confirmed')}
+                                      className="p-1.5 bg-green-700 hover:bg-green-600 text-white rounded transition-colors"
+                                      title="Accepteren"
+                                    >
+                                      <Check size={14} />
+                                    </button>
+                                    <button
+                                      onClick={() => handleStatusChange(bkg.bookingId!, 'cancelled')}
+                                      className="p-1.5 bg-red-700 hover:bg-red-600 text-white rounded transition-colors"
+                                      title="Weigeren"
+                                    >
+                                      <X size={14} />
+                                    </button>
+                                  </>
+                                )}
+                                {!isSchedule && bkg.bookingId && !bkg.isInvoiced && bkg.status !== 'pending' && (
+                                  <button
+                                    onClick={() => setDeleteConfirmId(bkg.bookingId!)}
+                                    className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-900/20 rounded transition-colors"
+                                    title="Verwijder"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <button
+                            key={slotNumber}
+                            onClick={() => handleDayPopupSlotClick(space.id, slotNumber)}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border border-dashed border-emerald-700/40 bg-emerald-900/10 hover:bg-emerald-900/25 hover:border-emerald-600/60 transition-colors group"
+                          >
+                            <div className="w-7 h-7 rounded flex items-center justify-center text-xs font-bold bg-dark-700 text-gray-400 group-hover:bg-emerald-800 group-hover:text-emerald-200 transition-colors">
+                              {slotNumber}
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-emerald-400 font-medium">
+                              <Plus size={14} />
+                              Beschikbaar - klik om te boeken
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {showDayPopupBookingForm && (
+                <div className="bg-dark-800 rounded-lg border border-gold-700/50 p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <Plus size={18} className="text-gold-500" />
+                      <h3 className="text-sm font-bold text-gray-100">
+                        Nieuwe boeking
+                        {dayPopupBookingSlot && ` - Plek ${dayPopupBookingSlot}`}
+                        {dayPopupBookingSpace && ` (${flexSpaces.find(s => s.id === dayPopupBookingSpace)?.space_number})`}
+                      </h3>
+                    </div>
+                    <button
+                      onClick={() => setShowDayPopupBookingForm(false)}
+                      className="p-1 text-gray-400 hover:text-gray-200 transition-colors"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                  <form onSubmit={handleDayPopupBookingSubmit} className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-400 mb-1">Externe Klant</label>
+                      <select
+                        value={quickFormData.external_customer_id}
+                        onChange={(e) => setQuickFormData({ ...quickFormData, external_customer_id: e.target.value })}
+                        className="w-full px-3 py-2 bg-dark-900 border border-dark-600 rounded-lg text-gray-100 text-sm focus:outline-none focus:border-gold-500"
+                        required
+                      >
+                        <option value="">Selecteer klant</option>
+                        {externalCustomers.map(customer => (
+                          <option key={customer.id} value={customer.id}>
+                            {customer.company_name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-400 mb-1">Starttijd</label>
+                        <input
+                          type="time"
+                          value={quickFormData.start_time}
+                          onChange={(e) => setQuickFormData({ ...quickFormData, start_time: e.target.value })}
+                          className="w-full px-3 py-2 bg-dark-900 border border-dark-600 rounded-lg text-gray-100 text-sm focus:outline-none focus:border-gold-500"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-400 mb-1">Eindtijd</label>
+                        <input
+                          type="time"
+                          value={quickFormData.end_time}
+                          onChange={(e) => setQuickFormData({ ...quickFormData, end_time: e.target.value })}
+                          className="w-full px-3 py-2 bg-dark-900 border border-dark-600 rounded-lg text-gray-100 text-sm focus:outline-none focus:border-gold-500"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Tarief wordt automatisch berekend
+                    </p>
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setShowDayPopupBookingForm(false)}
+                        className="flex-1 px-3 py-2 bg-dark-700 text-gray-300 rounded-lg hover:bg-dark-600 transition-colors text-sm font-medium"
+                      >
+                        Annuleren
+                      </button>
+                      <button
+                        type="submit"
+                        className="flex-1 px-3 py-2 bg-gold-500 text-white rounded-lg hover:bg-gold-600 transition-colors text-sm font-medium"
+                      >
+                        Boeking Aanmaken
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+            </div>
+
+            <div className="flex-shrink-0 flex gap-4 text-xs text-gray-500 px-6 py-3 border-t border-dark-700 bg-dark-800/50 rounded-b-xl">
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded bg-blue-600"></div>
+                <span>Contract</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded bg-orange-600"></div>
+                <span>In afwachting</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded bg-gold-500"></div>
+                <span>Bevestigd</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded bg-green-600"></div>
+                <span>Gefactureerd</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded bg-emerald-600/50 border border-dashed border-emerald-600"></div>
+                <span>Beschikbaar</span>
+              </div>
+            </div>
           </div>
         </div>
       )}
