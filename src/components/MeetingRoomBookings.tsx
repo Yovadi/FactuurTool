@@ -898,7 +898,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
   }
 
   return (
-    <div>
+    <div className="h-full flex flex-col overflow-hidden">
       <div className="fixed top-4 right-4 z-50 space-y-2 max-w-md">
         {notifications.map((notification) => (
           <div
@@ -925,7 +925,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
         ))}
       </div>
 
-      <div className="mb-6">
+      <div className="flex-shrink-0 mb-4">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-bold text-gray-100">Vergaderruimte Boekingen</h1>
           <button
@@ -1290,8 +1290,8 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
         }} />
         </div>
       ) : (
-        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
-          <div className="flex justify-between items-center px-4 py-3 bg-dark-800 border-b border-amber-500">
+        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden flex-1 min-h-0 flex flex-col">
+          <div className="flex-shrink-0 flex justify-between items-center px-4 py-3 bg-dark-800 border-b border-amber-500">
             <h2 className="text-lg font-bold text-gray-100">
               Vergaderruimte Boekingen
             </h2>
@@ -1389,7 +1389,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
               </div>
             </div>
           </div>
-          <div className="overflow-x-auto overflow-y-auto max-h-[600px]">
+          <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
             <table className="w-full table-fixed min-w-[1000px]">
             <thead className="sticky top-0 z-10">
               <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
