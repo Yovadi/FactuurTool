@@ -158,6 +158,7 @@ export function FlexWorkspaceBookings() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [selectedView, setSelectedView] = useState<'list' | 'calendar' | 'resource'>('resource');
+  const [calendarMode, setCalendarMode] = useState<'week' | 'month'>('month');
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'upcoming' | 'invoiced'>('all');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationId, setNotificationId] = useState(0);
@@ -199,7 +200,7 @@ export function FlexWorkspaceBookings() {
     if (selectedView === 'calendar') {
       generateCalendar();
     }
-  }, [currentDate, allBookings, schedules, selectedView]);
+  }, [currentDate, allBookings, schedules, selectedView, calendarMode]);
 
   useEffect(() => {
     if (flexSpaces.length > 0 && !selectedResourceSpace) {
@@ -275,6 +276,37 @@ export function FlexWorkspaceBookings() {
   };
 
   const generateCalendar = () => {
+    if (calendarMode === 'week') {
+      generateWeekCalendar();
+    } else {
+      generateMonthCalendar();
+    }
+  };
+
+  const generateWeekCalendar = () => {
+    const d = new Date(currentDate);
+    let dow = d.getDay();
+    dow = dow === 0 ? 6 : dow - 1;
+    const monday = new Date(d);
+    monday.setDate(d.getDate() - dow);
+
+    const days: CalendarDay[] = [];
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(monday);
+      date.setDate(monday.getDate() + i);
+      const dateStr = toLocalDateStr(date);
+      days.push({
+        date,
+        dateStr,
+        isCurrentMonth: true,
+        bookings: allBookings.filter(b => b.booking_date === dateStr),
+        schedules: getSchedulesForDate(date)
+      });
+    }
+    setCalendarDays(days);
+  };
+
+  const generateMonthCalendar = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
 
@@ -954,9 +986,11 @@ export function FlexWorkspaceBookings() {
     return getSlotBookingsForSpace(selectedResourceSpace, slotNumber, dateStr);
   };
 
-  const getTimeSegments = (slotNumber: number, dateStr: string): TimeSegment[] => {
+  const getTimeSegments = (slotNumber: number, dateStr: string, spaceId?: string): TimeSegment[] => {
     const segments: TimeSegment[] = [];
-    const slotBookings = getAllSlotBookings(slotNumber, dateStr);
+    const slotBookings = spaceId
+      ? getSlotBookingsForSpace(spaceId, slotNumber, dateStr)
+      : getAllSlotBookings(slotNumber, dateStr);
 
     if (slotBookings.length === 0 || !slotBookings[0].startTime) {
       return [{
@@ -1728,16 +1762,35 @@ export function FlexWorkspaceBookings() {
         <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 overflow-hidden">
           <div className="p-4 border-b border-dark-700">
             <div className="flex items-center justify-between mb-4">
-              <button
-                onClick={previousMonth}
-                className="p-2 text-gray-400 hover:text-gray-300 hover:bg-dark-800 rounded-lg transition-colors"
-              >
-                <ChevronLeft size={20} />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={calendarMode === 'week' ? previousWeek : previousMonth}
+                  className="p-2 text-gray-400 hover:text-gray-300 hover:bg-dark-800 rounded-lg transition-colors"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+              </div>
               <h2 className="text-lg font-semibold text-gray-100">
-                {new Intl.DateTimeFormat('nl-NL', { month: 'long', year: 'numeric' }).format(currentDate)}
+                {calendarMode === 'week'
+                  ? (() => {
+                      const d = new Date(currentDate);
+                      let dow = d.getDay();
+                      dow = dow === 0 ? 6 : dow - 1;
+                      const mon = new Date(d);
+                      mon.setDate(d.getDate() - dow);
+                      const sun = new Date(mon);
+                      sun.setDate(mon.getDate() + 6);
+                      const fmtDay = (dt: Date) => dt.getDate();
+                      const fmtMonth = (dt: Date) => new Intl.DateTimeFormat('nl-NL', { month: 'short' }).format(dt);
+                      if (mon.getMonth() === sun.getMonth()) {
+                        return `${fmtDay(mon)} - ${fmtDay(sun)} ${fmtMonth(mon)} ${mon.getFullYear()}`;
+                      }
+                      return `${fmtDay(mon)} ${fmtMonth(mon)} - ${fmtDay(sun)} ${fmtMonth(sun)} ${sun.getFullYear()}`;
+                    })()
+                  : new Intl.DateTimeFormat('nl-NL', { month: 'long', year: 'numeric' }).format(currentDate)
+                }
               </h2>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
                 <button
                   onClick={goToToday}
                   className="px-3 py-1.5 text-sm bg-dark-800 text-gray-300 rounded-lg hover:bg-dark-700 transition-colors"
@@ -1745,7 +1798,7 @@ export function FlexWorkspaceBookings() {
                   Vandaag
                 </button>
                 <button
-                  onClick={nextMonth}
+                  onClick={calendarMode === 'week' ? nextWeek : nextMonth}
                   className="p-2 text-gray-400 hover:text-gray-300 hover:bg-dark-800 rounded-lg transition-colors"
                 >
                   <ChevronRight size={20} />
@@ -1753,22 +1806,46 @@ export function FlexWorkspaceBookings() {
               </div>
             </div>
 
-            <div className="flex gap-4 text-xs text-gray-400">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-gold-500"></div>
-                <span>Eenmalige boeking</span>
+            <div className="flex items-center justify-between">
+              <div className="flex gap-4 text-xs text-gray-400">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-gold-500"></div>
+                  <span>Eenmalige boeking</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                  <span>Flex contract (terugkerend)</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                <span>Flex contract (terugkerend)</span>
+              <div className="flex bg-dark-800 rounded-lg p-0.5 border border-dark-600">
+                <button
+                  onClick={() => setCalendarMode('week')}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                    calendarMode === 'week'
+                      ? 'bg-gold-500 text-white'
+                      : 'text-gray-400 hover:text-gray-200'
+                  }`}
+                >
+                  Week
+                </button>
+                <button
+                  onClick={() => setCalendarMode('month')}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                    calendarMode === 'month'
+                      ? 'bg-gold-500 text-white'
+                      : 'text-gray-400 hover:text-gray-200'
+                  }`}
+                >
+                  Maand
+                </button>
               </div>
             </div>
           </div>
 
           <div className="grid grid-cols-7 gap-px bg-dark-700">
-            {['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'].map((day) => (
-              <div key={day} className="bg-dark-800 px-2 py-3 text-center text-xs font-medium text-gray-400">
-                {day}
+            {['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'].map((dayName) => (
+              <div key={dayName} className="bg-dark-800 px-2 py-3 text-center text-xs font-medium text-gray-400">
+                {dayName}
               </div>
             ))}
 
@@ -1778,20 +1855,26 @@ export function FlexWorkspaceBookings() {
               const totalBooked = day.bookings.length + day.schedules.length;
               const occupancyPercent = totalCapacity > 0 ? Math.min(100, (totalBooked / totalCapacity) * 100) : 0;
               const isWeekendDay = day.date.getDay() === 0 || day.date.getDay() === 6;
+              const maxItems = calendarMode === 'week' ? 8 : 2;
 
               return (
                 <div
                   key={index}
                   onClick={() => !isWeekendDay && handleCalendarDayClick(day)}
-                  className={`bg-dark-900 min-h-24 p-2 transition-colors ${
+                  className={`bg-dark-900 p-2 transition-colors ${
+                    calendarMode === 'week' ? 'min-h-[280px]' : 'min-h-24'
+                  } ${
                     !day.isCurrentMonth ? 'opacity-40' : ''
                   } ${isDayToday ? 'ring-2 ring-gold-500 ring-inset' : ''} ${
                     isWeekendDay ? 'opacity-30' : 'cursor-pointer hover:bg-dark-800'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <div className={`text-sm ${isDayToday ? 'text-gold-500 font-bold' : 'text-gray-400'}`}>
-                      {day.date.getDate()}
+                    <div className={`${calendarMode === 'week' ? 'text-base font-bold' : 'text-sm'} ${isDayToday ? 'text-gold-500 font-bold' : 'text-gray-400'}`}>
+                      {calendarMode === 'week'
+                        ? new Intl.DateTimeFormat('nl-NL', { day: 'numeric', month: 'short' }).format(day.date)
+                        : day.date.getDate()
+                      }
                     </div>
                     {!isWeekendDay && totalBooked > 0 && (
                       <div className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
@@ -1806,29 +1889,38 @@ export function FlexWorkspaceBookings() {
                     )}
                   </div>
                   <div className="space-y-0.5">
-                    {day.schedules.slice(0, 2).map((schedule) => (
+                    {day.schedules.slice(0, maxItems).map((schedule) => (
                       <div
                         key={schedule.id}
-                        className="text-[10px] px-1.5 py-0.5 rounded bg-blue-900/50 text-blue-300 border border-blue-800/50 truncate"
+                        className={`px-1.5 py-0.5 rounded bg-blue-900/50 text-blue-300 border border-blue-800/50 truncate ${
+                          calendarMode === 'week' ? 'text-xs' : 'text-[10px]'
+                        }`}
                       >
                         {schedule.external_customers?.company_name || schedule.leases?.tenants?.company_name}
                       </div>
                     ))}
-                    {day.bookings.slice(0, 2).map((booking) => (
+                    {day.bookings.slice(0, maxItems).map((booking) => (
                       <div
                         key={booking.id}
-                        className={`text-[10px] px-1.5 py-0.5 rounded truncate ${
+                        className={`px-1.5 py-0.5 rounded truncate ${
+                          calendarMode === 'week' ? 'text-xs' : 'text-[10px]'
+                        } ${
                           booking.status === 'pending'
                             ? 'bg-orange-900/50 text-orange-300 border border-orange-800/50'
                             : 'bg-gold-900/50 text-gold-300 border border-gold-800/50'
                         }`}
                       >
                         {booking.external_customers?.company_name}
+                        {calendarMode === 'week' && booking.start_time && booking.end_time && (
+                          <span className="ml-1 opacity-70">
+                            {booking.start_time.substring(0, 5)}-{booking.end_time.substring(0, 5)}
+                          </span>
+                        )}
                       </div>
                     ))}
-                    {(day.schedules.length + day.bookings.length) > 4 && (
+                    {(day.schedules.length + day.bookings.length) > maxItems * 2 && (
                       <div className="text-[10px] text-gray-500 font-medium pl-1">
-                        +{(day.schedules.length + day.bookings.length) - 4} meer
+                        +{(day.schedules.length + day.bookings.length) - maxItems * 2} meer
                       </div>
                     )}
                   </div>
@@ -1841,7 +1933,7 @@ export function FlexWorkspaceBookings() {
 
       {selectedCalendarDay && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 overflow-y-auto p-4">
-          <div className="bg-dark-900 rounded-xl w-full max-w-4xl my-4 border border-dark-700 shadow-2xl max-h-[90vh] flex flex-col">
+          <div className="bg-dark-900 rounded-xl w-full max-w-6xl my-4 border border-dark-700 shadow-2xl max-h-[90vh] flex flex-col">
             <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-dark-700 bg-dark-800 rounded-t-xl">
               <div>
                 <h2 className="text-xl font-bold text-gray-100">
@@ -1903,119 +1995,114 @@ export function FlexWorkspaceBookings() {
                       </div>
                     </div>
 
-                    <div className="p-3 space-y-2">
-                      {slotsWithBookings.map(({ slotNumber, bookings: slotBkgs }) => {
-                        const hasBookings = slotBkgs.length > 0;
-                        const fullyBooked = isSlotFullyBooked(slotBkgs);
-                        const gaps = hasBookings && !fullyBooked ? getAvailableGaps(slotBkgs) : [];
-
-                        if (!hasBookings) {
-                          return (
-                            <button
-                              key={slotNumber}
-                              onClick={() => handleDayPopupSlotClick(space.id, slotNumber)}
-                              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border border-dashed border-emerald-700/40 bg-emerald-900/10 hover:bg-emerald-900/25 hover:border-emerald-600/60 transition-colors group"
-                            >
-                              <div className="w-7 h-7 rounded flex items-center justify-center text-xs font-bold bg-dark-700 text-gray-400 group-hover:bg-emerald-800 group-hover:text-emerald-200 transition-colors">
-                                {slotNumber}
-                              </div>
-                              <div className="flex items-center gap-2 text-sm text-emerald-400 font-medium">
-                                <Plus size={14} />
-                                Beschikbaar - klik om te boeken
-                              </div>
-                            </button>
-                          );
-                        }
+                    <div className="p-3 space-y-3">
+                      {slotsWithBookings.map(({ slotNumber }) => {
+                        const segments = getTimeSegments(slotNumber, selectedCalendarDay.dateStr, space.id);
+                        const hasBookings = segments.some(s => !s.isAvailable);
+                        const totalHours = 10;
 
                         return (
-                          <div key={slotNumber} className="rounded-lg border border-dark-600 overflow-hidden">
-                            {slotBkgs.map((bkg, idx) => {
-                              const isPending = bkg.type === 'booking' && bkg.status === 'pending';
-                              const isSchedule = bkg.type === 'schedule';
+                          <div key={slotNumber}>
+                            <div className="flex items-center gap-2 mb-1.5">
+                              <span className="text-xs font-bold text-gray-300 w-12">Plek {slotNumber}</span>
+                              {!hasBookings && (
+                                <span className="text-xs text-emerald-400 font-medium">Volledig beschikbaar</span>
+                              )}
+                            </div>
+                            <div className="relative w-full h-14 bg-dark-900 rounded-lg border border-dark-600 overflow-hidden">
+                              <div className="absolute inset-0 flex">
+                                {segments.map((segment, idx) => {
+                                  const segmentHours = segment.endHour - segment.startHour;
+                                  const widthPercent = (segmentHours / totalHours) * 100;
+                                  const timeLabel = `${formatHour(segment.startHour)}-${formatHour(segment.endHour)}`;
 
-                              return (
-                                <div
-                                  key={bkg.bookingId || bkg.scheduleId || idx}
-                                  className={`flex items-center justify-between px-3 py-2.5 transition-colors ${
-                                    idx > 0 ? 'border-t border-dark-600' : ''
-                                  } ${
-                                    isSchedule
-                                      ? 'bg-blue-900/20'
-                                      : isPending
-                                      ? 'bg-orange-900/20'
-                                      : bkg.isInvoiced || bkg.status === 'completed'
-                                      ? 'bg-green-900/20'
-                                      : 'bg-gold-900/20'
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-3">
-                                    {idx === 0 && (
-                                      <div className={`w-7 h-7 rounded flex items-center justify-center text-xs font-bold ${
-                                        isSchedule
-                                          ? 'bg-blue-800 text-blue-200'
-                                          : isPending
-                                          ? 'bg-orange-800 text-orange-200'
-                                          : bkg.isInvoiced || bkg.status === 'completed'
-                                          ? 'bg-green-800 text-green-200'
-                                          : 'bg-gold-800 text-gold-200'
-                                      }`}>
-                                        {slotNumber}
-                                      </div>
-                                    )}
-                                    {idx > 0 && <div className="w-7" />}
-                                    <div>
-                                      <div className="text-sm font-semibold text-gray-100">{bkg.customerName}</div>
-                                      <div className="text-xs text-gray-400">
-                                        {isSchedule ? 'Contract' : bkg.time || 'Hele dag'}
-                                        {isPending && <span className="ml-2 text-orange-400 font-medium">In afwachting</span>}
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    {isPending && bkg.bookingId && (
-                                      <>
-                                        <button
-                                          onClick={() => handleStatusChange(bkg.bookingId!, 'confirmed')}
-                                          className="p-1.5 bg-green-700 hover:bg-green-600 text-white rounded transition-colors"
-                                          title="Accepteren"
-                                        >
-                                          <Check size={14} />
-                                        </button>
-                                        <button
-                                          onClick={() => handleStatusChange(bkg.bookingId!, 'cancelled')}
-                                          className="p-1.5 bg-red-700 hover:bg-red-600 text-white rounded transition-colors"
-                                          title="Weigeren"
-                                        >
-                                          <X size={14} />
-                                        </button>
-                                      </>
-                                    )}
-                                    {!isSchedule && bkg.bookingId && !bkg.isInvoiced && bkg.status !== 'pending' && (
+                                  if (segment.isAvailable) {
+                                    return (
                                       <button
-                                        onClick={() => setDeleteConfirmId(bkg.bookingId!)}
-                                        className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-900/20 rounded transition-colors"
-                                        title="Verwijder"
+                                        key={idx}
+                                        onClick={() => handleDayPopupSlotClick(space.id, slotNumber, formatHour(segment.startHour), formatHour(segment.endHour))}
+                                        className="h-full bg-emerald-500/30 border-r border-dark-700 hover:bg-emerald-500/50 transition-colors flex items-center justify-center group/avail"
+                                        style={{ width: `${widthPercent}%` }}
+                                        title={`Beschikbaar: ${timeLabel}`}
                                       >
-                                        <Trash2 size={14} />
+                                        <div className="flex flex-col items-center">
+                                          <Plus size={14} className="text-emerald-300 group-hover/avail:scale-110 transition-transform" />
+                                          {widthPercent > 15 && (
+                                            <span className="text-[10px] text-emerald-300 font-medium mt-0.5">{timeLabel}</span>
+                                          )}
+                                        </div>
                                       </button>
-                                    )}
+                                    );
+                                  }
+
+                                  const booking = segment.booking!;
+                                  const isPending = booking.type === 'booking' && booking.status === 'pending';
+                                  const bgColor = booking.type === 'schedule'
+                                    ? 'bg-blue-500'
+                                    : booking.status === 'pending'
+                                    ? 'bg-orange-600'
+                                    : booking.isInvoiced || booking.status === 'completed'
+                                    ? 'bg-green-600'
+                                    : booking.status === 'cancelled'
+                                    ? 'bg-red-600/70'
+                                    : 'bg-gold-500';
+
+                                  return (
+                                    <div
+                                      key={idx}
+                                      className={`relative h-full ${bgColor} border-r border-dark-900 flex flex-col items-center justify-center px-1 overflow-hidden group/seg`}
+                                      style={{ width: `${widthPercent}%` }}
+                                      title={`${booking.customerName}\n${booking.time || timeLabel}`}
+                                    >
+                                      <div className="text-white text-xs font-bold text-center leading-tight truncate w-full">
+                                        {booking.customerName}
+                                      </div>
+                                      {widthPercent > 12 && (
+                                        <div className="text-white/80 text-[10px] font-medium">
+                                          {booking.time || timeLabel}
+                                        </div>
+                                      )}
+                                      {isPending && booking.bookingId && (
+                                        <div className="absolute inset-0 bg-black/0 group-hover/seg:bg-black/80 transition-all flex items-center justify-center gap-1 opacity-0 group-hover/seg:opacity-100">
+                                          <button
+                                            onClick={(e) => { e.stopPropagation(); handleStatusChange(booking.bookingId!, 'confirmed'); }}
+                                            className="p-1 bg-green-600 hover:bg-green-700 text-white rounded transition-colors"
+                                            title="Accepteren"
+                                          >
+                                            <Check size={14} />
+                                          </button>
+                                          <button
+                                            onClick={(e) => { e.stopPropagation(); handleStatusChange(booking.bookingId!, 'cancelled'); }}
+                                            className="p-1 bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
+                                            title="Weigeren"
+                                          >
+                                            <X size={14} />
+                                          </button>
+                                        </div>
+                                      )}
+                                      {!isPending && booking.type !== 'schedule' && booking.bookingId && !booking.isInvoiced && (
+                                        <div className="absolute inset-0 bg-black/0 group-hover/seg:bg-black/80 transition-all flex items-center justify-center opacity-0 group-hover/seg:opacity-100">
+                                          <button
+                                            onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(booking.bookingId!); }}
+                                            className="p-1 text-red-400 hover:text-red-300 transition-colors"
+                                            title="Verwijder"
+                                          >
+                                            <Trash2 size={14} />
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                              <div className="absolute bottom-0 left-0 right-0 h-4 bg-dark-900/80 flex text-[9px] text-gray-500 font-medium pointer-events-none">
+                                {[8, 10, 12, 14, 16, 18].map((h, i) => (
+                                  <div key={h} className={`flex-1 flex items-center justify-center ${i < 5 ? 'border-r border-dark-700/50' : ''}`}>
+                                    {h}:00
                                   </div>
-                                </div>
-                              );
-                            })}
-                            {gaps.map((gap, idx) => (
-                              <button
-                                key={`gap-${idx}`}
-                                onClick={() => handleDayPopupSlotClick(space.id, slotNumber, gap.start, gap.end)}
-                                className="w-full flex items-center gap-3 px-3 py-2 border-t border-dark-600 bg-emerald-900/10 hover:bg-emerald-900/25 transition-colors group"
-                              >
-                                <div className="w-7" />
-                                <div className="flex items-center gap-2 text-xs text-emerald-400 font-medium">
-                                  <Plus size={12} />
-                                  Vrij {gap.start}-{gap.end} - klik om te boeken
-                                </div>
-                              </button>
-                            ))}
+                                ))}
+                              </div>
+                            </div>
                           </div>
                         );
                       })}
