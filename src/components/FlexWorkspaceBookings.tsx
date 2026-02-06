@@ -1933,7 +1933,7 @@ export function FlexWorkspaceBookings() {
 
       {selectedCalendarDay && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 overflow-y-auto p-4">
-          <div className="bg-dark-900 rounded-xl w-full max-w-4xl my-4 border border-dark-700 shadow-2xl max-h-[90vh] flex flex-col">
+          <div className="bg-dark-900 rounded-xl w-full max-w-6xl my-4 border border-dark-700 shadow-2xl max-h-[90vh] flex flex-col">
             <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-dark-700 bg-dark-800 rounded-t-xl">
               <div>
                 <h2 className="text-xl font-bold text-gray-100">
