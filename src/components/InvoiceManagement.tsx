@@ -494,14 +494,20 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         total_hours,
         total_amount,
         invoice_id,
-        tenant_id,
         external_customer_id,
+        lease_id,
+        leases(tenant_id),
         space:office_spaces(space_number)
       `)
       .eq('status', 'completed')
       .order('booking_date', { ascending: false });
 
-    setFlexDayBookings(flexBookingsData || []);
+    const flexWithTenantId = (flexBookingsData || []).map((b: any) => ({
+      ...b,
+      tenant_id: b.leases?.tenant_id || null
+    }));
+
+    setFlexDayBookings(flexWithTenantId);
     setLoading(false);
   };
 
@@ -2031,21 +2037,41 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
           const finalAmount = totalBeforeDiscount - totalDiscountAmount;
           const { subtotal, vatAmount, total } = calculateVAT(finalAmount, 21, false);
 
-          const notesLines = ['Vergaderruimte boekingen:'];
+          const hasMeetingBookings = bookings.some(b => b.booking_type === 'meeting_room');
+          const hasFlexBookings = bookings.some(b => b.booking_type === 'flex');
+          let notesHeader = 'Vergaderruimte boekingen:';
+          if (hasFlexBookings && !hasMeetingBookings) {
+            notesHeader = 'Flex werkplek boekingen:';
+          } else if (hasFlexBookings && hasMeetingBookings) {
+            notesHeader = 'Vergaderruimte & Flex werkplek boekingen:';
+          }
+
+          const notesLines = [notesHeader];
           bookings.forEach(booking => {
             let rateDescription = '';
-            if (booking.rate_type === 'half_day') {
-              rateDescription = 'dagdeel';
-            } else if (booking.rate_type === 'full_day') {
-              rateDescription = 'hele dag';
+            if (booking.booking_type === 'flex') {
+              if (booking.is_half_day) {
+                rateDescription = 'dagdeel';
+              } else if (booking.total_hours > 0 && booking.total_hours < 8) {
+                rateDescription = `${Math.round(booking.total_hours)}u`;
+              } else {
+                rateDescription = 'hele dag';
+              }
             } else {
-              rateDescription = `${Math.round(booking.total_hours)}u`;
+              if (booking.rate_type === 'half_day') {
+                rateDescription = 'dagdeel';
+              } else if (booking.rate_type === 'full_day') {
+                rateDescription = 'hele dag';
+              } else {
+                rateDescription = `${Math.round(booking.total_hours)}u`;
+              }
             }
 
+            const defaultLabel = booking.booking_type === 'flex' ? 'Flexplek' : 'Vergaderruimte';
             const bookingAmount = booking.total_amount || 0;
             const bookingDiscount = booking.discount_amount || 0;
             const beforeDiscountAmount = bookingAmount + bookingDiscount;
-            const bookingLine = `- ${booking.space?.space_number || 'Vergaderruimte'} - ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)} (${rateDescription}) = €${beforeDiscountAmount.toFixed(2)}`;
+            const bookingLine = `- ${booking.space?.space_number || defaultLabel} - ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)} (${rateDescription}) = €${beforeDiscountAmount.toFixed(2)}`;
             notesLines.push(bookingLine);
           });
 
@@ -2085,21 +2111,22 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             const bookingAmount = booking.total_amount || 0;
             const bookingDiscount = booking.discount_amount || 0;
             const beforeDiscountAmount = bookingAmount + bookingDiscount;
+            const defaultLabel = booking.booking_type === 'flex' ? 'Flexplek' : 'Vergaderruimte';
 
             return {
               invoice_id: newInvoice.id,
-              description: `${booking.space?.space_number || 'Vergaderruimte'} - ${new Date(booking.booking_date).toLocaleDateString('nl-NL')} ${booking.start_time}-${booking.end_time}`,
+              description: `${booking.space?.space_number || defaultLabel} - ${new Date(booking.booking_date).toLocaleDateString('nl-NL')} ${booking.start_time}-${booking.end_time}`,
               quantity: booking.total_hours,
               unit_price: booking.hourly_rate,
               amount: beforeDiscountAmount,
-              booking_id: booking.id
+              booking_id: booking.booking_type === 'meeting_room' ? booking.id : null
             };
           });
 
           if (totalDiscountAmount > 0 && customerDiscountPercentage > 0) {
             const spaceName = bookings.length === 1
               ? bookings[0].space?.space_number || 'Vergaderruimte'
-              : 'Vergaderruimtes';
+              : 'Boekingen';
             lineItems.push({
               invoice_id: newInvoice.id,
               description: `Korting ${Math.round(customerDiscountPercentage)}% op ${spaceName}`,
@@ -2121,17 +2148,21 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             continue;
           }
 
-          const allBookingIds = bookings.map(b => b.id);
-          if (allBookingIds.length > 0) {
+          const meetingBookingIds = bookings.filter(b => b.booking_type === 'meeting_room').map(b => b.id);
+          const flexBookingIds = bookings.filter(b => b.booking_type === 'flex').map(b => b.id);
+
+          if (meetingBookingIds.length > 0) {
             await supabase
               .from('meeting_room_bookings')
               .update({ invoice_id: newInvoice.id })
-              .in('id', allBookingIds);
+              .in('id', meetingBookingIds);
+          }
 
+          if (flexBookingIds.length > 0) {
             await supabase
               .from('flex_day_bookings')
               .update({ invoice_id: newInvoice.id })
-              .in('id', allBookingIds);
+              .in('id', flexBookingIds);
           }
 
           meetingSuccess++;
@@ -2753,8 +2784,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
           const getInvoiceType = (inv: InvoiceWithDetails): InvoiceTypeFilter => {
             if (inv.lease_id !== null && inv.lease?.lease_type === 'flex') return 'flex';
             if (inv.lease_id !== null) return 'huur';
-            if (inv.notes?.includes('Vergaderruimte gebruik') || inv.notes?.includes('Vergaderruimte boekingen')) return 'vergaderruimte';
-            if (inv.notes?.includes('Flex werkplek gebruik') || inv.notes?.includes('Flex werkplek boekingen')) return 'flex';
+            if (inv.notes?.includes('Flex werkplek boekingen')) return 'flex';
+            if (inv.notes?.includes('Vergaderruimte gebruik') || inv.notes?.includes('Vergaderruimte boekingen') || inv.notes?.includes('Vergaderruimte & Flex werkplek boekingen')) return 'vergaderruimte';
             if (inv.line_items && inv.line_items.some((item: any) => item.booking_id !== null)) {
               return 'vergaderruimte';
             }
