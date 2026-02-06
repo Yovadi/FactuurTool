@@ -573,17 +573,20 @@ export function Dashboard() {
         )}
       </div>
 
-      {pendingBookings.length > 0 && (
-        <div className="mt-6 bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-dark-700 rounded-lg">
-              <AlertCircle className="text-orange-400" size={20} />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-100">Boekingen In Afwachting</h3>
+      <div className="mt-6 bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-2 bg-dark-700 rounded-lg">
+            <AlertCircle className="text-orange-400" size={20} />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-100">Boekingen In Afwachting</h3>
+          {pendingBookings.length > 0 && (
             <span className="ml-auto bg-orange-900 text-orange-400 px-3 py-1 rounded-full text-sm font-medium">
               {pendingBookings.length}
             </span>
-          </div>
+          )}
+        </div>
+
+        {pendingBookings.length > 0 ? (
           <div className="bg-dark-800 rounded-lg border border-dark-700 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -671,8 +674,14 @@ export function Dashboard() {
               </table>
             </div>
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="bg-dark-800 rounded-lg p-8 text-center">
+            <CheckCircle size={48} className="text-green-500 mx-auto mb-3" />
+            <p className="text-gray-400 font-medium">Geen openstaande aanvragen</p>
+            <p className="text-gray-500 text-sm mt-1">Alle boekingen zijn verwerkt</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
