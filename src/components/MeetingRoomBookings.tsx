@@ -58,6 +58,7 @@ type Booking = {
   discount_amount?: number;
   rate_type?: 'hourly' | 'half_day' | 'full_day';
   applied_rate?: number;
+  vat_rate: number;
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
   notes: string;
   invoice_id: string | null;
@@ -110,6 +111,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     start_time: '09:00',
     end_time: '10:00',
     hourly_rate: 25,
+    vat_rate: 21,
     notes: ''
   });
 
@@ -426,6 +428,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       discount_amount: discountAmount,
       rate_type: rateType,
       applied_rate: appliedRate,
+      vat_rate: formData.vat_rate,
       status: 'pending',
       notes: formData.notes,
       booking_type: bookingType
@@ -479,6 +482,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       start_time: '09:00',
       end_time: '10:00',
       hourly_rate: 25,
+      vat_rate: 21,
       notes: ''
     });
   };
@@ -682,7 +686,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     const bookingDate = new Date(booking.booking_date + 'T00:00:00');
     const invoiceMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
 
-    const vatRate = 21;
+    const vatRate = booking.vat_rate;
     const vatInclusive = meetingRoomRates.vat_inclusive;
 
     let existingInvoiceQuery = supabase
@@ -1182,6 +1186,22 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                       </div>
                     );
                   })()}
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-200 mb-1">
+                      BTW percentage
+                    </label>
+                    <select
+                      value={formData.vat_rate}
+                      onChange={(e) => setFormData({ ...formData, vat_rate: Number(e.target.value) })}
+                      className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                      required
+                    >
+                      <option value={21}>21% BTW</option>
+                      <option value={9}>9% BTW</option>
+                      <option value={0}>0% BTW (niet van toepassing)</option>
+                    </select>
+                  </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-200 mb-1">
