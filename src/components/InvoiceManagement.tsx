@@ -3907,6 +3907,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
       {previewInvoice && !loadingPreview && (
         <InvoicePreview
           invoice={previewInvoice.invoice}
+          invoiceTypeColor={getInvoiceTypeColor(previewInvoice.invoice)}
           tenant={getInvoiceTenant(previewInvoice.invoice) || {
             name: '',
             company_name: '',

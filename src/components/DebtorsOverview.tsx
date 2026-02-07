@@ -163,7 +163,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
     try {
       const { data: invoices, error } = await supabase
         .from('invoices')
-        .select('id, invoice_number, invoice_date, due_date, amount, status')
+        .select('id, invoice_number, invoice_date, due_date, amount, status, lease_id, notes, lease:leases(lease_type), invoice_line_items(booking_id)')
         .or(`tenant_id.eq.${debtorId},external_customer_id.eq.${debtorId}`)
         .not('status', 'in', '(paid,credited)')
         .order('invoice_date', { ascending: false });
@@ -456,7 +456,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                       <div key={invoice.id} className="p-4">
                         <div className="flex justify-between items-start mb-2">
                           <div>
-                            <div className="font-semibold text-gray-100">{invoice.invoice_number}</div>
+                            <div className={`font-semibold ${getInvoiceTypeColor(invoice)}`}>{invoice.invoice_number}</div>
                             <div className="text-sm text-gray-400 flex items-center gap-1">
                               <Calendar size={14} />
                               Factuurdatum: {formatDate(invoice.invoice_date)}
@@ -671,7 +671,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
           <div className="bg-dark-900 rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto border border-dark-700">
             <div className="sticky top-0 bg-dark-800 px-6 py-4 border-b border-dark-700 flex justify-between items-center">
               <h3 className="text-xl font-bold text-gray-100">
-                Factuur {selectedInvoice.invoice_number.replace(/^INV-/, '')}
+                Factuur <span className={getInvoiceTypeColor(selectedInvoice)}>{selectedInvoice.invoice_number.replace(/^INV-/, '')}</span>
               </h3>
               <button
                 onClick={() => setSelectedInvoice(null)}
