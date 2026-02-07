@@ -676,14 +676,14 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
       if (meetingBookings.length === 0 && flexBookings.length === 0) return false;
 
-      const existingInvoice = invoices.find(inv => {
+      const existingDraftInvoice = invoices.find(inv => {
         const matchesCustomer = (customer as any).isExternal
           ? inv.external_customer_id === customer.id
           : inv.tenant_id === customer.id;
-        return matchesCustomer && inv.invoice_month === invoiceMonth && !inv.lease_id;
+        return matchesCustomer && inv.invoice_month === invoiceMonth && !inv.lease_id && inv.status === 'draft';
       });
 
-      return !existingInvoice;
+      return !existingDraftInvoice;
     }).map(c => c.id);
 
     setSelectedLeases(new Set(leasesToGenerate.map(l => l.id)));
