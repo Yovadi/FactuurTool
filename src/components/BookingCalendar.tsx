@@ -511,12 +511,6 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
   const handleCellMouseDown = (dateStr: string, time: string) => {
     if (hasBooking(dateStr, time)) return;
 
-    const cellDate = new Date(dateStr + 'T00:00:00');
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    if (cellDate < today) return;
-
     const slotIndex = timeSlots.indexOf(time);
     setIsDragging(true);
     setDragStart({ date: dateStr, time, slotIndex });
@@ -526,12 +520,6 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
   const handleCellTap = (dateStr: string, time: string) => {
     if (isProcessingTap) return;
     if (hasBooking(dateStr, time)) return;
-
-    const cellDate = new Date(dateStr + 'T00:00:00');
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    if (cellDate < today) return;
 
     setIsProcessingTap(true);
     const slotIndex = timeSlots.indexOf(time);
@@ -875,17 +863,6 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
     // Don't allow moving flex bookings
     if (draggedBooking.booking_type === 'flex') {
       showToast('Flexplekboekingen kunnen niet worden verplaatst via deze kalender', 'error');
-      setDraggedBooking(null);
-      setIsDraggingBooking(false);
-      return;
-    }
-
-    const cellDate = new Date(dateStr + 'T00:00:00');
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    if (cellDate < today) {
-      showToast('Kan geen boeking verplaatsen naar het verleden', 'error');
       setDraggedBooking(null);
       setIsDraggingBooking(false);
       return;
@@ -1377,7 +1354,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
         <div ref={scrollContainerRef} className="flex-1 overflow-auto bg-dark-900">
           <div className="min-w-[900px]" style={{ display: 'grid', gridTemplateColumns: '50px repeat(7, 1fr)' }}>
             {/* Header row */}
-            <div className="sticky top-0 z-20 bg-dark-800 border-b border-dark-600" style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '50px repeat(7, 1fr)' }}>
+            <div className="sticky top-0 z-20 bg-dark-800 border-b border-dark-700/60" style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '50px repeat(7, 1fr)' }}>
               <div className="p-2"></div>
               {weekDays.map((day) => {
                 const isTodayDate = isToday(day.date);
@@ -1385,8 +1362,8 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                 return (
                   <div
                     key={day.dateStr}
-                    className={`py-2 px-1 text-center border-l border-dark-600 ${
-                      isTodayDate ? 'bg-gold-500/10' : isWeekend ? 'bg-dark-800/80' : ''
+                    className={`py-2 px-1 text-center border-l border-dark-700/50 ${
+                      isTodayDate ? 'bg-gold-500/10' : isWeekend ? 'bg-dark-800/50' : ''
                     }`}
                   >
                     <div className={`text-[10px] font-semibold uppercase tracking-wider ${
@@ -1411,7 +1388,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                 return (
                   <div
                     key={time}
-                    className={`text-[10px] text-gray-500 pr-2 text-right ${isWholeHour ? 'border-b border-dark-600' : 'border-b border-transparent'}`}
+                    className={`text-[10px] text-gray-500 pr-2 text-right ${isWholeHour ? 'border-b border-dark-700/40' : ''}`}
                     style={{ height: `${CELL_HEIGHT}px`, lineHeight: isWholeHour ? `${CELL_HEIGHT * 2}px` : `${CELL_HEIGHT}px` }}
                   >
                     {isWholeHour ? time : ''}
@@ -1424,16 +1401,11 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
             const isTodayDate = isToday(day.date);
             const isWeekendDay = day.date.getDay() === 0 || day.date.getDay() === 6;
             return (
-              <div key={day.dateStr} className={`relative border-l border-dark-600 ${isTodayDate ? 'bg-gold-500/5' : isWeekendDay ? 'bg-dark-950/80' : 'bg-dark-900'}`}>
+              <div key={day.dateStr} className={`relative border-l border-dark-700/50 ${isTodayDate ? 'bg-gold-500/5' : isWeekendDay ? 'bg-dark-950/30' : ''}`}>
                 {timeSlots.map((time) => {
                   const booking = getBookingAtTime(day.dateStr, time);
                   const hasBookingHere = hasBooking(day.dateStr, time);
                   const isSelected = isCellSelected(day.dateStr, time);
-
-                  const cellDate = new Date(day.dateStr + 'T00:00:00');
-                  const today = new Date();
-                  today.setHours(0, 0, 0, 0);
-                  const isPast = cellDate < today;
 
                   const [hour] = time.split(':').map(Number);
                   const isWorkHours = hour >= 8 && hour < 17;
@@ -1442,9 +1414,9 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                   return (
                     <div
                       key={time}
-                      className={`relative ${isWholeHour ? 'border-b border-dark-600' : 'border-b border-dark-800/40'} ${
-                        !hasBookingHere && !isPast ? 'cursor-pointer hover:bg-dark-700/40' : ''
-                      } ${isSelected ? (isTouchDevice ? 'bg-yellow-500/60 border-2 border-yellow-300' : 'bg-yellow-200/40 border-2 border-yellow-400') : ''} ${isPast ? 'bg-dark-950/50' : !isWorkHours ? 'bg-dark-950/80' : ''} ${isDraggingBooking && !hasBookingHere && !isPast ? 'bg-green-900/20' : ''} ${isTouchDevice && !hasBookingHere && !isPast ? 'active:bg-yellow-500/30 transition-colors' : ''}`}
+                      className={`relative ${isWholeHour ? 'border-b border-dark-700/40' : ''} ${
+                        !hasBookingHere ? 'cursor-pointer hover:bg-dark-700/20' : ''
+                      } ${isSelected ? (isTouchDevice ? 'bg-yellow-500/50 border border-yellow-300' : 'bg-yellow-200/20 border border-yellow-500/50') : ''} ${!isWorkHours ? 'bg-dark-950/20' : ''} ${isDraggingBooking && !hasBookingHere ? 'bg-green-900/10' : ''} ${isTouchDevice && !hasBookingHere ? 'active:bg-yellow-500/20 transition-colors' : ''}`}
                       style={{ height: `${CELL_HEIGHT}px` }}
                       onMouseDown={(e) => {
                         if (!isDraggingBooking && !isTouchDevice) {
@@ -1457,12 +1429,12 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                         }
                       }}
                       onMouseUp={() => {
-                        if (isDraggingBooking && !hasBookingHere && !isPast) {
+                        if (isDraggingBooking && !hasBookingHere) {
                           handleBookingDrop(day.dateStr, time);
                         }
                       }}
                       onClick={() => {
-                        if (isTouchDevice && !isDraggingBooking && !hasBookingHere && !isPast) {
+                        if (isTouchDevice && !isDraggingBooking && !hasBookingHere) {
                           handleCellTap(day.dateStr, time);
                         }
                       }}

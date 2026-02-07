@@ -1079,7 +1079,6 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                   <InlineDatePicker
                     value={formData.booking_date}
                     onChange={(date) => setFormData({ ...formData, booking_date: date })}
-                    minDate={new Date().toISOString().split('T')[0]}
                   />
                 </div>
 
