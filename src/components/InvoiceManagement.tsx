@@ -520,6 +520,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         end_time,
         total_hours,
         total_amount,
+        status,
         invoice_id,
         external_customer_id,
         lease_id,
