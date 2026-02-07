@@ -3387,17 +3387,17 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
         const customersWithMeetingBookings = targetMonth ? allCustomers.filter(customer => {
           const { meeting } = getCustomerBookings(customer);
-          return meeting.length > 0 && hasNoExistingInvoice(customer);
+          return meeting.length > 0;
         }) : [];
 
         const customersWithFlexBookings = targetMonth ? allCustomers.filter(customer => {
           const { flex } = getCustomerBookings(customer);
-          return flex.length > 0 && hasNoExistingInvoice(customer);
+          return flex.length > 0;
         }) : [];
 
         const customersWithBookings = targetMonth ? allCustomers.filter(customer => {
           const { meeting, flex } = getCustomerBookings(customer);
-          return (meeting.length > 0 || flex.length > 0) && hasNoExistingInvoice(customer);
+          return meeting.length > 0 || flex.length > 0;
         }) : [];
 
         return (
