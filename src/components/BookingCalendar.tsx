@@ -62,10 +62,13 @@ type SelectedCell = {
   slotIndex: number;
 };
 
-const timeSlots = Array.from({ length: 16 }, (_, i) => {
-  const hour = i + 6;
-  return `${String(hour).padStart(2, '0')}:00`;
+const timeSlots = Array.from({ length: 32 }, (_, i) => {
+  const hour = Math.floor(i / 2) + 6;
+  const minutes = i % 2 === 0 ? '00' : '30';
+  return `${String(hour).padStart(2, '0')}:${minutes}`;
 });
+
+const CELL_HEIGHT = 25;
 
 const tenantColors = [
   { bg: 'bg-yellow-600', border: 'border-yellow-500', text: 'text-yellow-50' },
@@ -250,10 +253,8 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
   useEffect(() => {
     // Scroll to 8:00 AM when component mounts or data loads
     if (scrollContainerRef.current && !loading) {
-      // 8:00 AM is index 4 in timeSlots (8 - 6 = 2 hours, 2 * 2 = 4)
-      const targetIndex = 4;
-      const cellHeight = 50;
-      const scrollPosition = targetIndex * cellHeight;
+      const targetIndex = timeSlots.indexOf('08:00');
+      const scrollPosition = targetIndex * CELL_HEIGHT;
 
       // Use setTimeout to ensure DOM is ready
       setTimeout(() => {
@@ -476,6 +477,15 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
     return time.substring(0, 5);
   };
 
+  const getSlotIndex = (time: string): number => {
+    const normalized = normalizeTime(time);
+    const idx = timeSlots.indexOf(normalized);
+    if (idx !== -1) return idx;
+    const [h, m] = normalized.split(':').map(Number);
+    const minutesSinceStart = (h - 6) * 60 + m;
+    return Math.max(0, Math.min(timeSlots.length - 1, Math.floor(minutesSinceStart / 30)));
+  };
+
   const hasBooking = (dateStr: string, time: string) => {
     const day = weekDays.find(d => d.dateStr === dateStr);
     if (!day) return false;
@@ -491,9 +501,10 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
     const day = weekDays.find(d => d.dateStr === dateStr);
     if (!day) return null;
 
+    const slotIdx = timeSlots.indexOf(time);
     return day.bookings.find(b => {
       const startTime = normalizeTime(b.start_time);
-      return startTime === time;
+      return getSlotIndex(startTime) === slotIdx;
     });
   };
 
@@ -890,8 +901,8 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
     const startTime = normalizeTime(draggedBooking.start_time);
     const endTime = normalizeTime(draggedBooking.end_time);
 
-    const startIndex = timeSlots.indexOf(startTime);
-    const endIndex = timeSlots.indexOf(endTime);
+    const startIndex = getSlotIndex(startTime);
+    const endIndex = getSlotIndex(endTime);
     const duration = endIndex - startIndex;
 
     const newStartIndex = timeSlots.indexOf(time);
@@ -970,13 +981,10 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
     const startTime = normalizeTime(booking.start_time);
     const endTime = normalizeTime(booking.end_time);
 
-    const startIndex = timeSlots.indexOf(startTime);
-    const endIndex = timeSlots.indexOf(endTime);
+    const startIdx = getSlotIndex(startTime);
+    const endIdx = getSlotIndex(endTime);
 
-    if (startIndex === -1 || endIndex === -1) return 1;
-
-    const slots = endIndex - startIndex;
-    return slots;
+    return Math.max(1, endIdx - startIdx);
   };
 
   const getWeekNumber = (date: Date): number => {
@@ -995,7 +1003,6 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
     return <div className="text-center py-8 text-gray-300">Kalender laden...</div>;
   }
 
-  const CELL_HEIGHT = 50;
 
   // Generate month calendar data
   const generateMonthDays = () => {
@@ -1305,7 +1312,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
 
       <div className="flex gap-4 w-full" style={{ height: 'calc(100vh - 200px)', minHeight: '720px' }}>
         {/* Left Sidebar - Month Calendars */}
-      <div className="w-72 bg-dark-900 rounded-lg p-4 flex-shrink-0 flex flex-col">
+      <div className="w-72 bg-dark-900 rounded-lg border border-dark-700 p-4 flex-shrink-0 flex flex-col">
         {/* Current Month */}
         <div className="mb-6">
           {renderMonthCalendar(monthDays, baseMonth, true, 0)}
@@ -1330,9 +1337,9 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
       </div>
 
       {/* Right Side - Week View */}
-      <div className="flex-1 bg-dark-900 rounded-lg overflow-hidden flex flex-col h-full">
+      <div className="flex-1 bg-dark-900 rounded-lg border border-dark-700 overflow-hidden flex flex-col h-full">
         {/* Header */}
-        <div className="bg-dark-800 px-4 py-3 flex items-center justify-between border-b border-dark-700">
+        <div className="bg-dark-800 px-4 py-3 flex items-center justify-between border-b border-dark-600">
           <div className="flex items-center gap-3">
             <button
               onClick={previousWeek}
@@ -1367,25 +1374,28 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
         )}
 
         {/* Calendar Grid */}
-        <div ref={scrollContainerRef} className="flex-1 overflow-auto bg-dark-950">
-          <div className="min-w-[900px]" style={{ display: 'grid', gridTemplateColumns: '60px repeat(7, 1fr)' }}>
+        <div ref={scrollContainerRef} className="flex-1 overflow-auto bg-dark-900">
+          <div className="min-w-[900px]" style={{ display: 'grid', gridTemplateColumns: '50px repeat(7, 1fr)' }}>
             {/* Header row */}
-            <div className="sticky top-0 z-20 bg-dark-800 border-b border-dark-700" style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '60px repeat(7, 1fr)' }}>
+            <div className="sticky top-0 z-20 bg-dark-800 border-b border-dark-600" style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '50px repeat(7, 1fr)' }}>
               <div className="p-2"></div>
               {weekDays.map((day) => {
                 const isTodayDate = isToday(day.date);
+                const isWeekend = day.date.getDay() === 0 || day.date.getDay() === 6;
                 return (
                   <div
                     key={day.dateStr}
-                    className={`p-2 text-center border-l border-dark-600 ${
-                      isTodayDate ? 'bg-yellow-900/30' : ''
+                    className={`py-2 px-1 text-center border-l border-dark-600 ${
+                      isTodayDate ? 'bg-gold-500/10' : isWeekend ? 'bg-dark-800/80' : ''
                     }`}
                   >
-                    <div className="text-xs text-gray-400 uppercase">
+                    <div className={`text-[10px] font-semibold uppercase tracking-wider ${
+                      isTodayDate ? 'text-gold-400' : isWeekend ? 'text-gray-500' : 'text-gray-400'
+                    }`}>
                       {day.date.toLocaleDateString('nl-NL', { weekday: 'short' })}
                     </div>
-                    <div className={`text-2xl font-light ${
-                      isTodayDate ? 'text-yellow-400' : 'text-gray-200'
+                    <div className={`text-lg font-medium ${
+                      isTodayDate ? 'text-gold-400' : isWeekend ? 'text-gray-500' : 'text-gray-200'
                     }`}>
                       {day.date.getDate()}
                     </div>
@@ -1395,18 +1405,16 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
             </div>
 
             {/* Time column */}
-            <div className="bg-dark-900">
+            <div>
               {timeSlots.map((time) => {
-                const [hour] = time.split(':').map(Number);
-                // Only show on the hour
-                const showTime = time.endsWith(':00');
+                const isWholeHour = time.endsWith(':00');
                 return (
                   <div
                     key={time}
-                    className="text-[10px] text-gray-500 bg-dark-900 pr-2 text-right border-b border-dark-700"
-                    style={{ height: `${CELL_HEIGHT}px`, lineHeight: `${CELL_HEIGHT}px` }}
+                    className={`text-[10px] text-gray-500 pr-2 text-right ${isWholeHour ? 'border-b border-dark-600' : 'border-b border-transparent'}`}
+                    style={{ height: `${CELL_HEIGHT}px`, lineHeight: isWholeHour ? `${CELL_HEIGHT * 2}px` : `${CELL_HEIGHT}px` }}
                   >
-                    {showTime ? time : ''}
+                    {isWholeHour ? time : ''}
                   </div>
                 );
               })}
@@ -1414,8 +1422,9 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
 
           {weekDays.map((day) => {
             const isTodayDate = isToday(day.date);
+            const isWeekendDay = day.date.getDay() === 0 || day.date.getDay() === 6;
             return (
-              <div key={day.dateStr} className={`relative border-l border-dark-600 ${isTodayDate ? 'bg-yellow-900/10' : 'bg-dark-950'}`}>
+              <div key={day.dateStr} className={`relative border-l border-dark-600 ${isTodayDate ? 'bg-gold-500/5' : isWeekendDay ? 'bg-dark-950/80' : 'bg-dark-900'}`}>
                 {timeSlots.map((time) => {
                   const booking = getBookingAtTime(day.dateStr, time);
                   const hasBookingHere = hasBooking(day.dateStr, time);
@@ -1428,13 +1437,14 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
 
                   const [hour] = time.split(':').map(Number);
                   const isWorkHours = hour >= 8 && hour < 17;
+                  const isWholeHour = time.endsWith(':00');
 
                   return (
                     <div
                       key={time}
-                      className={`relative border-b border-gray-700 ${
-                        !hasBookingHere && !isPast ? 'cursor-pointer hover:bg-dark-800/50' : ''
-                      } ${isSelected ? (isTouchDevice ? 'bg-yellow-500/60 border-2 border-yellow-300' : 'bg-yellow-200/40 border-2 border-yellow-400') : ''} ${isPast ? 'bg-dark-950/50' : !isWorkHours ? 'bg-gray-900' : 'bg-dark-800'} ${isDraggingBooking && !hasBookingHere && !isPast ? 'bg-green-900/20' : ''} ${isTouchDevice && !hasBookingHere && !isPast ? 'active:bg-yellow-500/30 transition-colors' : ''}`}
+                      className={`relative ${isWholeHour ? 'border-b border-dark-600' : 'border-b border-dark-800/40'} ${
+                        !hasBookingHere && !isPast ? 'cursor-pointer hover:bg-dark-700/40' : ''
+                      } ${isSelected ? (isTouchDevice ? 'bg-yellow-500/60 border-2 border-yellow-300' : 'bg-yellow-200/40 border-2 border-yellow-400') : ''} ${isPast ? 'bg-dark-950/50' : !isWorkHours ? 'bg-dark-950/80' : ''} ${isDraggingBooking && !hasBookingHere && !isPast ? 'bg-green-900/20' : ''} ${isTouchDevice && !hasBookingHere && !isPast ? 'active:bg-yellow-500/30 transition-colors' : ''}`}
                       style={{ height: `${CELL_HEIGHT}px` }}
                       onMouseDown={(e) => {
                         if (!isDraggingBooking && !isTouchDevice) {
@@ -1464,11 +1474,11 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                         const isCompleted = booking.status === 'completed';
                         const isPending = booking.status === 'pending';
                         const bookingHeight = getBookingHeight(booking) * CELL_HEIGHT - 2;
-                        const isSingleSlot = bookingHeight <= 50;
+                        const isSmall = bookingHeight < 40;
 
                         return (
                           <div
-                            className={`absolute left-1 right-1 ${colors.bg} border-l-4 ${colors.border} rounded shadow-sm px-1.5 py-1 z-10 cursor-move hover:shadow-md transition-shadow select-none flex flex-col justify-center ${isBeingDragged ? 'opacity-50' : isCompleted ? 'opacity-70' : isPending ? 'opacity-80 ring-2 ring-orange-400' : ''}`}
+                            className={`absolute left-0.5 right-0.5 ${colors.bg} border-l-[3px] ${colors.border} rounded-sm shadow-md px-1.5 z-10 cursor-move hover:shadow-lg hover:brightness-110 transition-all select-none flex flex-col justify-center ${isBeingDragged ? 'opacity-50' : isCompleted ? 'opacity-60' : isPending ? 'opacity-80 ring-1 ring-orange-400' : ''}`}
                             style={{
                               height: `${bookingHeight}px`,
                               top: '1px',
@@ -1488,37 +1498,49 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                             }}
                           >
                             <div className="w-full">
-                              {isFlex && (
-                                <div className={`font-medium ${colors.text} text-[9px] uppercase leading-tight opacity-75 mb-0.5`}>
-                                  FLEXPLEK
+                              {isSmall ? (
+                                <div className={`${colors.text} text-[10px] font-medium leading-none truncate`}>
+                                  {booking.external_customer_id
+                                    ? booking.external_customers?.company_name
+                                    : booking.tenants?.company_name || ''
+                                  }
+                                  <span className="opacity-75 ml-1">{booking.start_time.substring(0, 5)}-{booking.end_time.substring(0, 5)}</span>
                                 </div>
-                              )}
-                              {booking.external_customer_id ? (
-                                <>
-                                  {!isFlex && (
-                                    <div className={`font-medium ${colors.text} text-[10px] uppercase leading-tight opacity-75`}>
-                                      EXTERN
-                                    </div>
-                                  )}
-                                  <div className={`font-semibold ${colors.text} text-xs leading-tight truncate`}>
-                                    {booking.external_customers?.company_name}
-                                  </div>
-                                </>
                               ) : (
                                 <>
-                                  {loggedInTenantId && booking.tenant_id === loggedInTenantId && (
-                                    <div className={`font-medium ${colors.text} text-[10px] uppercase leading-tight opacity-75`}>
-                                      {booking.status === 'confirmed' ? 'BEVESTIGD' : booking.status === 'pending' ? 'IN AFWACHTING' : 'MIJN BOEKING'}
+                                  {isFlex && (
+                                    <div className={`font-semibold ${colors.text} text-[8px] uppercase leading-tight opacity-75`}>
+                                      FLEXPLEK
                                     </div>
                                   )}
-                                  <div className={`font-semibold ${colors.text} text-xs leading-tight truncate`}>
-                                    {booking.tenants?.company_name || ''}
+                                  {booking.external_customer_id ? (
+                                    <>
+                                      {!isFlex && (
+                                        <div className={`font-semibold ${colors.text} text-[8px] uppercase leading-tight opacity-75`}>
+                                          EXTERN
+                                        </div>
+                                      )}
+                                      <div className={`font-semibold ${colors.text} text-[11px] leading-tight truncate`}>
+                                        {booking.external_customers?.company_name}
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <>
+                                      {loggedInTenantId && booking.tenant_id === loggedInTenantId && (
+                                        <div className={`font-semibold ${colors.text} text-[8px] uppercase leading-tight opacity-75`}>
+                                          {booking.status === 'confirmed' ? 'BEVESTIGD' : booking.status === 'pending' ? 'IN AFWACHTING' : 'MIJN BOEKING'}
+                                        </div>
+                                      )}
+                                      <div className={`font-semibold ${colors.text} text-[11px] leading-tight truncate`}>
+                                        {booking.tenants?.company_name || ''}
+                                      </div>
+                                    </>
+                                  )}
+                                  <div className={`${colors.text} text-[10px] opacity-80 leading-tight`}>
+                                    {booking.start_time.substring(0, 5)} - {booking.end_time.substring(0, 5)}
                                   </div>
                                 </>
                               )}
-                              <div className={`${colors.text} text-[11px] opacity-90 leading-tight mt-0.5`}>
-                                {booking.start_time.substring(0, 5)} - {booking.end_time.substring(0, 5)}
-                              </div>
                             </div>
                           </div>
                         );
