@@ -2820,6 +2820,17 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             return 'handmatig';
           };
 
+          const getInvoiceTypeColor = (inv: InvoiceWithDetails): string => {
+            const type = getInvoiceType(inv);
+            switch (type) {
+              case 'huur': return 'text-green-500';
+              case 'vergaderruimte': return 'text-blue-500';
+              case 'flex': return 'text-purple-500';
+              case 'handmatig': return 'text-orange-500';
+              default: return 'text-gray-400';
+            }
+          };
+
           const draftHuurInvoices = allDraftInvoices
             .filter(inv => getInvoiceType(inv) === 'huur')
             .sort(sortByTenantAndDate);
@@ -2978,7 +2989,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                                 <span className="text-gray-100 font-medium">{displayName}</span>
                               </div>
                             </td>
-                            <td className="px-4 py-3 text-purple-600 font-medium text-sm">
+                            <td className={`px-4 py-3 ${getInvoiceTypeColor(invoice)} font-medium text-sm`}>
                               {invoice.invoice_number.replace(/^INV-/, '')}
                             </td>
                             <td className="px-4 py-3 text-gray-300 text-sm">
@@ -3246,7 +3257,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                                     <span className="text-gray-100 font-medium">{displayName}</span>
                                   </div>
                                 </td>
-                                <td className="px-4 py-3 text-purple-600 font-medium text-sm">
+                                <td className={`px-4 py-3 ${getInvoiceTypeColor(invoice)} font-medium text-sm`}>
                                   {invoice.invoice_number.replace(/^INV-/, '')}
                                 </td>
                                 <td className="px-4 py-3 text-gray-300 text-sm">

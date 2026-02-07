@@ -2,6 +2,15 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Euro, Calendar, AlertCircle, CheckCircle, FileText, Trash2, Eye, Filter } from 'lucide-react';
 
+const getInvoiceTypeColor = (invoice: any): string => {
+  if (invoice.lease_id !== null && invoice.lease?.lease_type === 'flex') return 'text-purple-500';
+  if (invoice.lease_id !== null) return 'text-green-500';
+  if (invoice.notes?.includes('Flex werkplek boekingen')) return 'text-purple-500';
+  if (invoice.notes?.includes('Vergaderruimte gebruik') || invoice.notes?.includes('Vergaderruimte boekingen') || invoice.notes?.includes('Vergaderruimte & Flex werkplek boekingen')) return 'text-blue-500';
+  if (invoice.invoice_line_items?.some((item: any) => item.booking_id !== null)) return 'text-blue-500';
+  return 'text-orange-500';
+};
+
 type Debtor = {
   id: string;
   name: string;
@@ -184,15 +193,18 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
           status,
           invoice_month,
           notes,
+          lease_id,
           tenant_id,
           external_customer_id,
           applied_credit,
+          lease:leases(lease_type),
           invoice_line_items (
             id,
             description,
             quantity,
             unit_price,
-            amount
+            amount,
+            booking_id
           )
         `)
         .in('status', ['paid', 'credited'])
@@ -583,7 +595,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                               <span className="text-gray-100 font-medium">{displayName}</span>
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-purple-600 font-medium text-sm">
+                          <td className={`px-4 py-3 ${getInvoiceTypeColor(invoice)} font-medium text-sm`}>
                             {invoice.invoice_number.replace(/^INV-/, '')}
                           </td>
                           <td className="px-4 py-3 text-gray-300 text-sm">
