@@ -1870,7 +1870,7 @@ export function FlexWorkspaceBookings() {
               const isDayToday = day.dateStr === todayStr;
               const totalCapacity = flexSpaces.reduce((sum, s) => sum + (s.flex_capacity || 0), 0);
               const totalBooked = day.bookings.length + day.schedules.length;
-              const occupancyPercent = totalCapacity > 0 ? Math.min(100, (totalBooked / totalCapacity) * 100) : 0;
+              const available = Math.max(0, totalCapacity - totalBooked);
               const isWeekendDay = day.date.getDay() === 0 || day.date.getDay() === 6;
               const maxItems = calendarMode === 'week' ? 8 : 2;
 
@@ -1893,15 +1893,15 @@ export function FlexWorkspaceBookings() {
                         : day.date.getDate()
                       }
                     </div>
-                    {!isWeekendDay && totalBooked > 0 && (
+                    {!isWeekendDay && totalCapacity > 0 && totalBooked > 0 && (
                       <div className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                        occupancyPercent >= 100
+                        available === 0
                           ? 'bg-red-900/60 text-red-300'
-                          : occupancyPercent >= 50
+                          : available <= Math.ceil(totalCapacity * 0.3)
                           ? 'bg-orange-900/60 text-orange-300'
                           : 'bg-emerald-900/60 text-emerald-300'
                       }`}>
-                        {totalBooked}/{totalCapacity}
+                        {available === 0 ? 'Vol' : `${available} vrij`}
                       </div>
                     )}
                   </div>

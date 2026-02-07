@@ -33,6 +33,7 @@ export function SpaceTypeRates() {
     fixed_rate: '',
     fixed_rate_furnished: '',
     hourly_rate: '',
+    hourly_rate_furnished: '',
     half_day_rate: '',
     half_day_rate_furnished: '',
     full_day_rate: '',
@@ -90,6 +91,7 @@ export function SpaceTypeRates() {
       fixed_rate: fixedRate,
       fixed_rate_furnished: fixedRateFurnished,
       hourly_rate: parseFloat(formData.hourly_rate) || 0,
+      hourly_rate_furnished: parseFloat(formData.hourly_rate_furnished) || 0,
       half_day_rate: parseFloat(formData.half_day_rate) || 0,
       half_day_rate_furnished: parseFloat(formData.half_day_rate_furnished) || 0,
       full_day_rate: parseFloat(formData.full_day_rate) || 0,
@@ -142,6 +144,7 @@ export function SpaceTypeRates() {
       fixed_rate: (rate.fixed_rate * multiplier).toString(),
       fixed_rate_furnished: (rate.fixed_rate_furnished * multiplier).toString(),
       hourly_rate: rate.hourly_rate?.toString() || '',
+      hourly_rate_furnished: rate.hourly_rate_furnished?.toString() || '',
       half_day_rate: rate.half_day_rate?.toString() || '',
       half_day_rate_furnished: rate.half_day_rate_furnished?.toString() || '',
       full_day_rate: rate.full_day_rate?.toString() || '',
@@ -165,6 +168,7 @@ export function SpaceTypeRates() {
       fixed_rate: '',
       fixed_rate_furnished: '',
       hourly_rate: '',
+      hourly_rate_furnished: '',
       half_day_rate: '',
       half_day_rate_furnished: '',
       full_day_rate: '',
@@ -350,9 +354,18 @@ export function SpaceTypeRates() {
                         </div>
                       )}
                     </div>
-                    {rate.space_type === 'Flexplek' && (rate.half_day_rate_furnished > 0 || rate.full_day_rate_furnished > 0) && (
+                    {rate.space_type === 'Flexplek' && (rate.hourly_rate_furnished > 0 || rate.half_day_rate_furnished > 0 || rate.full_day_rate_furnished > 0) && (
                       <div className="space-y-2 pt-2 border-t border-dark-700">
                         <div className="text-xs text-gray-500 font-medium">Gemeubileerd</div>
+                        {rate.hourly_rate_furnished > 0 && (
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-400">Per uur:</span>
+                            <div className="flex items-center gap-1">
+                              <Clock size={14} className="text-gold-500" />
+                              <span className="text-gray-100 font-bold">€{rate.hourly_rate_furnished.toFixed(2)}</span>
+                            </div>
+                          </div>
+                        )}
                         {rate.half_day_rate_furnished > 0 && (
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-gray-400">Per dagdeel:</span>
@@ -739,10 +752,15 @@ export function SpaceTypeRates() {
                             <input
                               type="text"
                               inputMode="decimal"
-                              value={formData.hourly_rate || ''}
-                              disabled
-                              className="w-full pl-6 pr-2 py-1.5 bg-dark-700 border border-dark-600 text-gray-400 rounded text-sm cursor-not-allowed"
-                              placeholder="zie standaard"
+                              value={formData.hourly_rate_furnished}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                                  setFormData({ ...formData, hourly_rate_furnished: value });
+                                }
+                              }}
+                              className="w-full pl-6 pr-2 py-1.5 bg-dark-800 border border-dark-600 text-gray-100 rounded focus:outline-none focus:ring-2 focus:ring-gold-500 text-sm"
+                              placeholder="0.00"
                             />
                           </div>
                         </div>
