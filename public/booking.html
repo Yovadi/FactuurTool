@@ -500,14 +500,11 @@
         }
 
         .time-slot {
-            height: 60px;
             font-size: 0.75rem;
             color: #9CA3AF;
             padding-right: 1rem;
             text-align: right;
-            border-bottom: 1px solid #374151;
             background-color: #1A1A1C;
-            line-height: 60px;
             font-weight: 500;
         }
 
@@ -521,8 +518,6 @@
         }
 
         .time-cell {
-            height: 60px;
-            border-bottom: 1px solid #374151;
             cursor: pointer;
             transition: background-color 0.1s;
             user-select: none;
@@ -1876,11 +1871,14 @@
         let recurringType = 'weekly';
         let selectedWeekdays = [];
 
-        // Time slots from 6:00 to 21:00
+        // Time slots from 6:00 to 21:30 in 30-minute intervals (32 slots total)
         const timeSlots = [];
-        for (let hour = 6; hour <= 21; hour++) {
-            timeSlots.push(`${String(hour).padStart(2, '0')}:00`);
+        for (let i = 0; i < 32; i++) {
+            const hour = Math.floor(i / 2) + 6;
+            const minutes = i % 2 === 0 ? '00' : '30';
+            timeSlots.push(`${String(hour).padStart(2, '0')}:${minutes}`);
         }
+        const CELL_HEIGHT = 25;
 
         // Tenant colors - matched with admin interface (yellow/amber/orange palette)
         const tenantColors = [
@@ -1900,6 +1898,29 @@
             if (!tenantId) return tenantColors[0];
             const hash = tenantId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
             return tenantColors[hash % tenantColors.length];
+        }
+
+        // Helper functions for time calculations
+        function normalizeTime(time) {
+            if (time.length === 5) return time;
+            return time.substring(0, 5);
+        }
+
+        function getSlotIndex(time) {
+            const normalized = normalizeTime(time);
+            const idx = timeSlots.indexOf(normalized);
+            if (idx !== -1) return idx;
+            const [h, m] = normalized.split(':').map(Number);
+            const minutesSinceStart = (h - 6) * 60 + m;
+            return Math.max(0, Math.min(timeSlots.length - 1, Math.floor(minutesSinceStart / 30)));
+        }
+
+        function getBookingHeight(booking) {
+            const startTime = normalizeTime(booking.start_time);
+            const endTime = normalizeTime(booking.end_time);
+            const startIdx = getSlotIndex(startTime);
+            const endIdx = getSlotIndex(endTime);
+            return Math.max(1, endIdx - startIdx);
         }
 
         // Toast notification
@@ -2087,7 +2108,12 @@
             timeSlots.forEach(time => {
                 const slot = document.createElement('div');
                 slot.className = 'time-slot';
-                slot.textContent = time.endsWith(':00') ? time : '';
+                const isWholeHour = time.endsWith(':00');
+                slot.textContent = isWholeHour ? time : '';
+                slot.style.height = `${CELL_HEIGHT}px`;
+                if (isWholeHour) {
+                    slot.style.lineHeight = `${CELL_HEIGHT * 2}px`;
+                }
                 timeColumn.appendChild(slot);
             });
             bodySection.appendChild(timeColumn);
@@ -2103,10 +2129,15 @@
                     const hour = parseInt(time.split(':')[0]);
                     const isWorkHours = hour >= 8 && hour < 17;
                     const cellPast = isPast(date);
+                    const isWholeHour = time.endsWith(':00');
 
                     cell.className = `time-cell ${isWorkHours ? 'work-hours' : 'outside-hours'} ${cellPast ? 'past' : ''}`;
                     cell.dataset.date = dateStr;
                     cell.dataset.time = time;
+                    cell.style.height = `${CELL_HEIGHT}px`;
+                    if (isWholeHour) {
+                        cell.style.borderBottom = '1px solid #374151';
+                    }
 
                     if (!cellPast) {
                         cell.addEventListener('click', () => handleCellClick(dateStr, time));
@@ -2118,19 +2149,18 @@
                 // Add bookings
                 const dayBookings = weekBookings.filter(b => b.booking_date === dateStr);
                 dayBookings.forEach(booking => {
-                    const startIdx = timeSlots.indexOf(booking.start_time.substring(0, 5));
-                    const endIdx = timeSlots.indexOf(booking.end_time.substring(0, 5));
-                    if (startIdx >= 0 && endIdx >= 0) {
-                        const height = (endIdx - startIdx) * 60 - 4;
-                        const colors = getTenantColor(booking.tenant_id);
+                    const startIdx = getSlotIndex(booking.start_time);
+                    const bookingHeightSlots = getBookingHeight(booking);
+                    const height = bookingHeightSlots * CELL_HEIGHT - 2;
+                    const colors = getTenantColor(booking.tenant_id);
 
-                        const block = document.createElement('div');
-                        block.className = 'booking-block';
-                        block.style.top = `${startIdx * 60 + 2}px`;
-                        block.style.height = `${height}px`;
-                        block.style.backgroundColor = colors.bg;
-                        block.style.borderLeftColor = colors.border;
-                        block.style.color = colors.text;
+                    const block = document.createElement('div');
+                    block.className = 'booking-block';
+                    block.style.top = `${startIdx * CELL_HEIGHT + 1}px`;
+                    block.style.height = `${height}px`;
+                    block.style.backgroundColor = colors.bg;
+                    block.style.borderLeftColor = colors.border;
+                    block.style.color = colors.text;
 
                         const displayName = booking.tenant_id
                             ? (booking.tenants?.company_name || booking.tenants?.name || '')
@@ -2167,10 +2197,11 @@
 
             gridEl.appendChild(bodySection);
 
-            // Scroll to 8:00 AM
+            // Scroll to 8:00 AM (slot index 4 from 6:00)
             setTimeout(() => {
                 const container = document.getElementById('weekGridContainer');
-                container.scrollTop = 2 * 60;
+                const scrollToSlot = getSlotIndex('08:00');
+                container.scrollTop = scrollToSlot * CELL_HEIGHT;
             }, 100);
         }
 
