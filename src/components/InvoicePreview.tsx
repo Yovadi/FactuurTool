@@ -63,6 +63,7 @@ interface InvoicePreviewProps {
     phone?: string;
     website?: string;
   };
+  invoiceTypeColor?: string;
   onClose: () => void;
   onDownload?: () => void;
   onSend?: () => void;
@@ -77,6 +78,7 @@ export function InvoicePreview({
   spaces,
   contractType,
   company,
+  invoiceTypeColor,
   onClose,
   onDownload,
   onSend,
@@ -135,7 +137,7 @@ export function InvoicePreview({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
       <div className="bg-dark-900 rounded-lg my-8 relative w-full max-w-5xl mx-4 max-h-[90vh] overflow-y-auto border border-dark-700">
         <div className="sticky top-0 bg-dark-800 rounded-t-lg border-b border-dark-700 px-6 py-4 flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-gray-100">Factuur {invoiceNumberDisplay}</h2>
+          <h2 className="text-2xl font-bold text-gray-100">Factuur <span className={invoiceTypeColor || 'text-gray-100'}>{invoiceNumberDisplay}</span></h2>
           <div className="flex items-center gap-2">
             {onCreateCreditNote && (
               <button
@@ -221,7 +223,7 @@ export function InvoicePreview({
               <div className="space-y-1 text-sm">
                 <div>
                   <span className="text-gray-400">Factuurnummer: </span>
-                  <span className="font-semibold text-gray-100">{invoiceNumberDisplay}</span>
+                  <span className={`font-semibold ${invoiceTypeColor || 'text-gray-100'}`}>{invoiceNumberDisplay}</span>
                 </div>
                 <div>
                   <span className="text-gray-400">Factuurdatum: </span>

@@ -520,6 +520,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         end_time,
         total_hours,
         total_amount,
+        status,
         invoice_id,
         external_customer_id,
         lease_id,
@@ -675,14 +676,14 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
       if (meetingBookings.length === 0 && flexBookings.length === 0) return false;
 
-      const existingInvoice = invoices.find(inv => {
+      const existingDraftInvoice = invoices.find(inv => {
         const matchesCustomer = (customer as any).isExternal
           ? inv.external_customer_id === customer.id
           : inv.tenant_id === customer.id;
-        return matchesCustomer && inv.invoice_month === invoiceMonth && !inv.lease_id;
+        return matchesCustomer && inv.invoice_month === invoiceMonth && !inv.lease_id && inv.status === 'draft';
       });
 
-      return !existingInvoice;
+      return !existingDraftInvoice;
     }).map(c => c.id);
 
     setSelectedLeases(new Set(leasesToGenerate.map(l => l.id)));
@@ -2819,6 +2820,17 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             return 'handmatig';
           };
 
+          const getInvoiceTypeColor = (inv: InvoiceWithDetails): string => {
+            const type = getInvoiceType(inv);
+            switch (type) {
+              case 'huur': return 'text-green-500';
+              case 'vergaderruimte': return 'text-blue-500';
+              case 'flex': return 'text-purple-500';
+              case 'handmatig': return 'text-orange-500';
+              default: return 'text-gray-400';
+            }
+          };
+
           const draftHuurInvoices = allDraftInvoices
             .filter(inv => getInvoiceType(inv) === 'huur')
             .sort(sortByTenantAndDate);
@@ -2977,7 +2989,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                                 <span className="text-gray-100 font-medium">{displayName}</span>
                               </div>
                             </td>
-                            <td className="px-4 py-3 text-purple-600 font-medium text-sm">
+                            <td className={`px-4 py-3 ${getInvoiceTypeColor(invoice)} font-medium text-sm`}>
                               {invoice.invoice_number.replace(/^INV-/, '')}
                             </td>
                             <td className="px-4 py-3 text-gray-300 text-sm">
@@ -3245,7 +3257,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                                     <span className="text-gray-100 font-medium">{displayName}</span>
                                   </div>
                                 </td>
-                                <td className="px-4 py-3 text-purple-600 font-medium text-sm">
+                                <td className={`px-4 py-3 ${getInvoiceTypeColor(invoice)} font-medium text-sm`}>
                                   {invoice.invoice_number.replace(/^INV-/, '')}
                                 </td>
                                 <td className="px-4 py-3 text-gray-300 text-sm">
@@ -3340,11 +3352,13 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
         const regularLeasesToGenerate = allLeasesToGenerate.filter(l => l.lease_type !== 'flex');
         const flexLeasesToGenerate = allLeasesToGenerate.filter(l => l.lease_type === 'flex');
 
-        const customersWithBookings = targetMonth ? [...tenants, ...externalCustomers.map(ec => ({
+        const allCustomers = [...tenants, ...externalCustomers.map(ec => ({
           ...ec,
           isExternal: true
-        }))].filter(customer => {
-          const meetingBookings = meetingRoomBookings.filter(booking => {
+        }))];
+
+        const getCustomerBookings = (customer: any) => {
+          const bookingFilter = (booking: any) => {
             const bookingDate = new Date(booking.booking_date);
             const bookingYearMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
             const isForSelectedMonth = bookingYearMonth === targetMonth;
@@ -3354,30 +3368,36 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               ? booking.external_customer_id === customer.id
               : booking.tenant_id === customer.id;
             return isForSelectedMonth && isUnbilled && isCompleted && isForCustomer;
-          });
+          };
+          return {
+            meeting: meetingRoomBookings.filter(bookingFilter),
+            flex: flexDayBookings.filter(bookingFilter)
+          };
+        };
 
-          const flexBookings = flexDayBookings.filter(booking => {
-            const bookingDate = new Date(booking.booking_date);
-            const bookingYearMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
-            const isForSelectedMonth = bookingYearMonth === targetMonth;
-            const isUnbilled = !booking.invoice_id;
-            const isCompleted = booking.status === 'completed';
-            const isForCustomer = (customer as any).isExternal
-              ? booking.external_customer_id === customer.id
-              : booking.tenant_id === customer.id;
-            return isForSelectedMonth && isUnbilled && isCompleted && isForCustomer;
-          });
-
-          if (meetingBookings.length === 0 && flexBookings.length === 0) return false;
-
+        const hasNoExistingInvoice = (customer: any) => {
           const existingInvoice = invoices.find(inv => {
             const matchesCustomer = (customer as any).isExternal
               ? inv.external_customer_id === customer.id
               : inv.tenant_id === customer.id;
             return matchesCustomer && inv.invoice_month === targetMonth && !inv.lease_id;
           });
-
           return !existingInvoice;
+        };
+
+        const customersWithMeetingBookings = targetMonth ? allCustomers.filter(customer => {
+          const { meeting } = getCustomerBookings(customer);
+          return meeting.length > 0;
+        }) : [];
+
+        const customersWithFlexBookings = targetMonth ? allCustomers.filter(customer => {
+          const { flex } = getCustomerBookings(customer);
+          return flex.length > 0;
+        }) : [];
+
+        const customersWithBookings = targetMonth ? allCustomers.filter(customer => {
+          const { meeting, flex } = getCustomerBookings(customer);
+          return meeting.length > 0 || flex.length > 0;
         }) : [];
 
         return (
@@ -3406,7 +3426,13 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               </div>
 
               <div className="p-6 space-y-4">
-                {invoiceMonth && (regularLeasesToGenerate.length > 0 || flexLeasesToGenerate.length > 0 || customersWithBookings.length > 0) ? (
+                {invoiceMonth && (
+                  (invoiceTypeFilter === 'huur' && regularLeasesToGenerate.length > 0) ||
+                  (invoiceTypeFilter === 'flex' && (flexLeasesToGenerate.length > 0 || customersWithFlexBookings.length > 0)) ||
+                  (invoiceTypeFilter === 'vergaderruimte' && customersWithMeetingBookings.length > 0) ||
+                  (invoiceTypeFilter === 'all' && (regularLeasesToGenerate.length > 0 || flexLeasesToGenerate.length > 0 || customersWithBookings.length > 0)) ||
+                  (invoiceTypeFilter === 'handmatig')
+                ) ? (
                   <div className="space-y-4">
                     {/* Maandkeuze en Overzicht tellers - naast elkaar */}
                     <div className="bg-dark-800 rounded-lg p-4">
@@ -3458,8 +3484,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                           )}
                         </div>
 
-                        {/* Huurcontracten Teller */}
-                        {regularLeasesToGenerate.length > 0 && (
+                        {(invoiceTypeFilter === 'huur' || invoiceTypeFilter === 'all') && regularLeasesToGenerate.length > 0 && (
                           <div className="bg-dark-700 rounded-lg p-3">
                             <div className="flex items-center gap-2 text-emerald-500 mb-1">
                               <Home size={16} />
@@ -3470,8 +3495,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                           </div>
                         )}
 
-                        {/* Flex Teller */}
-                        {flexLeasesToGenerate.length > 0 && (
+                        {(invoiceTypeFilter === 'flex' || invoiceTypeFilter === 'all') && flexLeasesToGenerate.length > 0 && (
                           <div className="bg-dark-700 rounded-lg p-3">
                             <div className="flex items-center gap-2 text-amber-500 mb-1">
                               <Zap size={16} />
@@ -3482,15 +3506,25 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                           </div>
                         )}
 
-                        {/* Vergaderruimtes Teller */}
-                        {customersWithBookings.length > 0 && (
+                        {(invoiceTypeFilter === 'flex' || invoiceTypeFilter === 'all') && customersWithFlexBookings.length > 0 && (
+                          <div className="bg-dark-700 rounded-lg p-3">
+                            <div className="flex items-center gap-2 text-amber-500 mb-1">
+                              <Zap size={16} />
+                              <span className="text-sm font-medium">Flex boekingen</span>
+                            </div>
+                            <div className="text-2xl font-bold text-gray-100">{Array.from(selectedCustomers).filter(id => customersWithFlexBookings.some(c => c.id === id)).length}</div>
+                            <div className="text-xs text-gray-400">van {customersWithFlexBookings.length} beschikbaar</div>
+                          </div>
+                        )}
+
+                        {(invoiceTypeFilter === 'vergaderruimte' || invoiceTypeFilter === 'all') && customersWithMeetingBookings.length > 0 && (
                           <div className="bg-dark-700 rounded-lg p-3">
                             <div className="flex items-center gap-2 text-blue-500 mb-1">
                               <Calendar size={16} />
                               <span className="text-sm font-medium">Vergaderruimtes</span>
                             </div>
-                            <div className="text-2xl font-bold text-gray-100">{selectedCustomers.size}</div>
-                            <div className="text-xs text-gray-400">van {customersWithBookings.length} beschikbaar</div>
+                            <div className="text-2xl font-bold text-gray-100">{Array.from(selectedCustomers).filter(id => customersWithMeetingBookings.some(c => c.id === id)).length}</div>
+                            <div className="text-xs text-gray-400">van {customersWithMeetingBookings.length} beschikbaar</div>
                           </div>
                         )}
                       </div>
@@ -3499,7 +3533,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                     {/* Gedetailleerde selectie - 3 kolommen naast elkaar */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {/* Huurcontracten */}
-                      {regularLeasesToGenerate.length > 0 && (
+                      {(invoiceTypeFilter === 'huur' || invoiceTypeFilter === 'all') && regularLeasesToGenerate.length > 0 && (
                           <div className="space-y-3">
                             <div className="flex items-center justify-between">
                               <h4 className="text-sm font-medium text-gray-300 flex items-center gap-2">
@@ -3562,7 +3596,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                         )}
 
                         {/* Flex contracten */}
-                        {flexLeasesToGenerate.length > 0 && (
+                        {(invoiceTypeFilter === 'flex' || invoiceTypeFilter === 'all') && flexLeasesToGenerate.length > 0 && (
                           <div className="space-y-3">
                             <div className="flex items-center justify-between">
                               <h4 className="text-sm font-medium text-gray-300 flex items-center gap-2">
@@ -3624,18 +3658,18 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                           </div>
                         )}
 
-                        {/* Vergaderruimte facturen */}
-                        {customersWithBookings.length > 0 && (
+                        {/* Flex boekingen */}
+                        {(invoiceTypeFilter === 'flex' || invoiceTypeFilter === 'all') && customersWithFlexBookings.length > 0 && (
                           <div className="space-y-3">
                             <div className="flex items-center justify-between">
                               <h4 className="text-sm font-medium text-gray-300 flex items-center gap-2">
-                                <Calendar size={16} className="text-blue-500" />
-                                Vergaderruimte boekingen ({customersWithBookings.length})
+                                <Zap size={16} className="text-amber-500" />
+                                Flex boekingen ({customersWithFlexBookings.length})
                               </h4>
                             </div>
                             <div className="flex gap-2 text-xs">
                               <button
-                                onClick={() => selectAllCustomers(customersWithBookings.map(c => c.id))}
+                                onClick={() => selectAllCustomers(customersWithFlexBookings.map(c => c.id))}
                                 className="text-gold-500 hover:text-gold-400"
                               >
                                 Alles
@@ -3649,36 +3683,72 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                               </button>
                             </div>
                             <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
-                              {customersWithBookings.map(customer => {
-                                const customerMeetingBookings = meetingRoomBookings.filter(booking => {
-                                  const bookingDate = new Date(booking.booking_date);
-                                  const bookingYearMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
-                                  const isForSelectedMonth = bookingYearMonth === targetMonth;
-                                  const isUnbilled = !booking.invoice_id;
-                                  const isCompleted = booking.status === 'completed';
-                                  const isForCustomer = (customer as any).isExternal
-                                    ? booking.external_customer_id === customer.id
-                                    : booking.tenant_id === customer.id;
-                                  return isForSelectedMonth && isUnbilled && isCompleted && isForCustomer;
-                                });
+                              {customersWithFlexBookings.map(customer => {
+                                const { flex: customerFlexBookings } = getCustomerBookings(customer);
+                                const total = customerFlexBookings.reduce((sum, booking) => sum + booking.total_amount, 0);
 
-                                const customerFlexBookings = flexDayBookings.filter(booking => {
-                                  const bookingDate = new Date(booking.booking_date);
-                                  const bookingYearMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
-                                  const isForSelectedMonth = bookingYearMonth === targetMonth;
-                                  const isUnbilled = !booking.invoice_id;
-                                  const isCompleted = booking.status === 'completed';
-                                  const isForCustomer = (customer as any).isExternal
-                                    ? booking.external_customer_id === customer.id
-                                    : booking.tenant_id === customer.id;
-                                  return isForSelectedMonth && isUnbilled && isCompleted && isForCustomer;
-                                });
+                                return (
+                                  <div
+                                    key={customer.id}
+                                    onClick={() => toggleCustomerSelection(customer.id)}
+                                    className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-all ${
+                                      selectedCustomers.has(customer.id)
+                                        ? 'bg-amber-900/20 border-amber-700'
+                                        : 'bg-dark-800 border-dark-700 hover:border-dark-600'
+                                    }`}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedCustomers.has(customer.id)}
+                                      onChange={() => {}}
+                                      className="w-4 h-4 rounded border-dark-600 text-amber-600 focus:ring-amber-500 flex-shrink-0"
+                                    />
+                                    <div className="flex-1 min-w-0">
+                                      <div className="text-sm font-medium text-gray-200 truncate">
+                                        {customer.company_name}
+                                      </div>
+                                      <div className="text-xs text-gray-400">
+                                        {customerFlexBookings.length} boeking{customerFlexBookings.length > 1 ? 'en' : ''}
+                                      </div>
+                                    </div>
+                                    <div className="text-sm font-medium text-gray-200 flex-shrink-0">
+                                      €{total.toFixed(2)}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
 
-                                const customerBookings = [...customerMeetingBookings, ...customerFlexBookings];
-
-                                const total = customerBookings.reduce((sum, booking) => {
-                                  return sum + booking.total_amount;
-                                }, 0);
+                        {/* Vergaderruimte boekingen */}
+                        {(invoiceTypeFilter === 'vergaderruimte' || invoiceTypeFilter === 'all') && customersWithMeetingBookings.length > 0 && (
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <h4 className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                                <Calendar size={16} className="text-blue-500" />
+                                Vergaderruimte boekingen ({customersWithMeetingBookings.length})
+                              </h4>
+                            </div>
+                            <div className="flex gap-2 text-xs">
+                              <button
+                                onClick={() => selectAllCustomers(customersWithMeetingBookings.map(c => c.id))}
+                                className="text-gold-500 hover:text-gold-400"
+                              >
+                                Alles
+                              </button>
+                              <span className="text-gray-600">|</span>
+                              <button
+                                onClick={() => deselectAllCustomers()}
+                                className="text-gray-500 hover:text-gray-400"
+                              >
+                                Niets
+                              </button>
+                            </div>
+                            <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
+                              {customersWithMeetingBookings.map(customer => {
+                                const { meeting: customerMeetingBookings } = getCustomerBookings(customer);
+                                const total = customerMeetingBookings.reduce((sum, booking) => sum + booking.total_amount, 0);
 
                                 return (
                                   <div
@@ -3701,7 +3771,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                                         {customer.company_name}
                                       </div>
                                       <div className="text-xs text-gray-400">
-                                        {customerBookings.length} boeking{customerBookings.length > 1 ? 'en' : ''}
+                                        {customerMeetingBookings.length} boeking{customerMeetingBookings.length > 1 ? 'en' : ''}
                                       </div>
                                     </div>
                                     <div className="text-sm font-medium text-gray-200 flex-shrink-0">
@@ -3837,6 +3907,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
       {previewInvoice && !loadingPreview && (
         <InvoicePreview
           invoice={previewInvoice.invoice}
+          invoiceTypeColor={getInvoiceTypeColor(previewInvoice.invoice)}
           tenant={getInvoiceTenant(previewInvoice.invoice) || {
             name: '',
             company_name: '',

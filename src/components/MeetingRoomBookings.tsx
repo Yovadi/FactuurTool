@@ -221,7 +221,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     let filtered = bookingsList;
 
     if (filter === 'all') {
-      filtered = bookingsList;
+      filtered = bookingsList.filter(b => !b.invoice_id);
     } else if (filter === 'internal') {
       filtered = bookingsList.filter(b => b.booking_type === 'tenant');
     } else if (filter === 'external') {
@@ -1079,7 +1079,6 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                   <InlineDatePicker
                     value={formData.booking_date}
                     onChange={(date) => setFormData({ ...formData, booking_date: date })}
-                    minDate={new Date().toISOString().split('T')[0]}
                   />
                 </div>
 
@@ -1096,9 +1095,10 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                         size={5}
                         required
                       >
-                        {Array.from({ length: 10 }, (_, i) => {
-                          const hour = i + 8;
-                          const time = `${String(hour).padStart(2, '0')}:00`;
+                        {Array.from({ length: 20 }, (_, i) => {
+                          const hour = Math.floor(i / 2) + 8;
+                          const minutes = i % 2 === 0 ? '00' : '30';
+                          const time = `${String(hour).padStart(2, '0')}:${minutes}`;
                           return (
                             <option key={time} value={time}>
                               {time}
@@ -1119,9 +1119,10 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                         size={5}
                         required
                       >
-                        {Array.from({ length: 10 }, (_, i) => {
-                          const hour = i + 8;
-                          const time = `${String(hour).padStart(2, '0')}:00`;
+                        {Array.from({ length: 20 }, (_, i) => {
+                          const hour = Math.floor(i / 2) + 8;
+                          const minutes = i % 2 === 0 ? '00' : '30';
+                          const time = `${String(hour).padStart(2, '0')}:${minutes}`;
                           return (
                             <option key={time} value={time}>
                               {time}
@@ -1302,7 +1303,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
         }} />
         </div>
       ) : (
-        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden flex-1 min-h-0 flex flex-col">
+        <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 overflow-hidden">
           <div className="flex-shrink-0 flex justify-between items-center px-4 py-3 bg-dark-800 border-b border-amber-500">
             <h2 className="text-lg font-bold text-gray-100">
               Vergaderruimte Boekingen
@@ -1401,7 +1402,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
               </div>
             </div>
           </div>
-          <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0">
+          <div className="overflow-x-auto">
             <table className="w-full table-fixed min-w-[1000px]">
             <thead className="sticky top-0 z-10">
               <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">

@@ -158,6 +158,7 @@ export type SpaceTypeRate = {
   fixed_rate: number;
   fixed_rate_furnished: number;
   hourly_rate: number;
+  hourly_rate_furnished: number;
   half_day_rate: number;
   half_day_rate_furnished: number;
   full_day_rate: number;
