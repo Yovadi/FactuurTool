@@ -1882,16 +1882,18 @@
             timeSlots.push(`${String(hour).padStart(2, '0')}:00`);
         }
 
-        // Tenant colors
+        // Tenant colors - matched with admin interface (yellow/amber/orange palette)
         const tenantColors = [
-            { bg: '#CA8A04', border: '#EAB308', text: '#FFFBEB' },
-            { bg: '#D97706', border: '#F59E0B', text: '#FFFBEB' },
-            { bg: '#DC2626', border: '#EF4444', text: '#FEF2F2' },
-            { bg: '#16A34A', border: '#22C55E', text: '#F0FDF4' },
-            { bg: '#2563EB', border: '#3B82F6', text: '#EFF6FF' },
-            { bg: '#9333EA', border: '#A855F7', text: '#FAF5FF' },
-            { bg: '#DB2777', border: '#EC4899', text: '#FDF2F8' },
-            { bg: '#0891B2', border: '#06B6D4', text: '#ECFEFF' },
+            { bg: '#CA8A04', border: '#EAB308', text: '#FFFBEB' },  // yellow-600/yellow-500
+            { bg: '#D97706', border: '#F59E0B', text: '#FFFBEB' },  // amber-600/amber-500
+            { bg: '#EA580C', border: '#F97316', text: '#FFF7ED' },  // orange-600/orange-500
+            { bg: '#A16207', border: '#CA8A04', text: '#FFFBEB' },  // yellow-700/yellow-600
+            { bg: '#B45309', border: '#D97706', text: '#FFFBEB' },  // amber-700/amber-600
+            { bg: '#EAB308', border: '#FACC15', text: '#422006' },  // yellow-500/yellow-400
+            { bg: '#F59E0B', border: '#FBBF24', text: '#451A03' },  // amber-500/amber-400
+            { bg: '#F97316', border: '#FB923C', text: '#431407' },  // orange-500/orange-400
+            { bg: '#854D0E', border: '#A16207', text: '#FFFBEB' },  // yellow-800/yellow-700
+            { bg: '#92400E', border: '#B45309', text: '#FFFBEB' },  // amber-800/amber-700
         ];
 
         function getTenantColor(tenantId) {
