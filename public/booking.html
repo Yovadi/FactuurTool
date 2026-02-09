@@ -2184,34 +2184,32 @@
                     block.style.borderLeftColor = colors.border;
                     block.style.color = colors.text;
 
-                        const displayName = booking.tenant_id
-                            ? (booking.tenants?.company_name || booking.tenants?.name || '')
-                            : booking.external_customers?.company_name || '';
+                    const displayName = booking.tenant_id
+                        ? (booking.tenants?.company_name || booking.tenants?.name || '')
+                        : booking.external_customers?.company_name || '';
 
-                        // Check if this is the user's own booking
-                        const isOwnBooking = authenticatedUser && (
-                            (authenticatedUser.userType === 'tenant' && booking.tenant_id === authenticatedUser.id) ||
-                            (authenticatedUser.userType === 'external' && booking.external_customer_id === authenticatedUser.id)
-                        );
-                        const isPending = booking.status === 'pending';
-                        const isConfirmed = booking.status === 'confirmed';
-                        const canDelete = isOwnBooking && (isPending || isConfirmed);
+                    const isOwnBooking = authenticatedUser && (
+                        (authenticatedUser.userType === 'tenant' && booking.tenant_id === authenticatedUser.id) ||
+                        (authenticatedUser.userType === 'external' && booking.external_customer_id === authenticatedUser.id)
+                    );
+                    const isPending = booking.status === 'pending';
+                    const isConfirmed = booking.status === 'confirmed';
+                    const canDelete = isOwnBooking && (isPending || isConfirmed);
 
-                        let badges = '';
-                        if (booking.external_customer_id) badges += '<div class="booking-badge">EXTERN</div>';
-                        if (isOwnBooking && !isConfirmed && !isPending) badges += '<div class="booking-badge own-booking">MIJN BOEKING</div>';
-                        if (isPending) badges += '<div class="booking-badge pending-badge">IN AFWACHTING</div>';
-                        if (isConfirmed && isOwnBooking) badges += '<div class="booking-badge confirmed-badge">BEVESTIGD</div>';
+                    let badges = '';
+                    if (booking.external_customer_id) badges += '<div class="booking-badge">EXTERN</div>';
+                    if (isOwnBooking && !isConfirmed && !isPending) badges += '<div class="booking-badge own-booking">MIJN BOEKING</div>';
+                    if (isPending) badges += '<div class="booking-badge pending-badge">IN AFWACHTING</div>';
+                    if (isConfirmed && isOwnBooking) badges += '<div class="booking-badge confirmed-badge">BEVESTIGD</div>';
 
-                        block.innerHTML = `
-                            ${badges}
-                            <div class="booking-name">${displayName}</div>
-                            <div class="booking-time">${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)}</div>
-                            ${canDelete ? '<button class="delete-booking-btn" onclick="deleteBooking(event, \'' + booking.id + '\')">×</button>' : ''}
-                        `;
+                    block.innerHTML = `
+                        ${badges}
+                        <div class="booking-name">${displayName}</div>
+                        <div class="booking-time">${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)}</div>
+                        ${canDelete ? '<button class="delete-booking-btn" onclick="deleteBooking(event, \'' + booking.id + '\')">×</button>' : ''}
+                    `;
 
-                        dayColumn.appendChild(block);
-                    }
+                    dayColumn.appendChild(block);
                 });
 
                 bodySection.appendChild(dayColumn);
