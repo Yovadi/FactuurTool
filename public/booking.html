@@ -1988,26 +1988,48 @@
             const pinInput = document.getElementById('pinInput');
             const pinError = document.getElementById('pinError');
 
-            const [tenantsRes, customersRes] = await Promise.all([
-                sb.from('tenants').select('id, name, company_name, booking_pin_code, meeting_discount_percentage').eq('booking_pin_code', pin),
-                sb.from('external_customers').select('id, company_name, contact_name, booking_pin_code, meeting_discount_percentage').eq('booking_pin_code', pin)
-            ]);
+            try {
+                const [tenantsRes, customersRes] = await Promise.all([
+                    sb.from('tenants').select('id, name, company_name, booking_pin_code, meeting_discount_percentage').eq('booking_pin_code', pin).neq('booking_pin_code', ''),
+                    sb.from('external_customers').select('id, company_name, contact_name, booking_pin_code, meeting_discount_percentage').eq('booking_pin_code', pin).neq('booking_pin_code', '')
+                ]);
 
-            if (tenantsRes.data && tenantsRes.data.length > 0) {
-                authenticatedUser = { ...tenantsRes.data[0], userType: 'tenant' };
-                showSuccess();
-            } else if (customersRes.data && customersRes.data.length > 0) {
-                authenticatedUser = { ...customersRes.data[0], userType: 'external' };
-                showSuccess();
-            } else {
+                if (tenantsRes.error) {
+                    console.error('Tenants query error:', tenantsRes.error);
+                    throw new Error('Database error bij ophalen huurders');
+                }
+
+                if (customersRes.error) {
+                    console.error('Customers query error:', customersRes.error);
+                    throw new Error('Database error bij ophalen klanten');
+                }
+
+                if (tenantsRes.data && tenantsRes.data.length > 0) {
+                    authenticatedUser = { ...tenantsRes.data[0], userType: 'tenant' };
+                    showSuccess();
+                } else if (customersRes.data && customersRes.data.length > 0) {
+                    authenticatedUser = { ...customersRes.data[0], userType: 'external' };
+                    showSuccess();
+                } else {
+                    pinInput.classList.add('error');
+                    pinError.textContent = 'Ongeldige pincode';
+                    pinError.style.display = 'block';
+                    pinInput.value = '';
+                    setTimeout(() => {
+                        pinInput.classList.remove('error');
+                        pinError.style.display = 'none';
+                    }, 2000);
+                }
+            } catch (error) {
+                console.error('Login error:', error);
                 pinInput.classList.add('error');
-                pinError.textContent = 'Ongeldige pincode';
+                pinError.textContent = error.message || 'Er ging iets mis. Probeer opnieuw.';
                 pinError.style.display = 'block';
                 pinInput.value = '';
                 setTimeout(() => {
                     pinInput.classList.remove('error');
                     pinError.style.display = 'none';
-                }, 2000);
+                }, 3000);
             }
         }
 
