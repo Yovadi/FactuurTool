@@ -38,6 +38,7 @@ export function BuildingInfo() {
   const [meterFormData, setMeterFormData] = useState<{ [alaGroup: string]: { [entryId: string]: { group_number: number; tenant_id: string | null; assignment_type: 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek'; description: string } } }>({});
   const [rcboFormData, setRcboFormData] = useState<{ [alaGroup: string]: { [key: number]: { tenant_id: string | null; assignment_type: 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek'; description: string } } }>({});
   const [alaType, setAlaType] = useState<{ [alaGroup: string]: 'groups' | 'rcbo' }>({});
+  const [originalAlaType, setOriginalAlaType] = useState<{ [alaGroup: string]: 'groups' | 'rcbo' }>({});
   const [buildingFormData, setBuildingFormData] = useState({
     meter_cabinet_info: '',
     building_notes: '',
@@ -194,6 +195,7 @@ export function BuildingInfo() {
 
     setRcboFormData(formData);
     setAlaType(types);
+    setOriginalAlaType(types);
   };
 
   const handleSaveWifi = async () => {
@@ -288,6 +290,8 @@ export function BuildingInfo() {
 
       for (const alaGroup of allAlaGroups) {
         const type = alaType[alaGroup] || 'groups';
+        const originalType = originalAlaType[alaGroup] || 'groups';
+        const typeChanged = type !== originalType;
 
         if (type === 'groups') {
           const entries = meterFormData[alaGroup] || {};
@@ -331,10 +335,12 @@ export function BuildingInfo() {
             }
           }
 
-          await supabase
-            .from('rcbo_circuit_breakers')
-            .delete()
-            .eq('ala_group', alaGroup);
+          if (typeChanged) {
+            await supabase
+              .from('rcbo_circuit_breakers')
+              .delete()
+              .eq('ala_group', alaGroup);
+          }
 
         } else if (type === 'rcbo') {
           const rcboData = rcboFormData[alaGroup] || {};
@@ -378,14 +384,17 @@ export function BuildingInfo() {
             }
           }
 
-          await supabase
-            .from('meter_groups')
-            .delete()
-            .eq('ala_group', alaGroup);
+          if (typeChanged) {
+            await supabase
+              .from('meter_groups')
+              .delete()
+              .eq('ala_group', alaGroup);
+          }
         }
       }
 
       await Promise.all([fetchMeterGroups(), fetchRcboBreakers()]);
+      setOriginalAlaType({ ...alaType });
       setEditingSection(null);
     } catch (error) {
       console.error('Error saving meter configuration:', error);
@@ -1194,7 +1203,8 @@ export function BuildingInfo() {
                 <button
                   onClick={() => {
                     setEditingSection(null);
-                    fetchMeterGroups();
+                    setAlaType({ ...originalAlaType });
+                    Promise.all([fetchMeterGroups(), fetchRcboBreakers()]);
                   }}
                   className="flex items-center gap-2 px-4 py-2 text-gray-300 hover:text-gray-100 transition-colors"
                 >
