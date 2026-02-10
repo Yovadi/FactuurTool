@@ -33,10 +33,10 @@ export function BuildingInfo() {
   const [editingSection, setEditingSection] = useState<'wifi' | 'patch' | 'meter' | 'building' | null>(null);
   const [showPasswords, setShowPasswords] = useState<{ [key: number]: boolean }>({});
 
-  const [wifiFormData, setWifiFormData] = useState<{ [key: number]: { network_name: string; password: string; tenant_id: string | null } }>({});
-  const [patchFormData, setPatchFormData] = useState<{ [key: string]: { tenant_id: string | null; notes: string } }>({});
-  const [meterFormData, setMeterFormData] = useState<{ [alaGroup: string]: { [entryId: string]: { group_number: number; tenant_id: string | null; description: string } } }>({});
-  const [rcboFormData, setRcboFormData] = useState<{ [alaGroup: string]: { [key: number]: { tenant_id: string | null; description: string } } }>({});
+  const [wifiFormData, setWifiFormData] = useState<{ [key: number]: { network_name: string; password: string; tenant_id: string | null; assignment_type: 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek' } }>({});
+  const [patchFormData, setPatchFormData] = useState<{ [key: string]: { tenant_id: string | null; assignment_type: 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek'; notes: string } }>({});
+  const [meterFormData, setMeterFormData] = useState<{ [alaGroup: string]: { [entryId: string]: { group_number: number; tenant_id: string | null; assignment_type: 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek'; description: string } } }>({});
+  const [rcboFormData, setRcboFormData] = useState<{ [alaGroup: string]: { [key: number]: { tenant_id: string | null; assignment_type: 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek'; description: string } } }>({});
   const [alaType, setAlaType] = useState<{ [alaGroup: string]: 'groups' | 'rcbo' }>({});
   const [buildingFormData, setBuildingFormData] = useState({
     meter_cabinet_info: '',
@@ -100,13 +100,14 @@ export function BuildingInfo() {
     if (error) throw error;
     setWifiNetworks(data || []);
 
-    const formData: { [key: number]: { network_name: string; password: string; tenant_id: string | null } } = {};
+    const formData: { [key: number]: { network_name: string; password: string; tenant_id: string | null; assignment_type: 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek' } } = {};
     for (let i = 1; i <= 9; i++) {
       const network = data?.find(n => n.network_number === i);
       formData[i] = {
         network_name: network?.network_name || '',
         password: network?.password || '',
         tenant_id: network?.tenant_id || null,
+        assignment_type: network?.assignment_type || 'eigen',
       };
     }
     setWifiFormData(formData);
@@ -198,24 +199,25 @@ export function BuildingInfo() {
         const network = wifiNetworks.find(n => n.network_number === i);
         const formValues = wifiFormData[i];
 
+        const updateData = {
+          network_name: formValues.network_name,
+          password: formValues.password,
+          assignment_type: formValues.assignment_type,
+          tenant_id: formValues.assignment_type === 'huurder' ? (formValues.tenant_id || null) : null,
+          updated_at: new Date().toISOString(),
+        };
+
         if (network) {
           await supabase
             .from('wifi_networks')
-            .update({
-              network_name: formValues.network_name,
-              password: formValues.password,
-              tenant_id: formValues.tenant_id || null,
-              updated_at: new Date().toISOString(),
-            })
+            .update(updateData)
             .eq('id', network.id);
         } else {
           await supabase
             .from('wifi_networks')
             .insert([{
               network_number: i,
-              network_name: formValues.network_name,
-              password: formValues.password,
-              tenant_id: formValues.tenant_id || null,
+              ...updateData,
             }]);
         }
       }
@@ -424,6 +426,20 @@ export function BuildingInfo() {
     return TENANT_COLORS[tenantIndex % TENANT_COLORS.length];
   };
 
+  const getAssignmentColor = (assignmentType: 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek', tenantId: string | null) => {
+    if (assignmentType === 'spreekkamer') return SPACE_COLORS.spreekkamer;
+    if (assignmentType === 'flexplek') return SPACE_COLORS.flexplek;
+    if (assignmentType === 'huurder' && tenantId) return getTenantColor(tenantId);
+    return SPACE_COLORS.eigen;
+  };
+
+  const getAssignmentLabel = (assignmentType: 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek', tenantId: string | null) => {
+    if (assignmentType === 'spreekkamer') return 'Spreekkamer';
+    if (assignmentType === 'flexplek') return 'Flexplek';
+    if (assignmentType === 'huurder' && tenantId) return getTenantName(tenantId);
+    return 'Eigen gebruik';
+  };
+
   const getGlobalKNumber = (alaGroup: string, groupNumber: number): number => {
     const alaNumber = parseInt(alaGroup.replace('ALA', ''));
     const previousALAs = Array.from({ length: alaNumber - 1 }, (_, i) => `ALA${i + 1}`);
@@ -561,8 +577,8 @@ export function BuildingInfo() {
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => {
-                  const formValues = wifiFormData[num];
-                  const borderColor = formValues?.tenant_id ? getTenantColor(formValues.tenant_id) : SPACE_COLORS.eigen;
+                  const formValues = wifiFormData[num] || { network_name: '', password: '', tenant_id: null, assignment_type: 'eigen' as const };
+                  const borderColor = getAssignmentColor(formValues.assignment_type, formValues.tenant_id);
 
                   return (
                     <div
@@ -576,10 +592,10 @@ export function BuildingInfo() {
                           <label className="block text-xs text-gray-400 mb-1">Netwerk Naam</label>
                           <input
                             type="text"
-                            value={wifiFormData[num]?.network_name || ''}
+                            value={formValues.network_name}
                             onChange={(e) => setWifiFormData({
                               ...wifiFormData,
-                              [num]: { ...wifiFormData[num], network_name: e.target.value }
+                              [num]: { ...formValues, network_name: e.target.value }
                             })}
                             placeholder="Bijv. HAL5-Kantoor"
                             className="w-full bg-dark-900 border border-dark-600 rounded px-2 py-1.5 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
@@ -589,33 +605,58 @@ export function BuildingInfo() {
                           <label className="block text-xs text-gray-400 mb-1">Wachtwoord</label>
                           <input
                             type="text"
-                            value={wifiFormData[num]?.password || ''}
+                            value={formValues.password}
                             onChange={(e) => setWifiFormData({
                               ...wifiFormData,
-                              [num]: { ...wifiFormData[num], password: e.target.value }
+                              [num]: { ...formValues, password: e.target.value }
                             })}
                             placeholder="Wachtwoord"
                             className="w-full bg-dark-900 border border-dark-600 rounded px-2 py-1.5 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">Huurder</label>
+                          <label className="block text-xs text-gray-400 mb-1">Type</label>
                           <select
-                            value={wifiFormData[num]?.tenant_id || ''}
-                            onChange={(e) => setWifiFormData({
-                              ...wifiFormData,
-                              [num]: { ...wifiFormData[num], tenant_id: e.target.value || null }
-                            })}
+                            value={formValues.assignment_type}
+                            onChange={(e) => {
+                              const newType = e.target.value as 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek';
+                              setWifiFormData({
+                                ...wifiFormData,
+                                [num]: {
+                                  ...formValues,
+                                  assignment_type: newType,
+                                  tenant_id: newType === 'huurder' ? formValues.tenant_id : null
+                                }
+                              });
+                            }}
                             className="w-full bg-dark-900 border border-dark-600 rounded px-2 py-1.5 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
                           >
-                            <option value="">Eigen gebruik</option>
-                            {tenants.map(tenant => (
-                              <option key={tenant.id} value={tenant.id}>
-                                {tenant.company_name}
-                              </option>
-                            ))}
+                            <option value="eigen">Eigen gebruik</option>
+                            <option value="spreekkamer">Spreekkamer</option>
+                            <option value="flexplek">Flexplek</option>
+                            <option value="huurder">Huurder</option>
                           </select>
                         </div>
+                        {formValues.assignment_type === 'huurder' && (
+                          <div>
+                            <label className="block text-xs text-gray-400 mb-1">Huurder</label>
+                            <select
+                              value={formValues.tenant_id || ''}
+                              onChange={(e) => setWifiFormData({
+                                ...wifiFormData,
+                                [num]: { ...formValues, tenant_id: e.target.value || null }
+                              })}
+                              className="w-full bg-dark-900 border border-dark-600 rounded px-2 py-1.5 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                            >
+                              <option value="">Selecteer huurder</option>
+                              {tenants.map(tenant => (
+                                <option key={tenant.id} value={tenant.id}>
+                                  {tenant.company_name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -647,8 +688,9 @@ export function BuildingInfo() {
               {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => {
                 const network = wifiNetworks.find(n => n.network_number === num);
                 const hasData = network && (network.network_name || network.password);
-                const tenantName = network?.tenant_id ? getTenantName(network.tenant_id) : 'Eigen gebruik';
-                const borderColor = network?.tenant_id ? getTenantColor(network.tenant_id) : SPACE_COLORS.eigen;
+                const assignmentType = network?.assignment_type || 'eigen';
+                const assignmentLabel = network ? getAssignmentLabel(assignmentType, network.tenant_id) : 'Eigen gebruik';
+                const borderColor = network ? getAssignmentColor(assignmentType, network.tenant_id) : SPACE_COLORS.eigen;
 
                 return (
                   <div
@@ -687,7 +729,7 @@ export function BuildingInfo() {
                         </div>
                         <div className="flex items-center gap-1 pt-1 border-t border-dark-700">
                           <User size={10} className="text-gray-400 flex-shrink-0" />
-                          <p className="text-xs text-gray-300 truncate" title={tenantName}>{tenantName}</p>
+                          <p className="text-xs text-gray-300 truncate" title={assignmentLabel}>{assignmentLabel}</p>
                         </div>
                       </div>
                     ) : (
