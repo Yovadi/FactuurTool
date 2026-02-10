@@ -28,8 +28,8 @@ export function BuildingInfo() {
   const [showPasswords, setShowPasswords] = useState<{ [key: number]: boolean }>({});
 
   const [wifiFormData, setWifiFormData] = useState<{ [key: number]: { network_name: string; password: string; tenant_id: string | null } }>({});
-  const [patchFormData, setPatchFormData] = useState<{ [key: string]: { location_type: string; location_number: string; notes: string } }>({});
-  const [meterFormData, setMeterFormData] = useState<{ [alaGroup: string]: { [entryId: string]: { group_number: number; location_type: string; location_number: string; description: string } } }>({});
+  const [patchFormData, setPatchFormData] = useState<{ [key: string]: { tenant_id: string | null; notes: string } }>({});
+  const [meterFormData, setMeterFormData] = useState<{ [alaGroup: string]: { [entryId: string]: { group_number: number; tenant_id: string | null; description: string } } }>({});
   const [rcboFormData, setRcboFormData] = useState<{ [alaGroup: string]: { [key: number]: { tenant_id: string | null; description: string } } }>({});
   const [alaType, setAlaType] = useState<{ [alaGroup: string]: 'groups' | 'rcbo' }>({});
   const [buildingFormData, setBuildingFormData] = useState({
@@ -115,14 +115,13 @@ export function BuildingInfo() {
     if (error) throw error;
     setPatchPorts(data || []);
 
-    const formData: { [key: string]: { location_type: string; location_number: string; notes: string } } = {};
+    const formData: { [key: string]: { tenant_id: string | null; notes: string } } = {};
     for (let switchNum = 1; switchNum <= 2; switchNum++) {
       for (let portNum = 1; portNum <= 24; portNum++) {
         const key = `${switchNum}-${portNum}`;
         const port = data?.find(p => p.switch_number === switchNum && p.port_number === portNum);
         formData[key] = {
-          location_type: port?.location_type || '',
-          location_number: port?.location_number?.toString() || '',
+          tenant_id: port?.tenant_id || null,
           notes: port?.notes || '',
         };
       }
@@ -134,20 +133,19 @@ export function BuildingInfo() {
     const { data, error } = await supabase
       .from('meter_groups')
       .select('*')
-      .order('ala_group, group_number, location_number');
+      .order('ala_group, group_number');
 
     if (error) throw error;
     setMeterGroups(data || []);
 
-    const formData: { [alaGroup: string]: { [entryId: string]: { group_number: number; location_type: string; location_number: string; description: string } } } = {};
+    const formData: { [alaGroup: string]: { [entryId: string]: { group_number: number; tenant_id: string | null; description: string } } } = {};
     data?.forEach(group => {
       if (!formData[group.ala_group]) {
         formData[group.ala_group] = {};
       }
       formData[group.ala_group][group.id] = {
         group_number: group.group_number,
-        location_type: group.location_type || '',
-        location_number: group.location_number?.toString() || '',
+        tenant_id: group.tenant_id || null,
         description: group.description || '',
       };
     });
@@ -232,15 +230,14 @@ export function BuildingInfo() {
           const port = patchPorts.find(p => p.switch_number === switchNum && p.port_number === portNum);
           const formValues = patchFormData[key];
 
-          const hasData = formValues.location_type || formValues.notes.trim();
+          const hasData = formValues.tenant_id || formValues.notes.trim();
 
           if (port) {
             if (hasData) {
               await supabase
                 .from('patch_ports')
                 .update({
-                  location_type: formValues.location_type || null,
-                  location_number: formValues.location_number ? parseInt(formValues.location_number) : null,
+                  tenant_id: formValues.tenant_id || null,
                   notes: formValues.notes,
                   updated_at: new Date().toISOString(),
                 })
@@ -257,8 +254,7 @@ export function BuildingInfo() {
               .insert([{
                 switch_number: switchNum,
                 port_number: portNum,
-                location_type: formValues.location_type || null,
-                location_number: formValues.location_number ? parseInt(formValues.location_number) : null,
+                tenant_id: formValues.tenant_id || null,
                 notes: formValues.notes,
               }]);
           }
@@ -285,7 +281,7 @@ export function BuildingInfo() {
 
           for (const entryId of Object.keys(entries)) {
             const formValues = entries[entryId];
-            const hasData = formValues?.location_type || formValues?.description?.trim();
+            const hasData = formValues?.tenant_id || formValues?.description?.trim();
 
             if (entryId.startsWith('new-')) {
               if (hasData) {
@@ -294,8 +290,7 @@ export function BuildingInfo() {
                   .insert([{
                     ala_group: alaGroup,
                     group_number: formValues.group_number,
-                    location_type: formValues.location_type || null,
-                    location_number: formValues.location_number ? parseInt(formValues.location_number) : null,
+                    tenant_id: formValues.tenant_id || null,
                     description: formValues.description,
                   }]);
               }
@@ -308,8 +303,7 @@ export function BuildingInfo() {
                     .update({
                       ala_group: alaGroup,
                       group_number: formValues.group_number,
-                      location_type: formValues.location_type || null,
-                      location_number: formValues.location_number ? parseInt(formValues.location_number) : null,
+                      tenant_id: formValues.tenant_id || null,
                       description: formValues.description,
                       updated_at: new Date().toISOString(),
                     })
@@ -670,64 +664,62 @@ export function BuildingInfo() {
 
           {editingSection === 'patch' ? (
             <div className="space-y-6">
+              <div className="bg-dark-800 rounded-lg p-4 border border-dark-600">
+                <h4 className="text-sm font-semibold text-gray-300 mb-3">Huurder Legenda</h4>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded border-2 border-dark-700 flex-shrink-0 bg-gray-500" />
+                    <span className="text-xs text-gray-200">Eigen gebruik</span>
+                  </div>
+                  {tenants.map((tenant, index) => (
+                    <div key={tenant.id} className="flex items-center gap-2">
+                      <div
+                        className="w-6 h-6 rounded border-2 border-dark-700 flex-shrink-0"
+                        style={{ backgroundColor: TENANT_COLORS[index % TENANT_COLORS.length] }}
+                      />
+                      <span className="text-xs text-gray-200 truncate" title={tenant.company_name}>
+                        {tenant.company_name}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               {[1, 2].map((switchNum) => (
                 <div key={switchNum} className="bg-dark-800 rounded-lg p-6 border border-dark-700">
                   <h4 className="text-lg font-semibold text-gray-200 mb-4">Switch {switchNum}</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                     {Array.from({ length: 24 }, (_, i) => i + 1).map((portNum) => {
                       const key = `${switchNum}-${portNum}`;
-                      const formValues = patchFormData[key] || { location_type: '', location_number: '', notes: '' };
+                      const formValues = patchFormData[key] || { tenant_id: null, notes: '' };
                       return (
-                        <div key={key} className="bg-dark-900 rounded p-3 border border-dark-600">
+                        <div
+                          key={key}
+                          className="bg-dark-900 rounded-lg p-3 border-2"
+                          style={{
+                            borderColor: formValues.tenant_id === null && formValues.notes ? '#6B7280' :
+                                        formValues.tenant_id ? getTenantColor(formValues.tenant_id) : '#374151'
+                          }}
+                        >
                           <label className="block text-xs font-medium text-gray-400 mb-2">
                             Poort {portNum}
                           </label>
                           <div className="space-y-2">
                             <select
-                              value={formValues.location_type}
+                              value={formValues.tenant_id || ''}
                               onChange={(e) => setPatchFormData({
                                 ...patchFormData,
-                                [key]: { ...formValues, location_type: e.target.value, location_number: '' }
+                                [key]: { ...formValues, tenant_id: e.target.value || null }
                               })}
                               className="w-full bg-dark-800 border border-dark-600 rounded px-2 py-1.5 text-gray-100 text-xs focus:outline-none focus:ring-2 focus:ring-gold-500"
                             >
-                              <option value="">Geen toewijzing</option>
-                              <option value="kantoor">Kantoor</option>
-                              <option value="bedrijfshal">Bedrijfshal</option>
-                              <option value="eigen_gebruik">Eigen gebruik</option>
+                              <option value="">Eigen gebruik</option>
+                              {tenants.map(tenant => (
+                                <option key={tenant.id} value={tenant.id}>
+                                  {tenant.company_name}
+                                </option>
+                              ))}
                             </select>
-
-                            {formValues.location_type === 'kantoor' && (
-                              <select
-                                value={formValues.location_number}
-                                onChange={(e) => setPatchFormData({
-                                  ...patchFormData,
-                                  [key]: { ...formValues, location_number: e.target.value }
-                                })}
-                                className="w-full bg-dark-800 border border-dark-600 rounded px-2 py-1.5 text-gray-100 text-xs focus:outline-none focus:ring-2 focus:ring-gold-500"
-                              >
-                                <option value="">Selecteer kantoor</option>
-                                {[1, 2, 3, 4, 5, 6, 7, 8].map(num => (
-                                  <option key={num} value={num}>Kantoor {num}</option>
-                                ))}
-                              </select>
-                            )}
-
-                            {formValues.location_type === 'bedrijfshal' && (
-                              <select
-                                value={formValues.location_number}
-                                onChange={(e) => setPatchFormData({
-                                  ...patchFormData,
-                                  [key]: { ...formValues, location_number: e.target.value }
-                                })}
-                                className="w-full bg-dark-800 border border-dark-600 rounded px-2 py-1.5 text-gray-100 text-xs focus:outline-none focus:ring-2 focus:ring-gold-500"
-                              >
-                                <option value="">Selecteer hal</option>
-                                {[1, 2, 3, 4].map(num => (
-                                  <option key={num} value={num}>Hal {num}</option>
-                                ))}
-                              </select>
-                            )}
 
                             <input
                               type="text"
@@ -769,8 +761,31 @@ export function BuildingInfo() {
             </div>
           ) : (
             <div className="space-y-6">
+              {patchPorts.length > 0 && (
+                <div className="bg-dark-800 rounded-lg p-4 border border-dark-600">
+                  <h4 className="text-sm font-semibold text-gray-300 mb-3">Huurder Legenda</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-5 h-5 rounded border-2 border-dark-700 flex-shrink-0 bg-gray-500" />
+                      <span className="text-xs text-gray-200">Eigen gebruik</span>
+                    </div>
+                    {tenants.map((tenant, index) => (
+                      <div key={tenant.id} className="flex items-center gap-2">
+                        <div
+                          className="w-5 h-5 rounded border-2 border-dark-700 flex-shrink-0"
+                          style={{ backgroundColor: TENANT_COLORS[index % TENANT_COLORS.length] }}
+                        />
+                        <span className="text-xs text-gray-200 truncate" title={tenant.company_name}>
+                          {tenant.company_name}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {[1, 2].map((switchNum) => {
-                const switchPorts = patchPorts.filter(p => p.switch_number === switchNum && (p.location_type || p.notes));
+                const switchPorts = patchPorts.filter(p => p.switch_number === switchNum && (p.tenant_id || p.notes));
 
                 return (
                   <div key={switchNum} className="bg-dark-800 rounded-lg p-6 border border-dark-700">
@@ -779,28 +794,36 @@ export function BuildingInfo() {
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                         {Array.from({ length: 24 }, (_, i) => i + 1).map((portNum) => {
                           const port = patchPorts.find(p => p.switch_number === switchNum && p.port_number === portNum);
-                          const hasData = port && (port.location_type || port.notes);
+                          const hasData = port && (port.tenant_id || port.notes);
 
-                          let locationLabel = '-';
-                          if (port?.location_type === 'kantoor' && port.location_number) {
-                            locationLabel = `Kantoor ${port.location_number}`;
-                          } else if (port?.location_type === 'bedrijfshal' && port.location_number) {
-                            locationLabel = `Hal ${port.location_number}`;
-                          } else if (port?.location_type === 'eigen_gebruik') {
-                            locationLabel = 'Eigen gebruik';
-                          } else if (port?.notes) {
-                            locationLabel = 'Notitie';
-                          }
+                          if (!hasData) return null;
+
+                          const tenantName = port.tenant_id ? getTenantName(port.tenant_id) : 'Eigen gebruik';
+                          const color = port.tenant_id ? getTenantColor(port.tenant_id) : '#6B7280';
 
                           return (
-                            <div key={portNum} className={`bg-dark-900 rounded p-2 border ${hasData ? 'border-dark-600' : 'border-dark-700 opacity-40'}`}>
-                              <p className="text-xs font-medium text-gray-400 mb-1">Poort {portNum}</p>
-                              <p className="text-xs text-gray-200 font-medium">{locationLabel}</p>
-                              {port?.notes && (
-                                <p className="text-xs text-gray-400 mt-1 truncate" title={port.notes}>
-                                  {port.notes}
+                            <div
+                              key={portNum}
+                              className="bg-dark-900 rounded-lg p-3 border-2"
+                              style={{ borderColor: color }}
+                            >
+                              <div className="flex items-center justify-between mb-2">
+                                <p className="text-xs font-medium text-gray-400">Poort {portNum}</p>
+                                <div
+                                  className="w-4 h-4 rounded border border-dark-700 flex-shrink-0"
+                                  style={{ backgroundColor: color }}
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <p className="text-xs text-gray-200 font-medium truncate" title={tenantName}>
+                                  {tenantName}
                                 </p>
-                              )}
+                                {port.notes && (
+                                  <p className="text-xs text-gray-400 truncate" title={port.notes}>
+                                    {port.notes}
+                                  </p>
+                                )}
+                              </div>
                             </div>
                           );
                         })}
@@ -861,24 +884,26 @@ export function BuildingInfo() {
                 </div>
               </div>
 
-              {alaType[selectedAla] === 'rcbo' && (
-                <div className="bg-dark-800 rounded-lg p-4 border border-dark-600">
-                  <h4 className="text-sm font-semibold text-gray-300 mb-3">Huurder Legenda</h4>
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                    {tenants.map((tenant, index) => (
-                      <div key={tenant.id} className="flex items-center gap-2">
-                        <div
-                          className="w-6 h-6 rounded border-2 border-dark-700 flex-shrink-0"
-                          style={{ backgroundColor: TENANT_COLORS[index % TENANT_COLORS.length] }}
-                        />
-                        <span className="text-xs text-gray-200 truncate" title={tenant.company_name}>
-                          {tenant.company_name}
-                        </span>
-                      </div>
-                    ))}
+              <div className="bg-dark-800 rounded-lg p-4 border border-dark-600">
+                <h4 className="text-sm font-semibold text-gray-300 mb-3">Huurder Legenda</h4>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded border-2 border-dark-700 flex-shrink-0 bg-gray-500" />
+                    <span className="text-xs text-gray-200">Eigen gebruik</span>
                   </div>
+                  {tenants.map((tenant, index) => (
+                    <div key={tenant.id} className="flex items-center gap-2">
+                      <div
+                        className="w-6 h-6 rounded border-2 border-dark-700 flex-shrink-0"
+                        style={{ backgroundColor: TENANT_COLORS[index % TENANT_COLORS.length] }}
+                      />
+                      <span className="text-xs text-gray-200 truncate" title={tenant.company_name}>
+                        {tenant.company_name}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-              )}
+              </div>
 
               {alaType[selectedAla] === 'groups' ? (
                 <div className="space-y-4">
@@ -904,54 +929,44 @@ export function BuildingInfo() {
                                 ...meterFormData,
                                 [selectedAla]: {
                                   ...currentAlaData,
-                                  [newId]: { group_number: groupNum, location_type: '', location_number: '', description: '' }
+                                  [newId]: { group_number: groupNum, tenant_id: null, description: '' }
                                 }
                               });
                             }}
                             className="text-xs text-gold-500 hover:text-gold-400 transition-colors"
                           >
-                            + Kantoor toevoegen
+                            + Toewijzing toevoegen
                           </button>
                         </div>
 
                         <div className="space-y-3">
                           {entries.map(([entryId, formValues]) => (
-                            <div key={entryId} className="bg-dark-900 rounded p-3 border border-dark-700">
+                            <div
+                              key={entryId}
+                              className="bg-dark-900 rounded p-3 border-2"
+                              style={{
+                                borderColor: formValues.tenant_id ? getTenantColor(formValues.tenant_id) : '#6B7280'
+                              }}
+                            >
                               <div className="space-y-2">
                                 <select
-                                  value={formValues.location_type}
+                                  value={formValues.tenant_id || ''}
                                   onChange={(e) => setMeterFormData({
                                     ...meterFormData,
                                     [selectedAla]: {
                                       ...currentAlaData,
-                                      [entryId]: { ...formValues, location_type: e.target.value, location_number: '' }
+                                      [entryId]: { ...formValues, tenant_id: e.target.value || null }
                                     }
                                   })}
                                   className="w-full bg-dark-800 border border-dark-600 rounded px-3 py-2 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
                                 >
-                                  <option value="">Geen toewijzing</option>
-                                  <option value="kantoor">Kantoor</option>
-                                  <option value="eigen_gebruik">Eigen gebruik</option>
+                                  <option value="">Eigen gebruik</option>
+                                  {tenants.map(tenant => (
+                                    <option key={tenant.id} value={tenant.id}>
+                                      {tenant.company_name}
+                                    </option>
+                                  ))}
                                 </select>
-
-                                {formValues.location_type === 'kantoor' && (
-                                  <select
-                                    value={formValues.location_number}
-                                    onChange={(e) => setMeterFormData({
-                                      ...meterFormData,
-                                      [selectedAla]: {
-                                        ...currentAlaData,
-                                        [entryId]: { ...formValues, location_number: e.target.value }
-                                      }
-                                    })}
-                                    className="w-full bg-dark-800 border border-dark-600 rounded px-3 py-2 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
-                                  >
-                                    <option value="">Selecteer kantoor</option>
-                                    {[1, 2, 3, 4, 5, 6, 7, 8].map(num => (
-                                      <option key={num} value={num}>Kantoor {num}</option>
-                                    ))}
-                                  </select>
-                                )}
 
                                 <input
                                   type="text"
@@ -985,7 +1000,7 @@ export function BuildingInfo() {
                           ))}
 
                           {!hasEntries && (
-                            <p className="text-xs text-gray-500 text-center py-2">Nog geen kantoren toegewezen</p>
+                            <p className="text-xs text-gray-500 text-center py-2">Nog geen toewijzingen</p>
                           )}
                         </div>
                       </div>
@@ -1163,30 +1178,58 @@ export function BuildingInfo() {
 
                       return (
                         <div key={alaGroup} className="border border-dark-700 rounded-lg p-4">
-                          <h4 className="text-sm font-semibold text-gold-500 mb-3">Aardlek {alaGroup.replace('ALA', '')} - Groepen</h4>
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="text-sm font-semibold text-gold-500">Aardlek {alaGroup.replace('ALA', '')} - Groepen</h4>
+                          </div>
+
+                          <div className="bg-dark-800 rounded-lg p-3 border border-dark-600 mb-4">
+                            <h5 className="text-xs font-semibold text-gray-300 mb-2">Huurder Legenda</h5>
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
+                              <div className="flex items-center gap-2">
+                                <div className="w-5 h-5 rounded border-2 border-dark-700 flex-shrink-0 bg-gray-500" />
+                                <span className="text-xs text-gray-200">Eigen gebruik</span>
+                              </div>
+                              {tenants.map((tenant, index) => (
+                                <div key={tenant.id} className="flex items-center gap-2">
+                                  <div
+                                    className="w-5 h-5 rounded border-2 border-dark-700 flex-shrink-0"
+                                    style={{ backgroundColor: TENANT_COLORS[index % TENANT_COLORS.length] }}
+                                  />
+                                  <span className="text-xs text-gray-200 truncate" title={tenant.company_name}>
+                                    {tenant.company_name}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
                           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                             {Object.entries(groupedByK).sort(([a], [b]) => parseInt(a) - parseInt(b)).map(([groupNum, groups]) => {
                               const globalK = getGlobalKNumber(alaGroup, parseInt(groupNum));
                               return (
                                 <div key={groupNum} className="bg-dark-800 rounded p-3 border border-dark-600">
                                   <p className="text-xs font-medium text-gray-400 mb-2">K{globalK}</p>
-                                  <div className="space-y-1">
+                                  <div className="space-y-2">
                                     {groups.map(group => {
-                                      let locationLabel = '-';
-                                      if (group.location_type === 'kantoor' && group.location_number) {
-                                        locationLabel = `Kantoor ${group.location_number}`;
-                                      } else if (group.location_type === 'eigen_gebruik') {
-                                        locationLabel = 'Eigen gebruik';
-                                      }
+                                      const tenantName = group.tenant_id ? getTenantName(group.tenant_id) : 'Eigen gebruik';
+                                      const color = group.tenant_id ? getTenantColor(group.tenant_id) : '#6B7280';
 
                                       return (
-                                        <div key={group.id}>
-                                          <p className="text-xs text-gray-200 font-medium">{locationLabel}</p>
-                                          {group.description && (
-                                            <p className="text-xs text-gray-400 truncate" title={group.description}>
-                                              {group.description}
+                                        <div key={group.id} className="flex items-start gap-2">
+                                          <div
+                                            className="w-3 h-3 rounded border border-dark-700 flex-shrink-0 mt-0.5"
+                                            style={{ backgroundColor: color }}
+                                          />
+                                          <div className="flex-1 min-w-0">
+                                            <p className="text-xs text-gray-200 font-medium truncate" title={tenantName}>
+                                              {tenantName}
                                             </p>
-                                          )}
+                                            {group.description && (
+                                              <p className="text-xs text-gray-400 truncate" title={group.description}>
+                                                {group.description}
+                                              </p>
+                                            )}
+                                          </div>
                                         </div>
                                       );
                                     })}

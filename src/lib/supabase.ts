@@ -187,8 +187,7 @@ export type PatchPort = {
   id: string;
   switch_number: number;
   port_number: number;
-  location_type: 'kantoor' | 'bedrijfshal' | 'eigen_gebruik' | null;
-  location_number: number | null;
+  tenant_id: string | null;
   notes: string;
   created_at: string;
   updated_at: string;
@@ -198,8 +197,7 @@ export type MeterGroup = {
   id: string;
   ala_group: string;
   group_number: number;
-  location_type: 'kantoor' | 'eigen_gebruik' | null;
-  location_number: number | null;
+  tenant_id: string | null;
   description: string;
   created_at: string;
   updated_at: string;
