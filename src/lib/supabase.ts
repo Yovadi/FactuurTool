@@ -204,3 +204,12 @@ export type MeterGroup = {
   created_at: string;
   updated_at: string;
 };
+
+export type RcboCircuitBreaker = {
+  id: string;
+  rcbo_number: number;
+  tenant_id: string | null;
+  description: string;
+  created_at: string;
+  updated_at: string;
+};

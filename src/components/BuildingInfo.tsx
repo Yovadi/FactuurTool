@@ -1,21 +1,36 @@
 import { useState, useEffect } from 'react';
-import { supabase, type CompanySettings, type WifiNetwork, type PatchPort, type MeterGroup, type Tenant } from '../lib/supabase';
+import { supabase, type CompanySettings, type WifiNetwork, type PatchPort, type MeterGroup, type RcboCircuitBreaker, type Tenant } from '../lib/supabase';
 import { Home, Edit2, Wifi, Network, FileText, Info, Save, X, Eye, EyeOff, User, Zap, Download } from 'lucide-react';
 import { generateBuildingInfoPDF } from '../utils/pdfGenerator';
+
+const TENANT_COLORS = [
+  '#EF4444', // red-500
+  '#F59E0B', // amber-500
+  '#10B981', // emerald-500
+  '#3B82F6', // blue-500
+  '#8B5CF6', // violet-500
+  '#EC4899', // pink-500
+  '#14B8A6', // teal-500
+  '#F97316', // orange-500
+  '#06B6D4', // cyan-500
+  '#84CC16', // lime-500
+];
 
 export function BuildingInfo() {
   const [settings, setSettings] = useState<CompanySettings | null>(null);
   const [wifiNetworks, setWifiNetworks] = useState<WifiNetwork[]>([]);
   const [patchPorts, setPatchPorts] = useState<PatchPort[]>([]);
   const [meterGroups, setMeterGroups] = useState<MeterGroup[]>([]);
+  const [rcboBreakers, setRcboBreakers] = useState<RcboCircuitBreaker[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingSection, setEditingSection] = useState<'wifi' | 'patch' | 'meter' | 'building' | null>(null);
+  const [editingSection, setEditingSection] = useState<'wifi' | 'patch' | 'meter' | 'rcbo' | 'building' | null>(null);
   const [showPasswords, setShowPasswords] = useState<{ [key: number]: boolean }>({});
 
   const [wifiFormData, setWifiFormData] = useState<{ [key: number]: { network_name: string; password: string; tenant_id: string | null } }>({});
   const [patchFormData, setPatchFormData] = useState<{ [key: string]: { location_type: string; location_number: string; notes: string } }>({});
   const [meterFormData, setMeterFormData] = useState<{ [alaGroup: string]: { [entryId: string]: { group_number: number; location_type: string; location_number: string; description: string } } }>({});
+  const [rcboFormData, setRcboFormData] = useState<{ [key: number]: { tenant_id: string | null; description: string } }>({});
   const [buildingFormData, setBuildingFormData] = useState({
     meter_cabinet_info: '',
     building_notes: '',
@@ -33,6 +48,7 @@ export function BuildingInfo() {
         fetchWifiNetworks(),
         fetchPatchPorts(),
         fetchMeterGroups(),
+        fetchRcboBreakers(),
         fetchTenants(),
       ]);
       setLoading(false);
@@ -135,6 +151,26 @@ export function BuildingInfo() {
       };
     });
     setMeterFormData(formData);
+  };
+
+  const fetchRcboBreakers = async () => {
+    const { data, error } = await supabase
+      .from('rcbo_circuit_breakers')
+      .select('*')
+      .order('rcbo_number');
+
+    if (error) throw error;
+    setRcboBreakers(data || []);
+
+    const formData: { [key: number]: { tenant_id: string | null; description: string } } = {};
+    for (let i = 1; i <= 50; i++) {
+      const breaker = data?.find(b => b.rcbo_number === i);
+      formData[i] = {
+        tenant_id: breaker?.tenant_id || null,
+        description: breaker?.description || '',
+      };
+    }
+    setRcboFormData(formData);
   };
 
   const handleSaveWifi = async () => {
@@ -277,6 +313,49 @@ export function BuildingInfo() {
     }
   };
 
+  const handleSaveRcbo = async () => {
+    try {
+      for (let i = 1; i <= 50; i++) {
+        const breaker = rcboBreakers.find(b => b.rcbo_number === i);
+        const formValues = rcboFormData[i];
+
+        const hasData = formValues.tenant_id || formValues.description.trim();
+
+        if (breaker) {
+          if (hasData) {
+            await supabase
+              .from('rcbo_circuit_breakers')
+              .update({
+                tenant_id: formValues.tenant_id || null,
+                description: formValues.description,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', breaker.id);
+          } else {
+            await supabase
+              .from('rcbo_circuit_breakers')
+              .delete()
+              .eq('id', breaker.id);
+          }
+        } else if (hasData) {
+          await supabase
+            .from('rcbo_circuit_breakers')
+            .insert([{
+              rcbo_number: i,
+              tenant_id: formValues.tenant_id || null,
+              description: formValues.description,
+            }]);
+        }
+      }
+
+      await fetchRcboBreakers();
+      setEditingSection(null);
+    } catch (error) {
+      console.error('Error saving RCBO breakers:', error);
+      alert('Er is een fout opgetreden bij het opslaan');
+    }
+  };
+
   const handleSaveBuilding = async () => {
     try {
       if (settings) {
@@ -309,6 +388,13 @@ export function BuildingInfo() {
     if (!tenantId) return null;
     const tenant = tenants.find(t => t.id === tenantId);
     return tenant?.company_name || null;
+  };
+
+  const getTenantColor = (tenantId: string | null) => {
+    if (!tenantId) return '#6B7280';
+    const tenantIndex = tenants.findIndex(t => t.id === tenantId);
+    if (tenantIndex === -1) return '#6B7280';
+    return TENANT_COLORS[tenantIndex % TENANT_COLORS.length];
   };
 
   const getGlobalKNumber = (alaGroup: string, groupNumber: number): number => {
@@ -920,6 +1006,181 @@ export function BuildingInfo() {
                 </div>
               ) : (
                 <p className="text-sm text-gray-500">Geen groepen geconfigureerd</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
+          <div className="flex justify-between items-start mb-6">
+            <div className="flex items-center gap-3">
+              <Zap size={24} className="text-gold-500" />
+              <h3 className="text-xl font-semibold text-gray-100">Aardlekautomaten</h3>
+            </div>
+            {editingSection !== 'rcbo' && (
+              <button
+                onClick={() => setEditingSection('rcbo')}
+                className="flex items-center gap-2 text-gold-500 hover:text-gold-400 transition-colors"
+              >
+                <Edit2 size={18} />
+                Bewerken
+              </button>
+            )}
+          </div>
+
+          {editingSection === 'rcbo' ? (
+            <div className="space-y-6">
+              <div className="bg-dark-800 rounded-lg p-4 border border-dark-600">
+                <h4 className="text-sm font-semibold text-gray-300 mb-3">Huurder Legenda</h4>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                  {tenants.map((tenant, index) => (
+                    <div key={tenant.id} className="flex items-center gap-2">
+                      <div
+                        className="w-6 h-6 rounded border-2 border-dark-700 flex-shrink-0"
+                        style={{ backgroundColor: TENANT_COLORS[index % TENANT_COLORS.length] }}
+                      />
+                      <span className="text-xs text-gray-200 truncate" title={tenant.company_name}>
+                        {tenant.company_name}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                {Array.from({ length: 50 }, (_, i) => i + 1).map((num) => {
+                  const formValues = rcboFormData[num] || { tenant_id: null, description: '' };
+                  const hasData = formValues.tenant_id || formValues.description.trim();
+
+                  if (!hasData && num > Math.max(0, ...Object.keys(rcboFormData).filter(k => rcboFormData[parseInt(k)].tenant_id || rcboFormData[parseInt(k)].description.trim()).map(k => parseInt(k))) + 5) {
+                    return null;
+                  }
+
+                  return (
+                    <div
+                      key={num}
+                      className="bg-dark-800 rounded-lg p-3 border-2"
+                      style={{
+                        borderColor: formValues.tenant_id ? getTenantColor(formValues.tenant_id) : '#374151'
+                      }}
+                    >
+                      <label className="block text-xs font-medium text-gray-400 mb-2">
+                        Automaat {num}
+                      </label>
+                      <div className="space-y-2">
+                        <select
+                          value={formValues.tenant_id || ''}
+                          onChange={(e) => setRcboFormData({
+                            ...rcboFormData,
+                            [num]: { ...formValues, tenant_id: e.target.value || null }
+                          })}
+                          className="w-full bg-dark-900 border border-dark-600 rounded px-2 py-1.5 text-gray-100 text-xs focus:outline-none focus:ring-2 focus:ring-gold-500"
+                        >
+                          <option value="">Geen huurder</option>
+                          {tenants.map(tenant => (
+                            <option key={tenant.id} value={tenant.id}>
+                              {tenant.company_name}
+                            </option>
+                          ))}
+                        </select>
+
+                        <input
+                          type="text"
+                          value={formValues.description}
+                          onChange={(e) => setRcboFormData({
+                            ...rcboFormData,
+                            [num]: { ...formValues, description: e.target.value }
+                          })}
+                          placeholder="Omschrijving"
+                          className="w-full bg-dark-900 border border-dark-600 rounded px-2 py-1.5 text-gray-100 text-xs focus:outline-none focus:ring-2 focus:ring-gold-500"
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-dark-700">
+                <button
+                  onClick={() => {
+                    setEditingSection(null);
+                    fetchRcboBreakers();
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 text-gray-300 hover:text-gray-100 transition-colors"
+                >
+                  <X size={18} />
+                  Annuleren
+                </button>
+                <button
+                  onClick={handleSaveRcbo}
+                  className="flex items-center gap-2 bg-gold-500 text-white px-6 py-2 rounded-lg hover:bg-gold-600 transition-colors"
+                >
+                  <Save size={18} />
+                  Opslaan
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              {rcboBreakers.length > 0 ? (
+                <div className="space-y-6">
+                  <div className="bg-dark-800 rounded-lg p-4 border border-dark-600">
+                    <h4 className="text-sm font-semibold text-gray-300 mb-3">Huurder Legenda</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                      {tenants.map((tenant, index) => (
+                        <div key={tenant.id} className="flex items-center gap-2">
+                          <div
+                            className="w-6 h-6 rounded border-2 border-dark-700 flex-shrink-0"
+                            style={{ backgroundColor: TENANT_COLORS[index % TENANT_COLORS.length] }}
+                          />
+                          <span className="text-xs text-gray-200 truncate" title={tenant.company_name}>
+                            {tenant.company_name}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                    {rcboBreakers.map(breaker => {
+                      const tenantName = getTenantName(breaker.tenant_id);
+                      const color = getTenantColor(breaker.tenant_id);
+
+                      return (
+                        <div
+                          key={breaker.id}
+                          className="bg-dark-800 rounded-lg p-3 border-2"
+                          style={{ borderColor: color }}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-xs font-medium text-gray-400">Automaat {breaker.rcbo_number}</p>
+                            <div
+                              className="w-4 h-4 rounded border border-dark-700 flex-shrink-0"
+                              style={{ backgroundColor: color }}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            {tenantName && (
+                              <p className="text-xs text-gray-200 font-medium truncate" title={tenantName}>
+                                {tenantName}
+                              </p>
+                            )}
+                            {breaker.description && (
+                              <p className="text-xs text-gray-400 truncate" title={breaker.description}>
+                                {breaker.description}
+                              </p>
+                            )}
+                            {!tenantName && !breaker.description && (
+                              <p className="text-xs text-gray-500">Geen gegevens</p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">Geen aardlekautomaten geconfigureerd</p>
               )}
             </div>
           )}
