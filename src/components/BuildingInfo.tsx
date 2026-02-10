@@ -122,13 +122,14 @@ export function BuildingInfo() {
     if (error) throw error;
     setPatchPorts(data || []);
 
-    const formData: { [key: string]: { tenant_id: string | null; notes: string } } = {};
+    const formData: { [key: string]: { tenant_id: string | null; assignment_type: 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek'; notes: string } } = {};
     for (let switchNum = 1; switchNum <= 2; switchNum++) {
       for (let portNum = 1; portNum <= 24; portNum++) {
         const key = `${switchNum}-${portNum}`;
         const port = data?.find(p => p.switch_number === switchNum && p.port_number === portNum);
         formData[key] = {
           tenant_id: port?.tenant_id || null,
+          assignment_type: port?.assignment_type || 'eigen',
           notes: port?.notes || '',
         };
       }
@@ -145,7 +146,7 @@ export function BuildingInfo() {
     if (error) throw error;
     setMeterGroups(data || []);
 
-    const formData: { [alaGroup: string]: { [entryId: string]: { group_number: number; tenant_id: string | null; description: string } } } = {};
+    const formData: { [alaGroup: string]: { [entryId: string]: { group_number: number; tenant_id: string | null; assignment_type: 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek'; description: string } } } = {};
     data?.forEach(group => {
       if (!formData[group.ala_group]) {
         formData[group.ala_group] = {};
@@ -153,6 +154,7 @@ export function BuildingInfo() {
       formData[group.ala_group][group.id] = {
         group_number: group.group_number,
         tenant_id: group.tenant_id || null,
+        assignment_type: group.assignment_type || 'eigen',
         description: group.description || '',
       };
     });
@@ -168,7 +170,7 @@ export function BuildingInfo() {
     if (error) throw error;
     setRcboBreakers(data || []);
 
-    const formData: { [alaGroup: string]: { [key: number]: { tenant_id: string | null; description: string } } } = {};
+    const formData: { [alaGroup: string]: { [key: number]: { tenant_id: string | null; assignment_type: 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek'; description: string } } } = {};
     const types: { [alaGroup: string]: 'groups' | 'rcbo' } = {};
 
     for (let alaNum = 1; alaNum <= 10; alaNum++) {
@@ -184,6 +186,7 @@ export function BuildingInfo() {
         const breaker = alaRcbos.find(b => b.rcbo_number === i);
         formData[alaGroup][i] = {
           tenant_id: breaker?.tenant_id || null,
+          assignment_type: breaker?.assignment_type || 'eigen',
           description: breaker?.description || '',
         };
       }
@@ -238,17 +241,20 @@ export function BuildingInfo() {
           const port = patchPorts.find(p => p.switch_number === switchNum && p.port_number === portNum);
           const formValues = patchFormData[key];
 
-          const hasData = formValues.tenant_id || formValues.notes.trim();
+          const hasData = formValues.assignment_type !== 'eigen' || formValues.tenant_id || formValues.notes.trim();
+
+          const updateData = {
+            assignment_type: formValues.assignment_type,
+            tenant_id: formValues.assignment_type === 'huurder' ? (formValues.tenant_id || null) : null,
+            notes: formValues.notes,
+            updated_at: new Date().toISOString(),
+          };
 
           if (port) {
             if (hasData) {
               await supabase
                 .from('patch_ports')
-                .update({
-                  tenant_id: formValues.tenant_id || null,
-                  notes: formValues.notes,
-                  updated_at: new Date().toISOString(),
-                })
+                .update(updateData)
                 .eq('id', port.id);
             } else {
               await supabase
@@ -262,8 +268,7 @@ export function BuildingInfo() {
               .insert([{
                 switch_number: switchNum,
                 port_number: portNum,
-                tenant_id: formValues.tenant_id || null,
-                notes: formValues.notes,
+                ...updateData,
               }]);
           }
         }
@@ -289,18 +294,21 @@ export function BuildingInfo() {
 
           for (const entryId of Object.keys(entries)) {
             const formValues = entries[entryId];
-            const hasData = formValues?.tenant_id || formValues?.description?.trim();
+            const hasData = formValues?.assignment_type !== 'eigen' || formValues?.tenant_id || formValues?.description?.trim();
+
+            const meterData = {
+              ala_group: alaGroup,
+              group_number: formValues.group_number,
+              assignment_type: formValues.assignment_type,
+              tenant_id: formValues.assignment_type === 'huurder' ? (formValues.tenant_id || null) : null,
+              description: formValues.description,
+            };
 
             if (entryId.startsWith('new-')) {
               if (hasData) {
                 await supabase
                   .from('meter_groups')
-                  .insert([{
-                    ala_group: alaGroup,
-                    group_number: formValues.group_number,
-                    tenant_id: formValues.tenant_id || null,
-                    description: formValues.description,
-                  }]);
+                  .insert([meterData]);
               }
             } else {
               const existingGroup = meterGroups.find(g => g.id === entryId);
@@ -309,10 +317,7 @@ export function BuildingInfo() {
                   await supabase
                     .from('meter_groups')
                     .update({
-                      ala_group: alaGroup,
-                      group_number: formValues.group_number,
-                      tenant_id: formValues.tenant_id || null,
-                      description: formValues.description,
+                      ...meterData,
                       updated_at: new Date().toISOString(),
                     })
                     .eq('id', entryId);
@@ -338,16 +343,21 @@ export function BuildingInfo() {
             const formValues = rcboData[i];
             if (!formValues) continue;
 
-            const hasData = formValues.tenant_id || formValues.description.trim();
+            const hasData = formValues.assignment_type !== 'eigen' || formValues.tenant_id || formValues.description.trim();
             const breaker = rcboBreakers.find(b => b.ala_group === alaGroup && b.rcbo_number === i);
+
+            const rcboUpdateData = {
+              assignment_type: formValues.assignment_type,
+              tenant_id: formValues.assignment_type === 'huurder' ? (formValues.tenant_id || null) : null,
+              description: formValues.description,
+            };
 
             if (breaker) {
               if (hasData) {
                 await supabase
                   .from('rcbo_circuit_breakers')
                   .update({
-                    tenant_id: formValues.tenant_id || null,
-                    description: formValues.description,
+                    ...rcboUpdateData,
                     updated_at: new Date().toISOString(),
                   })
                   .eq('id', breaker.id);
@@ -363,8 +373,7 @@ export function BuildingInfo() {
                 .insert([{
                   ala_group: alaGroup,
                   rcbo_number: i,
-                  tenant_id: formValues.tenant_id || null,
-                  description: formValues.description,
+                  ...rcboUpdateData,
                 }]);
             }
           }
@@ -767,35 +776,56 @@ export function BuildingInfo() {
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                     {Array.from({ length: 24 }, (_, i) => i + 1).map((portNum) => {
                       const key = `${switchNum}-${portNum}`;
-                      const formValues = patchFormData[key] || { tenant_id: null, notes: '' };
+                      const formValues = patchFormData[key] || { tenant_id: null, assignment_type: 'eigen' as const, notes: '' };
+                      const borderColor = getAssignmentColor(formValues.assignment_type, formValues.tenant_id);
                       return (
                         <div
                           key={key}
                           className="bg-dark-900 rounded-lg p-3 border-2"
-                          style={{
-                            borderColor: formValues.tenant_id === null && formValues.notes ? '#6B7280' :
-                                        formValues.tenant_id ? getTenantColor(formValues.tenant_id) : '#374151'
-                          }}
+                          style={{ borderColor }}
                         >
                           <label className="block text-xs font-medium text-gray-400 mb-2">
                             Poort {portNum}
                           </label>
                           <div className="space-y-2">
                             <select
-                              value={formValues.tenant_id || ''}
-                              onChange={(e) => setPatchFormData({
-                                ...patchFormData,
-                                [key]: { ...formValues, tenant_id: e.target.value || null }
-                              })}
+                              value={formValues.assignment_type}
+                              onChange={(e) => {
+                                const newType = e.target.value as 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek';
+                                setPatchFormData({
+                                  ...patchFormData,
+                                  [key]: {
+                                    ...formValues,
+                                    assignment_type: newType,
+                                    tenant_id: newType === 'huurder' ? formValues.tenant_id : null
+                                  }
+                                });
+                              }}
                               className="w-full bg-dark-800 border border-dark-600 rounded px-2 py-1.5 text-gray-100 text-xs focus:outline-none focus:ring-2 focus:ring-gold-500"
                             >
-                              <option value="">Eigen gebruik</option>
-                              {tenants.map(tenant => (
-                                <option key={tenant.id} value={tenant.id}>
-                                  {tenant.company_name}
-                                </option>
-                              ))}
+                              <option value="eigen">Eigen gebruik</option>
+                              <option value="spreekkamer">Spreekkamer</option>
+                              <option value="flexplek">Flexplek</option>
+                              <option value="huurder">Huurder</option>
                             </select>
+
+                            {formValues.assignment_type === 'huurder' && (
+                              <select
+                                value={formValues.tenant_id || ''}
+                                onChange={(e) => setPatchFormData({
+                                  ...patchFormData,
+                                  [key]: { ...formValues, tenant_id: e.target.value || null }
+                                })}
+                                className="w-full bg-dark-800 border border-dark-600 rounded px-2 py-1.5 text-gray-100 text-xs focus:outline-none focus:ring-2 focus:ring-gold-500"
+                              >
+                                <option value="">Selecteer huurder</option>
+                                {tenants.map(tenant => (
+                                  <option key={tenant.id} value={tenant.id}>
+                                    {tenant.company_name}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
 
                             <input
                               type="text"
@@ -838,7 +868,7 @@ export function BuildingInfo() {
           ) : (
             <div className="space-y-6">
               {[1, 2].map((switchNum) => {
-                const switchPorts = patchPorts.filter(p => p.switch_number === switchNum && (p.tenant_id || p.notes));
+                const switchPorts = patchPorts.filter(p => p.switch_number === switchNum && (p.assignment_type !== 'eigen' || p.tenant_id || p.notes));
 
                 return (
                   <div key={switchNum} className="bg-dark-800 rounded-lg p-6 border border-dark-700">
@@ -847,12 +877,13 @@ export function BuildingInfo() {
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                         {Array.from({ length: 24 }, (_, i) => i + 1).map((portNum) => {
                           const port = patchPorts.find(p => p.switch_number === switchNum && p.port_number === portNum);
-                          const hasData = port && (port.tenant_id || port.notes);
+                          const hasData = port && (port.assignment_type !== 'eigen' || port.tenant_id || port.notes);
 
                           if (!hasData) return null;
 
-                          const tenantName = port.tenant_id ? getTenantName(port.tenant_id) : 'Eigen gebruik';
-                          const color = port.tenant_id ? getTenantColor(port.tenant_id) : '#6B7280';
+                          const assignmentType = port.assignment_type || 'eigen';
+                          const assignmentLabel = getAssignmentLabel(assignmentType, port.tenant_id);
+                          const color = getAssignmentColor(assignmentType, port.tenant_id);
 
                           return (
                             <div
@@ -868,8 +899,8 @@ export function BuildingInfo() {
                                 />
                               </div>
                               <div className="space-y-1">
-                                <p className="text-xs text-gray-200 font-medium truncate" title={tenantName}>
-                                  {tenantName}
+                                <p className="text-xs text-gray-200 font-medium truncate" title={assignmentLabel}>
+                                  {assignmentLabel}
                                 </p>
                                 {port.notes && (
                                   <p className="text-xs text-gray-400 truncate" title={port.notes}>
@@ -961,7 +992,7 @@ export function BuildingInfo() {
                                 ...meterFormData,
                                 [selectedAla]: {
                                   ...currentAlaData,
-                                  [newId]: { group_number: groupNum, tenant_id: null, description: '' }
+                                  [newId]: { group_number: groupNum, tenant_id: null, assignment_type: 'eigen' as const, description: '' }
                                 }
                               });
                             }}
@@ -972,33 +1003,60 @@ export function BuildingInfo() {
                         </div>
 
                         <div className="space-y-3">
-                          {entries.map(([entryId, formValues]) => (
+                          {entries.map(([entryId, formValues]) => {
+                            const assignmentType = formValues.assignment_type || 'eigen';
+                            const borderColor = getAssignmentColor(assignmentType, formValues.tenant_id);
+                            return (
                             <div
                               key={entryId}
                               className="bg-dark-900 rounded p-3 border-2"
-                              style={{
-                                borderColor: formValues.tenant_id ? getTenantColor(formValues.tenant_id) : '#6B7280'
-                              }}
+                              style={{ borderColor }}
                             >
                               <div className="space-y-2">
                                 <select
-                                  value={formValues.tenant_id || ''}
-                                  onChange={(e) => setMeterFormData({
-                                    ...meterFormData,
-                                    [selectedAla]: {
-                                      ...currentAlaData,
-                                      [entryId]: { ...formValues, tenant_id: e.target.value || null }
-                                    }
-                                  })}
+                                  value={assignmentType}
+                                  onChange={(e) => {
+                                    const newType = e.target.value as 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek';
+                                    setMeterFormData({
+                                      ...meterFormData,
+                                      [selectedAla]: {
+                                        ...currentAlaData,
+                                        [entryId]: {
+                                          ...formValues,
+                                          assignment_type: newType,
+                                          tenant_id: newType === 'huurder' ? formValues.tenant_id : null
+                                        }
+                                      }
+                                    });
+                                  }}
                                   className="w-full bg-dark-800 border border-dark-600 rounded px-3 py-2 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
                                 >
-                                  <option value="">Eigen gebruik</option>
-                                  {tenants.map(tenant => (
-                                    <option key={tenant.id} value={tenant.id}>
-                                      {tenant.company_name}
-                                    </option>
-                                  ))}
+                                  <option value="eigen">Eigen gebruik</option>
+                                  <option value="spreekkamer">Spreekkamer</option>
+                                  <option value="flexplek">Flexplek</option>
+                                  <option value="huurder">Huurder</option>
                                 </select>
+
+                                {assignmentType === 'huurder' && (
+                                  <select
+                                    value={formValues.tenant_id || ''}
+                                    onChange={(e) => setMeterFormData({
+                                      ...meterFormData,
+                                      [selectedAla]: {
+                                        ...currentAlaData,
+                                        [entryId]: { ...formValues, tenant_id: e.target.value || null }
+                                      }
+                                    })}
+                                    className="w-full bg-dark-800 border border-dark-600 rounded px-3 py-2 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                                  >
+                                    <option value="">Selecteer huurder</option>
+                                    {tenants.map(tenant => (
+                                      <option key={tenant.id} value={tenant.id}>
+                                        {tenant.company_name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                )}
 
                                 <input
                                   type="text"
@@ -1029,7 +1087,8 @@ export function BuildingInfo() {
                                 </button>
                               </div>
                             </div>
-                          ))}
+                          );
+                        })}
 
                           {!hasEntries && (
                             <p className="text-xs text-gray-500 text-center py-2">Nog geen toewijzingen</p>
@@ -1043,46 +1102,73 @@ export function BuildingInfo() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                   {Array.from({ length: 50 }, (_, i) => i + 1).map((num) => {
                     const currentRcboData = rcboFormData[selectedAla] || {};
-                    const formValues = currentRcboData[num] || { tenant_id: null, description: '' };
-                    const hasData = formValues.tenant_id || formValues.description.trim();
+                    const formValues = currentRcboData[num] || { tenant_id: null, assignment_type: 'eigen' as const, description: '' };
+                    const assignmentType = formValues.assignment_type || 'eigen';
+                    const hasData = assignmentType !== 'eigen' || formValues.tenant_id || formValues.description.trim();
 
                     if (!hasData && num > Math.max(0, ...Object.keys(currentRcboData).filter(k => {
                       const data = currentRcboData[parseInt(k)];
-                      return data && (data.tenant_id || data.description.trim());
+                      return data && (data.assignment_type !== 'eigen' || data.tenant_id || data.description.trim());
                     }).map(k => parseInt(k))) + 5) {
                       return null;
                     }
+
+                    const borderColor = getAssignmentColor(assignmentType, formValues.tenant_id);
 
                     return (
                       <div
                         key={num}
                         className="bg-dark-800 rounded-lg p-3 border-2"
-                        style={{
-                          borderColor: formValues.tenant_id ? getTenantColor(formValues.tenant_id) : '#374151'
-                        }}
+                        style={{ borderColor }}
                       >
                         <label className="block text-xs font-medium text-gray-400 mb-2">
                           Automaat {num}
                         </label>
                         <div className="space-y-2">
                           <select
-                            value={formValues.tenant_id || ''}
-                            onChange={(e) => setRcboFormData({
-                              ...rcboFormData,
-                              [selectedAla]: {
-                                ...currentRcboData,
-                                [num]: { ...formValues, tenant_id: e.target.value || null }
-                              }
-                            })}
+                            value={assignmentType}
+                            onChange={(e) => {
+                              const newType = e.target.value as 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek';
+                              setRcboFormData({
+                                ...rcboFormData,
+                                [selectedAla]: {
+                                  ...currentRcboData,
+                                  [num]: {
+                                    ...formValues,
+                                    assignment_type: newType,
+                                    tenant_id: newType === 'huurder' ? formValues.tenant_id : null
+                                  }
+                                }
+                              });
+                            }}
                             className="w-full bg-dark-900 border border-dark-600 rounded px-2 py-1.5 text-gray-100 text-xs focus:outline-none focus:ring-2 focus:ring-gold-500"
                           >
-                            <option value="">Geen huurder</option>
-                            {tenants.map(tenant => (
-                              <option key={tenant.id} value={tenant.id}>
-                                {tenant.company_name}
-                              </option>
-                            ))}
+                            <option value="eigen">Eigen gebruik</option>
+                            <option value="spreekkamer">Spreekkamer</option>
+                            <option value="flexplek">Flexplek</option>
+                            <option value="huurder">Huurder</option>
                           </select>
+
+                          {assignmentType === 'huurder' && (
+                            <select
+                              value={formValues.tenant_id || ''}
+                              onChange={(e) => setRcboFormData({
+                                ...rcboFormData,
+                                [selectedAla]: {
+                                  ...currentRcboData,
+                                  [num]: { ...formValues, tenant_id: e.target.value || null }
+                                }
+                              })}
+                              className="w-full bg-dark-900 border border-dark-600 rounded px-2 py-1.5 text-gray-100 text-xs focus:outline-none focus:ring-2 focus:ring-gold-500"
+                            >
+                              <option value="">Selecteer huurder</option>
+                              {tenants.map(tenant => (
+                                <option key={tenant.id} value={tenant.id}>
+                                  {tenant.company_name}
+                                </option>
+                              ))}
+                            </select>
+                          )}
 
                           <input
                             type="text"
