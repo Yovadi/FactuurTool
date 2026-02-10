@@ -35,7 +35,7 @@ export function BuildingInfo() {
 
   const [wifiFormData, setWifiFormData] = useState<{ [key: number]: { network_name: string; password: string; tenant_id: string | null; assignment_type: 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek' } }>({});
   const [patchFormData, setPatchFormData] = useState<{ [key: string]: { tenant_id: string | null; assignment_type: 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek'; notes: string } }>({});
-  const [meterFormData, setMeterFormData] = useState<{ [alaGroup: string]: { [entryId: string]: { group_number: number; tenant_id: string | null; assignment_type: 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek'; description: string } } }>({});
+  const [meterFormData, setMeterFormData] = useState<{ [alaGroup: string]: { [groupNumber: number]: { group_number: number; tenant_id: string | null; assignment_type: 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek'; description: string } } }>({});
   const [rcboFormData, setRcboFormData] = useState<{ [alaGroup: string]: { [key: number]: { tenant_id: string | null; assignment_type: 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek'; description: string } } }>({});
   const [alaType, setAlaType] = useState<{ [alaGroup: string]: 'groups' | 'rcbo' }>({});
   const [originalAlaType, setOriginalAlaType] = useState<{ [alaGroup: string]: 'groups' | 'rcbo' }>({});
@@ -147,12 +147,12 @@ export function BuildingInfo() {
     if (error) throw error;
     setMeterGroups(data || []);
 
-    const formData: { [alaGroup: string]: { [entryId: string]: { group_number: number; tenant_id: string | null; assignment_type: 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek'; description: string } } } = {};
+    const formData: { [alaGroup: string]: { [groupNumber: number]: { group_number: number; tenant_id: string | null; assignment_type: 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek'; description: string } } } = {};
     data?.forEach(group => {
       if (!formData[group.ala_group]) {
         formData[group.ala_group] = {};
       }
-      formData[group.ala_group][group.id] = {
+      formData[group.ala_group][group.group_number] = {
         group_number: group.group_number,
         tenant_id: group.tenant_id || null,
         assignment_type: group.assignment_type || 'eigen',
@@ -296,42 +296,40 @@ export function BuildingInfo() {
         if (type === 'groups') {
           const entries = meterFormData[alaGroup] || {};
 
-          for (const entryId of Object.keys(entries)) {
-            const formValues = entries[entryId];
-            const hasData = formValues?.assignment_type !== 'eigen' || formValues?.tenant_id || formValues?.description?.trim();
+          for (const groupNumber of Object.keys(entries)) {
+            const formValues = entries[parseInt(groupNumber)];
+            if (!formValues) continue;
+
+            const hasData = formValues.assignment_type !== 'eigen' || formValues.tenant_id || formValues.description.trim();
+            const existingGroup = meterGroups.find(g => g.ala_group === alaGroup && g.group_number === parseInt(groupNumber));
 
             const meterData = {
               ala_group: alaGroup,
-              group_number: formValues.group_number,
+              group_number: parseInt(groupNumber),
               assignment_type: formValues.assignment_type,
               tenant_id: formValues.assignment_type === 'huurder' ? (formValues.tenant_id || null) : null,
               description: formValues.description,
             };
 
-            if (entryId.startsWith('new-')) {
+            if (existingGroup) {
               if (hasData) {
                 await supabase
                   .from('meter_groups')
-                  .insert([meterData]);
+                  .update({
+                    ...meterData,
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq('id', existingGroup.id);
+              } else {
+                await supabase
+                  .from('meter_groups')
+                  .delete()
+                  .eq('id', existingGroup.id);
               }
-            } else {
-              const existingGroup = meterGroups.find(g => g.id === entryId);
-              if (existingGroup) {
-                if (hasData) {
-                  await supabase
-                    .from('meter_groups')
-                    .update({
-                      ...meterData,
-                      updated_at: new Date().toISOString(),
-                    })
-                    .eq('id', entryId);
-                } else {
-                  await supabase
-                    .from('meter_groups')
-                    .delete()
-                    .eq('id', entryId);
-                }
-              }
+            } else if (hasData) {
+              await supabase
+                .from('meter_groups')
+                .insert([meterData]);
             }
           }
 
@@ -978,130 +976,91 @@ export function BuildingInfo() {
               </div>
 
               {alaType[selectedAla] === 'groups' ? (
-                <div className="space-y-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                   {Array.from({ length: 50 }, (_, i) => i + 1).map((groupNum) => {
                     const currentAlaData = meterFormData[selectedAla] || {};
-                    const entries = Object.entries(currentAlaData).filter(([_, data]) => data.group_number === groupNum);
-                    const hasEntries = entries.length > 0;
+                    const formValues = currentAlaData[groupNum] || { group_number: groupNum, tenant_id: null, assignment_type: 'eigen' as const, description: '' };
+                    const assignmentType = formValues.assignment_type || 'eigen';
+                    const hasData = assignmentType !== 'eigen' || formValues.tenant_id || formValues.description.trim();
 
-                    if (!hasEntries && groupNum > Math.max(0, ...Object.values(currentAlaData).map(d => d.group_number)) + 3) {
+                    if (!hasData && groupNum > Math.max(0, ...Object.keys(currentAlaData).filter(k => {
+                      const data = currentAlaData[parseInt(k)];
+                      return data && (data.assignment_type !== 'eigen' || data.tenant_id || data.description.trim());
+                    }).map(k => parseInt(k))) + 5) {
                       return null;
                     }
 
                     const globalK = getGlobalKNumber(selectedAla, groupNum);
+                    const borderColor = getAssignmentColor(assignmentType, formValues.tenant_id);
 
                     return (
-                      <div key={groupNum} className="bg-dark-800 rounded-lg p-4 border border-dark-600">
-                        <div className="flex justify-between items-center mb-3">
-                          <h4 className="text-sm font-medium text-gray-300">Groep K{globalK}</h4>
-                          <button
-                            onClick={() => {
-                              const newId = `new-${Date.now()}-${Math.random()}`;
+                      <div
+                        key={groupNum}
+                        className="bg-dark-800 rounded-lg p-3 border-2"
+                        style={{ borderColor }}
+                      >
+                        <label className="block text-xs font-medium text-gray-400 mb-2">
+                          Groep K{globalK}
+                        </label>
+                        <div className="space-y-2">
+                          <select
+                            value={assignmentType}
+                            onChange={(e) => {
+                              const newType = e.target.value as 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek';
                               setMeterFormData({
                                 ...meterFormData,
                                 [selectedAla]: {
                                   ...currentAlaData,
-                                  [newId]: { group_number: groupNum, tenant_id: null, assignment_type: 'eigen' as const, description: '' }
+                                  [groupNum]: {
+                                    ...formValues,
+                                    assignment_type: newType,
+                                    tenant_id: newType === 'huurder' ? formValues.tenant_id : null
+                                  }
                                 }
                               });
                             }}
-                            className="text-xs text-gold-500 hover:text-gold-400 transition-colors"
+                            className="w-full bg-dark-900 border border-dark-600 rounded px-2 py-1.5 text-gray-100 text-xs focus:outline-none focus:ring-2 focus:ring-gold-500"
                           >
-                            + Toewijzing toevoegen
-                          </button>
-                        </div>
+                            <option value="eigen">Eigen gebruik</option>
+                            <option value="spreekkamer">Spreekkamer</option>
+                            <option value="flexplek">Flexplek</option>
+                            <option value="huurder">Huurder</option>
+                          </select>
 
-                        <div className="space-y-3">
-                          {entries.map(([entryId, formValues]) => {
-                            const assignmentType = formValues.assignment_type || 'eigen';
-                            const borderColor = getAssignmentColor(assignmentType, formValues.tenant_id);
-                            return (
-                            <div
-                              key={entryId}
-                              className="bg-dark-900 rounded p-3 border-2"
-                              style={{ borderColor }}
+                          {assignmentType === 'huurder' && (
+                            <select
+                              value={formValues.tenant_id || ''}
+                              onChange={(e) => setMeterFormData({
+                                ...meterFormData,
+                                [selectedAla]: {
+                                  ...currentAlaData,
+                                  [groupNum]: { ...formValues, tenant_id: e.target.value || null }
+                                }
+                              })}
+                              className="w-full bg-dark-900 border border-dark-600 rounded px-2 py-1.5 text-gray-100 text-xs focus:outline-none focus:ring-2 focus:ring-gold-500"
                             >
-                              <div className="space-y-2">
-                                <select
-                                  value={assignmentType}
-                                  onChange={(e) => {
-                                    const newType = e.target.value as 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek';
-                                    setMeterFormData({
-                                      ...meterFormData,
-                                      [selectedAla]: {
-                                        ...currentAlaData,
-                                        [entryId]: {
-                                          ...formValues,
-                                          assignment_type: newType,
-                                          tenant_id: newType === 'huurder' ? formValues.tenant_id : null
-                                        }
-                                      }
-                                    });
-                                  }}
-                                  className="w-full bg-dark-800 border border-dark-600 rounded px-3 py-2 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
-                                >
-                                  <option value="eigen">Eigen gebruik</option>
-                                  <option value="spreekkamer">Spreekkamer</option>
-                                  <option value="flexplek">Flexplek</option>
-                                  <option value="huurder">Huurder</option>
-                                </select>
-
-                                {assignmentType === 'huurder' && (
-                                  <select
-                                    value={formValues.tenant_id || ''}
-                                    onChange={(e) => setMeterFormData({
-                                      ...meterFormData,
-                                      [selectedAla]: {
-                                        ...currentAlaData,
-                                        [entryId]: { ...formValues, tenant_id: e.target.value || null }
-                                      }
-                                    })}
-                                    className="w-full bg-dark-800 border border-dark-600 rounded px-3 py-2 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
-                                  >
-                                    <option value="">Selecteer huurder</option>
-                                    {tenants.map(tenant => (
-                                      <option key={tenant.id} value={tenant.id}>
-                                        {tenant.company_name}
-                                      </option>
-                                    ))}
-                                  </select>
-                                )}
-
-                                <textarea
-                                  value={formValues.description}
-                                  onChange={(e) => setMeterFormData({
-                                    ...meterFormData,
-                                    [selectedAla]: {
-                                      ...currentAlaData,
-                                      [entryId]: { ...formValues, description: e.target.value }
-                                    }
-                                  })}
-                                  placeholder="Beschrijving (optioneel, meerdere regels mogelijk)"
-                                  rows={3}
-                                  className="w-full bg-dark-800 border border-dark-600 rounded px-3 py-2 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500 resize-y"
-                                />
-
-                                <button
-                                  onClick={() => {
-                                    const newAlaData = { ...currentAlaData };
-                                    delete newAlaData[entryId];
-                                    setMeterFormData({
-                                      ...meterFormData,
-                                      [selectedAla]: newAlaData
-                                    });
-                                  }}
-                                  className="text-xs text-red-400 hover:text-red-300 transition-colors"
-                                >
-                                  Verwijderen
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
-
-                          {!hasEntries && (
-                            <p className="text-xs text-gray-500 text-center py-2">Nog geen toewijzingen</p>
+                              <option value="">Selecteer huurder</option>
+                              {tenants.map(tenant => (
+                                <option key={tenant.id} value={tenant.id}>
+                                  {tenant.company_name}
+                                </option>
+                              ))}
+                            </select>
                           )}
+
+                          <textarea
+                            value={formValues.description}
+                            onChange={(e) => setMeterFormData({
+                              ...meterFormData,
+                              [selectedAla]: {
+                                ...currentAlaData,
+                                [groupNum]: { ...formValues, description: e.target.value }
+                              }
+                            })}
+                            placeholder="Omschrijving (meerdere regels mogelijk)"
+                            rows={3}
+                            className="w-full bg-dark-900 border border-dark-600 rounded px-2 py-1.5 text-gray-100 text-xs focus:outline-none focus:ring-2 focus:ring-gold-500 resize-y"
+                          />
                         </div>
                       </div>
                     );
