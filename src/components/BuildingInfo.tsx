@@ -1241,8 +1241,9 @@ export function BuildingInfo() {
 
                           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                             {alaRcbos.map(breaker => {
-                              const tenantName = getTenantName(breaker.tenant_id);
-                              const color = getTenantColor(breaker.tenant_id);
+                              const assignmentType = breaker.assignment_type || 'eigen';
+                              const displayLabel = getAssignmentLabel(assignmentType, breaker.tenant_id);
+                              const color = getAssignmentColor(assignmentType, breaker.tenant_id);
 
                               return (
                                 <div
@@ -1258,9 +1259,9 @@ export function BuildingInfo() {
                                     />
                                   </div>
                                   <div className="space-y-1">
-                                    {tenantName && (
-                                      <p className="text-xs text-gray-200 font-medium truncate" title={tenantName}>
-                                        {tenantName}
+                                    {displayLabel && (
+                                      <p className="text-xs text-gray-200 font-medium truncate" title={displayLabel}>
+                                        {displayLabel}
                                       </p>
                                     )}
                                     {breaker.description && (
@@ -1268,7 +1269,7 @@ export function BuildingInfo() {
                                         {breaker.description}
                                       </p>
                                     )}
-                                    {!tenantName && !breaker.description && (
+                                    {!displayLabel && !breaker.description && (
                                       <p className="text-xs text-gray-500">Geen gegevens</p>
                                     )}
                                   </div>
@@ -1301,8 +1302,9 @@ export function BuildingInfo() {
                                   <p className="text-xs font-medium text-gray-400 mb-2">K{globalK}</p>
                                   <div className="space-y-2">
                                     {groups.map(group => {
-                                      const tenantName = group.tenant_id ? getTenantName(group.tenant_id) : 'Eigen gebruik';
-                                      const color = group.tenant_id ? getTenantColor(group.tenant_id) : '#6B7280';
+                                      const assignmentType = group.assignment_type || 'eigen';
+                                      const displayLabel = getAssignmentLabel(assignmentType, group.tenant_id);
+                                      const color = getAssignmentColor(assignmentType, group.tenant_id);
 
                                       return (
                                         <div key={group.id} className="flex items-start gap-2">
@@ -1311,8 +1313,8 @@ export function BuildingInfo() {
                                             style={{ backgroundColor: color }}
                                           />
                                           <div className="flex-1 min-w-0">
-                                            <p className="text-xs text-gray-200 font-medium truncate" title={tenantName}>
-                                              {tenantName}
+                                            <p className="text-xs text-gray-200 font-medium truncate" title={displayLabel || ''}>
+                                              {displayLabel}
                                             </p>
                                             {group.description && (
                                               <p className="text-xs text-gray-400 truncate" title={group.description}>
