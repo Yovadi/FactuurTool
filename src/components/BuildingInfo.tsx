@@ -16,6 +16,12 @@ const TENANT_COLORS = [
   '#84CC16', // lime-500
 ];
 
+const SPACE_COLORS = {
+  eigen: '#6B7280',        // gray-500 - Eigen gebruik
+  spreekkamer: '#A855F7',  // purple-500 - Spreekkamer
+  flexplek: '#22D3EE',     // cyan-400 - Flexplek
+};
+
 export function BuildingInfo() {
   const [settings, setSettings] = useState<CompanySettings | null>(null);
   const [wifiNetworks, setWifiNetworks] = useState<WifiNetwork[]>([]);
@@ -506,6 +512,35 @@ export function BuildingInfo() {
         </div>
 
         <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
+          <h3 className="text-lg font-semibold text-gray-100 mb-4">Kleur Legenda</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded border-2 border-dark-700 flex-shrink-0" style={{ backgroundColor: SPACE_COLORS.eigen }} />
+              <span className="text-sm text-gray-200">Eigen gebruik</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded border-2 border-dark-700 flex-shrink-0" style={{ backgroundColor: SPACE_COLORS.spreekkamer }} />
+              <span className="text-sm text-gray-200">Spreekkamer</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded border-2 border-dark-700 flex-shrink-0" style={{ backgroundColor: SPACE_COLORS.flexplek }} />
+              <span className="text-sm text-gray-200">Flexplek</span>
+            </div>
+            {tenants.map((tenant, index) => (
+              <div key={tenant.id} className="flex items-center gap-2">
+                <div
+                  className="w-6 h-6 rounded border-2 border-dark-700 flex-shrink-0"
+                  style={{ backgroundColor: TENANT_COLORS[index % TENANT_COLORS.length] }}
+                />
+                <span className="text-sm text-gray-200 truncate" title={tenant.company_name}>
+                  {tenant.company_name}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
           <div className="flex justify-between items-start mb-6">
             <div className="flex items-center gap-3">
               <Wifi size={24} className="text-gold-500" />
@@ -525,57 +560,66 @@ export function BuildingInfo() {
           {editingSection === 'wifi' ? (
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-                  <div key={num} className="bg-dark-800 rounded-lg p-3 border border-dark-700">
-                    <h4 className="text-xs font-semibold text-gray-300 mb-2">Netwerk {num}</h4>
-                    <div className="space-y-2">
-                      <div>
-                        <label className="block text-xs text-gray-400 mb-1">Netwerk Naam</label>
-                        <input
-                          type="text"
-                          value={wifiFormData[num]?.network_name || ''}
-                          onChange={(e) => setWifiFormData({
-                            ...wifiFormData,
-                            [num]: { ...wifiFormData[num], network_name: e.target.value }
-                          })}
-                          placeholder="Bijv. HAL5-Kantoor"
-                          className="w-full bg-dark-900 border border-dark-600 rounded px-2 py-1.5 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-400 mb-1">Wachtwoord</label>
-                        <input
-                          type="text"
-                          value={wifiFormData[num]?.password || ''}
-                          onChange={(e) => setWifiFormData({
-                            ...wifiFormData,
-                            [num]: { ...wifiFormData[num], password: e.target.value }
-                          })}
-                          placeholder="Wachtwoord"
-                          className="w-full bg-dark-900 border border-dark-600 rounded px-2 py-1.5 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-400 mb-1">Huurder</label>
-                        <select
-                          value={wifiFormData[num]?.tenant_id || ''}
-                          onChange={(e) => setWifiFormData({
-                            ...wifiFormData,
-                            [num]: { ...wifiFormData[num], tenant_id: e.target.value || null }
-                          })}
-                          className="w-full bg-dark-900 border border-dark-600 rounded px-2 py-1.5 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
-                        >
-                          <option value="">Geen huurder</option>
-                          {tenants.map(tenant => (
-                            <option key={tenant.id} value={tenant.id}>
-                              {tenant.company_name}
-                            </option>
-                          ))}
-                        </select>
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => {
+                  const formValues = wifiFormData[num];
+                  const borderColor = formValues?.tenant_id ? getTenantColor(formValues.tenant_id) : SPACE_COLORS.eigen;
+
+                  return (
+                    <div
+                      key={num}
+                      className="bg-dark-800 rounded-lg p-3 border-2"
+                      style={{ borderColor }}
+                    >
+                      <h4 className="text-xs font-semibold text-gray-300 mb-2">Netwerk {num}</h4>
+                      <div className="space-y-2">
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Netwerk Naam</label>
+                          <input
+                            type="text"
+                            value={wifiFormData[num]?.network_name || ''}
+                            onChange={(e) => setWifiFormData({
+                              ...wifiFormData,
+                              [num]: { ...wifiFormData[num], network_name: e.target.value }
+                            })}
+                            placeholder="Bijv. HAL5-Kantoor"
+                            className="w-full bg-dark-900 border border-dark-600 rounded px-2 py-1.5 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Wachtwoord</label>
+                          <input
+                            type="text"
+                            value={wifiFormData[num]?.password || ''}
+                            onChange={(e) => setWifiFormData({
+                              ...wifiFormData,
+                              [num]: { ...wifiFormData[num], password: e.target.value }
+                            })}
+                            placeholder="Wachtwoord"
+                            className="w-full bg-dark-900 border border-dark-600 rounded px-2 py-1.5 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-400 mb-1">Huurder</label>
+                          <select
+                            value={wifiFormData[num]?.tenant_id || ''}
+                            onChange={(e) => setWifiFormData({
+                              ...wifiFormData,
+                              [num]: { ...wifiFormData[num], tenant_id: e.target.value || null }
+                            })}
+                            className="w-full bg-dark-900 border border-dark-600 rounded px-2 py-1.5 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                          >
+                            <option value="">Eigen gebruik</option>
+                            {tenants.map(tenant => (
+                              <option key={tenant.id} value={tenant.id}>
+                                {tenant.company_name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t border-dark-700">
@@ -603,12 +647,25 @@ export function BuildingInfo() {
               {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => {
                 const network = wifiNetworks.find(n => n.network_number === num);
                 const hasData = network && (network.network_name || network.password);
-                const tenantName = network ? getTenantName(network.tenant_id) : null;
+                const tenantName = network?.tenant_id ? getTenantName(network.tenant_id) : 'Eigen gebruik';
+                const borderColor = network?.tenant_id ? getTenantColor(network.tenant_id) : SPACE_COLORS.eigen;
 
                 return (
-                  <div key={num} className={`bg-dark-800 rounded-lg p-3 border ${hasData ? 'border-dark-600' : 'border-dark-700 opacity-60'}`}>
+                  <div
+                    key={num}
+                    className={`bg-dark-800 rounded-lg p-3 border-2 ${hasData ? '' : 'opacity-60'}`}
+                    style={{ borderColor: hasData ? borderColor : '#374151' }}
+                  >
                     <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-xs font-semibold text-gray-400">Netwerk {num}</h4>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-xs font-semibold text-gray-400">Netwerk {num}</h4>
+                        {hasData && (
+                          <div
+                            className="w-3 h-3 rounded border border-dark-700 flex-shrink-0"
+                            style={{ backgroundColor: borderColor }}
+                          />
+                        )}
+                      </div>
                       {hasData && (
                         <button
                           onClick={() => togglePasswordVisibility(num)}
@@ -628,12 +685,10 @@ export function BuildingInfo() {
                             {showPasswords[num] ? (network.password || '-') : '•'.repeat(Math.min(network.password?.length || 8, 12))}
                           </p>
                         </div>
-                        {tenantName && (
-                          <div className="flex items-center gap-1 pt-1 border-t border-dark-700">
-                            <User size={10} className="text-gold-500 flex-shrink-0" />
-                            <p className="text-xs text-gray-300 truncate">{tenantName}</p>
-                          </div>
-                        )}
+                        <div className="flex items-center gap-1 pt-1 border-t border-dark-700">
+                          <User size={10} className="text-gray-400 flex-shrink-0" />
+                          <p className="text-xs text-gray-300 truncate" title={tenantName}>{tenantName}</p>
+                        </div>
                       </div>
                     ) : (
                       <p className="text-xs text-gray-500">Geen gegevens</p>
@@ -664,27 +719,6 @@ export function BuildingInfo() {
 
           {editingSection === 'patch' ? (
             <div className="space-y-6">
-              <div className="bg-dark-800 rounded-lg p-4 border border-dark-600">
-                <h4 className="text-sm font-semibold text-gray-300 mb-3">Huurder Legenda</h4>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded border-2 border-dark-700 flex-shrink-0 bg-gray-500" />
-                    <span className="text-xs text-gray-200">Eigen gebruik</span>
-                  </div>
-                  {tenants.map((tenant, index) => (
-                    <div key={tenant.id} className="flex items-center gap-2">
-                      <div
-                        className="w-6 h-6 rounded border-2 border-dark-700 flex-shrink-0"
-                        style={{ backgroundColor: TENANT_COLORS[index % TENANT_COLORS.length] }}
-                      />
-                      <span className="text-xs text-gray-200 truncate" title={tenant.company_name}>
-                        {tenant.company_name}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
               {[1, 2].map((switchNum) => (
                 <div key={switchNum} className="bg-dark-800 rounded-lg p-6 border border-dark-700">
                   <h4 className="text-lg font-semibold text-gray-200 mb-4">Switch {switchNum}</h4>
@@ -761,29 +795,6 @@ export function BuildingInfo() {
             </div>
           ) : (
             <div className="space-y-6">
-              {patchPorts.length > 0 && (
-                <div className="bg-dark-800 rounded-lg p-4 border border-dark-600">
-                  <h4 className="text-sm font-semibold text-gray-300 mb-3">Huurder Legenda</h4>
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-5 h-5 rounded border-2 border-dark-700 flex-shrink-0 bg-gray-500" />
-                      <span className="text-xs text-gray-200">Eigen gebruik</span>
-                    </div>
-                    {tenants.map((tenant, index) => (
-                      <div key={tenant.id} className="flex items-center gap-2">
-                        <div
-                          className="w-5 h-5 rounded border-2 border-dark-700 flex-shrink-0"
-                          style={{ backgroundColor: TENANT_COLORS[index % TENANT_COLORS.length] }}
-                        />
-                        <span className="text-xs text-gray-200 truncate" title={tenant.company_name}>
-                          {tenant.company_name}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {[1, 2].map((switchNum) => {
                 const switchPorts = patchPorts.filter(p => p.switch_number === switchNum && (p.tenant_id || p.notes));
 
@@ -881,27 +892,6 @@ export function BuildingInfo() {
                     <option value="groups">Aardlek met Automaten (Groepen)</option>
                     <option value="rcbo">Aardlekautomaten</option>
                   </select>
-                </div>
-              </div>
-
-              <div className="bg-dark-800 rounded-lg p-4 border border-dark-600">
-                <h4 className="text-sm font-semibold text-gray-300 mb-3">Huurder Legenda</h4>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded border-2 border-dark-700 flex-shrink-0 bg-gray-500" />
-                    <span className="text-xs text-gray-200">Eigen gebruik</span>
-                  </div>
-                  {tenants.map((tenant, index) => (
-                    <div key={tenant.id} className="flex items-center gap-2">
-                      <div
-                        className="w-6 h-6 rounded border-2 border-dark-700 flex-shrink-0"
-                        style={{ backgroundColor: TENANT_COLORS[index % TENANT_COLORS.length] }}
-                      />
-                      <span className="text-xs text-gray-200 truncate" title={tenant.company_name}>
-                        {tenant.company_name}
-                      </span>
-                    </div>
-                  ))}
                 </div>
               </div>
 
@@ -1111,23 +1101,6 @@ export function BuildingInfo() {
                             <h4 className="text-sm font-semibold text-gold-500">Aardlek {alaGroup.replace('ALA', '')} - Aardlekautomaten</h4>
                           </div>
 
-                          <div className="bg-dark-800 rounded-lg p-3 border border-dark-600 mb-4">
-                            <h5 className="text-xs font-semibold text-gray-300 mb-2">Huurder Legenda</h5>
-                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
-                              {tenants.map((tenant, index) => (
-                                <div key={tenant.id} className="flex items-center gap-2">
-                                  <div
-                                    className="w-5 h-5 rounded border-2 border-dark-700 flex-shrink-0"
-                                    style={{ backgroundColor: TENANT_COLORS[index % TENANT_COLORS.length] }}
-                                  />
-                                  <span className="text-xs text-gray-200 truncate" title={tenant.company_name}>
-                                    {tenant.company_name}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-
                           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                             {alaRcbos.map(breaker => {
                               const tenantName = getTenantName(breaker.tenant_id);
@@ -1180,27 +1153,6 @@ export function BuildingInfo() {
                         <div key={alaGroup} className="border border-dark-700 rounded-lg p-4">
                           <div className="flex items-center justify-between mb-3">
                             <h4 className="text-sm font-semibold text-gold-500">Aardlek {alaGroup.replace('ALA', '')} - Groepen</h4>
-                          </div>
-
-                          <div className="bg-dark-800 rounded-lg p-3 border border-dark-600 mb-4">
-                            <h5 className="text-xs font-semibold text-gray-300 mb-2">Huurder Legenda</h5>
-                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
-                              <div className="flex items-center gap-2">
-                                <div className="w-5 h-5 rounded border-2 border-dark-700 flex-shrink-0 bg-gray-500" />
-                                <span className="text-xs text-gray-200">Eigen gebruik</span>
-                              </div>
-                              {tenants.map((tenant, index) => (
-                                <div key={tenant.id} className="flex items-center gap-2">
-                                  <div
-                                    className="w-5 h-5 rounded border-2 border-dark-700 flex-shrink-0"
-                                    style={{ backgroundColor: TENANT_COLORS[index % TENANT_COLORS.length] }}
-                                  />
-                                  <span className="text-xs text-gray-200 truncate" title={tenant.company_name}>
-                                    {tenant.company_name}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
                           </div>
 
                           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
