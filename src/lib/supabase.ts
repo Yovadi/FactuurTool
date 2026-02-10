@@ -179,6 +179,7 @@ export type WifiNetwork = {
   password: string;
   network_number: number;
   tenant_id: string | null;
+  assignment_type: 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek';
   created_at: string;
   updated_at: string;
 };
@@ -187,8 +188,8 @@ export type PatchPort = {
   id: string;
   switch_number: number;
   port_number: number;
-  location_type: 'kantoor' | 'bedrijfshal' | 'eigen_gebruik' | null;
-  location_number: number | null;
+  tenant_id: string | null;
+  assignment_type: 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek';
   notes: string;
   created_at: string;
   updated_at: string;
@@ -198,8 +199,19 @@ export type MeterGroup = {
   id: string;
   ala_group: string;
   group_number: number;
-  location_type: 'kantoor' | 'eigen_gebruik' | null;
-  location_number: number | null;
+  tenant_id: string | null;
+  assignment_type: 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek';
+  description: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type RcboCircuitBreaker = {
+  id: string;
+  rcbo_number: number;
+  ala_group: string;
+  tenant_id: string | null;
+  assignment_type: 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek';
   description: string;
   created_at: string;
   updated_at: string;
