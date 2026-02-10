@@ -24,13 +24,14 @@ export function BuildingInfo() {
   const [rcboBreakers, setRcboBreakers] = useState<RcboCircuitBreaker[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingSection, setEditingSection] = useState<'wifi' | 'patch' | 'meter' | 'rcbo' | 'building' | null>(null);
+  const [editingSection, setEditingSection] = useState<'wifi' | 'patch' | 'meter' | 'building' | null>(null);
   const [showPasswords, setShowPasswords] = useState<{ [key: number]: boolean }>({});
 
   const [wifiFormData, setWifiFormData] = useState<{ [key: number]: { network_name: string; password: string; tenant_id: string | null } }>({});
   const [patchFormData, setPatchFormData] = useState<{ [key: string]: { location_type: string; location_number: string; notes: string } }>({});
   const [meterFormData, setMeterFormData] = useState<{ [alaGroup: string]: { [entryId: string]: { group_number: number; location_type: string; location_number: string; description: string } } }>({});
-  const [rcboFormData, setRcboFormData] = useState<{ [key: number]: { tenant_id: string | null; description: string } }>({});
+  const [rcboFormData, setRcboFormData] = useState<{ [alaGroup: string]: { [key: number]: { tenant_id: string | null; description: string } } }>({});
+  const [alaType, setAlaType] = useState<{ [alaGroup: string]: 'groups' | 'rcbo' }>({});
   const [buildingFormData, setBuildingFormData] = useState({
     meter_cabinet_info: '',
     building_notes: '',
@@ -157,20 +158,34 @@ export function BuildingInfo() {
     const { data, error } = await supabase
       .from('rcbo_circuit_breakers')
       .select('*')
-      .order('rcbo_number');
+      .order('ala_group, rcbo_number');
 
     if (error) throw error;
     setRcboBreakers(data || []);
 
-    const formData: { [key: number]: { tenant_id: string | null; description: string } } = {};
-    for (let i = 1; i <= 50; i++) {
-      const breaker = data?.find(b => b.rcbo_number === i);
-      formData[i] = {
-        tenant_id: breaker?.tenant_id || null,
-        description: breaker?.description || '',
-      };
+    const formData: { [alaGroup: string]: { [key: number]: { tenant_id: string | null; description: string } } } = {};
+    const types: { [alaGroup: string]: 'groups' | 'rcbo' } = {};
+
+    for (let alaNum = 1; alaNum <= 10; alaNum++) {
+      const alaGroup = `ALA${alaNum}`;
+      formData[alaGroup] = {};
+
+      const alaRcbos = data?.filter(b => b.ala_group === alaGroup) || [];
+      const alaGroups = meterGroups.filter(g => g.ala_group === alaGroup);
+
+      types[alaGroup] = alaRcbos.length > 0 ? 'rcbo' : (alaGroups.length > 0 ? 'groups' : 'groups');
+
+      for (let i = 1; i <= 50; i++) {
+        const breaker = alaRcbos.find(b => b.rcbo_number === i);
+        formData[alaGroup][i] = {
+          tenant_id: breaker?.tenant_id || null,
+          description: breaker?.description || '',
+        };
+      }
     }
+
     setRcboFormData(formData);
+    setAlaType(types);
   };
 
   const handleSaveWifi = async () => {
@@ -260,101 +275,113 @@ export function BuildingInfo() {
 
   const handleSaveMeter = async () => {
     try {
-      for (const alaGroup of Object.keys(meterFormData)) {
-        const entries = meterFormData[alaGroup];
+      const allAlaGroups = Array.from({ length: 10 }, (_, i) => `ALA${i + 1}`);
 
-        for (const entryId of Object.keys(entries)) {
-          const formValues = entries[entryId];
-          const hasData = formValues?.location_type || formValues?.description?.trim();
+      for (const alaGroup of allAlaGroups) {
+        const type = alaType[alaGroup] || 'groups';
 
-          if (entryId.startsWith('new-')) {
-            if (hasData) {
-              await supabase
-                .from('meter_groups')
-                .insert([{
-                  ala_group: alaGroup,
-                  group_number: formValues.group_number,
-                  location_type: formValues.location_type || null,
-                  location_number: formValues.location_number ? parseInt(formValues.location_number) : null,
-                  description: formValues.description,
-                }]);
-            }
-          } else {
-            const existingGroup = meterGroups.find(g => g.id === entryId);
-            if (existingGroup) {
+        if (type === 'groups') {
+          const entries = meterFormData[alaGroup] || {};
+
+          for (const entryId of Object.keys(entries)) {
+            const formValues = entries[entryId];
+            const hasData = formValues?.location_type || formValues?.description?.trim();
+
+            if (entryId.startsWith('new-')) {
               if (hasData) {
                 await supabase
                   .from('meter_groups')
-                  .update({
+                  .insert([{
                     ala_group: alaGroup,
                     group_number: formValues.group_number,
                     location_type: formValues.location_type || null,
                     location_number: formValues.location_number ? parseInt(formValues.location_number) : null,
                     description: formValues.description,
-                    updated_at: new Date().toISOString(),
-                  })
-                  .eq('id', entryId);
-              } else {
-                await supabase
-                  .from('meter_groups')
-                  .delete()
-                  .eq('id', entryId);
+                  }]);
+              }
+            } else {
+              const existingGroup = meterGroups.find(g => g.id === entryId);
+              if (existingGroup) {
+                if (hasData) {
+                  await supabase
+                    .from('meter_groups')
+                    .update({
+                      ala_group: alaGroup,
+                      group_number: formValues.group_number,
+                      location_type: formValues.location_type || null,
+                      location_number: formValues.location_number ? parseInt(formValues.location_number) : null,
+                      description: formValues.description,
+                      updated_at: new Date().toISOString(),
+                    })
+                    .eq('id', entryId);
+                } else {
+                  await supabase
+                    .from('meter_groups')
+                    .delete()
+                    .eq('id', entryId);
+                }
               }
             }
           }
-        }
-      }
 
-      await fetchMeterGroups();
-      setEditingSection(null);
-    } catch (error) {
-      console.error('Error saving meter groups:', error);
-      alert('Er is een fout opgetreden bij het opslaan');
-    }
-  };
-
-  const handleSaveRcbo = async () => {
-    try {
-      for (let i = 1; i <= 50; i++) {
-        const breaker = rcboBreakers.find(b => b.rcbo_number === i);
-        const formValues = rcboFormData[i];
-
-        const hasData = formValues.tenant_id || formValues.description.trim();
-
-        if (breaker) {
-          if (hasData) {
-            await supabase
-              .from('rcbo_circuit_breakers')
-              .update({
-                tenant_id: formValues.tenant_id || null,
-                description: formValues.description,
-                updated_at: new Date().toISOString(),
-              })
-              .eq('id', breaker.id);
-          } else {
-            await supabase
-              .from('rcbo_circuit_breakers')
-              .delete()
-              .eq('id', breaker.id);
-          }
-        } else if (hasData) {
           await supabase
             .from('rcbo_circuit_breakers')
-            .insert([{
-              rcbo_number: i,
-              tenant_id: formValues.tenant_id || null,
-              description: formValues.description,
-            }]);
+            .delete()
+            .eq('ala_group', alaGroup);
+
+        } else if (type === 'rcbo') {
+          const rcboData = rcboFormData[alaGroup] || {};
+
+          for (let i = 1; i <= 50; i++) {
+            const formValues = rcboData[i];
+            if (!formValues) continue;
+
+            const hasData = formValues.tenant_id || formValues.description.trim();
+            const breaker = rcboBreakers.find(b => b.ala_group === alaGroup && b.rcbo_number === i);
+
+            if (breaker) {
+              if (hasData) {
+                await supabase
+                  .from('rcbo_circuit_breakers')
+                  .update({
+                    tenant_id: formValues.tenant_id || null,
+                    description: formValues.description,
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq('id', breaker.id);
+              } else {
+                await supabase
+                  .from('rcbo_circuit_breakers')
+                  .delete()
+                  .eq('id', breaker.id);
+              }
+            } else if (hasData) {
+              await supabase
+                .from('rcbo_circuit_breakers')
+                .insert([{
+                  ala_group: alaGroup,
+                  rcbo_number: i,
+                  tenant_id: formValues.tenant_id || null,
+                  description: formValues.description,
+                }]);
+            }
+          }
+
+          await supabase
+            .from('meter_groups')
+            .delete()
+            .eq('ala_group', alaGroup);
         }
       }
 
-      await fetchRcboBreakers();
+      await Promise.all([fetchMeterGroups(), fetchRcboBreakers()]);
       setEditingSection(null);
     } catch (error) {
-      console.error('Error saving RCBO breakers:', error);
+      console.error('Error saving meter configuration:', error);
       alert('Er is een fout opgetreden bij het opslaan');
     }
   };
+
 
   const handleSaveBuilding = async () => {
     try {
@@ -807,130 +834,228 @@ export function BuildingInfo() {
 
           {editingSection === 'meter' ? (
             <div className="space-y-6">
-              <div className="flex items-center gap-3 pb-4 border-b border-dark-700">
-                <label className="text-sm font-medium text-gray-300">Aardlek:</label>
-                <select
-                  value={selectedAla}
-                  onChange={(e) => setSelectedAla(e.target.value)}
-                  className="bg-dark-800 border border-dark-600 rounded px-3 py-2 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
-                >
-                  {Array.from({ length: 10 }, (_, i) => `ALA${i + 1}`).map(ala => (
-                    <option key={ala} value={ala}>Aardlek {ala.replace('ALA', '')}</option>
-                  ))}
-                </select>
+              <div className="flex items-center gap-6 pb-4 border-b border-dark-700">
+                <div className="flex items-center gap-3">
+                  <label className="text-sm font-medium text-gray-300">Aardlek:</label>
+                  <select
+                    value={selectedAla}
+                    onChange={(e) => setSelectedAla(e.target.value)}
+                    className="bg-dark-800 border border-dark-600 rounded px-3 py-2 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                  >
+                    {Array.from({ length: 10 }, (_, i) => `ALA${i + 1}`).map(ala => (
+                      <option key={ala} value={ala}>Aardlek {ala.replace('ALA', '')}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <label className="text-sm font-medium text-gray-300">Type:</label>
+                  <select
+                    value={alaType[selectedAla] || 'groups'}
+                    onChange={(e) => setAlaType({ ...alaType, [selectedAla]: e.target.value as 'groups' | 'rcbo' })}
+                    className="bg-dark-800 border border-dark-600 rounded px-3 py-2 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                  >
+                    <option value="groups">Aardlek met Automaten (Groepen)</option>
+                    <option value="rcbo">Aardlekautomaten</option>
+                  </select>
+                </div>
               </div>
 
-              <div className="space-y-4">
-                {Array.from({ length: 50 }, (_, i) => i + 1).map((groupNum) => {
-                  const currentAlaData = meterFormData[selectedAla] || {};
-                  const entries = Object.entries(currentAlaData).filter(([_, data]) => data.group_number === groupNum);
-                  const hasEntries = entries.length > 0;
-
-                  if (!hasEntries && groupNum > Math.max(0, ...Object.values(currentAlaData).map(d => d.group_number)) + 3) {
-                    return null;
-                  }
-
-                  const globalK = getGlobalKNumber(selectedAla, groupNum);
-
-                  return (
-                    <div key={groupNum} className="bg-dark-800 rounded-lg p-4 border border-dark-600">
-                      <div className="flex justify-between items-center mb-3">
-                        <h4 className="text-sm font-medium text-gray-300">Groep K{globalK}</h4>
-                        <button
-                          onClick={() => {
-                            const newId = `new-${Date.now()}-${Math.random()}`;
-                            setMeterFormData({
-                              ...meterFormData,
-                              [selectedAla]: {
-                                ...currentAlaData,
-                                [newId]: { group_number: groupNum, location_type: '', location_number: '', description: '' }
-                              }
-                            });
-                          }}
-                          className="text-xs text-gold-500 hover:text-gold-400 transition-colors"
-                        >
-                          + Kantoor toevoegen
-                        </button>
+              {alaType[selectedAla] === 'rcbo' && (
+                <div className="bg-dark-800 rounded-lg p-4 border border-dark-600">
+                  <h4 className="text-sm font-semibold text-gray-300 mb-3">Huurder Legenda</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                    {tenants.map((tenant, index) => (
+                      <div key={tenant.id} className="flex items-center gap-2">
+                        <div
+                          className="w-6 h-6 rounded border-2 border-dark-700 flex-shrink-0"
+                          style={{ backgroundColor: TENANT_COLORS[index % TENANT_COLORS.length] }}
+                        />
+                        <span className="text-xs text-gray-200 truncate" title={tenant.company_name}>
+                          {tenant.company_name}
+                        </span>
                       </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
-                      <div className="space-y-3">
-                        {entries.map(([entryId, formValues]) => (
-                          <div key={entryId} className="bg-dark-900 rounded p-3 border border-dark-700">
-                            <div className="space-y-2">
-                              <select
-                                value={formValues.location_type}
-                                onChange={(e) => setMeterFormData({
-                                  ...meterFormData,
-                                  [selectedAla]: {
-                                    ...currentAlaData,
-                                    [entryId]: { ...formValues, location_type: e.target.value, location_number: '' }
-                                  }
-                                })}
-                                className="w-full bg-dark-800 border border-dark-600 rounded px-3 py-2 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
-                              >
-                                <option value="">Geen toewijzing</option>
-                                <option value="kantoor">Kantoor</option>
-                                <option value="eigen_gebruik">Eigen gebruik</option>
-                              </select>
+              {alaType[selectedAla] === 'groups' ? (
+                <div className="space-y-4">
+                  {Array.from({ length: 50 }, (_, i) => i + 1).map((groupNum) => {
+                    const currentAlaData = meterFormData[selectedAla] || {};
+                    const entries = Object.entries(currentAlaData).filter(([_, data]) => data.group_number === groupNum);
+                    const hasEntries = entries.length > 0;
 
-                              {formValues.location_type === 'kantoor' && (
+                    if (!hasEntries && groupNum > Math.max(0, ...Object.values(currentAlaData).map(d => d.group_number)) + 3) {
+                      return null;
+                    }
+
+                    const globalK = getGlobalKNumber(selectedAla, groupNum);
+
+                    return (
+                      <div key={groupNum} className="bg-dark-800 rounded-lg p-4 border border-dark-600">
+                        <div className="flex justify-between items-center mb-3">
+                          <h4 className="text-sm font-medium text-gray-300">Groep K{globalK}</h4>
+                          <button
+                            onClick={() => {
+                              const newId = `new-${Date.now()}-${Math.random()}`;
+                              setMeterFormData({
+                                ...meterFormData,
+                                [selectedAla]: {
+                                  ...currentAlaData,
+                                  [newId]: { group_number: groupNum, location_type: '', location_number: '', description: '' }
+                                }
+                              });
+                            }}
+                            className="text-xs text-gold-500 hover:text-gold-400 transition-colors"
+                          >
+                            + Kantoor toevoegen
+                          </button>
+                        </div>
+
+                        <div className="space-y-3">
+                          {entries.map(([entryId, formValues]) => (
+                            <div key={entryId} className="bg-dark-900 rounded p-3 border border-dark-700">
+                              <div className="space-y-2">
                                 <select
-                                  value={formValues.location_number}
+                                  value={formValues.location_type}
                                   onChange={(e) => setMeterFormData({
                                     ...meterFormData,
                                     [selectedAla]: {
                                       ...currentAlaData,
-                                      [entryId]: { ...formValues, location_number: e.target.value }
+                                      [entryId]: { ...formValues, location_type: e.target.value, location_number: '' }
                                     }
                                   })}
                                   className="w-full bg-dark-800 border border-dark-600 rounded px-3 py-2 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
                                 >
-                                  <option value="">Selecteer kantoor</option>
-                                  {[1, 2, 3, 4, 5, 6, 7, 8].map(num => (
-                                    <option key={num} value={num}>Kantoor {num}</option>
-                                  ))}
+                                  <option value="">Geen toewijzing</option>
+                                  <option value="kantoor">Kantoor</option>
+                                  <option value="eigen_gebruik">Eigen gebruik</option>
                                 </select>
-                              )}
 
-                              <input
-                                type="text"
-                                value={formValues.description}
-                                onChange={(e) => setMeterFormData({
-                                  ...meterFormData,
-                                  [selectedAla]: {
-                                    ...currentAlaData,
-                                    [entryId]: { ...formValues, description: e.target.value }
-                                  }
-                                })}
-                                placeholder="Beschrijving (optioneel)"
-                                className="w-full bg-dark-800 border border-dark-600 rounded px-3 py-2 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
-                              />
+                                {formValues.location_type === 'kantoor' && (
+                                  <select
+                                    value={formValues.location_number}
+                                    onChange={(e) => setMeterFormData({
+                                      ...meterFormData,
+                                      [selectedAla]: {
+                                        ...currentAlaData,
+                                        [entryId]: { ...formValues, location_number: e.target.value }
+                                      }
+                                    })}
+                                    className="w-full bg-dark-800 border border-dark-600 rounded px-3 py-2 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                                  >
+                                    <option value="">Selecteer kantoor</option>
+                                    {[1, 2, 3, 4, 5, 6, 7, 8].map(num => (
+                                      <option key={num} value={num}>Kantoor {num}</option>
+                                    ))}
+                                  </select>
+                                )}
 
-                              <button
-                                onClick={() => {
-                                  const newAlaData = { ...currentAlaData };
-                                  delete newAlaData[entryId];
-                                  setMeterFormData({
+                                <input
+                                  type="text"
+                                  value={formValues.description}
+                                  onChange={(e) => setMeterFormData({
                                     ...meterFormData,
-                                    [selectedAla]: newAlaData
-                                  });
-                                }}
-                                className="text-xs text-red-400 hover:text-red-300 transition-colors"
-                              >
-                                Verwijderen
-                              </button>
-                            </div>
-                          </div>
-                        ))}
+                                    [selectedAla]: {
+                                      ...currentAlaData,
+                                      [entryId]: { ...formValues, description: e.target.value }
+                                    }
+                                  })}
+                                  placeholder="Beschrijving (optioneel)"
+                                  className="w-full bg-dark-800 border border-dark-600 rounded px-3 py-2 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                                />
 
-                        {!hasEntries && (
-                          <p className="text-xs text-gray-500 text-center py-2">Nog geen kantoren toegewezen</p>
-                        )}
+                                <button
+                                  onClick={() => {
+                                    const newAlaData = { ...currentAlaData };
+                                    delete newAlaData[entryId];
+                                    setMeterFormData({
+                                      ...meterFormData,
+                                      [selectedAla]: newAlaData
+                                    });
+                                  }}
+                                  className="text-xs text-red-400 hover:text-red-300 transition-colors"
+                                >
+                                  Verwijderen
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+
+                          {!hasEntries && (
+                            <p className="text-xs text-gray-500 text-center py-2">Nog geen kantoren toegewezen</p>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                  {Array.from({ length: 50 }, (_, i) => i + 1).map((num) => {
+                    const currentRcboData = rcboFormData[selectedAla] || {};
+                    const formValues = currentRcboData[num] || { tenant_id: null, description: '' };
+                    const hasData = formValues.tenant_id || formValues.description.trim();
+
+                    if (!hasData && num > Math.max(0, ...Object.keys(currentRcboData).filter(k => {
+                      const data = currentRcboData[parseInt(k)];
+                      return data && (data.tenant_id || data.description.trim());
+                    }).map(k => parseInt(k))) + 5) {
+                      return null;
+                    }
+
+                    return (
+                      <div
+                        key={num}
+                        className="bg-dark-800 rounded-lg p-3 border-2"
+                        style={{
+                          borderColor: formValues.tenant_id ? getTenantColor(formValues.tenant_id) : '#374151'
+                        }}
+                      >
+                        <label className="block text-xs font-medium text-gray-400 mb-2">
+                          Automaat {num}
+                        </label>
+                        <div className="space-y-2">
+                          <select
+                            value={formValues.tenant_id || ''}
+                            onChange={(e) => setRcboFormData({
+                              ...rcboFormData,
+                              [selectedAla]: {
+                                ...currentRcboData,
+                                [num]: { ...formValues, tenant_id: e.target.value || null }
+                              }
+                            })}
+                            className="w-full bg-dark-900 border border-dark-600 rounded px-2 py-1.5 text-gray-100 text-xs focus:outline-none focus:ring-2 focus:ring-gold-500"
+                          >
+                            <option value="">Geen huurder</option>
+                            {tenants.map(tenant => (
+                              <option key={tenant.id} value={tenant.id}>
+                                {tenant.company_name}
+                              </option>
+                            ))}
+                          </select>
+
+                          <input
+                            type="text"
+                            value={formValues.description}
+                            onChange={(e) => setRcboFormData({
+                              ...rcboFormData,
+                              [selectedAla]: {
+                                ...currentRcboData,
+                                [num]: { ...formValues, description: e.target.value }
+                              }
+                            })}
+                            placeholder="Omschrijving"
+                            className="w-full bg-dark-900 border border-dark-600 rounded px-2 py-1.5 text-gray-100 text-xs focus:outline-none focus:ring-2 focus:ring-gold-500"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
               <div className="flex justify-end gap-3 pt-4 border-t border-dark-700">
                 <button
@@ -954,233 +1079,129 @@ export function BuildingInfo() {
             </div>
           ) : (
             <div>
-              {meterGroups.length > 0 ? (
+              {meterGroups.length > 0 || rcboBreakers.length > 0 ? (
                 <div className="space-y-6">
-                  {Array.from(new Set(meterGroups.map(g => g.ala_group))).sort().map(alaGroup => {
+                  {Array.from({ length: 10 }, (_, i) => `ALA${i + 1}`).map(alaGroup => {
                     const alaGroups = meterGroups.filter(g => g.ala_group === alaGroup);
-                    const groupedByK = alaGroups.reduce((acc, group) => {
-                      if (!acc[group.group_number]) {
-                        acc[group.group_number] = [];
-                      }
-                      acc[group.group_number].push(group);
-                      return acc;
-                    }, {} as { [key: number]: MeterGroup[] });
+                    const alaRcbos = rcboBreakers.filter(b => b.ala_group === alaGroup);
 
-                    return (
-                      <div key={alaGroup} className="border border-dark-700 rounded-lg p-4">
-                        <h4 className="text-sm font-semibold text-gold-500 mb-3">Aardlek {alaGroup.replace('ALA', '')}</h4>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                          {Object.entries(groupedByK).sort(([a], [b]) => parseInt(a) - parseInt(b)).map(([groupNum, groups]) => {
-                            const globalK = getGlobalKNumber(alaGroup, parseInt(groupNum));
-                            return (
-                            <div key={groupNum} className="bg-dark-800 rounded p-3 border border-dark-600">
-                              <p className="text-xs font-medium text-gray-400 mb-2">K{globalK}</p>
-                              <div className="space-y-1">
-                                {groups.map(group => {
-                                  let locationLabel = '-';
-                                  if (group.location_type === 'kantoor' && group.location_number) {
-                                    locationLabel = `Kantoor ${group.location_number}`;
-                                  } else if (group.location_type === 'eigen_gebruik') {
-                                    locationLabel = 'Eigen gebruik';
-                                  }
+                    if (alaGroups.length === 0 && alaRcbos.length === 0) return null;
 
-                                  return (
-                                    <div key={group.id}>
-                                      <p className="text-xs text-gray-200 font-medium">{locationLabel}</p>
-                                      {group.description && (
-                                        <p className="text-xs text-gray-400 truncate" title={group.description}>
-                                          {group.description}
-                                        </p>
-                                      )}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-sm text-gray-500">Geen groepen geconfigureerd</p>
-              )}
-            </div>
-          )}
-        </div>
+                    const isRcbo = alaRcbos.length > 0;
 
-        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
-          <div className="flex justify-between items-start mb-6">
-            <div className="flex items-center gap-3">
-              <Zap size={24} className="text-gold-500" />
-              <h3 className="text-xl font-semibold text-gray-100">Aardlekautomaten</h3>
-            </div>
-            {editingSection !== 'rcbo' && (
-              <button
-                onClick={() => setEditingSection('rcbo')}
-                className="flex items-center gap-2 text-gold-500 hover:text-gold-400 transition-colors"
-              >
-                <Edit2 size={18} />
-                Bewerken
-              </button>
-            )}
-          </div>
-
-          {editingSection === 'rcbo' ? (
-            <div className="space-y-6">
-              <div className="bg-dark-800 rounded-lg p-4 border border-dark-600">
-                <h4 className="text-sm font-semibold text-gray-300 mb-3">Huurder Legenda</h4>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                  {tenants.map((tenant, index) => (
-                    <div key={tenant.id} className="flex items-center gap-2">
-                      <div
-                        className="w-6 h-6 rounded border-2 border-dark-700 flex-shrink-0"
-                        style={{ backgroundColor: TENANT_COLORS[index % TENANT_COLORS.length] }}
-                      />
-                      <span className="text-xs text-gray-200 truncate" title={tenant.company_name}>
-                        {tenant.company_name}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                {Array.from({ length: 50 }, (_, i) => i + 1).map((num) => {
-                  const formValues = rcboFormData[num] || { tenant_id: null, description: '' };
-                  const hasData = formValues.tenant_id || formValues.description.trim();
-
-                  if (!hasData && num > Math.max(0, ...Object.keys(rcboFormData).filter(k => rcboFormData[parseInt(k)].tenant_id || rcboFormData[parseInt(k)].description.trim()).map(k => parseInt(k))) + 5) {
-                    return null;
-                  }
-
-                  return (
-                    <div
-                      key={num}
-                      className="bg-dark-800 rounded-lg p-3 border-2"
-                      style={{
-                        borderColor: formValues.tenant_id ? getTenantColor(formValues.tenant_id) : '#374151'
-                      }}
-                    >
-                      <label className="block text-xs font-medium text-gray-400 mb-2">
-                        Automaat {num}
-                      </label>
-                      <div className="space-y-2">
-                        <select
-                          value={formValues.tenant_id || ''}
-                          onChange={(e) => setRcboFormData({
-                            ...rcboFormData,
-                            [num]: { ...formValues, tenant_id: e.target.value || null }
-                          })}
-                          className="w-full bg-dark-900 border border-dark-600 rounded px-2 py-1.5 text-gray-100 text-xs focus:outline-none focus:ring-2 focus:ring-gold-500"
-                        >
-                          <option value="">Geen huurder</option>
-                          {tenants.map(tenant => (
-                            <option key={tenant.id} value={tenant.id}>
-                              {tenant.company_name}
-                            </option>
-                          ))}
-                        </select>
-
-                        <input
-                          type="text"
-                          value={formValues.description}
-                          onChange={(e) => setRcboFormData({
-                            ...rcboFormData,
-                            [num]: { ...formValues, description: e.target.value }
-                          })}
-                          placeholder="Omschrijving"
-                          className="w-full bg-dark-900 border border-dark-600 rounded px-2 py-1.5 text-gray-100 text-xs focus:outline-none focus:ring-2 focus:ring-gold-500"
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-dark-700">
-                <button
-                  onClick={() => {
-                    setEditingSection(null);
-                    fetchRcboBreakers();
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 text-gray-300 hover:text-gray-100 transition-colors"
-                >
-                  <X size={18} />
-                  Annuleren
-                </button>
-                <button
-                  onClick={handleSaveRcbo}
-                  className="flex items-center gap-2 bg-gold-500 text-white px-6 py-2 rounded-lg hover:bg-gold-600 transition-colors"
-                >
-                  <Save size={18} />
-                  Opslaan
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div>
-              {rcboBreakers.length > 0 ? (
-                <div className="space-y-6">
-                  <div className="bg-dark-800 rounded-lg p-4 border border-dark-600">
-                    <h4 className="text-sm font-semibold text-gray-300 mb-3">Huurder Legenda</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                      {tenants.map((tenant, index) => (
-                        <div key={tenant.id} className="flex items-center gap-2">
-                          <div
-                            className="w-6 h-6 rounded border-2 border-dark-700 flex-shrink-0"
-                            style={{ backgroundColor: TENANT_COLORS[index % TENANT_COLORS.length] }}
-                          />
-                          <span className="text-xs text-gray-200 truncate" title={tenant.company_name}>
-                            {tenant.company_name}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                    {rcboBreakers.map(breaker => {
-                      const tenantName = getTenantName(breaker.tenant_id);
-                      const color = getTenantColor(breaker.tenant_id);
-
+                    if (isRcbo) {
                       return (
-                        <div
-                          key={breaker.id}
-                          className="bg-dark-800 rounded-lg p-3 border-2"
-                          style={{ borderColor: color }}
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <p className="text-xs font-medium text-gray-400">Automaat {breaker.rcbo_number}</p>
-                            <div
-                              className="w-4 h-4 rounded border border-dark-700 flex-shrink-0"
-                              style={{ backgroundColor: color }}
-                            />
+                        <div key={alaGroup} className="border border-dark-700 rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="text-sm font-semibold text-gold-500">Aardlek {alaGroup.replace('ALA', '')} - Aardlekautomaten</h4>
                           </div>
-                          <div className="space-y-1">
-                            {tenantName && (
-                              <p className="text-xs text-gray-200 font-medium truncate" title={tenantName}>
-                                {tenantName}
-                              </p>
-                            )}
-                            {breaker.description && (
-                              <p className="text-xs text-gray-400 truncate" title={breaker.description}>
-                                {breaker.description}
-                              </p>
-                            )}
-                            {!tenantName && !breaker.description && (
-                              <p className="text-xs text-gray-500">Geen gegevens</p>
-                            )}
+
+                          <div className="bg-dark-800 rounded-lg p-3 border border-dark-600 mb-4">
+                            <h5 className="text-xs font-semibold text-gray-300 mb-2">Huurder Legenda</h5>
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
+                              {tenants.map((tenant, index) => (
+                                <div key={tenant.id} className="flex items-center gap-2">
+                                  <div
+                                    className="w-5 h-5 rounded border-2 border-dark-700 flex-shrink-0"
+                                    style={{ backgroundColor: TENANT_COLORS[index % TENANT_COLORS.length] }}
+                                  />
+                                  <span className="text-xs text-gray-200 truncate" title={tenant.company_name}>
+                                    {tenant.company_name}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                            {alaRcbos.map(breaker => {
+                              const tenantName = getTenantName(breaker.tenant_id);
+                              const color = getTenantColor(breaker.tenant_id);
+
+                              return (
+                                <div
+                                  key={breaker.id}
+                                  className="bg-dark-800 rounded-lg p-3 border-2"
+                                  style={{ borderColor: color }}
+                                >
+                                  <div className="flex items-center justify-between mb-2">
+                                    <p className="text-xs font-medium text-gray-400">Automaat {breaker.rcbo_number}</p>
+                                    <div
+                                      className="w-4 h-4 rounded border border-dark-700 flex-shrink-0"
+                                      style={{ backgroundColor: color }}
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    {tenantName && (
+                                      <p className="text-xs text-gray-200 font-medium truncate" title={tenantName}>
+                                        {tenantName}
+                                      </p>
+                                    )}
+                                    {breaker.description && (
+                                      <p className="text-xs text-gray-400 truncate" title={breaker.description}>
+                                        {breaker.description}
+                                      </p>
+                                    )}
+                                    {!tenantName && !breaker.description && (
+                                      <p className="text-xs text-gray-500">Geen gegevens</p>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       );
-                    })}
-                  </div>
+                    } else {
+                      const groupedByK = alaGroups.reduce((acc, group) => {
+                        if (!acc[group.group_number]) {
+                          acc[group.group_number] = [];
+                        }
+                        acc[group.group_number].push(group);
+                        return acc;
+                      }, {} as { [key: number]: MeterGroup[] });
+
+                      return (
+                        <div key={alaGroup} className="border border-dark-700 rounded-lg p-4">
+                          <h4 className="text-sm font-semibold text-gold-500 mb-3">Aardlek {alaGroup.replace('ALA', '')} - Groepen</h4>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                            {Object.entries(groupedByK).sort(([a], [b]) => parseInt(a) - parseInt(b)).map(([groupNum, groups]) => {
+                              const globalK = getGlobalKNumber(alaGroup, parseInt(groupNum));
+                              return (
+                                <div key={groupNum} className="bg-dark-800 rounded p-3 border border-dark-600">
+                                  <p className="text-xs font-medium text-gray-400 mb-2">K{globalK}</p>
+                                  <div className="space-y-1">
+                                    {groups.map(group => {
+                                      let locationLabel = '-';
+                                      if (group.location_type === 'kantoor' && group.location_number) {
+                                        locationLabel = `Kantoor ${group.location_number}`;
+                                      } else if (group.location_type === 'eigen_gebruik') {
+                                        locationLabel = 'Eigen gebruik';
+                                      }
+
+                                      return (
+                                        <div key={group.id}>
+                                          <p className="text-xs text-gray-200 font-medium">{locationLabel}</p>
+                                          {group.description && (
+                                            <p className="text-xs text-gray-400 truncate" title={group.description}>
+                                              {group.description}
+                                            </p>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    }
+                  })}
                 </div>
               ) : (
-                <p className="text-sm text-gray-500">Geen aardlekautomaten geconfigureerd</p>
+                <p className="text-sm text-gray-500">Geen meterkast configuratie beschikbaar</p>
               )}
             </div>
           )}

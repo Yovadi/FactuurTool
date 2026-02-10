@@ -208,6 +208,7 @@ export type MeterGroup = {
 export type RcboCircuitBreaker = {
   id: string;
   rcbo_number: number;
+  ala_group: string;
   tenant_id: string | null;
   description: string;
   created_at: string;
