@@ -1,48 +1,18 @@
 import { useState, useRef, useCallback } from 'react';
-import { Upload, FileText, Loader2, X, AlertCircle, CheckCircle, Sparkles } from 'lucide-react';
-
-type ExtractedLineItem = {
-  description: string;
-  quantity: number;
-  unit_price: number;
-  amount: number;
-  vat_rate: number;
-};
-
-type ExtractedData = {
-  invoice_number: string;
-  supplier_name: string;
-  supplier_address: string;
-  supplier_postal_code: string;
-  supplier_city: string;
-  supplier_country: string;
-  supplier_vat_number: string;
-  supplier_kvk_number: string;
-  supplier_iban: string;
-  invoice_date: string;
-  due_date: string;
-  subtotal: number;
-  vat_amount: number;
-  vat_rate: number;
-  total_amount: number;
-  category: string;
-  line_items: ExtractedLineItem[];
-};
+import { Upload, FileText, X, AlertCircle, Sparkles, PenLine } from 'lucide-react';
 
 type PurchaseInvoiceUploadProps = {
-  supabaseUrl: string;
-  openaiApiKey: string;
-  onExtracted: (data: ExtractedData, fileName: string) => void;
+  hasApiKey: boolean;
+  onManualEntry: (fileName: string) => void;
+  onSaveAndProcess: (file: File, fileName: string) => void;
   onCancel: () => void;
 };
 
-export function PurchaseInvoiceUpload({ supabaseUrl, openaiApiKey, onExtracted, onCancel }: PurchaseInvoiceUploadProps) {
+export function PurchaseInvoiceUpload({ hasApiKey, onManualEntry, onSaveAndProcess, onCancel }: PurchaseInvoiceUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [parsing, setParsing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [progress, setProgress] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -90,77 +60,17 @@ export function PurchaseInvoiceUpload({ supabaseUrl, openaiApiKey, onExtracted, 
     }
   };
 
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result as string;
-        const base64 = result.split(',')[1];
-        resolve(base64);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const handleParse = async () => {
-    if (!file) return;
-
-    if (!openaiApiKey) {
-      setError('Geen OpenAI API key ingesteld. Ga naar Verhuurder > Instellingen om deze in te stellen.');
-      return;
-    }
-
-    setParsing(true);
-    setError(null);
-    setProgress('Bestand voorbereiden...');
-
-    try {
-      const base64 = await fileToBase64(file);
-      setProgress('Factuur analyseren met AI...');
-
-      const response = await fetch(`${supabaseUrl}/functions/v1/parse-invoice`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          file_base64: base64,
-          file_type: file.type,
-          openai_api_key: openaiApiKey,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Er is een fout opgetreden bij het analyseren.');
-      }
-
-      if (result.success && result.data) {
-        setProgress('Gegevens succesvol herkend!');
-        setTimeout(() => {
-          onExtracted(result.data, file.name);
-        }, 500);
-      } else {
-        throw new Error('Geen gegevens kunnen extraheren uit de factuur.');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Onbekende fout opgetreden');
-      setParsing(false);
-      setProgress('');
-    }
-  };
-
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
       <div className="bg-dark-900 rounded-xl border border-dark-700 w-full max-w-2xl shadow-2xl animate-fade-in">
         <div className="flex items-center justify-between p-6 border-b border-dark-700">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-gold-500/10 rounded-lg">
-              <Sparkles className="text-gold-500" size={24} />
+              <Upload className="text-gold-500" size={24} />
             </div>
             <div>
               <h3 className="text-lg font-bold text-gray-100">Factuur Uploaden</h3>
-              <p className="text-sm text-gray-400">Upload een factuur voor automatische herkenning</p>
+              <p className="text-sm text-gray-400">Upload een factuur om toe te voegen</p>
             </div>
           </div>
           <button
@@ -225,31 +135,43 @@ export function PurchaseInvoiceUpload({ supabaseUrl, openaiApiKey, onExtracted, 
                     {(file.size / 1024 / 1024).toFixed(2)} MB
                   </p>
                 </div>
-                {!parsing && (
-                  <button
-                    onClick={() => {
-                      setFile(null);
-                      setPreviewUrl(null);
-                      setError(null);
-                    }}
-                    className="p-2 hover:bg-dark-700 rounded-lg transition-colors"
-                  >
-                    <X size={18} className="text-gray-400" />
-                  </button>
-                )}
+                <button
+                  onClick={() => {
+                    setFile(null);
+                    setPreviewUrl(null);
+                    setError(null);
+                  }}
+                  className="p-2 hover:bg-dark-700 rounded-lg transition-colors"
+                >
+                  <X size={18} className="text-gray-400" />
+                </button>
               </div>
 
-              {parsing && (
-                <div className="flex items-center gap-3 p-4 bg-dark-800 rounded-lg">
-                  <Loader2 size={20} className="text-gold-500 animate-spin" />
-                  <span className="text-gray-200 text-sm">{progress}</span>
+              {hasApiKey && (
+                <div className="bg-dark-800/50 rounded-lg p-4 border border-dark-700">
+                  <div className="flex items-start gap-3">
+                    <Sparkles size={18} className="text-gold-500 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm text-gray-200 font-medium">AI Herkenning beschikbaar</p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        De factuur wordt opgeslagen en op de achtergrond automatisch herkend met AI. U kunt direct verder werken.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
 
-              {progress.includes('succesvol') && (
-                <div className="flex items-center gap-3 p-4 bg-green-900/20 border border-green-800/30 rounded-lg">
-                  <CheckCircle size={20} className="text-green-400" />
-                  <span className="text-green-300 text-sm">{progress}</span>
+              {!hasApiKey && (
+                <div className="bg-yellow-900/20 border border-yellow-800/30 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle size={18} className="text-yellow-400 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm text-yellow-200 font-medium">Geen API key ingesteld</p>
+                      <p className="text-xs text-yellow-300/70 mt-1">
+                        Stel een OpenAI API key in bij Verhuurder om AI herkenning te gebruiken.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -266,29 +188,29 @@ export function PurchaseInvoiceUpload({ supabaseUrl, openaiApiKey, onExtracted, 
         <div className="flex justify-end gap-3 p-6 border-t border-dark-700">
           <button
             onClick={onCancel}
-            disabled={parsing}
-            className="px-4 py-2.5 bg-dark-700 text-gray-200 rounded-lg hover:bg-dark-600 transition-colors disabled:opacity-50"
+            className="px-4 py-2.5 bg-dark-700 text-gray-200 rounded-lg hover:bg-dark-600 transition-colors"
           >
             Annuleren
           </button>
           {file && (
-            <button
-              onClick={handleParse}
-              disabled={parsing}
-              className="flex items-center gap-2 px-5 py-2.5 bg-gold-500 text-dark-950 rounded-lg hover:bg-gold-600 transition-colors font-medium disabled:opacity-50"
-            >
-              {parsing ? (
-                <>
-                  <Loader2 size={18} className="animate-spin" />
-                  Analyseren...
-                </>
-              ) : (
-                <>
+            <>
+              <button
+                onClick={() => onManualEntry(file.name)}
+                className="flex items-center gap-2 px-4 py-2.5 bg-dark-700 text-gray-200 rounded-lg hover:bg-dark-600 transition-colors text-sm font-medium border border-dark-600"
+              >
+                <PenLine size={16} />
+                Handmatig Invullen
+              </button>
+              {hasApiKey && (
+                <button
+                  onClick={() => onSaveAndProcess(file, file.name)}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-gold-500 text-dark-950 rounded-lg hover:bg-gold-600 transition-colors font-medium"
+                >
                   <Sparkles size={18} />
-                  Herkennen met AI
-                </>
+                  Opslaan & Herkennen
+                </button>
               )}
-            </button>
+            </>
           )}
         </div>
       </div>

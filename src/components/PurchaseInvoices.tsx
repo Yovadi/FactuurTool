@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, Search, Eye, Edit2, Trash2, Upload, FileText, CheckCircle, Clock, AlertCircle, Sparkles, X, Filter } from 'lucide-react';
+import { Plus, Search, Eye, Edit2, Trash2, Upload, FileText, CheckCircle, Clock, AlertCircle, Sparkles, X, Filter, Loader2 } from 'lucide-react';
 import { PurchaseInvoiceUpload } from './PurchaseInvoiceUpload';
 import { PurchaseInvoicePreview } from './PurchaseInvoicePreview';
 
@@ -115,6 +115,9 @@ export function PurchaseInvoices() {
   const [aiConfidence, setAiConfidence] = useState(0);
   const [originalFileName, setOriginalFileName] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
+  const [aiNotification, setAiNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const notificationTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
     loadData();
@@ -148,38 +151,137 @@ export function PurchaseInvoices() {
     }
   };
 
-  const handleExtracted = (data: any, fileName: string) => {
-    setFormData({
-      invoice_number: data.invoice_number || '',
-      supplier_name: data.supplier_name || '',
-      supplier_address: data.supplier_address || '',
-      supplier_postal_code: data.supplier_postal_code || '',
-      supplier_city: data.supplier_city || '',
-      supplier_country: data.supplier_country || 'Nederland',
-      supplier_vat_number: data.supplier_vat_number || '',
-      supplier_kvk_number: data.supplier_kvk_number || '',
-      supplier_iban: data.supplier_iban || '',
-      invoice_date: data.invoice_date || new Date().toISOString().split('T')[0],
-      due_date: data.due_date || '',
-      vat_rate: data.vat_rate || 21,
-      category: data.category || '',
-      notes: '',
+  const showNotification = (type: 'success' | 'error', message: string) => {
+    if (notificationTimerRef.current) clearTimeout(notificationTimerRef.current);
+    setAiNotification({ type, message });
+    notificationTimerRef.current = setTimeout(() => setAiNotification(null), 6000);
+  };
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        resolve(result.split(',')[1]);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
     });
+  };
 
-    const items: LineItem[] = (data.line_items || []).map((item: any) => ({
-      description: item.description || '',
-      quantity: item.quantity || 1,
-      unit_price: item.unit_price || 0,
-      amount: item.amount || 0,
-      vat_rate: item.vat_rate || data.vat_rate || 21,
-    }));
-
-    setLineItems(items.length > 0 ? items : [{ description: '', quantity: 1, unit_price: 0, amount: 0, vat_rate: 21 }]);
-    setAiExtracted(true);
-    setAiConfidence(85);
+  const handleManualEntry = (fileName: string) => {
+    resetForm();
     setOriginalFileName(fileName);
     setShowUpload(false);
     setShowForm(true);
+  };
+
+  const handleSaveAndProcess = async (file: File, fileName: string) => {
+    setShowUpload(false);
+
+    try {
+      const { data: invoice, error } = await supabase
+        .from('purchase_invoices')
+        .insert({
+          invoice_number: '',
+          supplier_name: fileName.replace(/\.[^/.]+$/, ''),
+          original_file_name: fileName,
+          status: 'draft',
+          ai_extracted: false,
+          ai_confidence: 0,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      await loadData();
+
+      setProcessingIds(prev => new Set(prev).add(invoice.id));
+
+      const base64 = await fileToBase64(file);
+
+      const response = await fetch(`${supabaseUrl}/functions/v1/parse-invoice`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          file_base64: base64,
+          file_type: file.type,
+          openai_api_key: openaiApiKey,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success || !result.data) {
+        throw new Error(result.error || 'AI herkenning mislukt');
+      }
+
+      const data = result.data;
+      const items: LineItem[] = (data.line_items || []).map((item: any) => ({
+        description: item.description || '',
+        quantity: item.quantity || 1,
+        unit_price: item.unit_price || 0,
+        amount: item.amount || 0,
+        vat_rate: item.vat_rate || data.vat_rate || 21,
+      }));
+
+      const subtotal = items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+      const vatRate = data.vat_rate || 21;
+      const vatAmount = Math.round((subtotal * vatRate) / 100 * 100) / 100;
+      const total = subtotal + vatAmount;
+
+      const { error: updateError } = await supabase
+        .from('purchase_invoices')
+        .update({
+          invoice_number: data.invoice_number || '',
+          supplier_name: data.supplier_name || fileName,
+          supplier_address: data.supplier_address || '',
+          supplier_postal_code: data.supplier_postal_code || '',
+          supplier_city: data.supplier_city || '',
+          supplier_country: data.supplier_country || 'Nederland',
+          supplier_vat_number: data.supplier_vat_number || '',
+          supplier_kvk_number: data.supplier_kvk_number || '',
+          supplier_iban: data.supplier_iban || '',
+          invoice_date: data.invoice_date || new Date().toISOString().split('T')[0],
+          due_date: data.due_date || null,
+          subtotal,
+          vat_amount: vatAmount,
+          vat_rate: vatRate,
+          total_amount: total,
+          category: data.category || '',
+          ai_extracted: true,
+          ai_confidence: 85,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', invoice.id);
+
+      if (updateError) throw updateError;
+
+      if (items.length > 0) {
+        const itemsToInsert = items.map(item => ({
+          purchase_invoice_id: invoice.id,
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          amount: item.amount,
+          vat_rate: item.vat_rate,
+        }));
+        await supabase.from('purchase_invoice_line_items').insert(itemsToInsert);
+      }
+
+      showNotification('success', `Factuur "${data.supplier_name || fileName}" is succesvol herkend met AI.`);
+      await loadData();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Onbekende fout';
+      showNotification('error', `AI herkenning mislukt: ${message}. U kunt de factuur handmatig bewerken.`);
+    } finally {
+      setProcessingIds(prev => {
+        const next = new Set(prev);
+        next.forEach(id => next.delete(id));
+        return next;
+      });
+    }
   };
 
   const handleLineItemChange = (index: number, field: keyof LineItem, value: string | number) => {
@@ -391,6 +493,38 @@ export function PurchaseInvoices() {
   return (
     <div className="h-full overflow-y-auto">
       <div className="p-6 space-y-6">
+        {aiNotification && (
+          <div className={`flex items-center gap-3 p-4 rounded-lg border ${
+            aiNotification.type === 'success'
+              ? 'bg-green-900/20 border-green-800/30'
+              : 'bg-red-900/20 border-red-800/30'
+          }`}>
+            {aiNotification.type === 'success' ? (
+              <CheckCircle size={18} className="text-green-400 flex-shrink-0" />
+            ) : (
+              <AlertCircle size={18} className="text-red-400 flex-shrink-0" />
+            )}
+            <span className={`text-sm ${
+              aiNotification.type === 'success' ? 'text-green-300' : 'text-red-300'
+            }`}>{aiNotification.message}</span>
+            <button
+              onClick={() => setAiNotification(null)}
+              className="ml-auto p-1 hover:bg-dark-700 rounded transition-colors"
+            >
+              <X size={14} className="text-gray-400" />
+            </button>
+          </div>
+        )}
+
+        {processingIds.size > 0 && (
+          <div className="flex items-center gap-3 p-4 bg-gold-500/10 border border-gold-500/20 rounded-lg">
+            <Loader2 size={18} className="text-gold-500 animate-spin flex-shrink-0" />
+            <span className="text-sm text-gold-200">
+              AI herkenning bezig... De factuur wordt automatisch bijgewerkt.
+            </span>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-dark-900 rounded-lg border border-dark-700 p-4">
             <div className="flex items-center gap-3">
@@ -512,7 +646,11 @@ export function PurchaseInvoices() {
                       >
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
-                            {inv.ai_extracted && <Sparkles size={14} className="text-gold-500 flex-shrink-0" />}
+                            {processingIds.has(inv.id) ? (
+                              <Loader2 size={14} className="text-gold-500 animate-spin flex-shrink-0" />
+                            ) : inv.ai_extracted ? (
+                              <Sparkles size={14} className="text-gold-500 flex-shrink-0" />
+                            ) : null}
                             <span className="text-gray-100 font-medium truncate">{inv.supplier_name || '-'}</span>
                           </div>
                         </td>
@@ -555,9 +693,9 @@ export function PurchaseInvoices() {
 
       {showUpload && (
         <PurchaseInvoiceUpload
-          supabaseUrl={supabaseUrl}
-          openaiApiKey={openaiApiKey}
-          onExtracted={handleExtracted}
+          hasApiKey={!!openaiApiKey}
+          onManualEntry={handleManualEntry}
+          onSaveAndProcess={handleSaveAndProcess}
           onCancel={() => setShowUpload(false)}
         />
       )}
