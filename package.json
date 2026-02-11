@@ -1,7 +1,7 @@
 {
   "name": "invoice-manager",
   "private": true,
-  "version": "1.0.46",
+  "version": "1.0.47",
   "description": "HAL5 Facturatie Manager",
   "author": "HAL5 Overloon",
   "main": "electron/main.js",
