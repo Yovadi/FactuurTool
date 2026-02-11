@@ -28,6 +28,7 @@ type PurchaseInvoice = {
   supplier_iban: string;
   invoice_date: string;
   due_date: string | null;
+  order_number: string;
   subtotal: number;
   vat_amount: number;
   vat_rate: number;
@@ -44,6 +45,7 @@ type PurchaseInvoice = {
 
 type FormData = {
   invoice_number: string;
+  order_number: string;
   supplier_name: string;
   supplier_address: string;
   supplier_postal_code: string;
@@ -76,6 +78,7 @@ const CATEGORIES = [
 
 const emptyForm: FormData = {
   invoice_number: '',
+  order_number: '',
   supplier_name: '',
   supplier_address: '',
   supplier_postal_code: '',
@@ -289,6 +292,7 @@ export function PurchaseInvoices() {
         .from('purchase_invoices')
         .update({
           invoice_number: data.invoice_number || '',
+          order_number: data.order_number || '',
           supplier_name: data.supplier_name || fileName,
           supplier_address: data.supplier_address || '',
           supplier_postal_code: data.supplier_postal_code || '',
@@ -451,6 +455,7 @@ export function PurchaseInvoices() {
     setEditingId(invoice.id);
     setFormData({
       invoice_number: invoice.invoice_number,
+      order_number: invoice.order_number || '',
       supplier_name: invoice.supplier_name,
       supplier_address: invoice.supplier_address,
       supplier_postal_code: invoice.supplier_postal_code,
@@ -868,6 +873,15 @@ export function PurchaseInvoices() {
                       onChange={(e) => setFormData({ ...formData, invoice_number: e.target.value })}
                       className="w-full px-3 py-2.5 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 text-sm"
                       required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Ordernummer</label>
+                    <input
+                      type="text"
+                      value={formData.order_number}
+                      onChange={(e) => setFormData({ ...formData, order_number: e.target.value })}
+                      className="w-full px-3 py-2.5 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 text-sm"
                     />
                   </div>
                   <div>
