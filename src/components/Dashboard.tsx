@@ -262,12 +262,12 @@ export function Dashboard() {
     setOutstandingInvoices(outstandingInvoicesData);
 
     const overdueInvoicesData = invoices?.filter(
-      inv => inv.status !== 'paid' && inv.due_date < todayStr
+      inv => inv.status !== 'paid' && inv.status !== 'credited' && inv.due_date < todayStr
     ) || [];
     setOverdueInvoices(overdueInvoicesData);
 
     const upcomingDueInvoices = invoices?.filter(
-      inv => inv.status !== 'paid' && inv.due_date >= todayStr && inv.due_date <= sevenDaysStr
+      inv => inv.status !== 'paid' && inv.status !== 'credited' && inv.due_date >= todayStr && inv.due_date <= sevenDaysStr
     ) || [];
 
     const overdueAmt = overdueInvoicesData.reduce((sum, inv) => sum + Number(inv.amount), 0);
