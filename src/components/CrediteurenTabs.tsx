@@ -16,7 +16,7 @@ type CrediteurenTabsProps = {
 };
 
 export function CrediteurenTabs({ prefilledInvoiceData, onClearPrefilled }: CrediteurenTabsProps) {
-  const [activeTab, setActiveTab] = useState<'purchaseinvoices' | 'creditnotes' | 'overview'>('purchaseinvoices');
+  const [activeTab, setActiveTab] = useState<'purchaseinvoices' | 'creditnotes' | 'overview'>('creditnotes');
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
@@ -27,17 +27,6 @@ export function CrediteurenTabs({ prefilledInvoiceData, onClearPrefilled }: Cred
       <div className="flex-shrink-0 mb-4">
         <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2">
           <div className="flex gap-2">
-            <button
-              onClick={() => setActiveTab('purchaseinvoices')}
-              className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
-                activeTab === 'purchaseinvoices'
-                  ? 'bg-gold-500 text-white'
-                  : 'text-gray-300 hover:bg-dark-800'
-              }`}
-            >
-              <FileText size={20} />
-              Inkoopfacturen
-            </button>
             <button
               onClick={() => setActiveTab('creditnotes')}
               className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
@@ -59,6 +48,17 @@ export function CrediteurenTabs({ prefilledInvoiceData, onClearPrefilled }: Cred
             >
               <DollarSign size={20} />
               Credit Overzicht
+            </button>
+            <button
+              onClick={() => setActiveTab('purchaseinvoices')}
+              className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
+                activeTab === 'purchaseinvoices'
+                  ? 'bg-gold-500 text-white'
+                  : 'text-gray-300 hover:bg-dark-800'
+              }`}
+            >
+              <FileText size={20} />
+              Inkoopfacturen
             </button>
           </div>
         </div>

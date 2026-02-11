@@ -497,6 +497,19 @@ export function PurchaseInvoices() {
     }
   };
 
+  const updateCategory = async (id: string, category: string) => {
+    try {
+      const { error } = await supabase
+        .from('purchase_invoices')
+        .update({ category, updated_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw error;
+      setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, category } : inv));
+    } catch (error) {
+      console.error('Error updating category:', error);
+    }
+  };
+
   const markAsPaid = async (id: string) => {
     try {
       const { error } = await supabase
@@ -595,7 +608,7 @@ export function PurchaseInvoices() {
         {processingIds.size > 0 && (
           <div className="flex items-center gap-3 p-4 bg-gold-500/10 border border-gold-500/20 rounded-lg">
             <Loader2 size={18} className="text-gold-500 animate-spin flex-shrink-0" />
-            <span className="text-sm text-gold-200">
+            <span className="text-sm text-white">
               AI herkenning bezig... De factuur wordt automatisch bijgewerkt.
             </span>
           </div>
@@ -732,7 +745,17 @@ export function PurchaseInvoices() {
                         </td>
                         <td className="px-4 py-3 text-gray-300 text-sm font-mono">{inv.invoice_number || '-'}</td>
                         <td className="px-4 py-3 text-gray-300 text-sm">{formatDate(inv.invoice_date)}</td>
-                        <td className="px-4 py-3 text-gray-400 text-sm capitalize">{inv.category || '-'}</td>
+                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                          <select
+                            value={inv.category || ''}
+                            onChange={(e) => updateCategory(inv.id, e.target.value)}
+                            className="w-full bg-transparent border-none text-gray-400 text-sm capitalize cursor-pointer hover:text-gray-200 focus:outline-none focus:ring-1 focus:ring-gold-500 rounded px-0 py-0.5"
+                          >
+                            {CATEGORIES.map((cat) => (
+                              <option key={cat.value} value={cat.value} className="bg-dark-900 text-gray-200">{cat.label}</option>
+                            ))}
+                          </select>
+                        </td>
                         <td className="px-4 py-3 text-right text-gray-100 font-semibold">{formatCurrency(inv.total_amount)}</td>
                         <td className="px-4 py-3 text-center">
                           <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${status.bg} ${status.text}`}>
