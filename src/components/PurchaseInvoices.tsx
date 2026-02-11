@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { Plus, Search, Eye, Edit2, Trash2, Upload, FileText, CheckCircle, Clock, AlertCircle, Sparkles, X, Filter, Loader2 } from 'lucide-react';
 import { PurchaseInvoiceUpload } from './PurchaseInvoiceUpload';
@@ -118,6 +118,8 @@ export function PurchaseInvoices() {
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
   const [aiNotification, setAiNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const notificationTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const [isDragOver, setIsDragOver] = useState(false);
+  const dragCounterRef = useRef(0);
 
   useEffect(() => {
     loadData();
@@ -156,6 +158,57 @@ export function PurchaseInvoices() {
     setAiNotification({ type, message });
     notificationTimerRef.current = setTimeout(() => setAiNotification(null), 6000);
   };
+
+  const validFileTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'application/pdf'];
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current++;
+    if (e.dataTransfer.types.includes('Files')) {
+      setIsDragOver(true);
+    }
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current--;
+    if (dragCounterRef.current === 0) {
+      setIsDragOver(false);
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    dragCounterRef.current = 0;
+
+    const droppedFile = e.dataTransfer.files[0];
+    if (!droppedFile) return;
+
+    if (!validFileTypes.includes(droppedFile.type)) {
+      showNotification('error', 'Ongeldig bestandstype. Upload een PNG, JPG, WebP of PDF bestand.');
+      return;
+    }
+
+    if (droppedFile.size > 20 * 1024 * 1024) {
+      showNotification('error', 'Bestand is te groot. Maximaal 20MB.');
+      return;
+    }
+
+    if (openaiApiKey) {
+      handleSaveAndProcess(droppedFile, droppedFile.name);
+    } else {
+      handleManualEntry(droppedFile.name);
+    }
+  }, [openaiApiKey]);
 
   const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -491,7 +544,24 @@ export function PurchaseInvoices() {
   }
 
   return (
-    <div className="h-full overflow-y-auto">
+    <div
+      className="h-full overflow-y-auto relative"
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
+      {isDragOver && (
+        <div className="absolute inset-0 z-40 bg-dark-950/80 backdrop-blur-sm flex items-center justify-center pointer-events-none">
+          <div className="border-2 border-dashed border-gold-500 rounded-2xl p-16 text-center bg-gold-500/5">
+            <Upload size={56} className="text-gold-500 mx-auto mb-4" />
+            <p className="text-xl font-semibold text-gold-400">Laat los om te uploaden</p>
+            <p className="text-sm text-gray-400 mt-2">
+              {openaiApiKey ? 'Het bestand wordt automatisch herkend met AI' : 'Het bestand wordt handmatig toegevoegd'}
+            </p>
+          </div>
+        </div>
+      )}
       <div className="p-6 space-y-6">
         {aiNotification && (
           <div className={`flex items-center gap-3 p-4 rounded-lg border ${
