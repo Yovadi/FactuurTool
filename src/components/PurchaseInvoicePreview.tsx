@@ -22,6 +22,7 @@ type PurchaseInvoice = {
   supplier_iban: string;
   invoice_date: string;
   due_date: string | null;
+  order_number: string;
   subtotal: number;
   vat_amount: number;
   vat_rate: number;
@@ -93,17 +94,8 @@ export function PurchaseInvoicePreview({ invoice, onClose, onEdit, onDelete, onM
             <div className="space-y-4">
               <div>
                 <h4 className="text-xs uppercase text-gray-500 font-semibold mb-2 tracking-wider">Leverancier</h4>
-                <div className="bg-dark-800 rounded-lg p-4 space-y-1">
+                <div className="bg-dark-800 rounded-lg p-4">
                   <p className="text-gray-100 font-semibold text-lg">{invoice.supplier_name || '-'}</p>
-                  {invoice.supplier_address && <p className="text-gray-400 text-sm">{invoice.supplier_address}</p>}
-                  {(invoice.supplier_postal_code || invoice.supplier_city) && (
-                    <p className="text-gray-400 text-sm">
-                      {invoice.supplier_postal_code} {invoice.supplier_city}
-                    </p>
-                  )}
-                  {invoice.supplier_country && invoice.supplier_country !== 'Nederland' && (
-                    <p className="text-gray-400 text-sm">{invoice.supplier_country}</p>
-                  )}
                 </div>
               </div>
 
@@ -142,6 +134,12 @@ export function PurchaseInvoicePreview({ invoice, onClose, onEdit, onDelete, onM
                     <span className="text-gray-500">Factuurdatum</span>
                     <span className="text-gray-200">{formatDate(invoice.invoice_date)}</span>
                   </div>
+                  {invoice.order_number && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Ordernummer</span>
+                      <span className="text-gray-200">{invoice.order_number}</span>
+                    </div>
+                  )}
                   {invoice.due_date && (
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">Vervaldatum</span>

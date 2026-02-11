@@ -9,6 +9,7 @@ const corsHeaders = {
 
 interface ParsedInvoiceData {
   invoice_number: string;
+  order_number: string;
   supplier_name: string;
   supplier_address: string;
   supplier_postal_code: string;
@@ -39,6 +40,7 @@ Geef ALLEEN geldige JSON terug, geen andere tekst.
 
 {
   "invoice_number": "factuurnummer",
+  "order_number": "ordernummer/bestelnummer (lege string als niet vermeld)",
   "supplier_name": "naam leverancier/bedrijf",
   "supplier_address": "straat + huisnummer",
   "supplier_postal_code": "postcode",
@@ -85,8 +87,8 @@ function buildContentParts(fileBase64: string, fileType: string) {
       {
         type: "file" as const,
         file: {
-          data: fileBase64,
           filename: "invoice.pdf",
+          file_data: `data:application/pdf;base64,${fileBase64}`,
         },
       },
     ];

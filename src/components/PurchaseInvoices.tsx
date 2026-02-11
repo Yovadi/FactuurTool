@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { Plus, Search, Eye, Edit2, Trash2, Upload, FileText, CheckCircle, Clock, AlertCircle, Sparkles, X, Filter, Loader2 } from 'lucide-react';
 import { PurchaseInvoiceUpload } from './PurchaseInvoiceUpload';
 import { PurchaseInvoicePreview } from './PurchaseInvoicePreview';
+import { ConfirmModal } from './ConfirmModal';
 
 type LineItem = {
   id?: string;
@@ -27,6 +28,7 @@ type PurchaseInvoice = {
   supplier_iban: string;
   invoice_date: string;
   due_date: string | null;
+  order_number: string;
   subtotal: number;
   vat_amount: number;
   vat_rate: number;
@@ -43,6 +45,7 @@ type PurchaseInvoice = {
 
 type FormData = {
   invoice_number: string;
+  order_number: string;
   supplier_name: string;
   supplier_address: string;
   supplier_postal_code: string;
@@ -75,6 +78,7 @@ const CATEGORIES = [
 
 const emptyForm: FormData = {
   invoice_number: '',
+  order_number: '',
   supplier_name: '',
   supplier_address: '',
   supplier_postal_code: '',
@@ -288,6 +292,7 @@ export function PurchaseInvoices() {
         .from('purchase_invoices')
         .update({
           invoice_number: data.invoice_number || '',
+          order_number: data.order_number || '',
           supplier_name: data.supplier_name || fileName,
           supplier_address: data.supplier_address || '',
           supplier_postal_code: data.supplier_postal_code || '',
@@ -450,6 +455,7 @@ export function PurchaseInvoices() {
     setEditingId(invoice.id);
     setFormData({
       invoice_number: invoice.invoice_number,
+      order_number: invoice.order_number || '',
       supplier_name: invoice.supplier_name,
       supplier_address: invoice.supplier_address,
       supplier_postal_code: invoice.supplier_postal_code,
@@ -488,6 +494,19 @@ export function PurchaseInvoices() {
       loadData();
     } catch (error) {
       console.error('Error deleting invoice:', error);
+    }
+  };
+
+  const updateCategory = async (id: string, category: string) => {
+    try {
+      const { error } = await supabase
+        .from('purchase_invoices')
+        .update({ category, updated_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw error;
+      setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, category } : inv));
+    } catch (error) {
+      console.error('Error updating category:', error);
     }
   };
 
@@ -589,7 +608,7 @@ export function PurchaseInvoices() {
         {processingIds.size > 0 && (
           <div className="flex items-center gap-3 p-4 bg-gold-500/10 border border-gold-500/20 rounded-lg">
             <Loader2 size={18} className="text-gold-500 animate-spin flex-shrink-0" />
-            <span className="text-sm text-gold-200">
+            <span className="text-sm text-white">
               AI herkenning bezig... De factuur wordt automatisch bijgewerkt.
             </span>
           </div>
@@ -726,7 +745,17 @@ export function PurchaseInvoices() {
                         </td>
                         <td className="px-4 py-3 text-gray-300 text-sm font-mono">{inv.invoice_number || '-'}</td>
                         <td className="px-4 py-3 text-gray-300 text-sm">{formatDate(inv.invoice_date)}</td>
-                        <td className="px-4 py-3 text-gray-400 text-sm capitalize">{inv.category || '-'}</td>
+                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                          <select
+                            value={inv.category || ''}
+                            onChange={(e) => updateCategory(inv.id, e.target.value)}
+                            className="w-full bg-transparent border-none text-gray-400 text-sm capitalize cursor-pointer hover:text-gray-200 focus:outline-none focus:ring-1 focus:ring-gold-500 rounded px-0 py-0.5"
+                          >
+                            {CATEGORIES.map((cat) => (
+                              <option key={cat.value} value={cat.value} className="bg-dark-900 text-gray-200">{cat.label}</option>
+                            ))}
+                          </select>
+                        </td>
                         <td className="px-4 py-3 text-right text-gray-100 font-semibold">{formatCurrency(inv.total_amount)}</td>
                         <td className="px-4 py-3 text-center">
                           <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${status.bg} ${status.text}`}>
@@ -867,6 +896,15 @@ export function PurchaseInvoices() {
                       onChange={(e) => setFormData({ ...formData, invoice_number: e.target.value })}
                       className="w-full px-3 py-2.5 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 text-sm"
                       required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Ordernummer</label>
+                    <input
+                      type="text"
+                      value={formData.order_number}
+                      onChange={(e) => setFormData({ ...formData, order_number: e.target.value })}
+                      className="w-full px-3 py-2.5 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 text-sm"
                     />
                   </div>
                   <div>
@@ -1018,17 +1056,20 @@ export function PurchaseInvoices() {
           invoice={previewInvoice}
           onClose={() => setPreviewInvoice(null)}
           onEdit={() => startEdit(previewInvoice)}
-          onDelete={() => {
-            if (deleteConfirm === previewInvoice.id) {
-              handleDelete(previewInvoice.id);
-            } else {
-              setDeleteConfirm(previewInvoice.id);
-              if (confirm('Weet je zeker dat je deze factuur wilt verwijderen?')) {
-                handleDelete(previewInvoice.id);
-              }
-            }
-          }}
+          onDelete={() => setDeleteConfirm(previewInvoice.id)}
           onMarkAsPaid={previewInvoice.status !== 'paid' ? () => markAsPaid(previewInvoice.id) : undefined}
+        />
+      )}
+
+      {deleteConfirm && (
+        <ConfirmModal
+          title="Factuur Verwijderen"
+          message={`Weet je zeker dat je de factuur van "${invoices.find(i => i.id === deleteConfirm)?.supplier_name || ''}" wilt verwijderen? Dit kan niet ongedaan worden gemaakt.`}
+          confirmText="Verwijderen"
+          cancelText="Annuleren"
+          variant="danger"
+          onConfirm={() => handleDelete(deleteConfirm)}
+          onCancel={() => setDeleteConfirm(null)}
         />
       )}
     </div>
