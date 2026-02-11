@@ -126,17 +126,17 @@ export function Analytics() {
     const totalRevenue = invoices?.reduce((sum, inv) => sum + Number(inv.amount), 0) || 0;
     const paidRevenue = invoices?.filter(inv => inv.status === 'paid')
       .reduce((sum, inv) => sum + Number(inv.amount), 0) || 0;
-    const pendingAmount = invoices?.filter(inv => inv.status !== 'paid')
+    const pendingAmount = invoices?.filter(inv => inv.status !== 'paid' && inv.status !== 'credited')
       .reduce((sum, inv) => sum + Number(inv.amount), 0) || 0;
 
     const paidInvoices = invoices?.filter(inv => inv.status === 'paid').length || 0;
     const pendingInvoices = invoices?.filter(inv => inv.status === 'pending').length || 0;
     const overdueInvoices = invoices?.filter(
-      inv => inv.status !== 'paid' && inv.due_date < todayStr
+      inv => inv.status !== 'paid' && inv.status !== 'credited' && inv.due_date < todayStr
     ).length || 0;
 
     const overdueAmount = invoices?.filter(
-      inv => inv.status !== 'paid' && inv.due_date < todayStr
+      inv => inv.status !== 'paid' && inv.status !== 'credited' && inv.due_date < todayStr
     ).reduce((sum, inv) => sum + Number(inv.amount), 0) || 0;
 
     const activeLeaseSpaces = leaseSpaces?.filter(ls => {
