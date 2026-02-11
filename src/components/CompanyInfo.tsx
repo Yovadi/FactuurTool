@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { supabase, type CompanySettings } from '../lib/supabase';
-import { Building2, Edit2, Mail, Phone, MapPin, CreditCard, Lock } from 'lucide-react';
+import { Building2, Edit2, Mail, Phone, MapPin, CreditCard, Lock, Sparkles, Eye, EyeOff } from 'lucide-react';
 
 export function CompanyInfo() {
   const [settings, setSettings] = useState<CompanySettings | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showApiKey, setShowApiKey] = useState(false);
 
   const [formData, setFormData] = useState({
     company_name: '',
@@ -20,6 +21,7 @@ export function CompanyInfo() {
     kvk_number: '',
     bank_account: '',
     delete_code: '',
+    openai_api_key: '',
   });
 
   useEffect(() => {
@@ -57,6 +59,7 @@ export function CompanyInfo() {
         kvk_number: settings.kvk_number || '',
         bank_account: settings.bank_account || '',
         delete_code: settings.delete_code || '',
+        openai_api_key: (settings as any).openai_api_key || '',
       });
     }
     setShowForm(true);
@@ -257,6 +260,34 @@ export function CompanyInfo() {
 
               </div>
 
+              <div className="border-t border-dark-700 pt-4">
+                <h4 className="text-sm font-semibold text-gray-400 uppercase mb-3">AI Instellingen</h4>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    OpenAI API Key
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showApiKey ? 'text' : 'password'}
+                      value={formData.openai_api_key}
+                      onChange={(e) => setFormData({ ...formData, openai_api_key: e.target.value })}
+                      className="w-full bg-dark-800 border border-dark-700 rounded-lg px-4 py-2 pr-10 text-gray-100 focus:outline-none focus:ring-2 focus:ring-gold-500 font-mono text-sm"
+                      placeholder="sk-..."
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowApiKey(!showApiKey)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-300"
+                    >
+                      {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Nodig voor automatische herkenning van inkoopfacturen via AI (GPT-4 Vision)
+                  </p>
+                </div>
+              </div>
+
               <div className="flex justify-end gap-3 pt-4 border-t border-dark-700">
                 <button
                   type="button"
@@ -375,6 +406,23 @@ export function CompanyInfo() {
                     </div>
                   </div>
                 )}
+              </div>
+            </div>
+
+            <div>
+              <h4 className="text-sm font-semibold text-gray-400 uppercase mb-2">AI Instellingen</h4>
+              <div className="space-y-2 text-gray-200">
+                <div className="flex items-start gap-2">
+                  <Sparkles size={16} className="mt-0.5 text-gray-500" />
+                  <div>
+                    <p className="text-xs text-gray-400">OpenAI API Key</p>
+                    <p className="font-mono text-sm">
+                      {(settings as any).openai_api_key
+                        ? `sk-...${(settings as any).openai_api_key.slice(-4)}`
+                        : 'Niet ingesteld'}
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
