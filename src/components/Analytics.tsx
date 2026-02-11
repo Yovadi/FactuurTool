@@ -123,7 +123,8 @@ export function Analytics() {
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
 
-    const totalRevenue = invoices?.reduce((sum, inv) => sum + Number(inv.amount), 0) || 0;
+    const totalRevenue = invoices?.filter(inv => inv.status !== 'credited')
+      .reduce((sum, inv) => sum + Number(inv.amount), 0) || 0;
     const paidRevenue = invoices?.filter(inv => inv.status === 'paid')
       .reduce((sum, inv) => sum + Number(inv.amount), 0) || 0;
     const pendingAmount = invoices?.filter(inv => inv.status !== 'paid' && inv.status !== 'credited')
