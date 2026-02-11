@@ -42,9 +42,18 @@ type PendingBooking = {
 };
 
 type Invoice = {
+  invoice_number: string;
   amount: number;
   status: string;
   due_date: string;
+  tenant_id?: string | null;
+  external_customer_id?: string | null;
+  tenants?: {
+    company_name: string;
+  };
+  external_customers?: {
+    company_name: string;
+  };
 };
 
 type Lease = {
@@ -154,7 +163,16 @@ export function Dashboard() {
 
     const { data: invoices } = await supabase
       .from('invoices')
-      .select('amount, status, due_date');
+      .select(`
+        invoice_number,
+        amount,
+        status,
+        due_date,
+        tenant_id,
+        external_customer_id,
+        tenants(company_name),
+        external_customers(company_name)
+      `);
 
     const { data: bookings } = await supabase
       .from('meeting_room_bookings')
@@ -283,20 +301,35 @@ export function Dashboard() {
     }
 
     if (outstandingInvoicesData.length > 0) {
+      const invoiceDetails = outstandingInvoicesData.slice(0, 3).map(inv => {
+        const customerName = inv.tenant_id
+          ? (inv.tenants?.company_name || 'Onbekende huurder')
+          : (inv.external_customers?.company_name || 'Externe klant');
+        return `${inv.invoice_number} (${customerName})`;
+      }).join(', ');
+      const moreCount = outstandingInvoicesData.length > 3 ? ` en ${outstandingInvoicesData.length - 3} meer` : '';
+
       newFinancialNotifications.push({
         type: 'info',
         icon: <FileText size={18} />,
         title: 'Openstaande Facturen',
-        message: `${outstandingInvoicesData.length} factu${outstandingInvoicesData.length !== 1 ? 'ren' : 'ur'} openstaand (€${outstandingAmt.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`
+        message: `${outstandingInvoicesData.length} factu${outstandingInvoicesData.length !== 1 ? 'ren' : 'ur'} openstaand: ${invoiceDetails}${moreCount} (€${outstandingAmt.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`
       });
     }
 
     if (overdueInvoicesData.length > 0) {
+      const invoiceDetails = overdueInvoicesData.map(inv => {
+        const customerName = inv.tenant_id
+          ? (inv.tenants?.company_name || 'Onbekende huurder')
+          : (inv.external_customers?.company_name || 'Externe klant');
+        return `${inv.invoice_number} (${customerName})`;
+      }).join(', ');
+
       newFinancialNotifications.push({
         type: 'danger',
         icon: <DollarSign size={18} />,
         title: 'Achterstallige Facturen',
-        message: `${overdueInvoicesData.length} factu${overdueInvoicesData.length !== 1 ? 'ren' : 'ur'} over de vervaldatum (€${overdueAmt.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`
+        message: `${overdueInvoicesData.length} factu${overdueInvoicesData.length !== 1 ? 'ren' : 'ur'} over de vervaldatum: ${invoiceDetails} (€${overdueAmt.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`
       });
     }
 
@@ -310,11 +343,19 @@ export function Dashboard() {
     }
 
     if (upcomingDueInvoices.length > 0) {
+      const invoiceDetails = upcomingDueInvoices.slice(0, 3).map(inv => {
+        const customerName = inv.tenant_id
+          ? (inv.tenants?.company_name || 'Onbekende huurder')
+          : (inv.external_customers?.company_name || 'Externe klant');
+        return `${inv.invoice_number} (${customerName})`;
+      }).join(', ');
+      const moreCount = upcomingDueInvoices.length > 3 ? ` en ${upcomingDueInvoices.length - 3} meer` : '';
+
       newFinancialNotifications.push({
         type: 'warning',
         icon: <FileText size={18} />,
         title: 'Binnenkort Te Betalen',
-        message: `${upcomingDueInvoices.length} factu${upcomingDueInvoices.length !== 1 ? 'ren' : 'ur'} moet${upcomingDueInvoices.length !== 1 ? 'en' : ''} binnen 7 dagen betaald worden`
+        message: `${upcomingDueInvoices.length} factu${upcomingDueInvoices.length !== 1 ? 'ren' : 'ur'} binnen 7 dagen: ${invoiceDetails}${moreCount}`
       });
     }
 
@@ -467,10 +508,24 @@ export function Dashboard() {
                         {overdueInvoices.length} {overdueInvoices.length === 1 ? 'factuur' : 'facturen'}
                       </span>
                     </div>
-                    <p className="text-xs text-red-300">
+                    <p className="text-xs text-red-300 mb-2">
                       Facturen over de vervaldatum die direct aandacht nodig hebben
                     </p>
-                    <p className="text-lg font-bold text-red-400 mt-2">
+                    <div className="space-y-1 mb-3">
+                      {overdueInvoices.map((inv, idx) => {
+                        const customerName = inv.tenant_id
+                          ? (inv.tenants?.company_name || 'Onbekende huurder')
+                          : (inv.external_customers?.company_name || 'Externe klant');
+                        return (
+                          <div key={idx} className="text-xs text-red-200 flex items-center gap-2">
+                            <span className="font-medium">{inv.invoice_number}</span>
+                            <span className="text-red-400">•</span>
+                            <span>{customerName}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <p className="text-lg font-bold text-red-400">
                       €{overdueAmount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
                   </div>
@@ -489,10 +544,29 @@ export function Dashboard() {
                         {outstandingInvoices.length} {outstandingInvoices.length === 1 ? 'factuur' : 'facturen'}
                       </span>
                     </div>
-                    <p className="text-xs text-blue-300">
+                    <p className="text-xs text-blue-300 mb-2">
                       Verzonden facturen die nog betaald moeten worden
                     </p>
-                    <p className="text-lg font-bold text-blue-400 mt-2">
+                    <div className="space-y-1 mb-3">
+                      {outstandingInvoices.slice(0, 5).map((inv, idx) => {
+                        const customerName = inv.tenant_id
+                          ? (inv.tenants?.company_name || 'Onbekende huurder')
+                          : (inv.external_customers?.company_name || 'Externe klant');
+                        return (
+                          <div key={idx} className="text-xs text-blue-200 flex items-center gap-2">
+                            <span className="font-medium">{inv.invoice_number}</span>
+                            <span className="text-blue-400">•</span>
+                            <span>{customerName}</span>
+                          </div>
+                        );
+                      })}
+                      {outstandingInvoices.length > 5 && (
+                        <p className="text-xs text-blue-300 italic">
+                          en {outstandingInvoices.length - 5} meer...
+                        </p>
+                      )}
+                    </div>
+                    <p className="text-lg font-bold text-blue-400">
                       €{outstandingAmount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
                   </div>
