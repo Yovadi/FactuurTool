@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, type CompanySettings } from '../lib/supabase';
-import { Building2, Edit2, Mail, Phone, MapPin, CreditCard, Lock, FolderOpen, RefreshCw, Wifi, Network, Zap, FileText } from 'lucide-react';
+import { Building2, Edit2, Mail, Phone, MapPin, CreditCard, Lock, FolderOpen, RefreshCw, Wifi, Network, Zap, FileText, Sparkles, Eye, EyeOff } from 'lucide-react';
 
 export function CompanySettings() {
   const [settings, setSettings] = useState<CompanySettings | null>(null);
@@ -9,6 +9,7 @@ export function CompanySettings() {
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [updateMessage, setUpdateMessage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'company' | 'building'>('company');
+  const [showApiKey, setShowApiKey] = useState(false);
 
   const [formData, setFormData] = useState({
     company_name: '',
@@ -30,7 +31,8 @@ export function CompanySettings() {
     wifi_password: '',
     patch_points: '',
     meter_cabinet_info: '',
-    building_notes: ''
+    building_notes: '',
+    openai_api_key: ''
   });
 
   useEffect(() => {
@@ -118,7 +120,8 @@ export function CompanySettings() {
         wifi_password: settings.wifi_password || '',
         patch_points: settings.patch_points || '',
         meter_cabinet_info: settings.meter_cabinet_info || '',
-        building_notes: settings.building_notes || ''
+        building_notes: settings.building_notes || '',
+        openai_api_key: (settings as any).openai_api_key || ''
       });
     }
     setShowForm(true);
@@ -145,7 +148,8 @@ export function CompanySettings() {
       wifi_password: '',
       patch_points: '',
       meter_cabinet_info: '',
-      building_notes: ''
+      building_notes: '',
+      openai_api_key: ''
     });
     setShowForm(false);
   };
@@ -439,6 +443,34 @@ export function CompanySettings() {
               </div>
 
               <div className="border-t border-dark-700 pt-4 mt-4">
+                <h4 className="text-lg font-semibold text-gray-100 mb-3">AI Instellingen</h4>
+                <div>
+                  <label className="block text-sm font-medium text-gray-200 mb-1">
+                    OpenAI API Key
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showApiKey ? 'text' : 'password'}
+                      value={formData.openai_api_key}
+                      onChange={(e) => setFormData({ ...formData, openai_api_key: e.target.value })}
+                      className="w-full px-3 py-2 pr-10 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 font-mono text-sm"
+                      placeholder="sk-..."
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowApiKey(!showApiKey)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-300"
+                    >
+                      {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Nodig voor automatische herkenning van inkoopfacturen via AI (GPT-4 Vision)
+                  </p>
+                </div>
+              </div>
+
+              <div className="border-t border-dark-700 pt-4 mt-4">
                 <h4 className="text-lg font-semibold text-gray-100 mb-3">Pand Informatie</h4>
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
@@ -690,6 +722,23 @@ export function CompanySettings() {
                     </div>
                   </div>
                 )}
+
+                <div className="border-t border-dark-700 pt-6">
+                  <h4 className="text-sm font-semibold text-gray-400 uppercase mb-3">AI Instellingen</h4>
+                  <div className="space-y-2 text-gray-200">
+                    <div className="flex items-start gap-2">
+                      <Sparkles size={16} className="mt-0.5 text-gray-500" />
+                      <div>
+                        <p className="text-xs text-gray-400">OpenAI API Key</p>
+                        <p className="font-mono text-sm">
+                          {(settings as any).openai_api_key
+                            ? `sk-...${(settings as any).openai_api_key.slice(-4)}`
+                            : 'Niet ingesteld'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
                 <div className="border-t border-dark-700 pt-6">
                   <h4 className="text-sm font-semibold text-gray-400 uppercase mb-3">Software Updates</h4>

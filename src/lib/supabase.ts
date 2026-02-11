@@ -145,6 +145,7 @@ export type CompanySettings = {
   patch_points: string | null;
   meter_cabinet_info: string | null;
   building_notes: string | null;
+  openai_api_key: string | null;
   created_at: string;
   updated_at: string;
 };
