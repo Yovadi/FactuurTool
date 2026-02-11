@@ -85,8 +85,8 @@ function buildContentParts(fileBase64: string, fileType: string) {
       {
         type: "file" as const,
         file: {
-          data: fileBase64,
           filename: "invoice.pdf",
+          file_data: `data:application/pdf;base64,${fileBase64}`,
         },
       },
     ];

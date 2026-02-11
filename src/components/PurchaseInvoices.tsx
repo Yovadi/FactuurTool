@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { Plus, Search, Eye, Edit2, Trash2, Upload, FileText, CheckCircle, Clock, AlertCircle, Sparkles, X, Filter, Loader2 } from 'lucide-react';
 import { PurchaseInvoiceUpload } from './PurchaseInvoiceUpload';
 import { PurchaseInvoicePreview } from './PurchaseInvoicePreview';
+import { ConfirmModal } from './ConfirmModal';
 
 type LineItem = {
   id?: string;
@@ -1018,17 +1019,20 @@ export function PurchaseInvoices() {
           invoice={previewInvoice}
           onClose={() => setPreviewInvoice(null)}
           onEdit={() => startEdit(previewInvoice)}
-          onDelete={() => {
-            if (deleteConfirm === previewInvoice.id) {
-              handleDelete(previewInvoice.id);
-            } else {
-              setDeleteConfirm(previewInvoice.id);
-              if (confirm('Weet je zeker dat je deze factuur wilt verwijderen?')) {
-                handleDelete(previewInvoice.id);
-              }
-            }
-          }}
+          onDelete={() => setDeleteConfirm(previewInvoice.id)}
           onMarkAsPaid={previewInvoice.status !== 'paid' ? () => markAsPaid(previewInvoice.id) : undefined}
+        />
+      )}
+
+      {deleteConfirm && (
+        <ConfirmModal
+          title="Factuur Verwijderen"
+          message={`Weet je zeker dat je de factuur van "${invoices.find(i => i.id === deleteConfirm)?.supplier_name || ''}" wilt verwijderen? Dit kan niet ongedaan worden gemaakt.`}
+          confirmText="Verwijderen"
+          cancelText="Annuleren"
+          variant="danger"
+          onConfirm={() => handleDelete(deleteConfirm)}
+          onCancel={() => setDeleteConfirm(null)}
         />
       )}
     </div>
