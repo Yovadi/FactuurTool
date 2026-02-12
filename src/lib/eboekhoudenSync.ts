@@ -57,17 +57,16 @@ export async function syncRelationToEBoekhouden(
     ? (customer as ExternalCustomer).contact_name
     : (customer as Tenant).name;
 
-  const relationData = {
-    company: customer.company_name,
+  const relationData: Record<string, unknown> = {
+    type: 'B',
+    name: customer.company_name || contactName || '',
     contact: contactName || '',
-    email: customer.email || '',
-    phone: customer.phone || '',
-    address: {
-      street: customer.street || '',
-      postalCode: customer.postal_code || '',
-      city: customer.city || '',
-      country: customer.country || 'NL',
-    },
+    emailAddress: customer.email || '',
+    phoneNumber: customer.phone || '',
+    address: customer.street || '',
+    postalCode: customer.postal_code || '',
+    city: customer.city || '',
+    country: customer.country || 'NL',
   };
 
   const result = await createRelation(apiToken, relationData);
@@ -184,17 +183,16 @@ async function syncSupplierAsRelation(
     return { success: true, relationId: invoice.eboekhouden_relatie_id };
   }
 
-  const relationData = {
-    company: invoice.supplier_name,
+  const relationData: Record<string, unknown> = {
+    type: 'B',
+    name: invoice.supplier_name || '',
     contact: '',
-    email: '',
-    phone: '',
-    address: {
-      street: invoice.supplier_address || '',
-      postalCode: invoice.supplier_postal_code || '',
-      city: invoice.supplier_city || '',
-      country: invoice.supplier_country || 'NL',
-    },
+    emailAddress: '',
+    phoneNumber: '',
+    address: invoice.supplier_address || '',
+    postalCode: invoice.supplier_postal_code || '',
+    city: invoice.supplier_city || '',
+    country: invoice.supplier_country || 'NL',
   };
 
   const result = await createRelation(apiToken, relationData);

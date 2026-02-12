@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { supabase, type CompanySettings, type EBoekhoudenSyncLog, type EBoekhoudenGrootboekMapping } from '../lib/supabase';
+import { supabase, type CompanySettings, type EBoekhoudenSyncLog, type EBoekhoudenGrootboekMapping, type Tenant, type ExternalCustomer } from '../lib/supabase';
 import { testConnection, getLedgerAccounts, diagnoseConnection } from '../lib/eboekhouden';
+import { syncRelationToEBoekhouden } from '../lib/eboekhoudenSync';
 import {
   Link2, CheckCircle2, XCircle, Loader2, RefreshCw,
   BookOpen, Users, FileText, ArrowUpRight, ArrowDownRight,
-  Clock, AlertTriangle, Activity, Database, Settings2, Plus, Trash2, Edit2, Eye, EyeOff
+  Clock, AlertTriangle, Activity, Database, Settings2, Plus, Trash2, Edit2, Upload
 } from 'lucide-react';
 
 interface SyncStats {
@@ -52,6 +53,8 @@ export function EBoekhoudenDashboard() {
   const [tokenSaving, setTokenSaving] = useState(false);
   const [diagLoading, setDiagLoading] = useState(false);
   const [diagResult, setDiagResult] = useState<Record<string, unknown> | null>(null);
+  const [syncingRelations, setSyncingRelations] = useState(false);
+  const [syncRelationResult, setSyncRelationResult] = useState<{ success: number; failed: number; errors: string[] } | null>(null);
 
   useEffect(() => {
     loadDashboardData();
@@ -222,6 +225,52 @@ export function EBoekhoudenDashboard() {
       setTokenInput('');
     }
     setTokenSaving(false);
+  };
+
+  const handleSyncAllRelations = async () => {
+    if (!settings?.eboekhouden_api_token) return;
+    setSyncingRelations(true);
+    setSyncRelationResult(null);
+
+    const apiToken = settings.eboekhouden_api_token;
+    let success = 0;
+    let failed = 0;
+    const errors: string[] = [];
+
+    const { data: tenants } = await supabase
+      .from('tenants')
+      .select('*')
+      .is('eboekhouden_relatie_id', null);
+
+    const { data: externals } = await supabase
+      .from('external_customers')
+      .select('*')
+      .is('eboekhouden_relatie_id', null);
+
+    for (const tenant of (tenants || []) as Tenant[]) {
+      const result = await syncRelationToEBoekhouden(apiToken, tenant, 'tenant');
+      if (result.success) {
+        success++;
+      } else {
+        failed++;
+        errors.push(`${tenant.company_name || tenant.name}: ${result.error || 'Onbekende fout'}`);
+      }
+    }
+
+    for (const ext of (externals || []) as ExternalCustomer[]) {
+      const result = await syncRelationToEBoekhouden(apiToken, ext, 'external');
+      if (result.success) {
+        success++;
+      } else {
+        failed++;
+        errors.push(`${ext.company_name || ext.contact_name}: ${result.error || 'Onbekende fout'}`);
+      }
+    }
+
+    setSyncRelationResult({ success, failed, errors });
+    setSyncingRelations(false);
+    await loadSyncStats();
+    await loadSyncLogs();
   };
 
   const connected = settings?.eboekhouden_connected ?? false;
@@ -428,6 +477,48 @@ export function EBoekhoudenDashboard() {
                 connected={connected}
               />
             </div>
+
+            {connected && (syncStats.tenantsTotal - syncStats.tenantsSynced > 0 || syncStats.externalTotal - syncStats.externalSynced > 0) && (
+              <div className="mt-3 bg-dark-800 rounded-lg p-4 border border-dark-700">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-200">Relaties synchroniseren</p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {syncStats.tenantsTotal - syncStats.tenantsSynced + syncStats.externalTotal - syncStats.externalSynced} relatie(s) nog niet gesynchroniseerd
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleSyncAllRelations}
+                    disabled={syncingRelations}
+                    className="flex items-center gap-2 px-4 py-2 bg-gold-500 text-white rounded-lg text-sm hover:bg-gold-600 transition-colors disabled:opacity-50"
+                  >
+                    {syncingRelations ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                    {syncingRelations ? 'Synchroniseren...' : 'Alles synchroniseren'}
+                  </button>
+                </div>
+                {syncRelationResult && (
+                  <div className="mt-3 pt-3 border-t border-dark-700">
+                    <div className="flex items-center gap-2 text-sm">
+                      {syncRelationResult.failed === 0 ? (
+                        <CheckCircle2 size={14} className="text-green-400" />
+                      ) : (
+                        <AlertTriangle size={14} className="text-yellow-400" />
+                      )}
+                      <span className="text-gray-200">
+                        {syncRelationResult.success} geslaagd{syncRelationResult.failed > 0 && `, ${syncRelationResult.failed} mislukt`}
+                      </span>
+                    </div>
+                    {syncRelationResult.errors.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {syncRelationResult.errors.map((err, i) => (
+                          <p key={i} className="text-xs text-red-400">{err}</p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div>
