@@ -78,7 +78,10 @@ export function EBoekhoudenDashboard() {
 
   const loadDashboardData = async () => {
     setLoading(true);
-    await Promise.all([loadSettings(), loadSyncStats(), loadSyncLogs(), loadMappings()]);
+    const [currentSettings] = await Promise.all([loadSettings(), loadSyncStats(), loadSyncLogs(), loadMappings()]);
+    if (currentSettings?.eboekhouden_api_token && currentSettings?.eboekhouden_connected) {
+      loadLedgerAccounts(currentSettings.eboekhouden_api_token);
+    }
     setLoading(false);
   };
 
@@ -169,15 +172,13 @@ export function EBoekhoudenDashboard() {
     }
   };
 
-  const handleLoadLedger = async () => {
-    if (!settings?.eboekhouden_api_token) return;
+  const loadLedgerAccounts = async (token: string) => {
     setLedgerLoading(true);
     setLedgerError(null);
     try {
-      const result = await getLedgerAccounts(settings.eboekhouden_api_token);
+      const result = await getLedgerAccounts(token);
       if (!result.success) {
         setLedgerError(result.error || 'Kon grootboekrekeningen niet ophalen');
-        setShowLedger(true);
         return;
       }
 
@@ -206,13 +207,17 @@ export function EBoekhoudenDashboard() {
         description: acc.description || acc.Description || '',
         category: acc.category || acc.Category || '',
       })));
-      setShowLedger(true);
     } catch (err) {
       setLedgerError(err instanceof Error ? err.message : 'Onbekende fout bij ophalen grootboekrekeningen');
-      setShowLedger(true);
     } finally {
       setLedgerLoading(false);
     }
+  };
+
+  const handleLoadLedger = async () => {
+    if (!settings?.eboekhouden_api_token) return;
+    await loadLedgerAccounts(settings.eboekhouden_api_token);
+    setShowLedger(true);
   };
 
   const handleSaveMapping = async () => {
