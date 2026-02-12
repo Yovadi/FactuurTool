@@ -1,7 +1,7 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { supabase, type Invoice, type Lease, type Tenant, type ExternalCustomer, type LeaseSpace, type OfficeSpace, type InvoiceLineItem } from '../lib/supabase';
 import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, CreditCard as Edit, Search, CreditCard as Edit2, AlertCircle, CheckSquare, Square, Check, X, Home, Zap, RefreshCw, CheckCircle2, ChevronDown } from 'lucide-react';
-import { syncInvoiceToEBoekhouden } from '../lib/eboekhoudenSync';
+import { syncInvoiceToEBoekhouden, checkInvoicePaymentStatuses } from '../lib/eboekhoudenSync';
 import { generateInvoicePDF } from '../utils/pdfGenerator';
 import { InvoicePreview } from './InvoicePreview';
 import { checkAndRunScheduledJobs } from '../utils/scheduledJobs';
@@ -164,7 +164,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         companySettings
       );
       if (result.success) {
-        await loadInvoices();
+        await loadData();
       } else {
         alert(result.error || 'Synchronisatie mislukt');
       }
@@ -511,6 +511,33 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       .order('created_at', { ascending: false });
 
     setInvoices(invoicesData as InvoiceWithDetails[] || []);
+
+    if (companyData?.eboekhouden_api_token && companyData?.eboekhouden_connected) {
+      checkInvoicePaymentStatuses(companyData.eboekhouden_api_token).then(result => {
+        if (result.updated > 0) {
+          supabase
+            .from('invoices')
+            .select(`
+              *,
+              lease:leases(
+                *,
+                tenant:tenants(*),
+                lease_spaces:lease_spaces(
+                  *,
+                  space:office_spaces(*)
+                )
+              ),
+              tenant:tenants(*),
+              external_customer:external_customers(*),
+              line_items:invoice_line_items(*)
+            `)
+            .order('created_at', { ascending: false })
+            .then(({ data }) => {
+              if (data) setInvoices(data as InvoiceWithDetails[]);
+            });
+        }
+      }).catch(() => {});
+    }
 
     const todayStr = new Date().toISOString().split('T')[0];
 
@@ -1282,12 +1309,30 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
         return;
       }
 
-      // Update local state without full reload
       setInvoices(prev => prev.map(inv =>
         inv.id === invoiceId
           ? { ...inv, status: 'sent' as const, sent_at: new Date().toISOString() }
           : inv
       ));
+
+      if (companySettings.eboekhouden_api_token && companySettings.eboekhouden_connected) {
+        const customerType = invoice.external_customer ? 'external' as const : 'tenant' as const;
+        const invoiceWithItems = { ...invoice, line_items: items || [] };
+        syncInvoiceToEBoekhouden(
+          companySettings.eboekhouden_api_token,
+          invoiceWithItems as any,
+          tenant as any,
+          customerType,
+          companySettings
+        ).then(syncResult => {
+          if (syncResult.success) {
+            setInvoices(prev => prev.map(inv => {
+              if (inv.id !== invoiceId) return inv;
+              return { ...inv, eboekhouden_factuur_id: 'synced', eboekhouden_synced_at: new Date().toISOString() } as any;
+            }));
+          }
+        }).catch(() => {});
+      }
     } catch (error) {
       console.error('Error sending invoice:', error);
       console.error('Error sending invoice:', error instanceof Error ? error.message : 'Unknown error');
@@ -2456,7 +2501,25 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
         .eq('id', id);
     }
 
-    await fetchInvoices();
+    if (newStatus === 'sent' && companySettings?.eboekhouden_api_token && companySettings?.eboekhouden_connected) {
+      for (const id of idsToUpdate) {
+        const inv = invoices.find(i => i.id === id);
+        if (!inv || inv.eboekhouden_factuur_id) continue;
+        const customer = getInvoiceTenant(inv);
+        if (!customer) continue;
+        const customerType = inv.external_customer ? 'external' as const : 'tenant' as const;
+        const { data: lineItems } = await supabase.from('invoice_line_items').select('*').eq('invoice_id', id);
+        syncInvoiceToEBoekhouden(
+          companySettings.eboekhouden_api_token,
+          { ...inv, line_items: lineItems || [] } as any,
+          customer as any,
+          customerType,
+          companySettings
+        ).catch(() => {});
+      }
+    }
+
+    await loadData();
     setSelectedInvoices(new Set());
   };
 

@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import type { Invoice, InvoiceLineItem, Tenant, ExternalCustomer, CompanySettings, PurchaseInvoice, PurchaseInvoiceLineItem } from './supabase';
-import { createRelation, getRelation, updateRelation, createInvoice as ebCreateInvoice, createMutation } from './eboekhouden';
+import { createRelation, getRelation, updateRelation, createInvoice as ebCreateInvoice, createMutation, getInvoice as ebGetInvoice } from './eboekhouden';
 
 const VAT_CODE_MAP: Record<number, string> = {
   21: 'HOOG_VERK_21',
@@ -340,4 +340,41 @@ export async function syncPurchaseInvoiceToEBoekhouden(
   await logSync('purchase_invoice', invoice.id, 'create', 'success', mutationId, null, mutationData, result.data);
 
   return { success: true };
+}
+
+export async function checkInvoicePaymentStatuses(
+  apiToken: string
+): Promise<{ updated: number; errors: string[] }> {
+  const { data: invoices } = await supabase
+    .from('invoices')
+    .select('id, eboekhouden_factuur_id, invoice_number')
+    .eq('status', 'sent')
+    .not('eboekhouden_factuur_id', 'is', null);
+
+  if (!invoices?.length) return { updated: 0, errors: [] };
+
+  let updated = 0;
+  const errors: string[] = [];
+
+  for (const inv of invoices) {
+    try {
+      const result = await ebGetInvoice(apiToken, inv.eboekhouden_factuur_id);
+      if (result.success) {
+        const ebInvoice = result.data as Record<string, unknown>;
+        const amountOpen = ebInvoice?.amountOpen ?? ebInvoice?.AmountOpen ?? ebInvoice?.openAmount ?? null;
+
+        if (amountOpen !== null && Number(amountOpen) === 0) {
+          await supabase
+            .from('invoices')
+            .update({ status: 'paid', paid_at: new Date().toISOString() })
+            .eq('id', inv.id);
+          updated++;
+        }
+      }
+    } catch {
+      errors.push(`Factuur ${inv.invoice_number}: Fout bij ophalen status`);
+    }
+  }
+
+  return { updated, errors };
 }
