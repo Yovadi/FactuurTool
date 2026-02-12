@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Euro, Calendar, AlertCircle, CheckCircle, FileText, Trash2, Eye, Filter, RefreshCw, Loader2, Database } from 'lucide-react';
+import { Euro, Calendar, AlertCircle, CheckCircle, FileText, Trash2, Eye, Filter, RefreshCw, Loader2, Database, XCircle } from 'lucide-react';
 import { resyncInvoiceToEBoekhouden } from '../lib/eboekhoudenSync';
 
 const getInvoiceTypeColor = (invoice: any): string => {
@@ -291,13 +291,52 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
     setSyncedInvoices(data || []);
   };
 
+  const handleResetSyncStatus = async (invoiceId: string) => {
+    const confirmed = confirm(
+      'Weet je zeker dat je de synchronisatie status wilt resetten?\n\n' +
+      'Dit verwijdert de e-Boekhouden koppeling uit de database. ' +
+      'Je kunt de factuur daarna opnieuw synchroniseren via het factuuroverzicht.'
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const { error } = await supabase
+        .from('invoices')
+        .update({
+          eboekhouden_factuur_id: null,
+          eboekhouden_synced_at: null,
+        })
+        .eq('id', invoiceId);
+
+      if (error) throw error;
+
+      await loadSyncedInvoices();
+      alert('Sync status gereset. Je kunt de factuur nu opnieuw synchroniseren via het factuuroverzicht.');
+    } catch (error) {
+      console.error('Error resetting sync status:', error);
+      alert('Fout bij resetten van sync status');
+    }
+  };
+
   const handleResyncInvoice = async (invoiceId: string) => {
     if (!companySettings?.eboekhouden_api_token) return;
+
+    const confirmed = confirm(
+      'Weet je zeker dat je deze factuur opnieuw wilt synchroniseren?\n\n' +
+      'Dit vervangt de bestaande factuur in e-Boekhouden met nieuwe gegevens.'
+    );
+
+    if (!confirmed) return;
+
     setResyncingInvoiceId(invoiceId);
     const result = await resyncInvoiceToEBoekhouden(companySettings.eboekhouden_api_token, invoiceId, companySettings);
     setResyncingInvoiceId(null);
     if (result.success) {
       await loadSyncedInvoices();
+      alert('Factuur succesvol opnieuw gesynchroniseerd!');
+    } else {
+      alert(result.error || 'Synchronisatie mislukt');
     }
   };
 
@@ -731,6 +770,12 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
 
                     {showSyncedInvoices && (
                       <div className="bg-dark-900 rounded-lg border border-dark-600 overflow-hidden">
+                        <div className="px-4 py-3 bg-blue-900/10 border-b border-dark-600">
+                          <p className="text-xs text-gray-400 leading-relaxed">
+                            <span className="font-medium text-blue-300">Reset sync status</span> als een factuur in e-Boekhouden is verwijderd, zodat je deze opnieuw kunt synchroniseren.
+                            <span className="font-medium text-gold-400 ml-2">Opnieuw synchroniseren</span> vervangt de bestaande factuur in e-Boekhouden met nieuwe gegevens.
+                          </p>
+                        </div>
                         {syncedInvoices.length > 0 ? (
                           <div className="max-h-96 overflow-y-auto">
                             <table className="w-full text-sm">
@@ -741,7 +786,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                                   <th className="text-right px-4 py-2.5 text-gray-400 font-medium">Bedrag</th>
                                   <th className="text-left px-4 py-2.5 text-gray-400 font-medium">e-Boekhouden ID</th>
                                   <th className="text-right px-4 py-2.5 text-gray-400 font-medium">Sync</th>
-                                  <th className="w-10"></th>
+                                  <th className="text-center px-4 py-2.5 text-gray-400 font-medium">Acties</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -755,18 +800,27 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                                       {new Date(inv.eboekhouden_synced_at).toLocaleDateString('nl-NL')}
                                     </td>
                                     <td className="px-2 py-2">
-                                      <button
-                                        onClick={() => handleResyncInvoice(inv.id)}
-                                        disabled={resyncingInvoiceId === inv.id}
-                                        className="p-1 text-gray-400 hover:text-gold-500 transition-colors disabled:opacity-50"
-                                        title="Opnieuw synchroniseren"
-                                      >
-                                        {resyncingInvoiceId === inv.id ? (
-                                          <Loader2 size={14} className="animate-spin" />
-                                        ) : (
-                                          <RefreshCw size={14} />
-                                        )}
-                                      </button>
+                                      <div className="flex items-center justify-center gap-1">
+                                        <button
+                                          onClick={() => handleResyncInvoice(inv.id)}
+                                          disabled={resyncingInvoiceId === inv.id}
+                                          className="p-1.5 text-gray-400 hover:text-gold-500 transition-colors disabled:opacity-50 rounded"
+                                          title="Opnieuw synchroniseren (vervangt bestaande factuur in e-Boekhouden)"
+                                        >
+                                          {resyncingInvoiceId === inv.id ? (
+                                            <Loader2 size={14} className="animate-spin" />
+                                          ) : (
+                                            <RefreshCw size={14} />
+                                          )}
+                                        </button>
+                                        <button
+                                          onClick={() => handleResetSyncStatus(inv.id)}
+                                          className="p-1.5 text-gray-400 hover:text-red-500 transition-colors rounded"
+                                          title="Reset sync status (verwijdert koppeling, factuur blijft in e-Boekhouden)"
+                                        >
+                                          <XCircle size={14} />
+                                        </button>
+                                      </div>
                                     </td>
                                   </tr>
                                 ))}
