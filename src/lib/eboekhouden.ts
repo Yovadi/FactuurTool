@@ -58,6 +58,10 @@ export async function getInvoices(apiToken: string, limit = 100, offset = 0) {
   return callProxy(apiToken, 'get_invoices', { limit, offset });
 }
 
+export async function createMutation(apiToken: string, data: Record<string, unknown>) {
+  return callProxy(apiToken, 'create_mutation', { data });
+}
+
 export async function getEmailTemplates(apiToken: string) {
   return callProxy(apiToken, 'get_email_templates');
 }

@@ -1,10 +1,16 @@
 import { supabase } from './supabase';
-import type { Invoice, InvoiceLineItem, Tenant, ExternalCustomer, CompanySettings } from './supabase';
-import { createRelation, createInvoice as ebCreateInvoice } from './eboekhouden';
+import type { Invoice, InvoiceLineItem, Tenant, ExternalCustomer, CompanySettings, PurchaseInvoice, PurchaseInvoiceLineItem } from './supabase';
+import { createRelation, createInvoice as ebCreateInvoice, createMutation } from './eboekhouden';
 
 const VAT_CODE_MAP: Record<number, string> = {
   21: 'HOOG_VERK_21',
   9: 'LAAG_VERK_9',
+  0: 'GEEN',
+};
+
+const VAT_CODE_PURCHASE_MAP: Record<number, string> = {
+  21: 'HOOG_INK_21',
+  9: 'LAAG_INK_9',
   0: 'GEEN',
 };
 
@@ -162,6 +168,127 @@ export async function syncInvoiceToEBoekhouden(
   }
 
   await logSync('invoice', invoice.id, 'create', 'success', factuurId, null, invoiceData, result.data);
+
+  return { success: true };
+}
+
+function getPurchaseVatCode(vatRate: number): string {
+  return VAT_CODE_PURCHASE_MAP[vatRate] || 'HOOG_INK_21';
+}
+
+async function syncSupplierAsRelation(
+  apiToken: string,
+  invoice: PurchaseInvoice
+): Promise<{ success: boolean; relationId?: number; error?: string }> {
+  if (invoice.eboekhouden_relatie_id) {
+    return { success: true, relationId: invoice.eboekhouden_relatie_id };
+  }
+
+  const relationData = {
+    company: invoice.supplier_name,
+    contact: '',
+    email: '',
+    phone: '',
+    address: {
+      street: invoice.supplier_address || '',
+      postalCode: invoice.supplier_postal_code || '',
+      city: invoice.supplier_city || '',
+      country: invoice.supplier_country || 'NL',
+    },
+  };
+
+  const result = await createRelation(apiToken, relationData);
+
+  if (!result.success) {
+    await logSync('supplier_relation', invoice.id, 'create', 'error', null, JSON.stringify(result.data), relationData, result.data);
+    return { success: false, error: 'Kon leverancier niet aanmaken als relatie in e-Boekhouden' };
+  }
+
+  const responseData = result.data as any;
+  const relationId = responseData?.id || responseData?.Id;
+
+  if (relationId) {
+    await supabase
+      .from('purchase_invoices')
+      .update({ eboekhouden_relatie_id: relationId })
+      .eq('id', invoice.id);
+
+    await logSync('supplier_relation', invoice.id, 'create', 'success', relationId, null, relationData, result.data);
+  }
+
+  return { success: true, relationId };
+}
+
+export async function syncPurchaseInvoiceToEBoekhouden(
+  apiToken: string,
+  invoice: PurchaseInvoice & { purchase_invoice_line_items?: PurchaseInvoiceLineItem[] },
+  settings: CompanySettings
+): Promise<{ success: boolean; error?: string }> {
+  if (invoice.eboekhouden_factuur_id) {
+    return { success: true };
+  }
+
+  const relationResult = await syncSupplierAsRelation(apiToken, invoice);
+  if (!relationResult.success || !relationResult.relationId) {
+    return { success: false, error: relationResult.error || 'Leverancier kon niet worden gesynchroniseerd' };
+  }
+
+  const { data: mappings } = await supabase
+    .from('eboekhouden_grootboek_mapping')
+    .select('*');
+
+  const categoryMapping = mappings?.find(m => m.local_category === `inkoop_${invoice.category}`);
+  const defaultMapping = mappings?.find(m => m.local_category === 'inkoop_default') || mappings?.find(m => m.local_category === 'default');
+  const ledgerCode = categoryMapping?.grootboek_code || defaultMapping?.grootboek_code || '4000';
+
+  const lineItems = invoice.purchase_invoice_line_items || [];
+  const items = lineItems.map(item => ({
+    description: item.description,
+    quantity: item.quantity,
+    pricePerUnit: item.unit_price,
+    vatCode: getPurchaseVatCode(item.vat_rate || invoice.vat_rate),
+    ledgerId: parseInt(ledgerCode, 10),
+  }));
+
+  if (items.length === 0) {
+    items.push({
+      description: `Inkoopfactuur ${invoice.invoice_number} - ${invoice.supplier_name}`,
+      quantity: 1,
+      pricePerUnit: invoice.subtotal,
+      vatCode: getPurchaseVatCode(invoice.vat_rate),
+      ledgerId: parseInt(ledgerCode, 10),
+    });
+  }
+
+  const mutationData = {
+    relationId: relationResult.relationId,
+    date: invoice.invoice_date,
+    invoiceNumber: invoice.invoice_number,
+    description: `Inkoopfactuur ${invoice.invoice_number} - ${invoice.supplier_name}`,
+    items,
+  };
+
+  const result = await createMutation(apiToken, mutationData);
+
+  if (!result.success) {
+    await logSync('purchase_invoice', invoice.id, 'create', 'error', null, JSON.stringify(result.data), mutationData, result.data);
+    return { success: false, error: 'Kon inkoopfactuur niet aanmaken in e-Boekhouden' };
+  }
+
+  const responseData = result.data as any;
+  const mutationId = responseData?.id || responseData?.Id;
+
+  if (mutationId) {
+    await supabase
+      .from('purchase_invoices')
+      .update({
+        eboekhouden_factuur_id: mutationId,
+        eboekhouden_synced_at: new Date().toISOString(),
+      })
+      .eq('id', invoice.id);
+  }
+
+  await logSync('purchase_invoice', invoice.id, 'create', 'success', mutationId, null, mutationData, result.data);
 
   return { success: true };
 }

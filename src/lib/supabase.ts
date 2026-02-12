@@ -224,6 +224,46 @@ export type RcboCircuitBreaker = {
   updated_at: string;
 };
 
+export type PurchaseInvoice = {
+  id: string;
+  invoice_number: string;
+  supplier_name: string;
+  supplier_address: string;
+  supplier_postal_code: string;
+  supplier_city: string;
+  supplier_country: string;
+  supplier_vat_number: string;
+  supplier_kvk_number: string;
+  supplier_iban: string;
+  invoice_date: string;
+  due_date: string | null;
+  order_number: string;
+  subtotal: number;
+  vat_amount: number;
+  vat_rate: number;
+  total_amount: number;
+  status: string;
+  category: string;
+  notes: string;
+  original_file_name: string;
+  ai_extracted: boolean;
+  ai_confidence: number;
+  eboekhouden_factuur_id: number | null;
+  eboekhouden_synced_at: string | null;
+  eboekhouden_relatie_id: number | null;
+  created_at: string;
+};
+
+export type PurchaseInvoiceLineItem = {
+  id: string;
+  purchase_invoice_id: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  amount: number;
+  vat_rate: number;
+};
+
 export type EBoekhoudenGrootboekMapping = {
   id: string;
   local_category: string;

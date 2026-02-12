@@ -16,6 +16,8 @@ interface SyncStats {
   invoicesSynced: number;
   creditNotesTotal: number;
   creditNotesSynced: number;
+  purchaseInvoicesTotal: number;
+  purchaseInvoicesSynced: number;
 }
 
 interface LedgerAccount {
@@ -32,6 +34,7 @@ export function EBoekhoudenDashboard() {
     externalTotal: 0, externalSynced: 0,
     invoicesTotal: 0, invoicesSynced: 0,
     creditNotesTotal: 0, creditNotesSynced: 0,
+    purchaseInvoicesTotal: 0, purchaseInvoicesSynced: 0,
   });
   const [syncLogs, setSyncLogs] = useState<EBoekhoudenSyncLog[]>([]);
   const [mappings, setMappings] = useState<EBoekhoudenGrootboekMapping[]>([]);
@@ -68,11 +71,12 @@ export function EBoekhoudenDashboard() {
   };
 
   const loadSyncStats = async () => {
-    const [tenants, external, invoices, creditNotes] = await Promise.all([
+    const [tenants, external, invoices, creditNotes, purchaseInvoices] = await Promise.all([
       supabase.from('tenants').select('id, eboekhouden_relatie_id'),
       supabase.from('external_customers').select('id, eboekhouden_relatie_id'),
       supabase.from('invoices').select('id, eboekhouden_factuur_id'),
       supabase.from('credit_notes').select('id, eboekhouden_id'),
+      supabase.from('purchase_invoices').select('id, eboekhouden_factuur_id'),
     ]);
 
     setSyncStats({
@@ -84,6 +88,8 @@ export function EBoekhoudenDashboard() {
       invoicesSynced: invoices.data?.filter(i => i.eboekhouden_factuur_id).length || 0,
       creditNotesTotal: creditNotes.data?.length || 0,
       creditNotesSynced: creditNotes.data?.filter(c => c.eboekhouden_id).length || 0,
+      purchaseInvoicesTotal: purchaseInvoices.data?.length || 0,
+      purchaseInvoicesSynced: purchaseInvoices.data?.filter(p => p.eboekhouden_factuur_id).length || 0,
     });
   };
 
@@ -364,6 +370,13 @@ export function EBoekhoudenDashboard() {
                 total={syncStats.creditNotesTotal}
                 connected={connected}
               />
+              <SyncStatCard
+                icon={<ArrowDownRight size={18} />}
+                label="Inkoopfacturen"
+                synced={syncStats.purchaseInvoicesSynced}
+                total={syncStats.purchaseInvoicesTotal}
+                connected={connected}
+              />
             </div>
           </div>
 
@@ -397,6 +410,19 @@ export function EBoekhoudenDashboard() {
                       <option value="diversen">Diversen</option>
                       <option value="vergaderruimte">Vergaderruimte</option>
                       <option value="flexplek">Flexplek</option>
+                      <option disabled>--- Inkoop ---</option>
+                      <option value="inkoop_default">Inkoop - Standaard</option>
+                      <option value="inkoop_onderhoud">Inkoop - Onderhoud</option>
+                      <option value="inkoop_kantoorbenodigdheden">Inkoop - Kantoorbenodigdheden</option>
+                      <option value="inkoop_energie">Inkoop - Energie</option>
+                      <option value="inkoop_water">Inkoop - Water</option>
+                      <option value="inkoop_verzekering">Inkoop - Verzekering</option>
+                      <option value="inkoop_telecom">Inkoop - Telecom / Internet</option>
+                      <option value="inkoop_schoonmaak">Inkoop - Schoonmaak</option>
+                      <option value="inkoop_beveiliging">Inkoop - Beveiliging</option>
+                      <option value="inkoop_belastingen">Inkoop - Belastingen</option>
+                      <option value="inkoop_advies">Inkoop - Advieskosten</option>
+                      <option value="inkoop_overig">Inkoop - Overig</option>
                     </select>
                   </div>
                   <div>
@@ -427,8 +453,10 @@ export function EBoekhoudenDashboard() {
                       className="w-full px-3 py-2 bg-dark-900 border border-dark-600 text-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
                     >
                       <option value="">Geen</option>
-                      <option value="HOOG_VERK_21">21% BTW</option>
-                      <option value="LAAG_VERK_9">9% BTW</option>
+                      <option value="HOOG_VERK_21">21% BTW (verkoop)</option>
+                      <option value="LAAG_VERK_9">9% BTW (verkoop)</option>
+                      <option value="HOOG_INK_21">21% BTW (inkoop)</option>
+                      <option value="LAAG_INK_9">9% BTW (inkoop)</option>
                       <option value="GEEN">0% BTW</option>
                     </select>
                   </div>
@@ -598,6 +626,10 @@ export function EBoekhoudenDashboard() {
               </div>
               <div className="flex items-start gap-2">
                 <ArrowDownRight size={12} className="mt-0.5 text-gold-500 shrink-0" />
+                <p>Inkoopfacturen worden als mutatie geboekt. De leverancier wordt automatisch als relatie aangemaakt.</p>
+              </div>
+              <div className="flex items-start gap-2">
+                <BookOpen size={12} className="mt-0.5 text-gold-500 shrink-0" />
                 <p>Factuurregels worden gekoppeld aan de ingestelde grootboekrekeningen via de mapping hierboven.</p>
               </div>
               <div className="flex items-start gap-2">
@@ -669,6 +701,18 @@ function formatCategory(cat: string): string {
     'diversen': 'Diversen',
     'vergaderruimte': 'Vergaderruimte',
     'flexplek': 'Flexplek',
+    'inkoop_default': 'Inkoop - Standaard',
+    'inkoop_onderhoud': 'Inkoop - Onderhoud',
+    'inkoop_kantoorbenodigdheden': 'Inkoop - Kantoorbenodigdheden',
+    'inkoop_energie': 'Inkoop - Energie',
+    'inkoop_water': 'Inkoop - Water',
+    'inkoop_verzekering': 'Inkoop - Verzekering',
+    'inkoop_telecom': 'Inkoop - Telecom / Internet',
+    'inkoop_schoonmaak': 'Inkoop - Schoonmaak',
+    'inkoop_beveiliging': 'Inkoop - Beveiliging',
+    'inkoop_belastingen': 'Inkoop - Belastingen',
+    'inkoop_advies': 'Inkoop - Advieskosten',
+    'inkoop_overig': 'Inkoop - Overig',
   };
   return map[cat] || cat;
 }
@@ -676,8 +720,10 @@ function formatCategory(cat: string): string {
 function formatBtwCode(code: string | null): string {
   if (!code) return '-';
   const map: Record<string, string> = {
-    'HOOG_VERK_21': '21%',
-    'LAAG_VERK_9': '9%',
+    'HOOG_VERK_21': '21% (verkoop)',
+    'LAAG_VERK_9': '9% (verkoop)',
+    'HOOG_INK_21': '21% (inkoop)',
+    'LAAG_INK_9': '9% (inkoop)',
     'GEEN': '0%',
   };
   return map[code] || code;
@@ -688,6 +734,8 @@ function formatEntityType(type: string): string {
     'relation': 'Relatie',
     'invoice': 'Factuur',
     'credit_note': 'Creditnota',
+    'purchase_invoice': 'Inkoopfactuur',
+    'supplier_relation': 'Leverancier',
   };
   return map[type] || type;
 }

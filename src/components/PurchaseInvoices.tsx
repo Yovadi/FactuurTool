@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, Search, Eye, Edit2, Trash2, Upload, FileText, CheckCircle, Clock, AlertCircle, Sparkles, X, Filter, Loader2 } from 'lucide-react';
+import type { CompanySettings } from '../lib/supabase';
+import { Plus, Search, Eye, Edit2, Trash2, Upload, FileText, CheckCircle, Clock, AlertCircle, Sparkles, X, Filter, Loader2, RefreshCw, Link2 } from 'lucide-react';
 import { PurchaseInvoiceUpload } from './PurchaseInvoiceUpload';
 import { PurchaseInvoicePreview } from './PurchaseInvoicePreview';
 import { ConfirmModal } from './ConfirmModal';
+import { syncPurchaseInvoiceToEBoekhouden } from '../lib/eboekhoudenSync';
 
 type LineItem = {
   id?: string;
@@ -39,6 +41,9 @@ type PurchaseInvoice = {
   original_file_name: string;
   ai_extracted: boolean;
   ai_confidence: number;
+  eboekhouden_factuur_id: number | null;
+  eboekhouden_synced_at: string | null;
+  eboekhouden_relatie_id: number | null;
   created_at: string;
   purchase_invoice_line_items?: LineItem[];
 };
@@ -120,6 +125,8 @@ export function PurchaseInvoices() {
   const [originalFileName, setOriginalFileName] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
+  const [syncingIds, setSyncingIds] = useState<Set<string>>(new Set());
+  const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
   const [aiNotification, setAiNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const notificationTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const [isDragOver, setIsDragOver] = useState(false);
@@ -139,14 +146,17 @@ export function PurchaseInvoices() {
           .order('invoice_date', { ascending: false }),
         supabase
           .from('company_settings')
-          .select('openai_api_key')
+          .select('*')
           .order('updated_at', { ascending: false })
           .limit(1)
           .maybeSingle(),
       ]);
 
       if (invoicesRes.data) setInvoices(invoicesRes.data);
-      if (settingsRes.data?.openai_api_key) setOpenaiApiKey(settingsRes.data.openai_api_key);
+      if (settingsRes.data) {
+        setCompanySettings(settingsRes.data);
+        if (settingsRes.data.openai_api_key) setOpenaiApiKey(settingsRes.data.openai_api_key);
+      }
 
       const url = import.meta.env.VITE_SUPABASE_URL || 'https://qlvndvpxhqmjljjpehkn.supabase.co';
       setSupabaseUrl(url);
@@ -524,6 +534,78 @@ export function PurchaseInvoices() {
     }
   };
 
+  const ebConnected = companySettings?.eboekhouden_connected && !!companySettings?.eboekhouden_api_token;
+
+  const handleSyncToEBoekhouden = async (invoice: PurchaseInvoice) => {
+    if (!companySettings?.eboekhouden_api_token || !companySettings) return;
+    if (invoice.eboekhouden_factuur_id) {
+      showNotification('success', 'Deze factuur is al gesynchroniseerd met e-Boekhouden.');
+      return;
+    }
+
+    setSyncingIds(prev => new Set(prev).add(invoice.id));
+    try {
+      const result = await syncPurchaseInvoiceToEBoekhouden(
+        companySettings.eboekhouden_api_token,
+        invoice as any,
+        companySettings
+      );
+      if (result.success) {
+        showNotification('success', `Inkoopfactuur "${invoice.supplier_name}" gesynchroniseerd met e-Boekhouden.`);
+        await loadData();
+      } else {
+        showNotification('error', result.error || 'Synchronisatie mislukt.');
+      }
+    } catch (err) {
+      showNotification('error', 'Fout bij synchroniseren met e-Boekhouden.');
+    } finally {
+      setSyncingIds(prev => {
+        const next = new Set(prev);
+        next.delete(invoice.id);
+        return next;
+      });
+    }
+  };
+
+  const handleSyncAll = async () => {
+    if (!companySettings?.eboekhouden_api_token || !companySettings) return;
+    const unsyncedInvoices = invoices.filter(inv => !inv.eboekhouden_factuur_id);
+    if (unsyncedInvoices.length === 0) {
+      showNotification('success', 'Alle inkoopfacturen zijn al gesynchroniseerd.');
+      return;
+    }
+
+    let successCount = 0;
+    let errorCount = 0;
+    for (const invoice of unsyncedInvoices) {
+      setSyncingIds(prev => new Set(prev).add(invoice.id));
+      try {
+        const result = await syncPurchaseInvoiceToEBoekhouden(
+          companySettings.eboekhouden_api_token!,
+          invoice as any,
+          companySettings
+        );
+        if (result.success) successCount++;
+        else errorCount++;
+      } catch {
+        errorCount++;
+      } finally {
+        setSyncingIds(prev => {
+          const next = new Set(prev);
+          next.delete(invoice.id);
+          return next;
+        });
+      }
+    }
+
+    await loadData();
+    if (errorCount === 0) {
+      showNotification('success', `${successCount} inkoopfacturen gesynchroniseerd met e-Boekhouden.`);
+    } else {
+      showNotification('error', `${successCount} geslaagd, ${errorCount} mislukt.`);
+    }
+  };
+
   const filteredInvoices = invoices.filter((inv) => {
     const matchesSearch =
       !searchQuery ||
@@ -675,6 +757,17 @@ export function PurchaseInvoices() {
             </select>
           </div>
           <div className="flex gap-2">
+            {ebConnected && invoices.some(inv => !inv.eboekhouden_factuur_id) && (
+              <button
+                onClick={handleSyncAll}
+                disabled={syncingIds.size > 0}
+                className="flex items-center gap-2 px-4 py-2.5 bg-dark-800 border border-green-800/40 text-green-300 rounded-lg hover:bg-green-900/20 transition-colors text-sm font-medium disabled:opacity-50"
+              >
+                {syncingIds.size > 0 ? <Loader2 size={18} className="animate-spin" /> : <RefreshCw size={18} />}
+                <span className="hidden sm:inline">Alles Synchroniseren</span>
+                <span className="sm:hidden">Sync</span>
+              </button>
+            )}
             <button
               onClick={() => setShowUpload(true)}
               className="flex items-center gap-2 px-4 py-2.5 bg-dark-800 border border-dark-600 text-gray-200 rounded-lg hover:bg-dark-700 transition-colors text-sm font-medium"
@@ -764,6 +857,22 @@ export function PurchaseInvoices() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex gap-1 justify-end">
+                            {ebConnected && (
+                              inv.eboekhouden_factuur_id ? (
+                                <span className="p-1.5 text-green-400" title="Gesynchroniseerd met e-Boekhouden">
+                                  <Link2 size={18} />
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleSyncToEBoekhouden(inv); }}
+                                  disabled={syncingIds.has(inv.id)}
+                                  className="text-green-400 hover:text-green-300 p-1.5 rounded hover:bg-dark-700 transition-colors disabled:opacity-50"
+                                  title="Synchroniseren met e-Boekhouden"
+                                >
+                                  {syncingIds.has(inv.id) ? <Loader2 size={18} className="animate-spin" /> : <RefreshCw size={18} />}
+                                </button>
+                              )
+                            )}
                             <button
                               onClick={(e) => { e.stopPropagation(); setPreviewInvoice(inv); }}
                               className="text-gold-500 hover:text-gold-400 p-1.5 rounded hover:bg-dark-700 transition-colors"
