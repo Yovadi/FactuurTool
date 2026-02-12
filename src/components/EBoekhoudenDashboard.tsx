@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase, type CompanySettings, type EBoekhoudenSyncLog, type EBoekhoudenGrootboekMapping, type Tenant, type ExternalCustomer } from '../lib/supabase';
 import { testConnection, getLedgerAccounts, getInvoiceTemplates, diagnoseConnection } from '../lib/eboekhouden';
-import { syncRelationToEBoekhouden, syncInvoiceToEBoekhouden, syncPurchaseInvoiceToEBoekhouden } from '../lib/eboekhoudenSync';
+import { syncRelationToEBoekhouden, syncInvoiceToEBoekhouden, syncPurchaseInvoiceToEBoekhouden, resyncInvoiceToEBoekhouden, checkInvoicePaymentStatuses } from '../lib/eboekhoudenSync';
 import {
   Link2, CheckCircle2, XCircle, Loader2, RefreshCw,
   BookOpen, Users, UserPlus, FileText, ArrowUpRight, ArrowDownRight,
@@ -64,6 +64,11 @@ export function EBoekhoudenDashboard() {
   const [templateSaving, setTemplateSaving] = useState(false);
   const [syncingInvoices, setSyncingInvoices] = useState(false);
   const [syncingPurchaseInvoices, setSyncingPurchaseInvoices] = useState(false);
+  const [resyncingInvoiceId, setResyncingInvoiceId] = useState<string | null>(null);
+  const [showSyncedInvoices, setShowSyncedInvoices] = useState(false);
+  const [syncedInvoices, setSyncedInvoices] = useState<any[]>([]);
+  const [checkingPaymentStatus, setCheckingPaymentStatus] = useState(false);
+  const [paymentStatusResult, setPaymentStatusResult] = useState<{ updated: number; errors: string[] } | null>(null);
 
   useEffect(() => {
     loadDashboardData();
@@ -541,6 +546,39 @@ export function EBoekhoudenDashboard() {
     setTemplateSaving(false);
   };
 
+  const loadSyncedInvoices = async () => {
+    const { data } = await supabase
+      .from('invoices')
+      .select('id, invoice_number, invoice_date, amount, eboekhouden_factuur_id, eboekhouden_synced_at')
+      .not('eboekhouden_factuur_id', 'is', null)
+      .order('eboekhouden_synced_at', { ascending: false })
+      .limit(20);
+    setSyncedInvoices(data || []);
+  };
+
+  const handleResyncInvoice = async (invoiceId: string) => {
+    if (!settings?.eboekhouden_api_token) return;
+    setResyncingInvoiceId(invoiceId);
+    const result = await resyncInvoiceToEBoekhouden(settings.eboekhouden_api_token, invoiceId, settings);
+    setResyncingInvoiceId(null);
+    if (result.success) {
+      await loadSyncedInvoices();
+      await loadSyncStats();
+    }
+  };
+
+  const handleCheckPaymentStatuses = async () => {
+    if (!settings?.eboekhouden_api_token) return;
+    setCheckingPaymentStatus(true);
+    setPaymentStatusResult(null);
+    const result = await checkInvoicePaymentStatuses(settings.eboekhouden_api_token);
+    setPaymentStatusResult(result);
+    setCheckingPaymentStatus(false);
+    if (result.updated > 0) {
+      await loadSyncStats();
+    }
+  };
+
   const connected = settings?.eboekhouden_connected ?? false;
   const hasToken = !!settings?.eboekhouden_api_token;
 
@@ -816,45 +854,83 @@ export function EBoekhoudenDashboard() {
             </div>
 
             {connected && (
-              <div className="mt-3 bg-dark-800 rounded-lg p-4 border border-dark-700">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-200">Alle relaties synchroniseren</p>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      Synchroniseer alle relaties, facturen en inkoopfacturen naar e-Boekhouden
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => handleSyncAllRelations(true)}
-                    disabled={syncingRelations}
-                    className="flex items-center gap-2 px-4 py-2 bg-gold-500 text-white rounded-lg text-sm hover:bg-gold-600 transition-colors disabled:opacity-50"
-                  >
-                    {syncingRelations ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                    {syncingRelations ? 'Synchroniseren...' : 'Alles (her)synchroniseren'}
-                  </button>
-                </div>
-                {syncRelationResult && (
-                  <div className="mt-3 pt-3 border-t border-dark-700">
-                    <div className="flex items-center gap-2 text-sm">
-                      {syncRelationResult.failed === 0 ? (
-                        <CheckCircle2 size={14} className="text-green-400" />
-                      ) : (
-                        <AlertTriangle size={14} className="text-yellow-400" />
-                      )}
-                      <span className="text-gray-200">
-                        {syncRelationResult.success} geslaagd{syncRelationResult.failed > 0 && `, ${syncRelationResult.failed} mislukt`}
-                      </span>
+              <>
+                <div className="mt-3 bg-dark-800 rounded-lg p-4 border border-dark-700">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-200">Alle relaties synchroniseren</p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        Synchroniseer alle relaties, facturen en inkoopfacturen naar e-Boekhouden
+                      </p>
                     </div>
-                    {syncRelationResult.errors.length > 0 && (
-                      <div className="mt-2 space-y-1">
-                        {syncRelationResult.errors.map((err, i) => (
-                          <p key={i} className="text-xs text-red-400">{err}</p>
-                        ))}
-                      </div>
-                    )}
+                    <button
+                      onClick={() => handleSyncAllRelations(true)}
+                      disabled={syncingRelations}
+                      className="flex items-center gap-2 px-4 py-2 bg-gold-500 text-white rounded-lg text-sm hover:bg-gold-600 transition-colors disabled:opacity-50"
+                    >
+                      {syncingRelations ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                      {syncingRelations ? 'Synchroniseren...' : 'Alles (her)synchroniseren'}
+                    </button>
                   </div>
-                )}
-              </div>
+                  {syncRelationResult && (
+                    <div className="mt-3 pt-3 border-t border-dark-700">
+                      <div className="flex items-center gap-2 text-sm">
+                        {syncRelationResult.failed === 0 ? (
+                          <CheckCircle2 size={14} className="text-green-400" />
+                        ) : (
+                          <AlertTriangle size={14} className="text-yellow-400" />
+                        )}
+                        <span className="text-gray-200">
+                          {syncRelationResult.success} geslaagd{syncRelationResult.failed > 0 && `, ${syncRelationResult.failed} mislukt`}
+                        </span>
+                      </div>
+                      {syncRelationResult.errors.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          {syncRelationResult.errors.map((err, i) => (
+                            <p key={i} className="text-xs text-red-400">{err}</p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-3 bg-dark-800 rounded-lg p-4 border border-dark-700">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-200">Betaalstatussen ophalen</p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        Controleer welke facturen in e-Boekhouden als betaald zijn gemarkeerd
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleCheckPaymentStatuses}
+                      disabled={checkingPaymentStatus}
+                      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors disabled:opacity-50"
+                    >
+                      {checkingPaymentStatus ? <Loader2 size={14} className="animate-spin" /> : <ArrowDownRight size={14} />}
+                      {checkingPaymentStatus ? 'Controleren...' : 'Status ophalen'}
+                    </button>
+                  </div>
+                  {paymentStatusResult && (
+                    <div className="mt-3 pt-3 border-t border-dark-700">
+                      <div className="flex items-center gap-2 text-sm">
+                        <CheckCircle2 size={14} className="text-green-400" />
+                        <span className="text-gray-200">
+                          {paymentStatusResult.updated} factuur{paymentStatusResult.updated !== 1 ? 'en' : ''} bijgewerkt naar 'Betaald'
+                        </span>
+                      </div>
+                      {paymentStatusResult.errors.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          {paymentStatusResult.errors.map((err, i) => (
+                            <p key={i} className="text-xs text-red-400">{err}</p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </>
             )}
           </div>
 
@@ -1158,6 +1234,94 @@ export function EBoekhoudenDashboard() {
               </div>
             </div>
           </div>
+
+          <div className="bg-blue-900/10 rounded-lg p-4 border border-blue-800/30">
+            <h4 className="text-sm font-medium text-blue-300 mb-2">Factuur styling in e-Boekhouden</h4>
+            <div className="space-y-2 text-xs text-gray-400 leading-relaxed">
+              <p>
+                De app stuurt alleen de <span className="text-blue-300 font-medium">factuurdata</span> (bedragen, regels, klantgegevens) naar e-Boekhouden.
+                De visuele weergave van facturen in e-Boekhouden wordt bepaald door het <span className="text-blue-300 font-medium">geselecteerde sjabloon</span> in hun systeem.
+              </p>
+              <p>
+                Dit betekent dat:
+              </p>
+              <ul className="list-disc list-inside space-y-1 ml-2">
+                <li>PDF's in deze app hebben je eigen branding en stijl</li>
+                <li>Facturen in e-Boekhouden gebruiken hun eigen sjabloon systeem</li>
+                <li>Je het sjabloon in e-Boekhouden kunt aanpassen onder Beheer → Factuursjablonen</li>
+              </ul>
+            </div>
+          </div>
+
+          {connected && (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-semibold text-gray-400 uppercase">Gesynchroniseerde Facturen</h4>
+                <button
+                  onClick={() => {
+                    loadSyncedInvoices();
+                    setShowSyncedInvoices(!showSyncedInvoices);
+                  }}
+                  className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-200 transition-colors"
+                >
+                  {showSyncedInvoices ? 'Verbergen' : 'Tonen'}
+                </button>
+              </div>
+
+              {showSyncedInvoices && (
+                <div className="bg-dark-800 rounded-lg border border-dark-700 overflow-hidden">
+                  {syncedInvoices.length > 0 ? (
+                    <div className="max-h-96 overflow-y-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-dark-700 sticky top-0">
+                          <tr>
+                            <th className="text-left px-4 py-2.5 text-gray-400 font-medium">Factuurnr.</th>
+                            <th className="text-left px-4 py-2.5 text-gray-400 font-medium">Datum</th>
+                            <th className="text-right px-4 py-2.5 text-gray-400 font-medium">Bedrag</th>
+                            <th className="text-left px-4 py-2.5 text-gray-400 font-medium">e-Boekhouden ID</th>
+                            <th className="text-right px-4 py-2.5 text-gray-400 font-medium">Sync</th>
+                            <th className="w-10"></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {syncedInvoices.map((inv) => (
+                            <tr key={inv.id} className="border-t border-dark-700 hover:bg-dark-700/30">
+                              <td className="px-4 py-2 text-gray-200 font-mono">{inv.invoice_number}</td>
+                              <td className="px-4 py-2 text-gray-300">{new Date(inv.invoice_date).toLocaleDateString('nl-NL')}</td>
+                              <td className="px-4 py-2 text-right text-gray-200">€{Number(inv.amount).toFixed(2)}</td>
+                              <td className="px-4 py-2 text-gray-400 font-mono">{inv.eboekhouden_factuur_id}</td>
+                              <td className="px-4 py-2 text-right text-xs text-gray-500">
+                                {new Date(inv.eboekhouden_synced_at).toLocaleDateString('nl-NL')}
+                              </td>
+                              <td className="px-2 py-2">
+                                <button
+                                  onClick={() => handleResyncInvoice(inv.id)}
+                                  disabled={resyncingInvoiceId === inv.id}
+                                  className="p-1 text-gray-400 hover:text-gold-500 transition-colors disabled:opacity-50"
+                                  title="Opnieuw synchroniseren"
+                                >
+                                  {resyncingInvoiceId === inv.id ? (
+                                    <Loader2 size={14} className="animate-spin" />
+                                  ) : (
+                                    <RefreshCw size={14} />
+                                  )}
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="py-8 text-center text-gray-500">
+                      <FileText size={24} className="mx-auto mb-2 opacity-40" />
+                      <p className="text-sm">Geen gesynchroniseerde facturen</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </>
       )}
     </div>

@@ -378,3 +378,41 @@ export async function checkInvoicePaymentStatuses(
 
   return { updated, errors };
 }
+
+export async function resyncInvoiceToEBoekhouden(
+  apiToken: string,
+  invoiceId: string,
+  settings: CompanySettings
+): Promise<{ success: boolean; error?: string }> {
+  const { data: invoice } = await supabase
+    .from('invoices')
+    .select(`
+      *,
+      invoice_line_items(*),
+      tenants(*),
+      external_customers(*)
+    `)
+    .eq('id', invoiceId)
+    .maybeSingle();
+
+  if (!invoice) {
+    return { success: false, error: 'Factuur niet gevonden' };
+  }
+
+  await supabase
+    .from('invoices')
+    .update({
+      eboekhouden_factuur_id: null,
+      eboekhouden_synced_at: null,
+    })
+    .eq('id', invoiceId);
+
+  const customer = invoice.tenants?.[0] || invoice.external_customers?.[0];
+  const customerType = invoice.tenants?.[0] ? 'tenant' : 'external';
+
+  if (!customer) {
+    return { success: false, error: 'Klant niet gevonden' };
+  }
+
+  return syncInvoiceToEBoekhouden(apiToken, invoice, customer, customerType, settings);
+}
