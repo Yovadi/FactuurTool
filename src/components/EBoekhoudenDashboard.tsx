@@ -25,12 +25,8 @@ interface LedgerAccount {
   category: string;
 }
 
-interface Props {
-  settings: CompanySettings;
-  onSettingsUpdate: (settings: CompanySettings) => void;
-}
-
-export function EBoekhoudenDashboard({ settings, onSettingsUpdate }: Props) {
+export function EBoekhoudenDashboard() {
+  const [settings, setSettings] = useState<CompanySettings | null>(null);
   const [syncStats, setSyncStats] = useState<SyncStats>({
     tenantsTotal: 0, tenantsSynced: 0,
     externalTotal: 0, externalSynced: 0,
@@ -53,9 +49,18 @@ export function EBoekhoudenDashboard({ settings, onSettingsUpdate }: Props) {
     loadDashboardData();
   }, []);
 
+  const loadSettings = async () => {
+    const { data } = await supabase
+      .from('company_settings')
+      .select('*')
+      .maybeSingle();
+    setSettings(data);
+    return data;
+  };
+
   const loadDashboardData = async () => {
     setLoading(true);
-    await Promise.all([loadSyncStats(), loadSyncLogs(), loadMappings()]);
+    await Promise.all([loadSettings(), loadSyncStats(), loadSyncLogs(), loadMappings()]);
     setLoading(false);
   };
 
@@ -97,7 +102,7 @@ export function EBoekhoudenDashboard({ settings, onSettingsUpdate }: Props) {
   };
 
   const handleTestConnection = async () => {
-    if (!settings.eboekhouden_api_token) return;
+    if (!settings?.eboekhouden_api_token) return;
     setTestLoading(true);
     setTestResult(null);
     try {
@@ -109,7 +114,7 @@ export function EBoekhoudenDashboard({ settings, onSettingsUpdate }: Props) {
             .from('company_settings')
             .update({ eboekhouden_connected: true, updated_at: new Date().toISOString() })
             .eq('id', settings.id);
-          onSettingsUpdate({ ...settings, eboekhouden_connected: true });
+          setSettings({ ...settings, eboekhouden_connected: true });
         }
       } else {
         setTestResult({ success: false, message: result.error || 'Verbinding mislukt' });
@@ -118,7 +123,7 @@ export function EBoekhoudenDashboard({ settings, onSettingsUpdate }: Props) {
             .from('company_settings')
             .update({ eboekhouden_connected: false, updated_at: new Date().toISOString() })
             .eq('id', settings.id);
-          onSettingsUpdate({ ...settings, eboekhouden_connected: false });
+          setSettings({ ...settings, eboekhouden_connected: false });
         }
       }
     } catch {
@@ -129,7 +134,7 @@ export function EBoekhoudenDashboard({ settings, onSettingsUpdate }: Props) {
   };
 
   const handleLoadLedger = async () => {
-    if (!settings.eboekhouden_api_token) return;
+    if (!settings?.eboekhouden_api_token) return;
     setLedgerLoading(true);
     try {
       const result = await getLedgerAccounts(settings.eboekhouden_api_token);
@@ -174,8 +179,8 @@ export function EBoekhoudenDashboard({ settings, onSettingsUpdate }: Props) {
     await loadMappings();
   };
 
-  const connected = settings.eboekhouden_connected;
-  const hasToken = !!settings.eboekhouden_api_token;
+  const connected = settings?.eboekhouden_connected ?? false;
+  const hasToken = !!settings?.eboekhouden_api_token;
 
   if (loading) {
     return (
@@ -213,7 +218,7 @@ export function EBoekhoudenDashboard({ settings, onSettingsUpdate }: Props) {
               </p>
               <p className="text-xs text-gray-400 mt-0.5">
                 {hasToken
-                  ? `Token: ...${settings.eboekhouden_api_token!.slice(-6)}`
+                  ? `Token: ...${settings!.eboekhouden_api_token!.slice(-6)}`
                   : 'Klik op "Bewerken" om je API token toe te voegen'}
               </p>
             </div>

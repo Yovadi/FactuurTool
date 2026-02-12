@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { CompanyInfo } from './CompanyInfo';
 import { BuildingInfo } from './BuildingInfo';
 import { AppInfo } from './AppInfo';
-import { Building2, Home, Settings } from 'lucide-react';
+import { EBoekhoudenDashboard } from './EBoekhoudenDashboard';
+import { Building2, Home, Settings, Database } from 'lucide-react';
 
 export function VerhuurderTabs() {
-  const [activeTab, setActiveTab] = useState<'company' | 'building' | 'app'>('company');
+  const [activeTab, setActiveTab] = useState<'company' | 'building' | 'app' | 'eboekhouden'>('company');
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
@@ -39,6 +40,17 @@ export function VerhuurderTabs() {
               Pand Informatie
             </button>
             <button
+              onClick={() => setActiveTab('eboekhouden')}
+              className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
+                activeTab === 'eboekhouden'
+                  ? 'bg-gold-500 text-white'
+                  : 'text-gray-300 hover:bg-dark-800'
+              }`}
+            >
+              <Database size={20} />
+              e-Boekhouden
+            </button>
+            <button
               onClick={() => setActiveTab('app')}
               className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
                 activeTab === 'app'
@@ -53,9 +65,10 @@ export function VerhuurderTabs() {
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-hidden">
+      <div className="flex-1 min-h-0 overflow-auto">
         {activeTab === 'company' && <CompanyInfo />}
         {activeTab === 'building' && <BuildingInfo />}
+        {activeTab === 'eboekhouden' && <EBoekhoudenDashboard />}
         {activeTab === 'app' && <AppInfo />}
       </div>
     </div>
