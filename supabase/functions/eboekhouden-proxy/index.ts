@@ -13,49 +13,68 @@ interface SessionResponse {
   token: string;
 }
 
-async function createSession(apiToken: string): Promise<string> {
+async function createSession(
+  apiToken: string
+): Promise<{ token: string; raw?: unknown }> {
   const cleanToken = apiToken.trim().replace(/[\r\n\t]/g, "");
+
+  const requestBody = {
+    accessToken: cleanToken,
+    source: "HAL5Fact",
+  };
+
   const res = await fetch(`${EB_API_BASE}/v1/session`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Accept: "application/json",
-      "User-Agent": "HAL5Fact/1.0",
     },
-    body: JSON.stringify({
-      source: "HAL5Fact",
-      accessToken: cleanToken,
-    }),
+    body: JSON.stringify(requestBody),
   });
 
-  if (!res.ok) {
-    const contentType = res.headers.get("content-type") || "";
-    let errorDetail: string;
+  const contentType = res.headers.get("content-type") || "";
+  let responseBody: unknown;
 
-    if (contentType.includes("application/json")) {
-      const errorData = await res.json();
-      if (errorData.title === "Login failed") {
-        errorDetail =
-          "Het API token wordt niet geaccepteerd door e-Boekhouden. Controleer of het token correct is gekopieerd en actief is in e-Boekhouden (Beheer > Instellingen > API).";
-      } else if (errorData.code === "API_SESSION_004") {
-        errorDetail = "Het API token is verlopen. Maak een nieuw token aan in e-Boekhouden.";
-      } else if (errorData.type === "validation") {
-        const messages = errorData.errors
-          ? Object.values(errorData.errors).flat().join(", ")
-          : errorData.title || "Validatiefout";
-        errorDetail = `Validatiefout: ${messages}`;
-      } else {
-        errorDetail = errorData.title || errorData.message || JSON.stringify(errorData);
-      }
-    } else {
-      errorDetail = await res.text();
-    }
-
-    throw new Error(errorDetail);
+  if (contentType.includes("application/json")) {
+    responseBody = await res.json();
+  } else {
+    responseBody = await res.text();
   }
 
-  const data: SessionResponse = await res.json();
-  return data.token;
+  if (!res.ok) {
+    const errorObj = responseBody as Record<string, unknown>;
+    const title = errorObj?.title || "";
+    const code = errorObj?.code || "";
+
+    let errorDetail: string;
+
+    if (title === "Login failed") {
+      errorDetail =
+        "Login mislukt bij e-Boekhouden. Het API token wordt niet geaccepteerd.";
+    } else if (code === "API_SESSION_004") {
+      errorDetail =
+        "Het API token is verlopen. Maak een nieuw token aan in e-Boekhouden.";
+    } else if (errorObj?.type === "validation") {
+      const messages = errorObj?.errors
+        ? Object.values(errorObj.errors as Record<string, string[]>)
+            .flat()
+            .join(", ")
+        : title || "Validatiefout";
+      errorDetail = `Validatiefout: ${messages}`;
+    } else {
+      errorDetail =
+        (title as string) ||
+        (errorObj?.message as string) ||
+        JSON.stringify(responseBody);
+    }
+
+    const err = new Error(errorDetail);
+    (err as Error & { rawResponse: unknown }).rawResponse = responseBody;
+    (err as Error & { httpStatus: number }).httpStatus = res.status;
+    throw err;
+  }
+
+  const data = responseBody as SessionResponse;
+  return { token: data.token };
 }
 
 async function proxyRequest(
@@ -88,6 +107,58 @@ async function proxyRequest(
   return { status: res.status, data };
 }
 
+async function runDiagnostics(apiToken: string) {
+  const diagnostics: Record<string, unknown> = {
+    timestamp: new Date().toISOString(),
+    tokenLength: apiToken?.length || 0,
+    tokenPrefix: apiToken ? apiToken.substring(0, 4) + "..." : "empty",
+    tokenSuffix: apiToken ? "..." + apiToken.substring(apiToken.length - 4) : "empty",
+  };
+
+  try {
+    const healthCheck = await fetch(`${EB_API_BASE}/swagger/v1/swagger.json`, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+    });
+    diagnostics.apiReachable = true;
+    diagnostics.apiStatus = healthCheck.status;
+  } catch (e) {
+    diagnostics.apiReachable = false;
+    diagnostics.apiError = e instanceof Error ? e.message : String(e);
+  }
+
+  const cleanToken = apiToken.trim().replace(/[\r\n\t]/g, "");
+  const requestBody = { accessToken: cleanToken, source: "HAL5Fact" };
+
+  try {
+    const sessionRes = await fetch(`${EB_API_BASE}/v1/session`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(requestBody),
+    });
+
+    const ct = sessionRes.headers.get("content-type") || "";
+    let sessionBody: unknown;
+    if (ct.includes("application/json")) {
+      sessionBody = await sessionRes.json();
+    } else {
+      sessionBody = await sessionRes.text();
+    }
+
+    diagnostics.sessionHttpStatus = sessionRes.status;
+    diagnostics.sessionSuccess = sessionRes.ok;
+    diagnostics.sessionResponse = sessionBody;
+    diagnostics.requestBodySent = {
+      accessToken: cleanToken.substring(0, 4) + "***" + cleanToken.substring(cleanToken.length - 4),
+      source: "HAL5Fact",
+    };
+  } catch (e) {
+    diagnostics.sessionError = e instanceof Error ? e.message : String(e);
+  }
+
+  return diagnostics;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -116,18 +187,29 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const sessionToken = await createSession(api_token);
+    if (action === "diagnose") {
+      const diagnostics = await runDiagnostics(api_token);
+      return new Response(
+        JSON.stringify({ success: diagnostics.sessionSuccess === true, diagnostics }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    const session = await createSession(api_token);
 
     let result: { status: number; data: unknown };
 
     switch (action) {
       case "test_connection":
-        result = await proxyRequest(sessionToken, "GET", "/v1/administration");
+        result = await proxyRequest(session.token, "GET", "/v1/administration");
         break;
 
       case "get_relations":
         result = await proxyRequest(
-          sessionToken,
+          session.token,
           "GET",
           `/v1/relation?limit=${params?.limit || 100}&offset=${params?.offset || 0}`
         );
@@ -135,7 +217,7 @@ Deno.serve(async (req: Request) => {
 
       case "get_relation":
         result = await proxyRequest(
-          sessionToken,
+          session.token,
           "GET",
           `/v1/relation/${params.id}`
         );
@@ -143,7 +225,7 @@ Deno.serve(async (req: Request) => {
 
       case "create_relation":
         result = await proxyRequest(
-          sessionToken,
+          session.token,
           "POST",
           "/v1/relation",
           params.data
@@ -152,7 +234,7 @@ Deno.serve(async (req: Request) => {
 
       case "update_relation":
         result = await proxyRequest(
-          sessionToken,
+          session.token,
           "PATCH",
           `/v1/relation/${params.id}`,
           params.data
@@ -161,7 +243,7 @@ Deno.serve(async (req: Request) => {
 
       case "get_ledger_accounts":
         result = await proxyRequest(
-          sessionToken,
+          session.token,
           "GET",
           `/v1/ledger?limit=${params?.limit || 500}&offset=${params?.offset || 0}`
         );
@@ -169,7 +251,7 @@ Deno.serve(async (req: Request) => {
 
       case "create_invoice":
         result = await proxyRequest(
-          sessionToken,
+          session.token,
           "POST",
           "/v1/invoice",
           params.data
@@ -178,7 +260,7 @@ Deno.serve(async (req: Request) => {
 
       case "get_invoices":
         result = await proxyRequest(
-          sessionToken,
+          session.token,
           "GET",
           `/v1/invoice?limit=${params?.limit || 100}&offset=${params?.offset || 0}`
         );
@@ -186,7 +268,7 @@ Deno.serve(async (req: Request) => {
 
       case "get_invoice":
         result = await proxyRequest(
-          sessionToken,
+          session.token,
           "GET",
           `/v1/invoice/${params.id}`
         );
@@ -194,7 +276,7 @@ Deno.serve(async (req: Request) => {
 
       case "create_mutation":
         result = await proxyRequest(
-          sessionToken,
+          session.token,
           "POST",
           "/v1/mutation",
           params.data
@@ -203,7 +285,7 @@ Deno.serve(async (req: Request) => {
 
       case "get_cost_centers":
         result = await proxyRequest(
-          sessionToken,
+          session.token,
           "GET",
           `/v1/costcenter?limit=${params?.limit || 100}&offset=${params?.offset || 0}`
         );
@@ -211,7 +293,7 @@ Deno.serve(async (req: Request) => {
 
       case "get_email_templates":
         result = await proxyRequest(
-          sessionToken,
+          session.token,
           "GET",
           "/v1/emailtemplate"
         );
@@ -239,16 +321,22 @@ Deno.serve(async (req: Request) => {
       }
     );
   } catch (error) {
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error:
-          error instanceof Error ? error.message : "Onbekende fout opgetreden",
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    const errObj: Record<string, unknown> = {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Onbekende fout opgetreden",
+    };
+
+    if (error && typeof error === "object" && "rawResponse" in error) {
+      errObj.rawApiResponse = (error as { rawResponse: unknown }).rawResponse;
+    }
+    if (error && typeof error === "object" && "httpStatus" in error) {
+      errObj.apiHttpStatus = (error as { httpStatus: number }).httpStatus;
+    }
+
+    return new Response(JSON.stringify(errObj), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });

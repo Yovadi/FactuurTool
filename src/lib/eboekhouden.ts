@@ -65,3 +65,7 @@ export async function createMutation(apiToken: string, data: Record<string, unkn
 export async function getEmailTemplates(apiToken: string) {
   return callProxy(apiToken, 'get_email_templates');
 }
+
+export async function diagnoseConnection(apiToken: string) {
+  return callProxy(apiToken, 'diagnose');
+}

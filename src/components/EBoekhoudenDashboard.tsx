@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, type CompanySettings, type EBoekhoudenSyncLog, type EBoekhoudenGrootboekMapping } from '../lib/supabase';
-import { testConnection, getLedgerAccounts } from '../lib/eboekhouden';
+import { testConnection, getLedgerAccounts, diagnoseConnection } from '../lib/eboekhouden';
 import {
   Link2, CheckCircle2, XCircle, Loader2, RefreshCw,
   BookOpen, Users, FileText, ArrowUpRight, ArrowDownRight,
@@ -50,6 +50,8 @@ export function EBoekhoudenDashboard() {
   const [showTokenForm, setShowTokenForm] = useState(false);
   const [tokenInput, setTokenInput] = useState('');
   const [tokenSaving, setTokenSaving] = useState(false);
+  const [diagLoading, setDiagLoading] = useState(false);
+  const [diagResult, setDiagResult] = useState<Record<string, unknown> | null>(null);
 
   useEffect(() => {
     loadDashboardData();
@@ -140,6 +142,20 @@ export function EBoekhoudenDashboard() {
       setTestResult({ success: false, message: 'Fout bij het testen van de verbinding' });
     } finally {
       setTestLoading(false);
+    }
+  };
+
+  const handleDiagnose = async () => {
+    if (!settings?.eboekhouden_api_token) return;
+    setDiagLoading(true);
+    setDiagResult(null);
+    try {
+      const result = await diagnoseConnection(settings.eboekhouden_api_token);
+      setDiagResult((result as { diagnostics?: Record<string, unknown> }).diagnostics || result as Record<string, unknown>);
+    } catch {
+      setDiagResult({ error: 'Diagnose kon niet worden uitgevoerd' });
+    } finally {
+      setDiagLoading(false);
     }
   };
 
@@ -314,6 +330,39 @@ export function EBoekhoudenDashboard() {
           <div className={`mt-3 flex items-center gap-1.5 text-sm ${testResult.success ? 'text-green-400' : 'text-red-400'}`}>
             {testResult.success ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
             {testResult.message}
+          </div>
+        )}
+        {testResult && !testResult.success && hasToken && (
+          <div className="mt-2">
+            <button
+              onClick={handleDiagnose}
+              disabled={diagLoading}
+              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-200 transition-colors disabled:opacity-50"
+            >
+              {diagLoading ? <Loader2 size={12} className="animate-spin" /> : <Activity size={12} />}
+              Diagnose uitvoeren
+            </button>
+          </div>
+        )}
+        {diagResult && (
+          <div className="mt-3 bg-dark-900 rounded-lg p-3 border border-dark-600 text-xs font-mono overflow-x-auto max-h-48 overflow-y-auto">
+            <p className="text-gray-400 mb-2 font-sans text-xs font-medium">Diagnose Resultaat:</p>
+            <div className="space-y-1">
+              {Object.entries(diagResult).map(([key, value]) => (
+                <div key={key} className="flex gap-2">
+                  <span className="text-gray-500 shrink-0">{key}:</span>
+                  <span className={`break-all ${
+                    key === 'sessionSuccess' && value === true ? 'text-green-400' :
+                    key === 'sessionSuccess' && value === false ? 'text-red-400' :
+                    key === 'apiReachable' && value === true ? 'text-green-400' :
+                    key === 'apiReachable' && value === false ? 'text-red-400' :
+                    'text-gray-300'
+                  }`}>
+                    {typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value)}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
