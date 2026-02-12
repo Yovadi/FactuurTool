@@ -283,13 +283,36 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
   };
 
   const loadSyncedInvoices = async () => {
-    const { data } = await supabase
-      .from('invoices')
-      .select('id, invoice_number, invoice_date, amount, eboekhouden_factuur_id, eboekhouden_synced_at')
-      .not('eboekhouden_factuur_id', 'is', null)
-      .order('eboekhouden_synced_at', { ascending: false })
-      .limit(20);
-    setSyncedInvoices(data || []);
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('invoices')
+        .select(`
+          id,
+          invoice_number,
+          invoice_date,
+          amount,
+          eboekhouden_factuur_id,
+          eboekhouden_synced_at,
+          tenant_id,
+          external_customer_id,
+          tenants (id, name, company_name, email),
+          external_customers (id, company_name, contact_name, email)
+        `)
+        .not('eboekhouden_factuur_id', 'is', null)
+        .order('eboekhouden_synced_at', { ascending: false })
+        .limit(100);
+
+      if (error) {
+        console.error('Error loading synced invoices:', error);
+      }
+
+      setSyncedInvoices(data || []);
+    } catch (error) {
+      console.error('Error loading synced invoices:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleResetSyncStatus = async (invoiceId: string) => {
@@ -769,6 +792,13 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                 <p className="text-sm text-gray-500 mt-2">Configureer e-Boekhouden in de bedrijfsinstellingen om synchronisatie te gebruiken</p>
               </div>
             </div>
+          ) : loading ? (
+            <div className="flex-1 flex items-center justify-center p-8">
+              <div className="text-center">
+                <Loader2 size={48} className="text-gold-500 mx-auto mb-4 animate-spin" />
+                <p className="text-gray-400">Laden...</p>
+              </div>
+            </div>
           ) : (
             <div className="flex-1 flex flex-col overflow-hidden">
               <div className="px-4 py-3 bg-blue-900/10 border-b border-dark-600 flex-shrink-0">
@@ -791,6 +821,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                     <thead className="bg-dark-800 sticky top-0 border-b border-dark-700">
                       <tr>
                         <th className="text-left px-4 py-3 text-gray-300 font-medium text-sm">Factuurnr.</th>
+                        <th className="text-left px-4 py-3 text-gray-300 font-medium text-sm">Klant</th>
                         <th className="text-left px-4 py-3 text-gray-300 font-medium text-sm">Datum</th>
                         <th className="text-right px-4 py-3 text-gray-300 font-medium text-sm">Bedrag</th>
                         <th className="text-left px-4 py-3 text-gray-300 font-medium text-sm">e-Boekhouden ID</th>
@@ -799,9 +830,15 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                       </tr>
                     </thead>
                     <tbody>
-                      {syncedInvoices.map((inv) => (
+                      {syncedInvoices.map((inv) => {
+                        const customerName = inv.tenant_id
+                          ? (inv.tenants?.company_name || inv.tenants?.name)
+                          : (inv.external_customers?.company_name || inv.external_customers?.contact_name);
+
+                        return (
                         <tr key={inv.id} className="border-b border-dark-800 hover:bg-dark-800 transition-colors">
                           <td className="px-4 py-3 text-gray-200 font-mono">{inv.invoice_number}</td>
+                          <td className="px-4 py-3 text-gray-300">{customerName || '-'}</td>
                           <td className="px-4 py-3 text-gray-300">{new Date(inv.invoice_date).toLocaleDateString('nl-NL')}</td>
                           <td className="px-4 py-3 text-right text-gray-200">€{Number(inv.amount).toFixed(2)}</td>
                           <td className="px-4 py-3 text-gray-400 font-mono">{inv.eboekhouden_factuur_id}</td>
@@ -832,7 +869,8 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                             </div>
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
