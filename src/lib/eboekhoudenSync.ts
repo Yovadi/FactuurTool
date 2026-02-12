@@ -159,8 +159,8 @@ export async function syncInvoiceToEBoekhouden(
     }
     return {
       description: item.description,
-      quantity: item.quantity,
-      pricePerUnit: item.unit_price,
+      quantity: 1,
+      pricePerUnit: item.amount,
       vatCode: getVatCode(invoice.vat_rate),
       ledgerId,
     };
@@ -293,8 +293,8 @@ export async function syncPurchaseInvoiceToEBoekhouden(
   const lineItems = invoice.purchase_invoice_line_items || [];
   const items = lineItems.map(item => ({
     description: item.description,
-    quantity: item.quantity,
-    pricePerUnit: item.unit_price,
+    quantity: 1,
+    pricePerUnit: item.amount,
     vatCode: getPurchaseVatCode(item.vat_rate || invoice.vat_rate),
     ledgerId,
   }));
