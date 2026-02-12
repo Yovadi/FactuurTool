@@ -126,7 +126,8 @@ export function EBoekhoudenDashboard() {
           setSettings({ ...settings, eboekhouden_connected: true });
         }
       } else {
-        setTestResult({ success: false, message: result.error || 'Verbinding mislukt' });
+        const errorMsg = result.error || 'Verbinding mislukt';
+        setTestResult({ success: false, message: errorMsg });
         if (settings.eboekhouden_connected) {
           await supabase
             .from('company_settings')

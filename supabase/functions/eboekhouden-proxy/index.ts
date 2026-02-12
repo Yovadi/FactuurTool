@@ -14,10 +14,14 @@ interface SessionResponse {
 }
 
 async function createSession(apiToken: string): Promise<string> {
-  const cleanToken = apiToken.trim();
+  const cleanToken = apiToken.trim().replace(/[\r\n\t]/g, "");
   const res = await fetch(`${EB_API_BASE}/v1/session`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "User-Agent": "HAL5Fact/1.0",
+    },
     body: JSON.stringify({
       source: "HAL5Fact",
       accessToken: cleanToken,
@@ -25,10 +29,29 @@ async function createSession(apiToken: string): Promise<string> {
   });
 
   if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(
-      `e-Boekhouden sessie aanmaken mislukt (${res.status}): ${errorText}`
-    );
+    const contentType = res.headers.get("content-type") || "";
+    let errorDetail: string;
+
+    if (contentType.includes("application/json")) {
+      const errorData = await res.json();
+      if (errorData.title === "Login failed") {
+        errorDetail =
+          "Het API token wordt niet geaccepteerd door e-Boekhouden. Controleer of het token correct is gekopieerd en actief is in e-Boekhouden (Beheer > Instellingen > API).";
+      } else if (errorData.code === "API_SESSION_004") {
+        errorDetail = "Het API token is verlopen. Maak een nieuw token aan in e-Boekhouden.";
+      } else if (errorData.type === "validation") {
+        const messages = errorData.errors
+          ? Object.values(errorData.errors).flat().join(", ")
+          : errorData.title || "Validatiefout";
+        errorDetail = `Validatiefout: ${messages}`;
+      } else {
+        errorDetail = errorData.title || errorData.message || JSON.stringify(errorData);
+      }
+    } else {
+      errorDetail = await res.text();
+    }
+
+    throw new Error(errorDetail);
   }
 
   const data: SessionResponse = await res.json();
