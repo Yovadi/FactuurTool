@@ -14,12 +14,13 @@ interface SessionResponse {
 }
 
 async function createSession(apiToken: string): Promise<string> {
+  const cleanToken = apiToken.trim();
   const res = await fetch(`${EB_API_BASE}/v1/session`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       source: "HAL5-Facturatie",
-      token: apiToken,
+      token: cleanToken,
     }),
   });
 
