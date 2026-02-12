@@ -259,6 +259,11 @@ export function EBoekhoudenDashboard() {
     setTokenSaving(false);
   };
 
+  const generateCode = (type: 'tenant' | 'external', index: number) => {
+    const prefix = type === 'tenant' ? 'H' : 'E';
+    return `${prefix}${String(index + 1).padStart(3, '0')}`;
+  };
+
   const handleSyncAllRelations = async (force = false) => {
     if (!settings?.eboekhouden_api_token) return;
     setSyncingRelations(true);
@@ -269,8 +274,8 @@ export function EBoekhoudenDashboard() {
     let failed = 0;
     const errors: string[] = [];
 
-    let tenantsQuery = supabase.from('tenants').select('*');
-    let externalsQuery = supabase.from('external_customers').select('*');
+    let tenantsQuery = supabase.from('tenants').select('*').order('created_at');
+    let externalsQuery = supabase.from('external_customers').select('*').order('created_at');
     if (!force) {
       tenantsQuery = tenantsQuery.is('eboekhouden_relatie_id', null);
       externalsQuery = externalsQuery.is('eboekhouden_relatie_id', null);
@@ -279,8 +284,10 @@ export function EBoekhoudenDashboard() {
     const { data: tenants } = await tenantsQuery;
     const { data: externals } = await externalsQuery;
 
-    for (const tenant of (tenants || []) as Tenant[]) {
-      const result = await syncRelationToEBoekhouden(apiToken, tenant, 'tenant', force);
+    for (let i = 0; i < (tenants || []).length; i++) {
+      const tenant = tenants![i] as Tenant;
+      const code = force ? generateCode('tenant', i) : undefined;
+      const result = await syncRelationToEBoekhouden(apiToken, tenant, 'tenant', force, code);
       if (result.success) {
         success++;
       } else {
@@ -289,8 +296,10 @@ export function EBoekhoudenDashboard() {
       }
     }
 
-    for (const ext of (externals || []) as ExternalCustomer[]) {
-      const result = await syncRelationToEBoekhouden(apiToken, ext, 'external', force);
+    for (let i = 0; i < (externals || []).length; i++) {
+      const ext = externals![i] as ExternalCustomer;
+      const code = force ? generateCode('external', i) : undefined;
+      const result = await syncRelationToEBoekhouden(apiToken, ext, 'external', force, code);
       if (result.success) {
         success++;
       } else {
@@ -308,13 +317,16 @@ export function EBoekhoudenDashboard() {
   const handleSyncTenants = async () => {
     if (!settings?.eboekhouden_api_token) return;
     setSyncingTenants(true);
+    setSyncRelationResult(null);
     const apiToken = settings.eboekhouden_api_token;
-    const { data: tenants } = await supabase.from('tenants').select('*');
+    const { data: tenants } = await supabase.from('tenants').select('*').order('created_at');
     let success = 0;
     let failed = 0;
     const errors: string[] = [];
-    for (const tenant of (tenants || []) as Tenant[]) {
-      const result = await syncRelationToEBoekhouden(apiToken, tenant, 'tenant', true);
+    for (let i = 0; i < (tenants || []).length; i++) {
+      const tenant = tenants![i] as Tenant;
+      const code = generateCode('tenant', i);
+      const result = await syncRelationToEBoekhouden(apiToken, tenant, 'tenant', true, code);
       if (result.success) success++;
       else {
         failed++;
@@ -330,13 +342,16 @@ export function EBoekhoudenDashboard() {
   const handleSyncExternals = async () => {
     if (!settings?.eboekhouden_api_token) return;
     setSyncingExternals(true);
+    setSyncRelationResult(null);
     const apiToken = settings.eboekhouden_api_token;
-    const { data: externals } = await supabase.from('external_customers').select('*');
+    const { data: externals } = await supabase.from('external_customers').select('*').order('created_at');
     let success = 0;
     let failed = 0;
     const errors: string[] = [];
-    for (const ext of (externals || []) as ExternalCustomer[]) {
-      const result = await syncRelationToEBoekhouden(apiToken, ext, 'external', true);
+    for (let i = 0; i < (externals || []).length; i++) {
+      const ext = externals![i] as ExternalCustomer;
+      const code = generateCode('external', i);
+      const result = await syncRelationToEBoekhouden(apiToken, ext, 'external', true, code);
       if (result.success) success++;
       else {
         failed++;

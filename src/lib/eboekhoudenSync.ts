@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import type { Invoice, InvoiceLineItem, Tenant, ExternalCustomer, CompanySettings, PurchaseInvoice, PurchaseInvoiceLineItem } from './supabase';
-import { createRelation, createInvoice as ebCreateInvoice, createMutation } from './eboekhouden';
+import { createRelation, getRelation, updateRelation, createInvoice as ebCreateInvoice, createMutation } from './eboekhouden';
 
 const VAT_CODE_MAP: Record<number, string> = {
   21: 'HOOG_VERK_21',
@@ -44,12 +44,38 @@ export async function syncRelationToEBoekhouden(
   apiToken: string,
   customer: Tenant | ExternalCustomer,
   customerType: 'tenant' | 'external',
-  force = false
+  force = false,
+  code?: string
 ): Promise<{ success: boolean; relationId?: number; error?: string }> {
   const isExternal = customerType === 'external';
   const table = isExternal ? 'external_customers' : 'tenants';
+  const entityType = isExternal ? 'external_relation' : 'tenant_relation';
 
   const existingRelationId = customer.eboekhouden_relatie_id;
+
+  if (existingRelationId && force) {
+    const checkResult = await getRelation(apiToken, existingRelationId);
+    if (checkResult.success) {
+      const contactName = isExternal
+        ? (customer as ExternalCustomer).contact_name
+        : (customer as Tenant).name;
+      const updateData: Record<string, unknown> = {
+        name: customer.company_name || contactName || '',
+        contact: contactName || '',
+        emailAddress: customer.email || '',
+        phoneNumber: customer.phone || '',
+        address: customer.street || '',
+        postalCode: customer.postal_code || '',
+        city: customer.city || '',
+        country: customer.country || 'NL',
+      };
+      if (code) updateData.code = code;
+      await updateRelation(apiToken, existingRelationId, updateData);
+      await logSync(entityType, customer.id, 'update', 'success', existingRelationId, null, updateData, null);
+      return { success: true, relationId: existingRelationId };
+    }
+  }
+
   if (existingRelationId && !force) {
     return { success: true, relationId: existingRelationId };
   }
@@ -69,10 +95,9 @@ export async function syncRelationToEBoekhouden(
     city: customer.city || '',
     country: customer.country || 'NL',
   };
+  if (code) relationData.code = code;
 
   const result = await createRelation(apiToken, relationData);
-
-  const entityType = isExternal ? 'external_relation' : 'tenant_relation';
 
   if (!result.success) {
     await logSync(entityType, customer.id, 'create', 'error', null, JSON.stringify(result.data), relationData, result.data);
@@ -80,7 +105,9 @@ export async function syncRelationToEBoekhouden(
   }
 
   const responseData = result.data as any;
-  const relationId = responseData?.id || responseData?.Id;
+  const relationId = typeof responseData?.id === 'number' ? responseData.id
+    : typeof responseData?.Id === 'number' ? responseData.Id
+    : parseInt(responseData?.id || responseData?.Id, 10) || null;
 
   if (relationId) {
     await supabase

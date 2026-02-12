@@ -38,6 +38,10 @@ export async function getRelations(apiToken: string, limit = 100, offset = 0) {
   return callProxy(apiToken, 'get_relations', { limit, offset });
 }
 
+export async function getRelation(apiToken: string, id: number) {
+  return callProxy(apiToken, 'get_relation', { id });
+}
+
 export async function createRelation(apiToken: string, data: Record<string, unknown>) {
   return callProxy(apiToken, 'create_relation', { data });
 }
