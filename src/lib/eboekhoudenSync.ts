@@ -43,13 +43,14 @@ async function logSync(
 export async function syncRelationToEBoekhouden(
   apiToken: string,
   customer: Tenant | ExternalCustomer,
-  customerType: 'tenant' | 'external'
+  customerType: 'tenant' | 'external',
+  force = false
 ): Promise<{ success: boolean; relationId?: number; error?: string }> {
   const isExternal = customerType === 'external';
   const table = isExternal ? 'external_customers' : 'tenants';
 
   const existingRelationId = customer.eboekhouden_relatie_id;
-  if (existingRelationId) {
+  if (existingRelationId && !force) {
     return { success: true, relationId: existingRelationId };
   }
 
@@ -71,8 +72,10 @@ export async function syncRelationToEBoekhouden(
 
   const result = await createRelation(apiToken, relationData);
 
+  const entityType = isExternal ? 'external_relation' : 'tenant_relation';
+
   if (!result.success) {
-    await logSync('relation', customer.id, 'create', 'error', null, JSON.stringify(result.data), relationData, result.data);
+    await logSync(entityType, customer.id, 'create', 'error', null, JSON.stringify(result.data), relationData, result.data);
     return { success: false, error: 'Kon relatie niet aanmaken in e-Boekhouden' };
   }
 
@@ -85,7 +88,7 @@ export async function syncRelationToEBoekhouden(
       .update({ eboekhouden_relatie_id: relationId })
       .eq('id', customer.id);
 
-    await logSync('relation', customer.id, 'create', 'success', relationId, null, relationData, result.data);
+    await logSync(entityType, customer.id, 'create', 'success', relationId, null, relationData, result.data);
   }
 
   return { success: true, relationId };

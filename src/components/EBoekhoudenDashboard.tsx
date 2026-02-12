@@ -4,7 +4,7 @@ import { testConnection, getLedgerAccounts, getInvoiceTemplates, diagnoseConnect
 import { syncRelationToEBoekhouden } from '../lib/eboekhoudenSync';
 import {
   Link2, CheckCircle2, XCircle, Loader2, RefreshCw,
-  BookOpen, Users, FileText, ArrowUpRight, ArrowDownRight,
+  BookOpen, Users, UserPlus, FileText, ArrowUpRight, ArrowDownRight,
   Clock, AlertTriangle, Activity, Database, Settings2, Plus, Trash2, Edit2, Upload
 } from 'lucide-react';
 
@@ -56,6 +56,8 @@ export function EBoekhoudenDashboard() {
   const [diagResult, setDiagResult] = useState<Record<string, unknown> | null>(null);
   const [syncingRelations, setSyncingRelations] = useState(false);
   const [syncRelationResult, setSyncRelationResult] = useState<{ success: number; failed: number; errors: string[] } | null>(null);
+  const [syncingTenants, setSyncingTenants] = useState(false);
+  const [syncingExternals, setSyncingExternals] = useState(false);
   const [invoiceTemplates, setInvoiceTemplates] = useState<{ id: number; name: string }[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
   const [templatesError, setTemplatesError] = useState<string | null>(null);
@@ -257,7 +259,7 @@ export function EBoekhoudenDashboard() {
     setTokenSaving(false);
   };
 
-  const handleSyncAllRelations = async () => {
+  const handleSyncAllRelations = async (force = false) => {
     if (!settings?.eboekhouden_api_token) return;
     setSyncingRelations(true);
     setSyncRelationResult(null);
@@ -267,18 +269,18 @@ export function EBoekhoudenDashboard() {
     let failed = 0;
     const errors: string[] = [];
 
-    const { data: tenants } = await supabase
-      .from('tenants')
-      .select('*')
-      .is('eboekhouden_relatie_id', null);
+    let tenantsQuery = supabase.from('tenants').select('*');
+    let externalsQuery = supabase.from('external_customers').select('*');
+    if (!force) {
+      tenantsQuery = tenantsQuery.is('eboekhouden_relatie_id', null);
+      externalsQuery = externalsQuery.is('eboekhouden_relatie_id', null);
+    }
 
-    const { data: externals } = await supabase
-      .from('external_customers')
-      .select('*')
-      .is('eboekhouden_relatie_id', null);
+    const { data: tenants } = await tenantsQuery;
+    const { data: externals } = await externalsQuery;
 
     for (const tenant of (tenants || []) as Tenant[]) {
-      const result = await syncRelationToEBoekhouden(apiToken, tenant, 'tenant');
+      const result = await syncRelationToEBoekhouden(apiToken, tenant, 'tenant', force);
       if (result.success) {
         success++;
       } else {
@@ -288,7 +290,7 @@ export function EBoekhoudenDashboard() {
     }
 
     for (const ext of (externals || []) as ExternalCustomer[]) {
-      const result = await syncRelationToEBoekhouden(apiToken, ext, 'external');
+      const result = await syncRelationToEBoekhouden(apiToken, ext, 'external', force);
       if (result.success) {
         success++;
       } else {
@@ -299,6 +301,50 @@ export function EBoekhoudenDashboard() {
 
     setSyncRelationResult({ success, failed, errors });
     setSyncingRelations(false);
+    await loadSyncStats();
+    await loadSyncLogs();
+  };
+
+  const handleSyncTenants = async () => {
+    if (!settings?.eboekhouden_api_token) return;
+    setSyncingTenants(true);
+    const apiToken = settings.eboekhouden_api_token;
+    const { data: tenants } = await supabase.from('tenants').select('*');
+    let success = 0;
+    let failed = 0;
+    const errors: string[] = [];
+    for (const tenant of (tenants || []) as Tenant[]) {
+      const result = await syncRelationToEBoekhouden(apiToken, tenant, 'tenant', true);
+      if (result.success) success++;
+      else {
+        failed++;
+        errors.push(`${tenant.company_name || tenant.name}: ${result.error || 'Onbekende fout'}`);
+      }
+    }
+    setSyncRelationResult({ success, failed, errors });
+    setSyncingTenants(false);
+    await loadSyncStats();
+    await loadSyncLogs();
+  };
+
+  const handleSyncExternals = async () => {
+    if (!settings?.eboekhouden_api_token) return;
+    setSyncingExternals(true);
+    const apiToken = settings.eboekhouden_api_token;
+    const { data: externals } = await supabase.from('external_customers').select('*');
+    let success = 0;
+    let failed = 0;
+    const errors: string[] = [];
+    for (const ext of (externals || []) as ExternalCustomer[]) {
+      const result = await syncRelationToEBoekhouden(apiToken, ext, 'external', true);
+      if (result.success) success++;
+      else {
+        failed++;
+        errors.push(`${ext.company_name || ext.contact_name}: ${result.error || 'Onbekende fout'}`);
+      }
+    }
+    setSyncRelationResult({ success, failed, errors });
+    setSyncingExternals(false);
     await loadSyncStats();
     await loadSyncLogs();
   };
@@ -576,13 +622,19 @@ export function EBoekhoudenDashboard() {
                 synced={syncStats.tenantsSynced}
                 total={syncStats.tenantsTotal}
                 connected={connected}
+                onSync={handleSyncTenants}
+                syncing={syncingTenants}
+                accentColor="#10b981"
               />
               <SyncStatCard
-                icon={<Users size={18} />}
+                icon={<UserPlus size={18} />}
                 label="Externe Klanten"
                 synced={syncStats.externalSynced}
                 total={syncStats.externalTotal}
                 connected={connected}
+                onSync={handleSyncExternals}
+                syncing={syncingExternals}
+                accentColor="#3b82f6"
               />
               <SyncStatCard
                 icon={<FileText size={18} />}
@@ -607,22 +659,22 @@ export function EBoekhoudenDashboard() {
               />
             </div>
 
-            {connected && (syncStats.tenantsTotal - syncStats.tenantsSynced > 0 || syncStats.externalTotal - syncStats.externalSynced > 0) && (
+            {connected && (
               <div className="mt-3 bg-dark-800 rounded-lg p-4 border border-dark-700">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-200">Relaties synchroniseren</p>
+                    <p className="text-sm font-medium text-gray-200">Alle relaties synchroniseren</p>
                     <p className="text-xs text-gray-400 mt-0.5">
-                      {syncStats.tenantsTotal - syncStats.tenantsSynced + syncStats.externalTotal - syncStats.externalSynced} relatie(s) nog niet gesynchroniseerd
+                      Maak alle huurders en externe klanten (opnieuw) aan in e-Boekhouden
                     </p>
                   </div>
                   <button
-                    onClick={handleSyncAllRelations}
+                    onClick={() => handleSyncAllRelations(true)}
                     disabled={syncingRelations}
                     className="flex items-center gap-2 px-4 py-2 bg-gold-500 text-white rounded-lg text-sm hover:bg-gold-600 transition-colors disabled:opacity-50"
                   >
                     {syncingRelations ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                    {syncingRelations ? 'Synchroniseren...' : 'Alles synchroniseren'}
+                    {syncingRelations ? 'Synchroniseren...' : 'Alles (her)synchroniseren'}
                   </button>
                 </div>
                 {syncRelationResult && (
@@ -920,20 +972,37 @@ export function EBoekhoudenDashboard() {
   );
 }
 
-function SyncStatCard({ icon, label, synced, total, connected }: {
+function SyncStatCard({ icon, label, synced, total, connected, onSync, syncing, accentColor }: {
   icon: React.ReactNode;
   label: string;
   synced: number;
   total: number;
   connected: boolean;
+  onSync?: () => void;
+  syncing?: boolean;
+  accentColor?: string;
 }) {
   const percentage = total > 0 ? Math.round((synced / total) * 100) : 0;
 
   return (
-    <div className="bg-dark-800 rounded-lg p-4 border border-dark-700">
-      <div className="flex items-center gap-2 mb-2">
-        <span className="text-gray-400">{icon}</span>
-        <span className="text-sm font-medium text-gray-200">{label}</span>
+    <div className={`bg-dark-800 rounded-lg p-4 border ${accentColor ? `border-l-2 border-l-${accentColor}` : ''} border-dark-700`}
+      style={accentColor ? { borderLeftWidth: '3px', borderLeftColor: accentColor } : undefined}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <span className="text-gray-400">{icon}</span>
+          <span className="text-sm font-medium text-gray-200">{label}</span>
+        </div>
+        {onSync && connected && total > 0 && (
+          <button
+            onClick={onSync}
+            disabled={syncing}
+            className="text-gray-400 hover:text-gold-500 transition-colors disabled:opacity-50 p-1 rounded hover:bg-dark-700"
+            title={`${label} synchroniseren`}
+          >
+            <RefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
+          </button>
+        )}
       </div>
       <div className="flex items-end justify-between">
         <div>
@@ -1008,6 +1077,8 @@ function formatBtwCode(code: string | null): string {
 function formatEntityType(type: string): string {
   const map: Record<string, string> = {
     'relation': 'Relatie',
+    'tenant_relation': 'Huurder',
+    'external_relation': 'Externe Klant',
     'invoice': 'Factuur',
     'credit_note': 'Creditnota',
     'purchase_invoice': 'Inkoopfactuur',
