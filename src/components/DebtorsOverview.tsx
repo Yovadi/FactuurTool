@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Euro, Calendar, AlertCircle, CheckCircle, FileText, Trash2, Eye, Filter } from 'lucide-react';
+import { Euro, Calendar, AlertCircle, CheckCircle, FileText, Trash2, Eye, Filter, RefreshCw, Loader2, Database } from 'lucide-react';
+import { resyncInvoiceToEBoekhouden } from '../lib/eboekhoudenSync';
 
 const getInvoiceTypeColor = (invoice: any): string => {
   if (invoice.lease_id !== null && invoice.lease?.lease_type === 'flex') return 'text-purple-500';
@@ -50,6 +51,9 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
   const [invoiceToDelete, setInvoiceToDelete] = useState<string | null>(null);
   const [deleteCode, setDeleteCode] = useState('');
   const [companySettings, setCompanySettings] = useState<any>(null);
+  const [showSyncedInvoices, setShowSyncedInvoices] = useState(false);
+  const [syncedInvoices, setSyncedInvoices] = useState<any[]>([]);
+  const [resyncingInvoiceId, setResyncingInvoiceId] = useState<string | null>(null);
 
   useEffect(() => {
     setActiveTab(initialTab);
@@ -67,7 +71,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
   const loadCompanySettings = async () => {
     const { data } = await supabase
       .from('company_settings')
-      .select('delete_code')
+      .select('*')
       .order('updated_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -275,6 +279,26 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
     setInvoiceToDelete(invoiceId);
     setShowDeleteModal(true);
     setDeleteCode('');
+  };
+
+  const loadSyncedInvoices = async () => {
+    const { data } = await supabase
+      .from('invoices')
+      .select('id, invoice_number, invoice_date, amount, eboekhouden_factuur_id, eboekhouden_synced_at')
+      .not('eboekhouden_factuur_id', 'is', null)
+      .order('eboekhouden_synced_at', { ascending: false })
+      .limit(20);
+    setSyncedInvoices(data || []);
+  };
+
+  const handleResyncInvoice = async (invoiceId: string) => {
+    if (!companySettings?.eboekhouden_api_token) return;
+    setResyncingInvoiceId(invoiceId);
+    const result = await resyncInvoiceToEBoekhouden(companySettings.eboekhouden_api_token, invoiceId, companySettings);
+    setResyncingInvoiceId(null);
+    if (result.success) {
+      await loadSyncedInvoices();
+    }
   };
 
   const confirmDeleteInvoice = async () => {
@@ -563,6 +587,31 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                   <div className="text-xs text-gray-500 mt-2">
                     {getFilteredPaidInvoices().length} van {paidInvoices.length} facturen
                   </div>
+
+                  <div className="mt-3 p-3 bg-dark-700/50 rounded-lg border border-dark-600">
+                    <div className="flex items-center gap-2 mb-2">
+                      <FileText size={14} className="text-gray-400" />
+                      <span className="text-xs font-semibold text-gray-300 uppercase">Legende Factuurnummers</span>
+                    </div>
+                    <div className="flex flex-wrap gap-3 text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                        <span className="text-gray-400">Huurcontract</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                        <span className="text-gray-400">Vergaderruimte</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+                        <span className="text-gray-400">Flex werkplek</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-3 h-3 rounded-full bg-orange-500"></div>
+                        <span className="text-gray-400">Handmatig</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 <div className="overflow-auto flex-1">
                   <table className="w-full table-fixed min-w-[1100px]">
@@ -661,6 +710,79 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                     </tbody>
                   </table>
                 </div>
+
+                {companySettings?.eboekhouden_connected && (
+                  <div className="px-4 py-4 bg-dark-800 border-t border-dark-700 flex-shrink-0">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <Database size={16} className="text-gold-500" />
+                        <h4 className="text-sm font-semibold text-gray-300 uppercase">e-Boekhouden Synchronisatie</h4>
+                      </div>
+                      <button
+                        onClick={() => {
+                          loadSyncedInvoices();
+                          setShowSyncedInvoices(!showSyncedInvoices);
+                        }}
+                        className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-200 transition-colors"
+                      >
+                        {showSyncedInvoices ? 'Verbergen' : 'Tonen'}
+                      </button>
+                    </div>
+
+                    {showSyncedInvoices && (
+                      <div className="bg-dark-900 rounded-lg border border-dark-600 overflow-hidden">
+                        {syncedInvoices.length > 0 ? (
+                          <div className="max-h-96 overflow-y-auto">
+                            <table className="w-full text-sm">
+                              <thead className="bg-dark-700 sticky top-0">
+                                <tr>
+                                  <th className="text-left px-4 py-2.5 text-gray-400 font-medium">Factuurnr.</th>
+                                  <th className="text-left px-4 py-2.5 text-gray-400 font-medium">Datum</th>
+                                  <th className="text-right px-4 py-2.5 text-gray-400 font-medium">Bedrag</th>
+                                  <th className="text-left px-4 py-2.5 text-gray-400 font-medium">e-Boekhouden ID</th>
+                                  <th className="text-right px-4 py-2.5 text-gray-400 font-medium">Sync</th>
+                                  <th className="w-10"></th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {syncedInvoices.map((inv) => (
+                                  <tr key={inv.id} className="border-t border-dark-700 hover:bg-dark-700/30">
+                                    <td className="px-4 py-2 text-gray-200 font-mono">{inv.invoice_number}</td>
+                                    <td className="px-4 py-2 text-gray-300">{new Date(inv.invoice_date).toLocaleDateString('nl-NL')}</td>
+                                    <td className="px-4 py-2 text-right text-gray-200">€{Number(inv.amount).toFixed(2)}</td>
+                                    <td className="px-4 py-2 text-gray-400 font-mono">{inv.eboekhouden_factuur_id}</td>
+                                    <td className="px-4 py-2 text-right text-xs text-gray-500">
+                                      {new Date(inv.eboekhouden_synced_at).toLocaleDateString('nl-NL')}
+                                    </td>
+                                    <td className="px-2 py-2">
+                                      <button
+                                        onClick={() => handleResyncInvoice(inv.id)}
+                                        disabled={resyncingInvoiceId === inv.id}
+                                        className="p-1 text-gray-400 hover:text-gold-500 transition-colors disabled:opacity-50"
+                                        title="Opnieuw synchroniseren"
+                                      >
+                                        {resyncingInvoiceId === inv.id ? (
+                                          <Loader2 size={14} className="animate-spin" />
+                                        ) : (
+                                          <RefreshCw size={14} />
+                                        )}
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : (
+                          <div className="py-8 text-center text-gray-500">
+                            <FileText size={24} className="mx-auto mb-2 opacity-40" />
+                            <p className="text-sm">Geen gesynchroniseerde facturen</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
