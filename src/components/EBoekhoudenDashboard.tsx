@@ -357,7 +357,7 @@ export function EBoekhoudenDashboard() {
   }
 
   return (
-    <div className="h-full overflow-auto space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Database size={20} className="text-gold-500" />
@@ -815,7 +815,7 @@ export function EBoekhoudenDashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {ledgerAccounts.map((acc) => (
+                      {[...ledgerAccounts].sort((a, b) => parseInt(a.code) - parseInt(b.code)).map((acc) => (
                         <tr key={acc.id} className="border-t border-dark-700 hover:bg-dark-700/30">
                           <td className="px-4 py-1.5 text-gray-200 font-mono">{acc.code}</td>
                           <td className="px-4 py-1.5 text-gray-300">{acc.description}</td>
