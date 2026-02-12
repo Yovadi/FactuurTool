@@ -715,7 +715,7 @@ export function CompanySettings() {
           </div>
 
           <div className="p-6">
-            {activeTab === 'company' && (
+            <div className={activeTab !== 'company' ? 'hidden' : ''}>
               <div className="space-y-6">
                 <div>
                   <h4 className="text-sm font-semibold text-gray-400 uppercase mb-2">Adres</h4>
@@ -866,9 +866,9 @@ export function CompanySettings() {
                   </div>
                 </div>
               </div>
-            )}
+            </div>
 
-            {activeTab === 'building' && (
+            <div className={activeTab !== 'building' ? 'hidden' : ''}>
               <div className="space-y-6">
                 {(settings.wifi_network_name || settings.wifi_password) ? (
                   <div>
@@ -952,14 +952,14 @@ export function CompanySettings() {
                   </div>
                 )}
               </div>
-            )}
+            </div>
 
-            {activeTab === 'eboekhouden' && (
+            <div className={activeTab !== 'eboekhouden' ? 'hidden' : ''}>
               <EBoekhoudenDashboard
                 settings={settings}
                 onSettingsUpdate={(updated) => setSettings(updated)}
               />
-            )}
+            </div>
           </div>
         </div>
       ) : (

@@ -80,7 +80,8 @@ export function EBoekhoudenDashboard() {
     setLoading(true);
     const [currentSettings] = await Promise.all([loadSettings(), loadSyncStats(), loadSyncLogs(), loadMappings()]);
     if (currentSettings?.eboekhouden_api_token && currentSettings?.eboekhouden_connected) {
-      loadLedgerAccounts(currentSettings.eboekhouden_api_token);
+      await loadLedgerAccounts(currentSettings.eboekhouden_api_token);
+      setShowLedger(true);
     }
     setLoading(false);
   };
@@ -916,7 +917,7 @@ export function EBoekhoudenDashboard() {
               {showLedger && ledgerAccounts.length > 0 && (
                 <div className="bg-dark-800 rounded-lg border border-dark-700 overflow-hidden max-h-64 overflow-y-auto">
                   <table className="w-full text-sm">
-                    <thead className="bg-dark-700/50 sticky top-0">
+                    <thead className="bg-dark-700 sticky top-0 z-10">
                       <tr>
                         <th className="text-left px-4 py-2.5 text-gray-400 font-medium">Code</th>
                         <th className="text-left px-4 py-2.5 text-gray-400 font-medium">Omschrijving</th>
