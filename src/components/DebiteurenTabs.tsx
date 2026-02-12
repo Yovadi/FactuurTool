@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { InvoiceManagement, InvoiceTypeFilter } from './InvoiceManagement';
 import { DebtorsOverview } from './DebtorsOverview';
-import { FileText, AlertTriangle, FileCheck, Plus, Home, Calendar, Zap, PenTool } from 'lucide-react';
+import { FileText, AlertTriangle, FileCheck, Plus, Home, Calendar, Zap, PenTool, Database } from 'lucide-react';
 
 type PrefilledInvoiceData = {
   invoice: any;
@@ -14,7 +14,7 @@ type DebiteurenTabsProps = {
 };
 
 export function DebiteurenTabs({ onCreateCreditNote }: DebiteurenTabsProps) {
-  const [activeTab, setActiveTab] = useState<'huur' | 'vergaderruimte' | 'flex' | 'handmatig' | 'outstanding' | 'log'>('huur');
+  const [activeTab, setActiveTab] = useState<'huur' | 'vergaderruimte' | 'flex' | 'handmatig' | 'outstanding' | 'log' | 'sync'>('huur');
   const invoiceManagementRef = useRef<any>(null);
 
   const invoiceSubTabs: { id: InvoiceTypeFilter; label: string; icon: any }[] = [
@@ -73,6 +73,17 @@ export function DebiteurenTabs({ onCreateCreditNote }: DebiteurenTabsProps) {
                 <FileCheck size={20} />
                 Logboek
               </button>
+              <button
+                onClick={() => setActiveTab('sync')}
+                className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
+                  activeTab === 'sync'
+                    ? 'bg-gold-500 text-white'
+                    : 'text-gray-300 hover:bg-dark-800'
+                }`}
+              >
+                <Database size={20} />
+                e-Boekhouden
+              </button>
             </div>
             {isInvoiceTab && (
               <button
@@ -97,6 +108,7 @@ export function DebiteurenTabs({ onCreateCreditNote }: DebiteurenTabsProps) {
         )}
         {activeTab === 'outstanding' && <DebtorsOverview initialTab="open" />}
         {activeTab === 'log' && <DebtorsOverview initialTab="log" />}
+        {activeTab === 'sync' && <DebtorsOverview initialTab="sync" />}
       </div>
     </div>
   );

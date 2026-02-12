@@ -33,7 +33,7 @@ type Invoice = {
 };
 
 type DebtorsOverviewProps = {
-  initialTab?: 'open' | 'log';
+  initialTab?: 'open' | 'log' | 'sync';
 };
 
 export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
@@ -42,7 +42,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
   const [debtorInvoices, setDebtorInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalOutstanding, setTotalOutstanding] = useState(0);
-  const [activeTab, setActiveTab] = useState<'open' | 'log'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'open' | 'log' | 'sync'>(initialTab);
   const [paidInvoices, setPaidInvoices] = useState<any[]>([]);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [filterCustomer, setFilterCustomer] = useState<string>('');
@@ -51,7 +51,6 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
   const [invoiceToDelete, setInvoiceToDelete] = useState<string | null>(null);
   const [deleteCode, setDeleteCode] = useState('');
   const [companySettings, setCompanySettings] = useState<any>(null);
-  const [showSyncedInvoices, setShowSyncedInvoices] = useState(false);
   const [syncedInvoices, setSyncedInvoices] = useState<any[]>([]);
   const [resyncingInvoiceId, setResyncingInvoiceId] = useState<string | null>(null);
 
@@ -63,8 +62,10 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
     loadCompanySettings();
     if (activeTab === 'open') {
       loadDebtors();
-    } else {
+    } else if (activeTab === 'log') {
       loadPaidInvoices();
+    } else if (activeTab === 'sync') {
+      loadSyncedInvoices();
     }
   }, [activeTab]);
 
@@ -749,98 +750,97 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                     </tbody>
                   </table>
                 </div>
-
-                {companySettings?.eboekhouden_connected && (
-                  <div className="px-4 py-4 bg-dark-800 border-t border-dark-700 flex-shrink-0">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <Database size={16} className="text-gold-500" />
-                        <h4 className="text-sm font-semibold text-gray-300 uppercase">e-Boekhouden Synchronisatie</h4>
-                      </div>
-                      <button
-                        onClick={() => {
-                          loadSyncedInvoices();
-                          setShowSyncedInvoices(!showSyncedInvoices);
-                        }}
-                        className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-200 transition-colors"
-                      >
-                        {showSyncedInvoices ? 'Verbergen' : 'Tonen'}
-                      </button>
-                    </div>
-
-                    {showSyncedInvoices && (
-                      <div className="bg-dark-900 rounded-lg border border-dark-600 overflow-hidden">
-                        <div className="px-4 py-3 bg-blue-900/10 border-b border-dark-600">
-                          <p className="text-xs text-gray-400 leading-relaxed">
-                            <span className="font-medium text-blue-300">Reset sync status</span> als een factuur in e-Boekhouden is verwijderd, zodat je deze opnieuw kunt synchroniseren.
-                            <span className="font-medium text-gold-400 ml-2">Opnieuw synchroniseren</span> vervangt de bestaande factuur in e-Boekhouden met nieuwe gegevens.
-                          </p>
-                        </div>
-                        {syncedInvoices.length > 0 ? (
-                          <div className="max-h-96 overflow-y-auto">
-                            <table className="w-full text-sm">
-                              <thead className="bg-dark-700 sticky top-0">
-                                <tr>
-                                  <th className="text-left px-4 py-2.5 text-gray-400 font-medium">Factuurnr.</th>
-                                  <th className="text-left px-4 py-2.5 text-gray-400 font-medium">Datum</th>
-                                  <th className="text-right px-4 py-2.5 text-gray-400 font-medium">Bedrag</th>
-                                  <th className="text-left px-4 py-2.5 text-gray-400 font-medium">e-Boekhouden ID</th>
-                                  <th className="text-right px-4 py-2.5 text-gray-400 font-medium">Sync</th>
-                                  <th className="text-center px-4 py-2.5 text-gray-400 font-medium">Acties</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {syncedInvoices.map((inv) => (
-                                  <tr key={inv.id} className="border-t border-dark-700 hover:bg-dark-700/30">
-                                    <td className="px-4 py-2 text-gray-200 font-mono">{inv.invoice_number}</td>
-                                    <td className="px-4 py-2 text-gray-300">{new Date(inv.invoice_date).toLocaleDateString('nl-NL')}</td>
-                                    <td className="px-4 py-2 text-right text-gray-200">€{Number(inv.amount).toFixed(2)}</td>
-                                    <td className="px-4 py-2 text-gray-400 font-mono">{inv.eboekhouden_factuur_id}</td>
-                                    <td className="px-4 py-2 text-right text-xs text-gray-500">
-                                      {new Date(inv.eboekhouden_synced_at).toLocaleDateString('nl-NL')}
-                                    </td>
-                                    <td className="px-2 py-2">
-                                      <div className="flex items-center justify-center gap-1">
-                                        <button
-                                          onClick={() => handleResyncInvoice(inv.id)}
-                                          disabled={resyncingInvoiceId === inv.id}
-                                          className="p-1.5 text-gray-400 hover:text-gold-500 transition-colors disabled:opacity-50 rounded"
-                                          title="Opnieuw synchroniseren (vervangt bestaande factuur in e-Boekhouden)"
-                                        >
-                                          {resyncingInvoiceId === inv.id ? (
-                                            <Loader2 size={14} className="animate-spin" />
-                                          ) : (
-                                            <RefreshCw size={14} />
-                                          )}
-                                        </button>
-                                        <button
-                                          onClick={() => handleResetSyncStatus(inv.id)}
-                                          className="p-1.5 text-gray-400 hover:text-red-500 transition-colors rounded"
-                                          title="Reset sync status (verwijdert koppeling, factuur blijft in e-Boekhouden)"
-                                        >
-                                          <XCircle size={14} />
-                                        </button>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        ) : (
-                          <div className="py-8 text-center text-gray-500">
-                            <FileText size={24} className="mx-auto mb-2 opacity-40" />
-                            <p className="text-sm">Geen gesynchroniseerde facturen</p>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
             )}
           </div>
         )}
+
+      {activeTab === 'sync' && (
+        <div className="flex-1 flex flex-col bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
+          <h2 className="text-lg font-bold text-gray-100 px-4 py-3 bg-dark-800 border-b border-gold-500 flex-shrink-0 flex items-center gap-2">
+            <Database size={20} className="text-gold-500" />
+            e-Boekhouden Synchronisatie
+          </h2>
+          {!companySettings?.eboekhouden_connected ? (
+            <div className="flex-1 flex items-center justify-center p-8">
+              <div className="text-center">
+                <Database size={48} className="text-gray-600 mx-auto mb-4" />
+                <p className="text-gray-400">e-Boekhouden is niet geconfigureerd</p>
+                <p className="text-sm text-gray-500 mt-2">Configureer e-Boekhouden in de bedrijfsinstellingen om synchronisatie te gebruiken</p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex-1 flex flex-col overflow-hidden">
+              <div className="px-4 py-3 bg-blue-900/10 border-b border-dark-600 flex-shrink-0">
+                <p className="text-xs text-gray-400 leading-relaxed">
+                  <span className="font-medium text-blue-300">Reset sync status</span> als een factuur in e-Boekhouden is verwijderd, zodat je deze opnieuw kunt synchroniseren.
+                  <span className="font-medium text-gold-400 ml-2">Opnieuw synchroniseren</span> vervangt de bestaande factuur in e-Boekhouden met nieuwe gegevens.
+                </p>
+              </div>
+              {syncedInvoices.length === 0 ? (
+                <div className="flex-1 flex items-center justify-center p-8">
+                  <div className="text-center">
+                    <FileText size={48} className="text-gray-600 mx-auto mb-4" />
+                    <p className="text-gray-400">Geen gesynchroniseerde facturen</p>
+                    <p className="text-sm text-gray-500 mt-2">Facturen die naar e-Boekhouden zijn gesynchroniseerd verschijnen hier</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-1 overflow-auto">
+                  <table className="w-full">
+                    <thead className="bg-dark-800 sticky top-0 border-b border-dark-700">
+                      <tr>
+                        <th className="text-left px-4 py-3 text-gray-300 font-medium text-sm">Factuurnr.</th>
+                        <th className="text-left px-4 py-3 text-gray-300 font-medium text-sm">Datum</th>
+                        <th className="text-right px-4 py-3 text-gray-300 font-medium text-sm">Bedrag</th>
+                        <th className="text-left px-4 py-3 text-gray-300 font-medium text-sm">e-Boekhouden ID</th>
+                        <th className="text-right px-4 py-3 text-gray-300 font-medium text-sm">Gesynchroniseerd</th>
+                        <th className="text-center px-4 py-3 text-gray-300 font-medium text-sm">Acties</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {syncedInvoices.map((inv) => (
+                        <tr key={inv.id} className="border-b border-dark-800 hover:bg-dark-800 transition-colors">
+                          <td className="px-4 py-3 text-gray-200 font-mono">{inv.invoice_number}</td>
+                          <td className="px-4 py-3 text-gray-300">{new Date(inv.invoice_date).toLocaleDateString('nl-NL')}</td>
+                          <td className="px-4 py-3 text-right text-gray-200">€{Number(inv.amount).toFixed(2)}</td>
+                          <td className="px-4 py-3 text-gray-400 font-mono">{inv.eboekhouden_factuur_id}</td>
+                          <td className="px-4 py-3 text-right text-xs text-gray-500">
+                            {new Date(inv.eboekhouden_synced_at).toLocaleDateString('nl-NL')} {new Date(inv.eboekhouden_synced_at).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-center gap-2">
+                              <button
+                                onClick={() => handleResyncInvoice(inv.id)}
+                                disabled={resyncingInvoiceId === inv.id}
+                                className="p-2 text-gray-400 hover:text-gold-500 hover:bg-dark-700 transition-colors disabled:opacity-50 rounded"
+                                title="Opnieuw synchroniseren (vervangt bestaande factuur in e-Boekhouden)"
+                              >
+                                {resyncingInvoiceId === inv.id ? (
+                                  <Loader2 size={16} className="animate-spin" />
+                                ) : (
+                                  <RefreshCw size={16} />
+                                )}
+                              </button>
+                              <button
+                                onClick={() => handleResetSyncStatus(inv.id)}
+                                className="p-2 text-gray-400 hover:text-red-500 hover:bg-dark-700 transition-colors rounded"
+                                title="Reset sync status (verwijdert koppeling, factuur blijft in e-Boekhouden)"
+                              >
+                                <XCircle size={16} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {selectedInvoice && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
