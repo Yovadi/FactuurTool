@@ -198,14 +198,26 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    if (action === "test_connection") {
+      const session = await createSession(api_token);
+      return new Response(
+        JSON.stringify({
+          success: true,
+          status: 200,
+          data: { message: "Sessie succesvol aangemaakt", tokenReceived: !!session.token },
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
     const session = await createSession(api_token);
 
     let result: { status: number; data: unknown };
 
     switch (action) {
-      case "test_connection":
-        result = await proxyRequest(session.token, "GET", "/v1/administration");
-        break;
 
       case "get_relations":
         result = await proxyRequest(
