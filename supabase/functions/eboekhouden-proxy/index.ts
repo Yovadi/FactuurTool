@@ -19,8 +19,8 @@ async function createSession(apiToken: string): Promise<string> {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      source: "HAL5-Facturatie",
-      token: cleanToken,
+      source: "HAL5Fact",
+      accessToken: cleanToken,
     }),
   });
 
