@@ -137,7 +137,7 @@ export async function syncInvoiceToEBoekhouden(
   const invoiceDate = new Date(invoice.invoice_date);
   const termDays = Math.max(0, Math.round((dueDate.getTime() - invoiceDate.getTime()) / (1000 * 60 * 60 * 24)));
 
-  const invoiceData = {
+  const invoiceData: Record<string, unknown> = {
     relationId: relationResult.relationId,
     date: invoice.invoice_date,
     termOfPayment: termDays,
@@ -145,6 +145,10 @@ export async function syncInvoiceToEBoekhouden(
     inExVat: invoice.vat_inclusive ? 'IN' : 'EX',
     items,
   };
+
+  if (settings.eboekhouden_template_id) {
+    invoiceData.templateId = settings.eboekhouden_template_id;
+  }
 
   const result = await ebCreateInvoice(apiToken, invoiceData);
 

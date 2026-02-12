@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, type CompanySettings, type EBoekhoudenSyncLog, type EBoekhoudenGrootboekMapping, type Tenant, type ExternalCustomer } from '../lib/supabase';
-import { testConnection, getLedgerAccounts, diagnoseConnection } from '../lib/eboekhouden';
+import { testConnection, getLedgerAccounts, getInvoiceTemplates, diagnoseConnection } from '../lib/eboekhouden';
 import { syncRelationToEBoekhouden } from '../lib/eboekhoudenSync';
 import {
   Link2, CheckCircle2, XCircle, Loader2, RefreshCw,
@@ -56,6 +56,10 @@ export function EBoekhoudenDashboard() {
   const [diagResult, setDiagResult] = useState<Record<string, unknown> | null>(null);
   const [syncingRelations, setSyncingRelations] = useState(false);
   const [syncRelationResult, setSyncRelationResult] = useState<{ success: number; failed: number; errors: string[] } | null>(null);
+  const [invoiceTemplates, setInvoiceTemplates] = useState<{ id: number; name: string }[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [templatesError, setTemplatesError] = useState<string | null>(null);
+  const [templateSaving, setTemplateSaving] = useState(false);
 
   useEffect(() => {
     loadDashboardData();
@@ -299,6 +303,48 @@ export function EBoekhoudenDashboard() {
     await loadSyncLogs();
   };
 
+  const handleLoadInvoiceTemplates = async () => {
+    if (!settings?.eboekhouden_api_token) return;
+    setTemplatesLoading(true);
+    setTemplatesError(null);
+    try {
+      const result = await getInvoiceTemplates(settings.eboekhouden_api_token);
+      if (!result.success) {
+        setTemplatesError(result.error || 'Kon factuursjablonen niet ophalen');
+        return;
+      }
+      let templates: any[] = [];
+      if (Array.isArray(result.data)) {
+        templates = result.data;
+      } else if (result.data && typeof result.data === 'object') {
+        const dataObj = result.data as Record<string, unknown>;
+        const firstArray = Object.values(dataObj).find(v => Array.isArray(v));
+        if (firstArray) templates = firstArray as any[];
+      }
+      setInvoiceTemplates(templates.map((t: any) => ({
+        id: t.id || t.Id || 0,
+        name: t.name || t.Name || t.description || t.Description || `Sjabloon ${t.id || t.Id}`,
+      })));
+    } catch (err) {
+      setTemplatesError(err instanceof Error ? err.message : 'Fout bij ophalen sjablonen');
+    } finally {
+      setTemplatesLoading(false);
+    }
+  };
+
+  const handleSaveTemplateId = async (templateId: number) => {
+    if (!settings) return;
+    setTemplateSaving(true);
+    const { error } = await supabase
+      .from('company_settings')
+      .update({ eboekhouden_template_id: templateId, updated_at: new Date().toISOString() })
+      .eq('id', settings.id);
+    if (!error) {
+      setSettings({ ...settings, eboekhouden_template_id: templateId });
+    }
+    setTemplateSaving(false);
+  };
+
   const connected = settings?.eboekhouden_connected ?? false;
   const hasToken = !!settings?.eboekhouden_api_token;
 
@@ -464,6 +510,63 @@ export function EBoekhoudenDashboard() {
 
       {hasToken && (
         <>
+          {connected && (
+            <div className="bg-dark-800 rounded-lg p-4 border border-dark-700">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-sm font-semibold text-gray-400 uppercase">Factuur Sjabloon</h4>
+                <button
+                  onClick={handleLoadInvoiceTemplates}
+                  disabled={templatesLoading}
+                  className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-200 transition-colors disabled:opacity-50"
+                >
+                  {templatesLoading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                  Sjablonen ophalen
+                </button>
+              </div>
+              {settings?.eboekhouden_template_id ? (
+                <p className="text-sm text-green-400 mb-2">
+                  Huidig sjabloon ID: <span className="font-mono">{settings.eboekhouden_template_id}</span>
+                </p>
+              ) : (
+                <p className="text-sm text-yellow-400 mb-2">
+                  Geen sjabloon geselecteerd - selecteer een factuursjabloon om te kunnen synchroniseren
+                </p>
+              )}
+              {templatesError && (
+                <div className="flex items-center gap-2 p-2 bg-red-900/10 border border-red-800/30 rounded-lg text-sm text-red-400 mb-2">
+                  <XCircle size={14} className="shrink-0" />
+                  <span>{templatesError}</span>
+                </div>
+              )}
+              {invoiceTemplates.length > 0 && (
+                <div className="space-y-1">
+                  {invoiceTemplates.map((tpl) => (
+                    <div key={tpl.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-dark-700/50">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-mono text-gray-300">{tpl.id}</span>
+                        <span className="text-sm text-gray-200">{tpl.name}</span>
+                      </div>
+                      <button
+                        onClick={() => handleSaveTemplateId(tpl.id)}
+                        disabled={templateSaving || settings?.eboekhouden_template_id === tpl.id}
+                        className={`px-3 py-1 rounded text-xs transition-colors disabled:opacity-50 ${
+                          settings?.eboekhouden_template_id === tpl.id
+                            ? 'bg-green-900/30 text-green-400 border border-green-800/30'
+                            : 'bg-gold-500 text-white hover:bg-gold-600'
+                        }`}
+                      >
+                        {settings?.eboekhouden_template_id === tpl.id ? 'Geselecteerd' : 'Selecteren'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {invoiceTemplates.length === 0 && !templatesLoading && !templatesError && (
+                <p className="text-xs text-gray-500">Klik op "Sjablonen ophalen" om beschikbare sjablonen te laden</p>
+              )}
+            </div>
+          )}
+
           <div>
             <h4 className="text-sm font-semibold text-gray-400 uppercase mb-3">Synchronisatie Overzicht</h4>
             <div className="grid grid-cols-2 gap-3">

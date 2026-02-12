@@ -311,6 +311,14 @@ Deno.serve(async (req: Request) => {
         );
         break;
 
+      case "get_invoice_templates":
+        result = await proxyRequest(
+          session.token,
+          "GET",
+          `/v1/invoicetemplate?limit=${params?.limit || 100}&offset=${params?.offset || 0}`
+        );
+        break;
+
       default:
         return new Response(
           JSON.stringify({ error: `Onbekende actie: ${action}` }),

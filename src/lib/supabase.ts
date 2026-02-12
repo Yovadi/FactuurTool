@@ -152,6 +152,7 @@ export type CompanySettings = {
   openai_api_key: string | null;
   eboekhouden_api_token: string | null;
   eboekhouden_connected: boolean;
+  eboekhouden_template_id: number | null;
   created_at: string;
   updated_at: string;
 };

@@ -62,6 +62,10 @@ export async function createMutation(apiToken: string, data: Record<string, unkn
   return callProxy(apiToken, 'create_mutation', { data });
 }
 
+export async function getInvoiceTemplates(apiToken: string) {
+  return callProxy(apiToken, 'get_invoice_templates');
+}
+
 export async function getEmailTemplates(apiToken: string) {
   return callProxy(apiToken, 'get_email_templates');
 }
