@@ -44,6 +44,7 @@ export function EBoekhoudenDashboard() {
   const [testLoading, setTestLoading] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [ledgerLoading, setLedgerLoading] = useState(false);
+  const [ledgerError, setLedgerError] = useState<string | null>(null);
   const [showLedger, setShowLedger] = useState(false);
   const [showMappingForm, setShowMappingForm] = useState(false);
   const [mappingForm, setMappingForm] = useState({ local_category: '', grootboek_code: '', grootboek_omschrijving: '', btw_code: '' });
@@ -165,19 +166,44 @@ export function EBoekhoudenDashboard() {
   const handleLoadLedger = async () => {
     if (!settings?.eboekhouden_api_token) return;
     setLedgerLoading(true);
+    setLedgerError(null);
     try {
       const result = await getLedgerAccounts(settings.eboekhouden_api_token);
-      if (result.success && Array.isArray(result.data)) {
-        setLedgerAccounts(result.data.map((acc: any) => ({
-          id: acc.id || acc.Id || 0,
-          code: acc.code || acc.Code || '',
-          description: acc.description || acc.Description || '',
-          category: acc.category || acc.Category || '',
-        })));
+      if (!result.success) {
+        setLedgerError(result.error || 'Kon grootboekrekeningen niet ophalen');
         setShowLedger(true);
+        return;
       }
-    } catch {
-      // silently handle
+
+      let accounts: any[] = [];
+      if (Array.isArray(result.data)) {
+        accounts = result.data;
+      } else if (result.data && typeof result.data === 'object') {
+        const dataObj = result.data as Record<string, unknown>;
+        if (Array.isArray(dataObj.results)) {
+          accounts = dataObj.results;
+        } else if (Array.isArray(dataObj.Results)) {
+          accounts = dataObj.Results;
+        } else if (Array.isArray(dataObj.items)) {
+          accounts = dataObj.items;
+        } else {
+          const firstArray = Object.values(dataObj).find(v => Array.isArray(v));
+          if (firstArray) {
+            accounts = firstArray as any[];
+          }
+        }
+      }
+
+      setLedgerAccounts(accounts.map((acc: any) => ({
+        id: acc.id || acc.Id || 0,
+        code: acc.code || acc.Code || '',
+        description: acc.description || acc.Description || '',
+        category: acc.category || acc.Category || '',
+      })));
+      setShowLedger(true);
+    } catch (err) {
+      setLedgerError(err instanceof Error ? err.message : 'Onbekende fout bij ophalen grootboekrekeningen');
+      setShowLedger(true);
     } finally {
       setLedgerLoading(false);
     }
@@ -697,7 +723,13 @@ export function EBoekhoudenDashboard() {
                   </table>
                 </div>
               )}
-              {showLedger && ledgerAccounts.length === 0 && (
+              {showLedger && ledgerError && (
+                <div className="flex items-center gap-2 p-3 bg-red-900/10 border border-red-800/30 rounded-lg text-sm text-red-400">
+                  <XCircle size={16} className="shrink-0" />
+                  <span>{ledgerError}</span>
+                </div>
+              )}
+              {showLedger && !ledgerError && ledgerAccounts.length === 0 && (
                 <p className="text-sm text-gray-500">Geen grootboekrekeningen gevonden</p>
               )}
             </div>
