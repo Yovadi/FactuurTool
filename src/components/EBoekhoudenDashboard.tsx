@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase, type CompanySettings, type EBoekhoudenSyncLog, type EBoekhoudenGrootboekMapping, type Tenant, type ExternalCustomer } from '../lib/supabase';
 import { testConnection, getLedgerAccounts, getInvoiceTemplates, diagnoseConnection } from '../lib/eboekhouden';
-import { syncRelationToEBoekhouden } from '../lib/eboekhoudenSync';
+import { syncRelationToEBoekhouden, syncInvoiceToEBoekhouden, syncPurchaseInvoiceToEBoekhouden } from '../lib/eboekhoudenSync';
 import {
   Link2, CheckCircle2, XCircle, Loader2, RefreshCw,
   BookOpen, Users, UserPlus, FileText, ArrowUpRight, ArrowDownRight,
@@ -62,6 +62,8 @@ export function EBoekhoudenDashboard() {
   const [templatesLoading, setTemplatesLoading] = useState(false);
   const [templatesError, setTemplatesError] = useState<string | null>(null);
   const [templateSaving, setTemplateSaving] = useState(false);
+  const [syncingInvoices, setSyncingInvoices] = useState(false);
+  const [syncingPurchaseInvoices, setSyncingPurchaseInvoices] = useState(false);
 
   useEffect(() => {
     loadDashboardData();
@@ -315,6 +317,54 @@ export function EBoekhoudenDashboard() {
       }
     }
 
+    const { data: unsyncedInvoices } = await supabase
+      .from('invoices')
+      .select('*, invoice_line_items(*)')
+      .is('eboekhouden_factuur_id', null);
+
+    for (const inv of (unsyncedInvoices || [])) {
+      let customer: Tenant | ExternalCustomer | null = null;
+      let customerType: 'tenant' | 'external' = 'tenant';
+
+      if (inv.tenant_id) {
+        const { data } = await supabase.from('tenants').select('*').eq('id', inv.tenant_id).maybeSingle();
+        customer = data as Tenant | null;
+      } else if (inv.external_customer_id) {
+        const { data } = await supabase.from('external_customers').select('*').eq('id', inv.external_customer_id).maybeSingle();
+        customer = data as ExternalCustomer | null;
+        customerType = 'external';
+      }
+
+      if (!customer) {
+        failed++;
+        errors.push(`Factuur ${inv.invoice_number}: Geen klant gevonden`);
+        continue;
+      }
+
+      const invResult = await syncInvoiceToEBoekhouden(
+        apiToken, { ...inv, line_items: inv.invoice_line_items } as any, customer, customerType, settings!
+      );
+      if (invResult.success) success++;
+      else {
+        failed++;
+        errors.push(`Factuur ${inv.invoice_number}: ${invResult.error || 'Onbekende fout'}`);
+      }
+    }
+
+    const { data: unsyncedPurchaseInvoices } = await supabase
+      .from('purchase_invoices')
+      .select('*, purchase_invoice_line_items(*)')
+      .is('eboekhouden_factuur_id', null);
+
+    for (const pi of (unsyncedPurchaseInvoices || [])) {
+      const piResult = await syncPurchaseInvoiceToEBoekhouden(apiToken, pi as any, settings!);
+      if (piResult.success) success++;
+      else {
+        failed++;
+        errors.push(`Inkoopfactuur ${pi.invoice_number}: ${piResult.error || 'Onbekende fout'}`);
+      }
+    }
+
     setSyncRelationResult({ success, failed, errors });
     setSyncingRelations(false);
     await loadSyncStats();
@@ -367,6 +417,84 @@ export function EBoekhoudenDashboard() {
     }
     setSyncRelationResult({ success, failed, errors });
     setSyncingExternals(false);
+    await loadSyncStats();
+    await loadSyncLogs();
+  };
+
+  const handleSyncAllInvoices = async () => {
+    if (!settings?.eboekhouden_api_token) return;
+    setSyncingInvoices(true);
+    setSyncRelationResult(null);
+    const apiToken = settings.eboekhouden_api_token;
+    let success = 0;
+    let failed = 0;
+    const errors: string[] = [];
+
+    const { data: invoices } = await supabase
+      .from('invoices')
+      .select('*, invoice_line_items(*)')
+      .is('eboekhouden_factuur_id', null);
+
+    for (const inv of (invoices || [])) {
+      let customer: Tenant | ExternalCustomer | null = null;
+      let customerType: 'tenant' | 'external' = 'tenant';
+
+      if (inv.tenant_id) {
+        const { data } = await supabase.from('tenants').select('*').eq('id', inv.tenant_id).maybeSingle();
+        customer = data as Tenant | null;
+      } else if (inv.external_customer_id) {
+        const { data } = await supabase.from('external_customers').select('*').eq('id', inv.external_customer_id).maybeSingle();
+        customer = data as ExternalCustomer | null;
+        customerType = 'external';
+      }
+
+      if (!customer) {
+        failed++;
+        errors.push(`Factuur ${inv.invoice_number}: Geen klant gevonden`);
+        continue;
+      }
+
+      const result = await syncInvoiceToEBoekhouden(
+        apiToken, { ...inv, line_items: inv.invoice_line_items } as any, customer, customerType, settings!
+      );
+      if (result.success) success++;
+      else {
+        failed++;
+        errors.push(`Factuur ${inv.invoice_number}: ${result.error || 'Onbekende fout'}`);
+      }
+    }
+
+    setSyncRelationResult({ success, failed, errors });
+    setSyncingInvoices(false);
+    await loadSyncStats();
+    await loadSyncLogs();
+  };
+
+  const handleSyncAllPurchaseInvoices = async () => {
+    if (!settings?.eboekhouden_api_token) return;
+    setSyncingPurchaseInvoices(true);
+    setSyncRelationResult(null);
+    const apiToken = settings.eboekhouden_api_token;
+    let success = 0;
+    let failed = 0;
+    const errors: string[] = [];
+
+    const { data: purchaseInvoices } = await supabase
+      .from('purchase_invoices')
+      .select('*, purchase_invoice_line_items(*)')
+      .is('eboekhouden_factuur_id', null);
+
+    for (const pi of (purchaseInvoices || [])) {
+      const result = await syncPurchaseInvoiceToEBoekhouden(apiToken, pi as any, settings!);
+      if (result.success) success++;
+      else {
+        failed++;
+        errors.push(`Inkoopfactuur ${pi.invoice_number}: ${result.error || 'Onbekende fout'}`);
+      }
+    }
+
+    setSyncRelationResult({ success, failed, errors });
+    setSyncingPurchaseInvoices(false);
     await loadSyncStats();
     await loadSyncLogs();
   };
@@ -664,6 +792,9 @@ export function EBoekhoudenDashboard() {
                 synced={syncStats.invoicesSynced}
                 total={syncStats.invoicesTotal}
                 connected={connected}
+                onSync={handleSyncAllInvoices}
+                syncing={syncingInvoices}
+                accentColor="#f59e0b"
               />
               <SyncStatCard
                 icon={<FileText size={18} />}
@@ -678,6 +809,9 @@ export function EBoekhoudenDashboard() {
                 synced={syncStats.purchaseInvoicesSynced}
                 total={syncStats.purchaseInvoicesTotal}
                 connected={connected}
+                onSync={handleSyncAllPurchaseInvoices}
+                syncing={syncingPurchaseInvoices}
+                accentColor="#ef4444"
               />
             </div>
 
@@ -687,7 +821,7 @@ export function EBoekhoudenDashboard() {
                   <div>
                     <p className="text-sm font-medium text-gray-200">Alle relaties synchroniseren</p>
                     <p className="text-xs text-gray-400 mt-0.5">
-                      Maak alle huurders en externe klanten (opnieuw) aan in e-Boekhouden
+                      Synchroniseer alle relaties, facturen en inkoopfacturen naar e-Boekhouden
                     </p>
                   </div>
                   <button
