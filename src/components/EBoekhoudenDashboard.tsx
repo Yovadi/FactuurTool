@@ -4,7 +4,7 @@ import { testConnection, getLedgerAccounts } from '../lib/eboekhouden';
 import {
   Link2, CheckCircle2, XCircle, Loader2, RefreshCw,
   BookOpen, Users, FileText, ArrowUpRight, ArrowDownRight,
-  Clock, AlertTriangle, Activity, Database, Settings2, Plus, Trash2
+  Clock, AlertTriangle, Activity, Database, Settings2, Plus, Trash2, Edit2, Eye, EyeOff
 } from 'lucide-react';
 
 interface SyncStats {
@@ -44,6 +44,9 @@ export function EBoekhoudenDashboard() {
   const [showMappingForm, setShowMappingForm] = useState(false);
   const [mappingForm, setMappingForm] = useState({ local_category: '', grootboek_code: '', grootboek_omschrijving: '', btw_code: '' });
   const [mappingSaving, setMappingSaving] = useState(false);
+  const [showTokenForm, setShowTokenForm] = useState(false);
+  const [tokenInput, setTokenInput] = useState('');
+  const [tokenSaving, setTokenSaving] = useState(false);
 
   useEffect(() => {
     loadDashboardData();
@@ -179,6 +182,25 @@ export function EBoekhoudenDashboard() {
     await loadMappings();
   };
 
+  const handleSaveToken = async () => {
+    if (!settings) return;
+    setTokenSaving(true);
+    const { error } = await supabase
+      .from('company_settings')
+      .update({
+        eboekhouden_api_token: tokenInput || null,
+        eboekhouden_connected: false,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', settings.id);
+    if (!error) {
+      setSettings({ ...settings, eboekhouden_api_token: tokenInput || null, eboekhouden_connected: false });
+      setShowTokenForm(false);
+      setTokenInput('');
+    }
+    setTokenSaving(false);
+  };
+
   const connected = settings?.eboekhouden_connected ?? false;
   const hasToken = !!settings?.eboekhouden_api_token;
 
@@ -219,25 +241,68 @@ export function EBoekhoudenDashboard() {
               <p className="text-xs text-gray-400 mt-0.5">
                 {hasToken
                   ? `Token: ...${settings!.eboekhouden_api_token!.slice(-6)}`
-                  : 'Klik op "Bewerken" om je API token toe te voegen'}
+                  : 'Voeg je API token toe om te verbinden'}
               </p>
             </div>
           </div>
-          {hasToken && (
+          <div className="flex items-center gap-2">
             <button
-              onClick={handleTestConnection}
-              disabled={testLoading}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors disabled:opacity-50 ${
-                connected
-                  ? 'bg-green-900/20 text-green-300 hover:bg-green-900/30 border border-green-800/30'
-                  : 'bg-dark-700 text-gray-200 hover:bg-dark-600 border border-dark-600'
-              }`}
+              onClick={() => {
+                setTokenInput(settings?.eboekhouden_api_token || '');
+                setShowTokenForm(!showTokenForm);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-gold-500 hover:text-gold-400 transition-colors border border-dark-600 hover:border-gold-500/30"
             >
-              {testLoading ? <Loader2 size={14} className="animate-spin" /> : <Link2 size={14} />}
-              Test Verbinding
+              <Edit2 size={14} />
+              Bewerken
             </button>
-          )}
+            {hasToken && (
+              <button
+                onClick={handleTestConnection}
+                disabled={testLoading}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors disabled:opacity-50 ${
+                  connected
+                    ? 'bg-green-900/20 text-green-300 hover:bg-green-900/30 border border-green-800/30'
+                    : 'bg-dark-700 text-gray-200 hover:bg-dark-600 border border-dark-600'
+                }`}
+              >
+                {testLoading ? <Loader2 size={14} className="animate-spin" /> : <Link2 size={14} />}
+                Test Verbinding
+              </button>
+            )}
+          </div>
         </div>
+        {showTokenForm && (
+          <div className="mt-4 pt-4 border-t border-dark-700">
+            <label className="block text-sm font-medium text-gray-300 mb-2">API Token</label>
+            <div className="flex gap-2">
+              <input
+                type="password"
+                value={tokenInput}
+                onChange={(e) => setTokenInput(e.target.value)}
+                placeholder="Plak hier je e-Boekhouden API token"
+                className="flex-1 px-3 py-2 bg-dark-900 border border-dark-600 text-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+              />
+              <button
+                onClick={handleSaveToken}
+                disabled={tokenSaving}
+                className="flex items-center gap-1.5 bg-gold-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-gold-600 transition-colors disabled:opacity-50"
+              >
+                {tokenSaving && <Loader2 size={14} className="animate-spin" />}
+                Opslaan
+              </button>
+              <button
+                onClick={() => setShowTokenForm(false)}
+                className="px-3 py-2 text-gray-400 hover:text-gray-200 text-sm transition-colors"
+              >
+                Annuleren
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Je vindt je API token in e-Boekhouden onder Beheer &gt; Instellingen &gt; API / Koppelingen
+            </p>
+          </div>
+        )}
         {testResult && (
           <div className={`mt-3 flex items-center gap-1.5 text-sm ${testResult.success ? 'text-green-400' : 'text-red-400'}`}>
             {testResult.success ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
@@ -246,14 +311,23 @@ export function EBoekhoudenDashboard() {
         )}
       </div>
 
-      {!hasToken && (
+      {!hasToken && !showTokenForm && (
         <div className="text-center py-12 text-gray-400">
           <Link2 size={40} className="mx-auto mb-3 opacity-30" />
           <p className="text-sm font-medium text-gray-300">Geen e-Boekhouden koppeling ingesteld</p>
           <p className="text-xs mt-1.5 max-w-md mx-auto leading-relaxed">
             Koppel je administratie om automatisch relaties en facturen te synchroniseren.
-            Voeg je API token toe via "Bewerken" hierboven.
           </p>
+          <button
+            onClick={() => {
+              setTokenInput('');
+              setShowTokenForm(true);
+            }}
+            className="mt-4 flex items-center gap-2 mx-auto bg-gold-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-gold-600 transition-colors"
+          >
+            <Link2 size={16} />
+            Koppeling instellen
+          </button>
         </div>
       )}
 
