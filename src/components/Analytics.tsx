@@ -131,7 +131,7 @@ export function Analytics() {
       .reduce((sum, inv) => sum + Number(inv.amount), 0) || 0;
 
     const paidInvoices = invoices?.filter(inv => inv.status === 'paid').length || 0;
-    const pendingInvoices = invoices?.filter(inv => inv.status === 'pending').length || 0;
+    const pendingInvoices = invoices?.filter(inv => inv.status !== 'paid' && inv.status !== 'credited').length || 0;
     const overdueInvoices = invoices?.filter(
       inv => inv.status !== 'paid' && inv.status !== 'credited' && inv.due_date < todayStr
     ).length || 0;
@@ -151,8 +151,9 @@ export function Analytics() {
       sum + Number(ls.monthly_rent), 0
     );
 
-    const averageInvoiceAmount = invoices && invoices.length > 0
-      ? totalRevenue / invoices.length
+    const nonCreditedInvoices = invoices?.filter(inv => inv.status !== 'credited') || [];
+    const averageInvoiceAmount = nonCreditedInvoices.length > 0
+      ? totalRevenue / nonCreditedInvoices.length
       : 0;
 
     const leaseInvoices = invoices?.filter(inv => inv.lease_id !== null) || [];
@@ -165,7 +166,7 @@ export function Analytics() {
       totalRevenue,
       paidRevenue,
       pendingAmount,
-      totalInvoices: invoices?.length || 0,
+      totalInvoices: nonCreditedInvoices.length,
       paidInvoices,
       pendingInvoices,
       overdueInvoices,
@@ -182,7 +183,8 @@ export function Analytics() {
   const loadYearlyData = async () => {
     const { data: invoices } = await supabase
       .from('invoices')
-      .select('invoice_date, amount, status');
+      .select('invoice_date, amount, status')
+      .neq('status', 'credited');
 
     if (!invoices) return;
 
@@ -217,7 +219,8 @@ export function Analytics() {
   const loadQuarterlyData = async () => {
     const { data: invoices } = await supabase
       .from('invoices')
-      .select('invoice_date, amount, status');
+      .select('invoice_date, amount, status')
+      .neq('status', 'credited');
 
     if (!invoices) return;
 
