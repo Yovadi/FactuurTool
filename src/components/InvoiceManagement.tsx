@@ -1,6 +1,7 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { supabase, type Invoice, type Lease, type Tenant, type ExternalCustomer, type LeaseSpace, type OfficeSpace, type InvoiceLineItem } from '../lib/supabase';
-import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, CreditCard as Edit, Search, CreditCard as Edit2, AlertCircle, CheckSquare, Square, Check, X, Home, Zap } from 'lucide-react';
+import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, CreditCard as Edit, Search, CreditCard as Edit2, AlertCircle, CheckSquare, Square, Check, X, Home, Zap, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { syncInvoiceToEBoekhouden } from '../lib/eboekhoudenSync';
 import { generateInvoicePDF } from '../utils/pdfGenerator';
 import { InvoicePreview } from './InvoicePreview';
 import { checkAndRunScheduledJobs } from '../utils/scheduledJobs';
@@ -127,6 +128,38 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   const [flexDayBookings, setFlexDayBookings] = useState<any[]>([]);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [showDetailSelection, setShowDetailSelection] = useState(true);
+  const [syncingInvoiceId, setSyncingInvoiceId] = useState<string | null>(null);
+
+  const handleSyncToEBoekhouden = async (invoice: InvoiceWithDetails) => {
+    if (!companySettings?.eboekhouden_api_token || !companySettings?.eboekhouden_connected) return;
+    const customer = invoice.tenant || invoice.external_customer;
+    if (!customer) return;
+    const customerType = invoice.tenant ? 'tenant' : 'external';
+    setSyncingInvoiceId(invoice.id);
+    try {
+      const { data: lineItems } = await supabase
+        .from('invoice_line_items')
+        .select('*')
+        .eq('invoice_id', invoice.id);
+      const invoiceWithItems = { ...invoice, line_items: lineItems || [] };
+      const result = await syncInvoiceToEBoekhouden(
+        companySettings.eboekhouden_api_token,
+        invoiceWithItems,
+        customer as any,
+        customerType as 'tenant' | 'external',
+        companySettings
+      );
+      if (result.success) {
+        await loadInvoices();
+      } else {
+        alert(result.error || 'Synchronisatie mislukt');
+      }
+    } catch {
+      alert('Fout bij synchronisatie naar e-Boekhouden');
+    } finally {
+      setSyncingInvoiceId(null);
+    }
+  };
 
   useImperativeHandle(ref, () => ({
     openGenerateModal: async () => {
@@ -3086,6 +3119,21 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                             </td>
                             <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                               <div className="flex gap-1 justify-end">
+                                {companySettings?.eboekhouden_connected && !invoice.eboekhouden_factuur_id && (
+                                  <button
+                                    onClick={() => handleSyncToEBoekhouden(invoice)}
+                                    disabled={syncingInvoiceId === invoice.id}
+                                    className="text-teal-500 hover:text-teal-400 transition-colors p-1.5 rounded hover:bg-dark-700 disabled:opacity-50"
+                                    title="Sync naar e-Boekhouden"
+                                  >
+                                    <RefreshCw size={18} className={syncingInvoiceId === invoice.id ? 'animate-spin' : ''} />
+                                  </button>
+                                )}
+                                {invoice.eboekhouden_factuur_id && (
+                                  <span className="text-green-500 p-1.5" title={`Gesynchroniseerd (ID: ${invoice.eboekhouden_factuur_id})`}>
+                                    <CheckCircle2 size={18} />
+                                  </span>
+                                )}
                                 <button
                                   onClick={() => {
                                     setShowDeleteConfirm(invoice.id);
@@ -3295,6 +3343,21 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                                 </td>
                                 <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                                   <div className="flex gap-1 justify-end">
+                                    {companySettings?.eboekhouden_connected && !invoice.eboekhouden_factuur_id && (
+                                      <button
+                                        onClick={() => handleSyncToEBoekhouden(invoice)}
+                                        disabled={syncingInvoiceId === invoice.id}
+                                        className="text-teal-500 hover:text-teal-400 transition-colors p-1.5 rounded hover:bg-dark-700 disabled:opacity-50"
+                                        title="Sync naar e-Boekhouden"
+                                      >
+                                        <RefreshCw size={18} className={syncingInvoiceId === invoice.id ? 'animate-spin' : ''} />
+                                      </button>
+                                    )}
+                                    {invoice.eboekhouden_factuur_id && (
+                                      <span className="text-green-500 p-1.5" title={`Gesynchroniseerd (ID: ${invoice.eboekhouden_factuur_id})`}>
+                                        <CheckCircle2 size={18} />
+                                      </span>
+                                    )}
                                     <button
                                       onClick={() => {
                                         setShowDeleteConfirm(invoice.id);

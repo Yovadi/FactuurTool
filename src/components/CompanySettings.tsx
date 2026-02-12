@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase, type CompanySettings } from '../lib/supabase';
-import { Building2, Edit2, Mail, Phone, MapPin, CreditCard, Lock, FolderOpen, RefreshCw, Wifi, Network, Zap, FileText, Sparkles, Eye, EyeOff } from 'lucide-react';
+import { Building2, Edit2, Mail, Phone, MapPin, CreditCard, Lock, FolderOpen, RefreshCw, Wifi, Network, Zap, FileText, Sparkles, Eye, EyeOff, Link2, CheckCircle2, XCircle, Loader2, BookOpen } from 'lucide-react';
+import { testConnection, getLedgerAccounts } from '../lib/eboekhouden';
 
 export function CompanySettings() {
   const [settings, setSettings] = useState<CompanySettings | null>(null);
@@ -8,8 +9,14 @@ export function CompanySettings() {
   const [loading, setLoading] = useState(true);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [updateMessage, setUpdateMessage] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'company' | 'building'>('company');
+  const [activeTab, setActiveTab] = useState<'company' | 'building' | 'eboekhouden'>('company');
   const [showApiKey, setShowApiKey] = useState(false);
+  const [showEbToken, setShowEbToken] = useState(false);
+  const [ebTestLoading, setEbTestLoading] = useState(false);
+  const [ebTestResult, setEbTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [ebLedgerAccounts, setEbLedgerAccounts] = useState<Array<{ id: number; code: string; description: string; category: string }>>([]);
+  const [showLedgerAccounts, setShowLedgerAccounts] = useState(false);
+  const [ebLedgerLoading, setEbLedgerLoading] = useState(false);
 
   const [formData, setFormData] = useState({
     company_name: '',
@@ -32,7 +39,8 @@ export function CompanySettings() {
     patch_points: '',
     meter_cabinet_info: '',
     building_notes: '',
-    openai_api_key: ''
+    openai_api_key: '',
+    eboekhouden_api_token: ''
   });
 
   useEffect(() => {
@@ -121,7 +129,8 @@ export function CompanySettings() {
         patch_points: settings.patch_points || '',
         meter_cabinet_info: settings.meter_cabinet_info || '',
         building_notes: settings.building_notes || '',
-        openai_api_key: (settings as any).openai_api_key || ''
+        openai_api_key: settings.openai_api_key || '',
+        eboekhouden_api_token: settings.eboekhouden_api_token || ''
       });
     }
     setShowForm(true);
@@ -149,7 +158,8 @@ export function CompanySettings() {
       patch_points: '',
       meter_cabinet_info: '',
       building_notes: '',
-      openai_api_key: ''
+      openai_api_key: '',
+      eboekhouden_api_token: ''
     });
     setShowForm(false);
   };
@@ -190,6 +200,64 @@ export function CompanySettings() {
       setTimeout(() => {
         setUpdateMessage(null);
       }, 5000);
+    }
+  };
+
+  const handleTestEbConnection = async () => {
+    const token = formData.eboekhouden_api_token || settings?.eboekhouden_api_token;
+    if (!token) {
+      setEbTestResult({ success: false, message: 'Vul eerst een API token in' });
+      return;
+    }
+    setEbTestLoading(true);
+    setEbTestResult(null);
+    try {
+      const result = await testConnection(token);
+      if (result.success) {
+        setEbTestResult({ success: true, message: 'Verbinding succesvol!' });
+        if (settings) {
+          await supabase
+            .from('company_settings')
+            .update({ eboekhouden_connected: true, updated_at: new Date().toISOString() })
+            .eq('id', settings.id);
+          setSettings({ ...settings, eboekhouden_connected: true });
+        }
+      } else {
+        setEbTestResult({ success: false, message: result.error || 'Verbinding mislukt. Controleer je API token.' });
+        if (settings) {
+          await supabase
+            .from('company_settings')
+            .update({ eboekhouden_connected: false, updated_at: new Date().toISOString() })
+            .eq('id', settings.id);
+          setSettings({ ...settings, eboekhouden_connected: false });
+        }
+      }
+    } catch {
+      setEbTestResult({ success: false, message: 'Fout bij het testen van de verbinding' });
+    } finally {
+      setEbTestLoading(false);
+    }
+  };
+
+  const handleLoadLedgerAccounts = async () => {
+    const token = settings?.eboekhouden_api_token;
+    if (!token) return;
+    setEbLedgerLoading(true);
+    try {
+      const result = await getLedgerAccounts(token);
+      if (result.success && Array.isArray(result.data)) {
+        setEbLedgerAccounts(result.data.map((acc: any) => ({
+          id: acc.id,
+          code: acc.code || acc.Code || '',
+          description: acc.description || acc.Description || '',
+          category: acc.category || acc.Category || '',
+        })));
+        setShowLedgerAccounts(true);
+      }
+    } catch {
+      console.error('Fout bij ophalen grootboekrekeningen');
+    } finally {
+      setEbLedgerLoading(false);
     }
   };
 
@@ -471,6 +539,57 @@ export function CompanySettings() {
               </div>
 
               <div className="border-t border-dark-700 pt-4 mt-4">
+                <h4 className="text-lg font-semibold text-gray-100 mb-3">e-Boekhouden Koppeling</h4>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-200 mb-1">
+                      API Token
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showEbToken ? 'text' : 'password'}
+                        value={formData.eboekhouden_api_token}
+                        onChange={(e) => setFormData({ ...formData, eboekhouden_api_token: e.target.value })}
+                        className="w-full px-3 py-2 pr-10 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 font-mono text-sm"
+                        placeholder="Plak hier je e-Boekhouden API token"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowEbToken(!showEbToken)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-300"
+                      >
+                        {showEbToken ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Te vinden in e-Boekhouden via Beheer &gt; Inrichting &gt; Instellingen &gt; Koppelingen &gt; API/SOAP
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={handleTestEbConnection}
+                      disabled={ebTestLoading || !formData.eboekhouden_api_token}
+                      className="flex items-center gap-2 bg-dark-800 text-gray-200 px-4 py-2 rounded-lg hover:bg-dark-700 transition-colors border border-dark-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {ebTestLoading ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        <Link2 size={16} />
+                      )}
+                      Test Verbinding
+                    </button>
+                    {ebTestResult && (
+                      <div className={`flex items-center gap-1.5 text-sm ${ebTestResult.success ? 'text-green-400' : 'text-red-400'}`}>
+                        {ebTestResult.success ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
+                        {ebTestResult.message}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-dark-700 pt-4 mt-4">
                 <h4 className="text-lg font-semibold text-gray-100 mb-3">Pand Informatie</h4>
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
@@ -603,6 +722,19 @@ export function CompanySettings() {
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gold-500"></div>
               )}
             </button>
+            <button
+              onClick={() => setActiveTab('eboekhouden')}
+              className={`px-4 py-3 font-medium transition-colors relative ${
+                activeTab === 'eboekhouden'
+                  ? 'text-gold-500'
+                  : 'text-gray-400 hover:text-gray-300'
+              }`}
+            >
+              e-Boekhouden
+              {activeTab === 'eboekhouden' && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gold-500"></div>
+              )}
+            </button>
           </div>
 
           <div className="p-6">
@@ -731,8 +863,8 @@ export function CompanySettings() {
                       <div>
                         <p className="text-xs text-gray-400">OpenAI API Key</p>
                         <p className="font-mono text-sm">
-                          {(settings as any).openai_api_key
-                            ? `sk-...${(settings as any).openai_api_key.slice(-4)}`
+                          {settings.openai_api_key
+                            ? `sk-...${settings.openai_api_key.slice(-4)}`
                             : 'Niet ingesteld'}
                         </p>
                       </div>
@@ -840,6 +972,110 @@ export function CompanySettings() {
                     <Building2 size={48} className="mx-auto mb-3 opacity-30" />
                     <p className="text-sm">Geen pand informatie beschikbaar</p>
                     <p className="text-xs mt-1">Klik op "Bewerken" om informatie toe te voegen</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'eboekhouden' && (
+              <div className="space-y-6">
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-400 uppercase mb-3">Verbindingsstatus</h4>
+                  <div className="bg-dark-800 rounded-lg p-4 border border-dark-700">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-3 h-3 rounded-full ${settings.eboekhouden_connected ? 'bg-green-500' : 'bg-gray-600'}`} />
+                        <div>
+                          <p className="text-gray-100 font-medium">
+                            {settings.eboekhouden_connected ? 'Verbonden' : 'Niet verbonden'}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {settings.eboekhouden_api_token
+                              ? `Token: ...${settings.eboekhouden_api_token.slice(-6)}`
+                              : 'Geen API token ingesteld'}
+                          </p>
+                        </div>
+                      </div>
+                      {settings.eboekhouden_api_token && (
+                        <button
+                          onClick={handleTestEbConnection}
+                          disabled={ebTestLoading}
+                          className="flex items-center gap-2 bg-dark-700 text-gray-200 px-3 py-1.5 rounded-lg hover:bg-dark-600 transition-colors text-sm disabled:opacity-50"
+                        >
+                          {ebTestLoading ? (
+                            <Loader2 size={14} className="animate-spin" />
+                          ) : (
+                            <Link2 size={14} />
+                          )}
+                          Test
+                        </button>
+                      )}
+                    </div>
+                    {ebTestResult && (
+                      <div className={`mt-3 flex items-center gap-1.5 text-sm ${ebTestResult.success ? 'text-green-400' : 'text-red-400'}`}>
+                        {ebTestResult.success ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
+                        {ebTestResult.message}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {settings.eboekhouden_connected && settings.eboekhouden_api_token && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-400 uppercase mb-3">Grootboekrekeningen</h4>
+                    <div className="bg-dark-800 rounded-lg p-4 border border-dark-700">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <BookOpen size={18} className="text-gold-500" />
+                          <span className="text-gray-100 font-medium">Beschikbare rekeningen</span>
+                        </div>
+                        <button
+                          onClick={handleLoadLedgerAccounts}
+                          disabled={ebLedgerLoading}
+                          className="flex items-center gap-2 bg-dark-700 text-gray-200 px-3 py-1.5 rounded-lg hover:bg-dark-600 transition-colors text-sm disabled:opacity-50"
+                        >
+                          {ebLedgerLoading ? (
+                            <Loader2 size={14} className="animate-spin" />
+                          ) : (
+                            <RefreshCw size={14} />
+                          )}
+                          Ophalen
+                        </button>
+                      </div>
+                      {showLedgerAccounts && ebLedgerAccounts.length > 0 && (
+                        <div className="max-h-64 overflow-y-auto border border-dark-600 rounded-lg">
+                          <table className="w-full text-sm">
+                            <thead className="bg-dark-700 sticky top-0">
+                              <tr>
+                                <th className="text-left px-3 py-2 text-gray-400 font-medium">Code</th>
+                                <th className="text-left px-3 py-2 text-gray-400 font-medium">Omschrijving</th>
+                                <th className="text-left px-3 py-2 text-gray-400 font-medium">Categorie</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {ebLedgerAccounts.map((acc) => (
+                                <tr key={acc.id} className="border-t border-dark-600 hover:bg-dark-700/50">
+                                  <td className="px-3 py-1.5 text-gray-200 font-mono">{acc.code}</td>
+                                  <td className="px-3 py-1.5 text-gray-300">{acc.description}</td>
+                                  <td className="px-3 py-1.5 text-gray-400">{acc.category}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                      {showLedgerAccounts && ebLedgerAccounts.length === 0 && (
+                        <p className="text-sm text-gray-400">Geen grootboekrekeningen gevonden</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {!settings.eboekhouden_api_token && (
+                  <div className="text-center py-8 text-gray-400">
+                    <Link2 size={32} className="mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">Geen e-Boekhouden koppeling ingesteld</p>
+                    <p className="text-xs mt-1">Klik op "Bewerken" om je API token toe te voegen</p>
                   </div>
                 )}
               </div>
