@@ -149,13 +149,22 @@ export async function syncInvoiceToEBoekhouden(
   }
 
   const lineItems = invoice.line_items || [];
-  const items = lineItems.map(item => ({
-    description: item.description,
-    quantity: item.quantity,
-    pricePerUnit: item.unit_price,
-    vatCode: getVatCode(invoice.vat_rate),
-    ledgerId: defaultLedgerId,
-  }));
+  const items = lineItems.map(item => {
+    let ledgerId = defaultLedgerId;
+    if (item.local_category) {
+      const categoryMapping = mappings?.find(m => m.local_category === item.local_category);
+      if (categoryMapping?.grootboek_id) {
+        ledgerId = categoryMapping.grootboek_id;
+      }
+    }
+    return {
+      description: item.description,
+      quantity: item.quantity,
+      pricePerUnit: item.unit_price,
+      vatCode: getVatCode(invoice.vat_rate),
+      ledgerId,
+    };
+  });
 
   if (items.length === 0) {
     items.push({

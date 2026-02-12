@@ -87,6 +87,19 @@ function convertLineItemsToSpaces(items: InvoiceLineItem[]) {
   });
 }
 
+function getLocalCategory(spaceType?: string, bookingType?: string): string | null {
+  if (bookingType === 'meeting_room') return 'vergaderruimte';
+  if (bookingType === 'flex') return 'flexplek';
+  switch (spaceType) {
+    case 'kantoor': return 'huur_kantoor';
+    case 'bedrijfsruimte': return 'huur_bedrijfsruimte';
+    case 'buitenterrein': return 'huur_buitenterrein';
+    case 'flexplek': return 'flexplek';
+    case 'diversen': return 'diversen';
+    default: return null;
+  }
+}
+
 export type InvoiceTypeFilter = 'all' | 'huur' | 'vergaderruimte' | 'flex' | 'handmatig';
 
 type InvoiceManagementProps = {
@@ -397,6 +410,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     space_type?: string;
     bookingId?: string;
     bookingType?: 'meeting_room' | 'flex';
+    local_category?: string | null;
   }>>([]);
 
   useEffect(() => {
@@ -843,7 +857,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           quantity: quantity,
           unit_price: unitPrice,
           amount: quantity * unitPrice,
-          booking_id: item.bookingId || null
+          booking_id: item.bookingId || null,
+          local_category: item.local_category || getLocalCategory(item.space_type, item.bookingType)
         };
       });
 
@@ -924,7 +939,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           quantity: quantity,
           unit_price: unitPrice,
           amount: quantity * unitPrice,
-          booking_id: item.bookingId || null
+          booking_id: item.bookingId || null,
+          local_category: item.local_category || getLocalCategory(item.space_type, item.bookingType)
         };
       });
 
@@ -1026,14 +1042,16 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
             description: displayName,
             unit_price: ls.price_per_sqm.toFixed(2),
             quantity: quantity,
-            space_type: spaceType
+            space_type: spaceType,
+            local_category: getLocalCategory(spaceType)
           };
         }));
 
       if (lease.security_deposit > 0) {
         items.push({
           description: 'Voorschot Gas, Water & Electra',
-          unit_price: lease.security_deposit.toFixed(2)
+          unit_price: lease.security_deposit.toFixed(2),
+          local_category: 'diversen'
         });
       }
 
@@ -1585,13 +1603,14 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
           const beforeDiscountAmount = (booking.total_amount || 0) + (booking.discount_amount || 0);
 
-          const items = [{
+          const items: any[] = [{
             invoice_id: newInvoice.id,
             description: description,
             quantity: booking.total_hours,
             unit_price: booking.applied_rate || booking.hourly_rate,
             amount: beforeDiscountAmount,
-            booking_id: booking.id
+            booking_id: booking.id,
+            local_category: 'vergaderruimte'
           }];
 
           if (booking.discount_percentage && booking.discount_percentage > 0 && booking.discount_amount && booking.discount_amount > 0) {
@@ -1601,7 +1620,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               quantity: 1,
               unit_price: -(booking.discount_amount),
               amount: -(booking.discount_amount),
-              booking_id: null
+              booking_id: null,
+              local_category: 'vergaderruimte'
             });
           }
 
@@ -1615,7 +1635,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             quantity: 1,
             unit_price: -additionalDiscount,
             amount: -additionalDiscount,
-            booking_id: null
+            booking_id: null,
+            local_category: 'vergaderruimte'
           });
         }
 
@@ -1765,7 +1786,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               description: 'Flexplek - Maandelijks tarief (onbeperkt)',
               quantity: 1,
               unit_price: rentAmount,
-              amount: rentAmount
+              amount: rentAmount,
+              local_category: 'flexplek'
             });
           } else if (lease.flex_pricing_model === 'daily') {
             const [year, month] = targetMonth.split('-').map(Number);
@@ -1778,7 +1800,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               quantity: workingDays,
               unit_price: lease.flex_daily_rate || 0,
               amount: rentAmount,
-              quantity_label: 'dagen'
+              quantity_label: 'dagen',
+              local_category: 'flexplek'
             });
           } else if (lease.flex_pricing_model === 'credit_based') {
             const creditsPerWeek = (lease as any).credits_per_week || 0;
@@ -1791,7 +1814,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               quantity: monthlyCredits,
               unit_price: lease.flex_credit_rate || 0,
               amount: rentAmount,
-              quantity_label: 'dagen'
+              quantity_label: 'dagen',
+              local_category: 'flexplek'
             });
           }
         } else {
@@ -1903,7 +1927,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               description: displayName,
               quantity: quantity,
               unit_price: pricePerSqm,
-              amount: monthlyRent
+              amount: monthlyRent,
+              local_category: getLocalCategory(spaceType)
             });
           }
         } else {
@@ -1918,7 +1943,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             description: `Korting verhuur (${discountPercentage}%)`,
             quantity: 1,
             unit_price: -discountAmount,
-            amount: -discountAmount
+            amount: -discountAmount,
+            local_category: null
           });
         }
 
@@ -1928,7 +1954,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             description: 'Voorschot Gas, Water & Electra',
             quantity: 1,
             unit_price: securityDeposit,
-            amount: securityDeposit
+            amount: securityDeposit,
+            local_category: 'diversen'
           });
         }
 
@@ -2174,6 +2201,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             const bookingDiscount = booking.discount_amount || 0;
             const beforeDiscountAmount = bookingAmount + bookingDiscount;
             const defaultLabel = booking.booking_type === 'flex' ? 'Flexplek' : 'Vergaderruimte';
+            const category = booking.booking_type === 'flex' ? 'flexplek' : 'vergaderruimte';
 
             return {
               invoice_id: newInvoice.id,
@@ -2181,7 +2209,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               quantity: booking.total_hours,
               unit_price: booking.hourly_rate,
               amount: beforeDiscountAmount,
-              booking_id: booking.booking_type === 'meeting_room' ? booking.id : null
+              booking_id: booking.booking_type === 'meeting_room' ? booking.id : null,
+              local_category: category
             };
           });
 
@@ -2195,7 +2224,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               quantity: 1,
               unit_price: -totalDiscountAmount,
               amount: -totalDiscountAmount,
-              booking_id: null
+              booking_id: null,
+              local_category: null as any
             });
           }
 

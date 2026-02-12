@@ -124,6 +124,7 @@ export type InvoiceLineItem = {
   unit_price: number;
   amount: number;
   booking_id?: string | null;
+  local_category?: string | null;
   created_at: string;
 };
 

@@ -1,5 +1,16 @@
 import { supabase } from '../lib/supabase';
 
+function getLocalCategory(spaceType?: string): string | null {
+  switch (spaceType) {
+    case 'kantoor': return 'huur_kantoor';
+    case 'bedrijfsruimte': return 'huur_bedrijfsruimte';
+    case 'buitenterrein': return 'huur_buitenterrein';
+    case 'flexplek': return 'flexplek';
+    case 'diversen': return 'diversen';
+    default: return null;
+  }
+}
+
 export interface ScheduledJob {
   id: string;
   job_type: string;
@@ -126,7 +137,8 @@ const generateMonthlyInvoices = async (job: ScheduledJob) => {
             description: `Flexwerkplek - ${flexLease.credits_per_week} ${flexLease.flex_day_type === 'half_day' ? 'halve dagen' : 'dagen'}/week`,
             quantity: flexLease.credits_per_week,
             unit_price: Math.round((flexLease.flex_credit_rate * weeksPerMonth) * 100) / 100,
-            amount: monthlyAmount
+            amount: monthlyAmount,
+            local_category: 'flexplek'
           });
         }
       } else {
@@ -150,7 +162,8 @@ const generateMonthlyInvoices = async (job: ScheduledJob) => {
             description: displayName,
             quantity: sqm,
             unit_price: pricePerSqm,
-            amount: ls.monthly_rent
+            amount: ls.monthly_rent,
+            local_category: getLocalCategory(spaceType)
           });
         }
       }
@@ -161,7 +174,8 @@ const generateMonthlyInvoices = async (job: ScheduledJob) => {
           description: 'Voorschot Gas, Water & Electra',
           quantity: 1,
           unit_price: lease.security_deposit,
-          amount: lease.security_deposit
+          amount: lease.security_deposit,
+          local_category: 'diversen'
         });
       }
 
