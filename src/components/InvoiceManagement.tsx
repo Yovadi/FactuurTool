@@ -1,6 +1,6 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { supabase, type Invoice, type Lease, type Tenant, type ExternalCustomer, type LeaseSpace, type OfficeSpace, type InvoiceLineItem } from '../lib/supabase';
-import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, CreditCard as Edit, Search, CreditCard as Edit2, AlertCircle, CheckSquare, Square, Check, X, Home, Zap, RefreshCw, CheckCircle2, ChevronDown } from 'lucide-react';
+import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, CreditCard as Edit, Search, CreditCard as Edit2, AlertCircle, CheckSquare, Square, Check, X, Home, Zap, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { syncInvoiceToEBoekhouden, checkInvoicePaymentStatuses } from '../lib/eboekhoudenSync';
 import { generateInvoicePDF } from '../utils/pdfGenerator';
 import { InvoicePreview } from './InvoicePreview';
@@ -142,7 +142,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [showDetailSelection, setShowDetailSelection] = useState(true);
   const [syncingInvoiceId, setSyncingInvoiceId] = useState<string | null>(null);
-  const [showPaidInvoices, setShowPaidInvoices] = useState(false);
 
   const handleSyncToEBoekhouden = async (invoice: InvoiceWithDetails) => {
     if (!companySettings?.eboekhouden_api_token || !companySettings?.eboekhouden_connected) return;
@@ -3477,91 +3476,6 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                     </table>
                 </div>
               </div>
-
-              {paidInvoices.length > 0 && (
-                <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700">
-                  <button
-                    onClick={() => setShowPaidInvoices(!showPaidInvoices)}
-                    className="w-full flex items-center justify-between px-4 py-3 bg-dark-800 border-b border-green-700 rounded-t-lg hover:bg-dark-700 transition-colors"
-                  >
-                    <h2 className="text-lg font-bold text-gray-100">
-                      Betaalde / Gecrediteerde Facturen ({paidInvoices.length})
-                    </h2>
-                    <ChevronDown size={20} className={`text-gray-400 transition-transform ${showPaidInvoices ? 'rotate-180' : ''}`} />
-                  </button>
-                  {showPaidInvoices && (
-                    <div className="overflow-x-auto">
-                      <table className="w-full table-fixed min-w-[1000px]">
-                        <thead>
-                          <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
-                            <th className="text-left px-4 py-3 font-semibold w-[22%]">Klant</th>
-                            <th className="text-left px-4 py-3 font-semibold w-[12%]">Factuur Nr.</th>
-                            <th className="text-left px-4 py-3 font-semibold w-[12%]">Maand</th>
-                            <th className="text-left px-4 py-3 font-semibold w-[12%]">Factuur Datum</th>
-                            <th className="text-left px-4 py-3 font-semibold w-[12%]">Omschrijving</th>
-                            <th className="text-right px-4 py-3 font-semibold w-[10%]">Bedrag</th>
-                            <th className="text-center px-4 py-3 font-semibold w-[10%]">Status</th>
-                            <th className="text-right px-4 py-3 font-semibold w-[10%]">Acties</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {paidInvoices.map((invoice) => {
-                            const tenant = tenants.find(t => t.id === invoice.tenant_id);
-                            const external = externalCustomers.find(e => e.id === invoice.external_customer_id);
-                            const customerName = tenant?.company_name || external?.company_name || external?.contact_name || '-';
-                            return (
-                              <tr
-                                key={invoice.id}
-                                className="border-b border-dark-700 last:border-b-0 hover:bg-dark-800/50 transition-colors cursor-pointer"
-                                onClick={() => handlePreviewInvoice(invoice)}
-                              >
-                                <td className="px-4 py-3 text-gray-100 font-medium truncate">{customerName}</td>
-                                <td className="px-4 py-3 text-gray-300 font-mono">{invoice.invoice_number}</td>
-                                <td className="px-4 py-3 text-gray-400">{invoice.invoice_month || '-'}</td>
-                                <td className="px-4 py-3 text-gray-400">
-                                  {new Date(invoice.invoice_date).toLocaleDateString('nl-NL')}
-                                </td>
-                                <td className="px-4 py-3 text-gray-400 truncate">
-                                  {invoice.line_items?.[0]?.description || '-'}
-                                </td>
-                                <td className="px-4 py-3 text-right">
-                                  <div className="text-gray-100 font-bold">
-                                    {'\u20AC'}{invoice.amount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                  </div>
-                                </td>
-                                <td className="px-4 py-3 text-center">
-                                  <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(invoice.status)}`}>
-                                    {getStatusLabel(invoice.status)}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                                  <div className="flex gap-1 justify-end">
-                                    {companySettings?.eboekhouden_connected && !invoice.eboekhouden_factuur_id && (
-                                      <button
-                                        onClick={() => handleSyncToEBoekhouden(invoice)}
-                                        disabled={syncingInvoiceId === invoice.id}
-                                        className="text-teal-500 hover:text-teal-400 transition-colors p-1.5 rounded hover:bg-dark-700 disabled:opacity-50"
-                                        title="Sync naar e-Boekhouden"
-                                      >
-                                        <RefreshCw size={18} className={syncingInvoiceId === invoice.id ? 'animate-spin' : ''} />
-                                      </button>
-                                    )}
-                                    {invoice.eboekhouden_factuur_id && (
-                                      <span className="text-green-500 p-1.5" title={`Gesynchroniseerd (ID: ${invoice.eboekhouden_factuur_id})`}>
-                                        <CheckCircle2 size={18} />
-                                      </span>
-                                    )}
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           );
           })()}
