@@ -269,6 +269,7 @@ export type EBoekhoudenGrootboekMapping = {
   id: string;
   local_category: string;
   grootboek_code: string;
+  grootboek_id: number | null;
   grootboek_omschrijving: string;
   btw_code: string | null;
   created_at: string;

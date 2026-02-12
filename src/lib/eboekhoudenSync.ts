@@ -142,7 +142,11 @@ export async function syncInvoiceToEBoekhouden(
     .select('*');
 
   const defaultMapping = mappings?.find(m => m.local_category === 'default');
-  const defaultLedgerCode = defaultMapping?.grootboek_code || '8000';
+  const defaultLedgerId = defaultMapping?.grootboek_id;
+
+  if (!defaultLedgerId) {
+    return { success: false, error: 'Geen grootboekrekening geconfigureerd. Stel een "Standaard" mapping in bij e-Boekhouden instellingen.' };
+  }
 
   const lineItems = invoice.line_items || [];
   const items = lineItems.map(item => ({
@@ -150,7 +154,7 @@ export async function syncInvoiceToEBoekhouden(
     quantity: item.quantity,
     pricePerUnit: item.unit_price,
     vatCode: getVatCode(invoice.vat_rate),
-    ledgerId: parseInt(defaultLedgerCode, 10),
+    ledgerId: defaultLedgerId,
   }));
 
   if (items.length === 0) {
@@ -159,7 +163,7 @@ export async function syncInvoiceToEBoekhouden(
       quantity: 1,
       pricePerUnit: invoice.subtotal,
       vatCode: getVatCode(invoice.vat_rate),
-      ledgerId: parseInt(defaultLedgerCode, 10),
+      ledgerId: defaultLedgerId,
     });
   }
 
@@ -271,7 +275,11 @@ export async function syncPurchaseInvoiceToEBoekhouden(
 
   const categoryMapping = mappings?.find(m => m.local_category === `inkoop_${invoice.category}`);
   const defaultMapping = mappings?.find(m => m.local_category === 'inkoop_default') || mappings?.find(m => m.local_category === 'default');
-  const ledgerCode = categoryMapping?.grootboek_code || defaultMapping?.grootboek_code || '4000';
+  const ledgerId = categoryMapping?.grootboek_id || defaultMapping?.grootboek_id;
+
+  if (!ledgerId) {
+    return { success: false, error: 'Geen grootboekrekening geconfigureerd. Stel een "Inkoop - Standaard" of "Standaard" mapping in bij e-Boekhouden instellingen.' };
+  }
 
   const lineItems = invoice.purchase_invoice_line_items || [];
   const items = lineItems.map(item => ({
@@ -279,7 +287,7 @@ export async function syncPurchaseInvoiceToEBoekhouden(
     quantity: item.quantity,
     pricePerUnit: item.unit_price,
     vatCode: getPurchaseVatCode(item.vat_rate || invoice.vat_rate),
-    ledgerId: parseInt(ledgerCode, 10),
+    ledgerId,
   }));
 
   if (items.length === 0) {
@@ -288,7 +296,7 @@ export async function syncPurchaseInvoiceToEBoekhouden(
       quantity: 1,
       pricePerUnit: invoice.subtotal,
       vatCode: getPurchaseVatCode(invoice.vat_rate),
-      ledgerId: parseInt(ledgerCode, 10),
+      ledgerId,
     });
   }
 

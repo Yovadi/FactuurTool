@@ -47,7 +47,7 @@ export function EBoekhoudenDashboard() {
   const [ledgerError, setLedgerError] = useState<string | null>(null);
   const [showLedger, setShowLedger] = useState(false);
   const [showMappingForm, setShowMappingForm] = useState(false);
-  const [mappingForm, setMappingForm] = useState({ local_category: '', grootboek_code: '', grootboek_omschrijving: '', btw_code: '' });
+  const [mappingForm, setMappingForm] = useState({ local_category: '', grootboek_code: '', grootboek_id: 0, grootboek_omschrijving: '', btw_code: '' });
   const [mappingSaving, setMappingSaving] = useState(false);
   const [showTokenForm, setShowTokenForm] = useState(false);
   const [tokenInput, setTokenInput] = useState('');
@@ -223,13 +223,14 @@ export function EBoekhoudenDashboard() {
       .upsert({
         local_category: mappingForm.local_category,
         grootboek_code: mappingForm.grootboek_code,
+        grootboek_id: mappingForm.grootboek_id || null,
         grootboek_omschrijving: mappingForm.grootboek_omschrijving,
         btw_code: mappingForm.btw_code || null,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'local_category' });
     if (!error) {
       setShowMappingForm(false);
-      setMappingForm({ local_category: '', grootboek_code: '', grootboek_omschrijving: '', btw_code: '' });
+      setMappingForm({ local_category: '', grootboek_code: '', grootboek_id: 0, grootboek_omschrijving: '', btw_code: '' });
       await loadMappings();
     }
     setMappingSaving(false);
@@ -763,14 +764,50 @@ export function EBoekhoudenDashboard() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-400 mb-1">Grootboek Code</label>
-                    <input
-                      type="text"
-                      value={mappingForm.grootboek_code}
-                      onChange={(e) => setMappingForm({ ...mappingForm, grootboek_code: e.target.value })}
-                      className="w-full px-3 py-2 bg-dark-900 border border-dark-600 text-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
-                      placeholder="Bijv. 8000"
-                    />
+                    <label className="block text-xs text-gray-400 mb-1">Grootboekrekening</label>
+                    {ledgerAccounts.length > 0 ? (
+                      <select
+                        value={mappingForm.grootboek_id || ''}
+                        onChange={(e) => {
+                          const account = ledgerAccounts.find(a => a.id === Number(e.target.value));
+                          if (account) {
+                            setMappingForm({
+                              ...mappingForm,
+                              grootboek_id: account.id,
+                              grootboek_code: account.code,
+                              grootboek_omschrijving: account.description,
+                            });
+                          }
+                        }}
+                        className="w-full px-3 py-2 bg-dark-900 border border-dark-600 text-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                      >
+                        <option value="">Selecteer grootboekrekening...</option>
+                        {ledgerAccounts
+                          .sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }))
+                          .map(acc => (
+                            <option key={acc.id} value={acc.id}>
+                              {acc.code} - {acc.description}
+                            </option>
+                          ))}
+                      </select>
+                    ) : (
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={mappingForm.grootboek_code}
+                          onChange={(e) => setMappingForm({ ...mappingForm, grootboek_code: e.target.value })}
+                          className="flex-1 px-3 py-2 bg-dark-900 border border-dark-600 text-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                          placeholder="Laad eerst grootboekrekeningen"
+                        />
+                        <button
+                          onClick={handleLoadLedger}
+                          disabled={ledgerLoading}
+                          className="px-3 py-2 bg-dark-700 text-gray-300 rounded-lg text-sm hover:bg-dark-600 transition-colors whitespace-nowrap"
+                        >
+                          {ledgerLoading ? <Loader2 size={14} className="animate-spin" /> : 'Laden'}
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="block text-xs text-gray-400 mb-1">Omschrijving</label>
