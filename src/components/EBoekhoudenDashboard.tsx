@@ -778,136 +778,120 @@ export function EBoekhoudenDashboard() {
           )}
 
           <div>
-            <h4 className="text-sm font-semibold text-gray-400 uppercase mb-3">Synchronisatie Overzicht</h4>
-            <div className="grid grid-cols-2 gap-3">
-              <SyncStatCard
-                icon={<Users size={18} />}
-                label="Huurders"
-                synced={syncStats.tenantsSynced}
-                total={syncStats.tenantsTotal}
-                connected={connected}
-                onSync={handleSyncTenants}
-                syncing={syncingTenants}
-                accentColor="#10b981"
-              />
-              <SyncStatCard
-                icon={<UserPlus size={18} />}
-                label="Externe Klanten"
-                synced={syncStats.externalSynced}
-                total={syncStats.externalTotal}
-                connected={connected}
-                onSync={handleSyncExternals}
-                syncing={syncingExternals}
-                accentColor="#3b82f6"
-              />
-              <SyncStatCard
-                icon={<FileText size={18} />}
-                label="Facturen"
-                synced={syncStats.invoicesSynced}
-                total={syncStats.invoicesTotal}
-                connected={connected}
-                onSync={handleSyncAllInvoices}
-                syncing={syncingInvoices}
-                accentColor="#f59e0b"
-              />
-              <SyncStatCard
-                icon={<FileText size={18} />}
-                label="Creditnota's"
-                synced={syncStats.creditNotesSynced}
-                total={syncStats.creditNotesTotal}
-                connected={connected}
-              />
-              <SyncStatCard
-                icon={<ArrowDownRight size={18} />}
-                label="Inkoopfacturen"
-                synced={syncStats.purchaseInvoicesSynced}
-                total={syncStats.purchaseInvoicesTotal}
-                connected={connected}
-                onSync={handleSyncAllPurchaseInvoices}
-                syncing={syncingPurchaseInvoices}
-                accentColor="#ef4444"
-              />
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-semibold text-gray-400 uppercase">Synchronisatie Overzicht</h4>
+              {connected && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleCheckPaymentStatuses}
+                    disabled={checkingPaymentStatus}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs hover:bg-green-700 transition-colors disabled:opacity-50"
+                    title="Controleer welke facturen in e-Boekhouden als betaald zijn gemarkeerd"
+                  >
+                    {checkingPaymentStatus ? <Loader2 size={12} className="animate-spin" /> : <ArrowDownRight size={12} />}
+                    Betaalstatussen
+                  </button>
+                  <button
+                    onClick={() => handleSyncAllRelations(true)}
+                    disabled={syncingRelations}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-gold-500 text-white rounded-lg text-xs hover:bg-gold-600 transition-colors disabled:opacity-50"
+                    title="Synchroniseer alle relaties, facturen en inkoopfacturen naar e-Boekhouden"
+                  >
+                    {syncingRelations ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+                    Alles Sync
+                  </button>
+                </div>
+              )}
             </div>
 
-            {connected && (
-              <>
-                <div className="mt-3 bg-dark-800 rounded-lg p-4 border border-dark-700">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-200">Alle relaties synchroniseren</p>
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        Synchroniseer alle relaties, facturen en inkoopfacturen naar e-Boekhouden
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => handleSyncAllRelations(true)}
-                      disabled={syncingRelations}
-                      className="flex items-center gap-2 px-4 py-2 bg-gold-500 text-white rounded-lg text-sm hover:bg-gold-600 transition-colors disabled:opacity-50"
-                    >
-                      {syncingRelations ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                      {syncingRelations ? 'Synchroniseren...' : 'Alles (her)synchroniseren'}
-                    </button>
+            {(syncRelationResult || paymentStatusResult) && (
+              <div className="mb-3 bg-dark-800 rounded-lg p-3 border border-dark-700">
+                {syncRelationResult && (
+                  <div className="flex items-center gap-2 text-sm mb-2 last:mb-0">
+                    {syncRelationResult.failed === 0 ? (
+                      <CheckCircle2 size={14} className="text-green-400" />
+                    ) : (
+                      <AlertTriangle size={14} className="text-yellow-400" />
+                    )}
+                    <span className="text-gray-200">
+                      Sync: {syncRelationResult.success} geslaagd{syncRelationResult.failed > 0 && `, ${syncRelationResult.failed} mislukt`}
+                    </span>
                   </div>
-                  {syncRelationResult && (
-                    <div className="mt-3 pt-3 border-t border-dark-700">
-                      <div className="flex items-center gap-2 text-sm">
-                        {syncRelationResult.failed === 0 ? (
-                          <CheckCircle2 size={14} className="text-green-400" />
-                        ) : (
-                          <AlertTriangle size={14} className="text-yellow-400" />
-                        )}
-                        <span className="text-gray-200">
-                          {syncRelationResult.success} geslaagd{syncRelationResult.failed > 0 && `, ${syncRelationResult.failed} mislukt`}
-                        </span>
-                      </div>
-                      {syncRelationResult.errors.length > 0 && (
-                        <div className="mt-2 space-y-1">
-                          {syncRelationResult.errors.map((err, i) => (
-                            <p key={i} className="text-xs text-red-400">{err}</p>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-3 bg-dark-800 rounded-lg p-4 border border-dark-700">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-200">Betaalstatussen ophalen</p>
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        Controleer welke facturen in e-Boekhouden als betaald zijn gemarkeerd
-                      </p>
-                    </div>
-                    <button
-                      onClick={handleCheckPaymentStatuses}
-                      disabled={checkingPaymentStatus}
-                      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors disabled:opacity-50"
-                    >
-                      {checkingPaymentStatus ? <Loader2 size={14} className="animate-spin" /> : <ArrowDownRight size={14} />}
-                      {checkingPaymentStatus ? 'Controleren...' : 'Status ophalen'}
-                    </button>
+                )}
+                {paymentStatusResult && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <CheckCircle2 size={14} className="text-green-400" />
+                    <span className="text-gray-200">
+                      {paymentStatusResult.updated} factuur{paymentStatusResult.updated !== 1 ? 'en' : ''} bijgewerkt
+                    </span>
                   </div>
-                  {paymentStatusResult && (
-                    <div className="mt-3 pt-3 border-t border-dark-700">
-                      <div className="flex items-center gap-2 text-sm">
-                        <CheckCircle2 size={14} className="text-green-400" />
-                        <span className="text-gray-200">
-                          {paymentStatusResult.updated} factuur{paymentStatusResult.updated !== 1 ? 'en' : ''} bijgewerkt naar 'Betaald'
-                        </span>
-                      </div>
-                      {paymentStatusResult.errors.length > 0 && (
-                        <div className="mt-2 space-y-1">
-                          {paymentStatusResult.errors.map((err, i) => (
-                            <p key={i} className="text-xs text-red-400">{err}</p>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </>
+                )}
+              </div>
             )}
+
+            <div className="bg-dark-800 rounded-lg border border-dark-700 overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-dark-700/50">
+                  <tr>
+                    <th className="text-left px-4 py-2.5 text-gray-400 font-medium">Type</th>
+                    <th className="text-center px-4 py-2.5 text-gray-400 font-medium">Gesynchroniseerd</th>
+                    <th className="text-center px-4 py-2.5 text-gray-400 font-medium">Totaal</th>
+                    <th className="text-center px-4 py-2.5 text-gray-400 font-medium">Status</th>
+                    <th className="text-center px-4 py-2.5 text-gray-400 font-medium w-20">Actie</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <SyncTableRow
+                    icon={<Users size={16} />}
+                    label="Huurders"
+                    synced={syncStats.tenantsSynced}
+                    total={syncStats.tenantsTotal}
+                    connected={connected}
+                    onSync={handleSyncTenants}
+                    syncing={syncingTenants}
+                    color="text-green-400"
+                  />
+                  <SyncTableRow
+                    icon={<UserPlus size={16} />}
+                    label="Externe Klanten"
+                    synced={syncStats.externalSynced}
+                    total={syncStats.externalTotal}
+                    connected={connected}
+                    onSync={handleSyncExternals}
+                    syncing={syncingExternals}
+                    color="text-blue-400"
+                  />
+                  <SyncTableRow
+                    icon={<FileText size={16} />}
+                    label="Facturen"
+                    synced={syncStats.invoicesSynced}
+                    total={syncStats.invoicesTotal}
+                    connected={connected}
+                    onSync={handleSyncAllInvoices}
+                    syncing={syncingInvoices}
+                    color="text-yellow-400"
+                  />
+                  <SyncTableRow
+                    icon={<FileText size={16} />}
+                    label="Creditnota's"
+                    synced={syncStats.creditNotesSynced}
+                    total={syncStats.creditNotesTotal}
+                    connected={connected}
+                    color="text-purple-400"
+                  />
+                  <SyncTableRow
+                    icon={<ArrowDownRight size={16} />}
+                    label="Inkoopfacturen"
+                    synced={syncStats.purchaseInvoicesSynced}
+                    total={syncStats.purchaseInvoicesTotal}
+                    connected={connected}
+                    onSync={handleSyncAllPurchaseInvoices}
+                    syncing={syncingPurchaseInvoices}
+                    color="text-red-400"
+                  />
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <div>
@@ -1241,7 +1225,7 @@ export function EBoekhoudenDashboard() {
   );
 }
 
-function SyncStatCard({ icon, label, synced, total, connected, onSync, syncing, accentColor }: {
+function SyncTableRow({ icon, label, synced, total, connected, onSync, syncing, color }: {
   icon: React.ReactNode;
   label: string;
   synced: number;
@@ -1249,60 +1233,66 @@ function SyncStatCard({ icon, label, synced, total, connected, onSync, syncing, 
   connected: boolean;
   onSync?: () => void;
   syncing?: boolean;
-  accentColor?: string;
+  color?: string;
 }) {
   const percentage = total > 0 ? Math.round((synced / total) * 100) : 0;
 
   return (
-    <div className={`bg-dark-800 rounded-lg p-4 border ${accentColor ? `border-l-2 border-l-${accentColor}` : ''} border-dark-700`}
-      style={accentColor ? { borderLeftWidth: '3px', borderLeftColor: accentColor } : undefined}
-    >
-      <div className="flex items-center justify-between mb-2">
+    <tr className="border-t border-dark-700 hover:bg-dark-700/30">
+      <td className="px-4 py-3">
         <div className="flex items-center gap-2">
-          <span className="text-gray-400">{icon}</span>
-          <span className="text-sm font-medium text-gray-200">{label}</span>
+          <span className={color || 'text-gray-400'}>{icon}</span>
+          <span className="text-gray-200 font-medium">{label}</span>
         </div>
-        {onSync && connected && total > 0 && (
+      </td>
+      <td className="px-4 py-3 text-center">
+        <span className="text-gray-100 font-semibold">{synced}</span>
+      </td>
+      <td className="px-4 py-3 text-center">
+        <span className="text-gray-400">{total}</span>
+      </td>
+      <td className="px-4 py-3 text-center">
+        {total > 0 ? (
+          <div className="flex items-center justify-center gap-2">
+            <div className="flex-1 max-w-[100px] h-2 bg-dark-700 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${
+                  !connected ? 'bg-gray-600'
+                    : percentage === 100 ? 'bg-green-500'
+                    : percentage > 0 ? 'bg-yellow-500'
+                    : 'bg-gray-600'
+                }`}
+                style={{ width: `${percentage}%` }}
+              />
+            </div>
+            <span className={`text-xs font-medium min-w-[35px] text-right ${
+              !connected ? 'text-gray-500'
+                : percentage === 100 ? 'text-green-400'
+                : percentage > 0 ? 'text-yellow-400'
+                : 'text-gray-500'
+            }`}>
+              {percentage}%
+            </span>
+          </div>
+        ) : (
+          <span className="text-xs text-gray-500">-</span>
+        )}
+      </td>
+      <td className="px-4 py-3 text-center">
+        {onSync && connected && total > 0 ? (
           <button
             onClick={onSync}
             disabled={syncing}
-            className="text-gray-400 hover:text-gold-500 transition-colors disabled:opacity-50 p-1 rounded hover:bg-dark-700"
+            className="text-gray-400 hover:text-gold-500 transition-colors disabled:opacity-50 p-1.5 rounded hover:bg-dark-600"
             title={`${label} synchroniseren`}
           >
             <RefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
           </button>
+        ) : (
+          <span className="text-gray-600">-</span>
         )}
-      </div>
-      <div className="flex items-end justify-between">
-        <div>
-          <span className="text-2xl font-bold text-gray-100">{synced}</span>
-          <span className="text-sm text-gray-500 ml-1">/ {total}</span>
-        </div>
-        {total > 0 && (
-          <span className={`text-xs px-2 py-0.5 rounded-full ${
-            !connected ? 'bg-gray-800 text-gray-500'
-              : percentage === 100 ? 'bg-green-900/30 text-green-400'
-              : percentage > 0 ? 'bg-yellow-900/30 text-yellow-400'
-              : 'bg-dark-700 text-gray-500'
-          }`}>
-            {percentage}%
-          </span>
-        )}
-      </div>
-      {total > 0 && (
-        <div className="mt-2 h-1.5 bg-dark-700 rounded-full overflow-hidden">
-          <div
-            className={`h-full rounded-full transition-all duration-500 ${
-              !connected ? 'bg-gray-600'
-                : percentage === 100 ? 'bg-green-500'
-                : percentage > 0 ? 'bg-yellow-500'
-                : 'bg-gray-600'
-            }`}
-            style={{ width: `${percentage}%` }}
-          />
-        </div>
-      )}
-    </div>
+      </td>
+    </tr>
   );
 }
 
