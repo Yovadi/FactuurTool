@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { TrendingUp, Euro, FileText, DollarSign, Calendar, Download, Users, BarChart3, Table, LineChart as LineChartIcon, Database } from 'lucide-react';
+import { TrendingUp, Euro, FileText, DollarSign, Calendar, Download, Users, BarChart3, Table, LineChart as LineChartIcon } from 'lucide-react';
 import { BookingOverview } from './BookingOverview';
-import { EBoekhoudenDashboard } from './EBoekhoudenDashboard';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 type AnalyticsStats = {
@@ -73,7 +72,7 @@ export function Analytics() {
   const [tenants, setTenants] = useState<any[]>([]);
   const [externalCustomers, setExternalCustomers] = useState<any[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<{id: string; type: 'tenant' | 'external'; name: string} | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'bookings' | 'vat' | 'eboekhouden'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'bookings' | 'vat'>('overview');
   const [yearlyView, setYearlyView] = useState<'table' | 'chart'>('table');
   const [quarterlyView, setQuarterlyView] = useState<'table' | 'chart'>('table');
   const [vatView, setVatView] = useState<'table' | 'chart'>('table');
@@ -352,10 +351,6 @@ export function Analytics() {
     }).format(amount);
   };
 
-  const collectionRate = stats.totalRevenue > 0
-    ? ((stats.paidRevenue / stats.totalRevenue) * 100).toFixed(1)
-    : 0;
-
   if (loading) {
     return <div className="text-center py-8 text-gray-300">Analytics laden...</div>;
   }
@@ -404,17 +399,6 @@ export function Analytics() {
             >
               <Calendar size={20} />
               Boekingen
-            </button>
-            <button
-              onClick={() => setActiveTab('eboekhouden')}
-              className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
-                activeTab === 'eboekhouden'
-                  ? 'bg-gold-500 text-white'
-                  : 'text-gray-300 hover:bg-dark-800'
-              }`}
-            >
-              <Database size={20} />
-              e-Boekhouden
             </button>
           </div>
         </div>
@@ -904,11 +888,6 @@ export function Analytics() {
         </div>
       )}
 
-      {activeTab === 'eboekhouden' && (
-        <div>
-          <EBoekhoudenDashboard />
-        </div>
-      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { UpdateDialog } from './components/UpdateDialog';
-import { LayoutDashboard, Users, Building, Settings, CalendarClock, Calendar, LogOut, TrendingUp, FileText, Building2, Calculator, Euro, UserCheck, UserMinus, Loader2, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Users, Building, Settings, CalendarClock, Calendar, TrendingUp, FileText, Building2, Calculator, Euro, UserCheck, UserMinus, Loader2, Menu, X, Database } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
 const Dashboard = lazy(() => import('./components/Dashboard').then(m => ({ default: m.Dashboard })));
@@ -14,8 +14,9 @@ const FlexWorkspaceBookings = lazy(() => import('./components/FlexWorkspaceBooki
 const Analytics = lazy(() => import('./components/Analytics').then(m => ({ default: m.Analytics })));
 const DebiteurenTabs = lazy(() => import('./components/DebiteurenTabs').then(m => ({ default: m.DebiteurenTabs })));
 const CrediteurenTabs = lazy(() => import('./components/CrediteurenTabs').then(m => ({ default: m.CrediteurenTabs })));
+const EBoekhoudenDashboard = lazy(() => import('./components/EBoekhoudenDashboard').then(m => ({ default: m.EBoekhoudenDashboard })));
 
-type Tab = 'dashboard' | 'tenants' | 'spaces-spaces' | 'spaces-rates' | 'contracts' | 'bookings' | 'flex-bookings' | 'financial-debtors' | 'financial-creditors' | 'analytics' | 'settings';
+type Tab = 'dashboard' | 'tenants' | 'spaces-spaces' | 'spaces-rates' | 'contracts' | 'bookings' | 'flex-bookings' | 'financial-debtors' | 'financial-creditors' | 'analytics' | 'eboekhouden' | 'settings';
 
 type MenuSection = {
   id: string;
@@ -198,6 +199,7 @@ function App() {
       ],
     },
     { id: 'analytics', label: 'Analyses', icon: TrendingUp },
+    { id: 'eboekhouden', label: 'e-Boekhouden', icon: Database },
   ];
 
   const bottomNavigation: MenuSection[] = [
@@ -411,6 +413,7 @@ function App() {
                 />
               )}
               {activeTab === 'analytics' && <Analytics />}
+              {activeTab === 'eboekhouden' && <EBoekhoudenDashboard />}
               {activeTab === 'settings' && <VerhuurderTabs />}
             </Suspense>
           </main>
