@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { Invoice, InvoiceLineItem, Tenant, ExternalCustomer, CompanySettings, PurchaseInvoice, PurchaseInvoiceLineItem } from './supabase';
+import type { Invoice, InvoiceLineItem, Tenant, ExternalCustomer, CompanySettings, PurchaseInvoice, PurchaseInvoiceLineItem, CreditNote, CreditNoteLineItem } from './supabase';
 import { createRelation, getRelation, updateRelation, createInvoice as ebCreateInvoice, createMutation, getInvoice as ebGetInvoice } from './eboekhouden';
 
 const VAT_CODE_MAP: Record<number, string> = {
@@ -151,12 +151,21 @@ export async function syncInvoiceToEBoekhouden(
   const lineItems = invoice.line_items || [];
   const items = lineItems.map(item => {
     let ledgerId = defaultLedgerId;
+    let selectedCategory = 'default';
+
     if (item.local_category) {
       const categoryMapping = mappings?.find(m => m.local_category === item.local_category);
       if (categoryMapping?.grootboek_id) {
         ledgerId = categoryMapping.grootboek_id;
+        selectedCategory = item.local_category;
+        console.log(`[Invoice Sync] Line item "${item.description}" -> category: ${item.local_category}, ledger: ${ledgerId}`);
+      } else {
+        console.log(`[Invoice Sync] Line item "${item.description}" -> category: ${item.local_category} NOT FOUND in mappings, using default: ${ledgerId}`);
       }
+    } else {
+      console.log(`[Invoice Sync] Line item "${item.description}" -> NO category, using default: ${ledgerId}`);
     }
+
     return {
       description: item.description,
       quantity: 1,
@@ -282,9 +291,16 @@ export async function syncPurchaseInvoiceToEBoekhouden(
     .from('eboekhouden_grootboek_mapping')
     .select('*');
 
-  const categoryMapping = mappings?.find(m => m.local_category === `inkoop_${invoice.category}`);
+  const categoryKey = `inkoop_${invoice.category}`;
+  const categoryMapping = mappings?.find(m => m.local_category === categoryKey);
   const defaultMapping = mappings?.find(m => m.local_category === 'inkoop_default') || mappings?.find(m => m.local_category === 'default');
   const ledgerId = categoryMapping?.grootboek_id || defaultMapping?.grootboek_id;
+
+  if (categoryMapping?.grootboek_id) {
+    console.log(`[Purchase Invoice Sync] Category "${categoryKey}" found, ledger: ${ledgerId}`);
+  } else {
+    console.log(`[Purchase Invoice Sync] Category "${categoryKey}" NOT FOUND, using default/inkoop_default: ${ledgerId}`);
+  }
 
   if (!ledgerId) {
     return { success: false, error: 'Geen grootboekrekening geconfigureerd. Stel een "Inkoop - Standaard" of "Standaard" mapping in bij e-Boekhouden instellingen.' };
@@ -338,6 +354,90 @@ export async function syncPurchaseInvoiceToEBoekhouden(
   }
 
   await logSync('purchase_invoice', invoice.id, 'create', 'success', mutationId, null, mutationData, result.data);
+
+  return { success: true };
+}
+
+export async function syncCreditNoteToEBoekhouden(
+  apiToken: string,
+  creditNote: CreditNote & { credit_note_line_items?: CreditNoteLineItem[] },
+  customer: Tenant | ExternalCustomer,
+  customerType: 'tenant' | 'external',
+  settings: CompanySettings
+): Promise<{ success: boolean; error?: string }> {
+  if (creditNote.eboekhouden_id) {
+    return { success: true };
+  }
+
+  const relationResult = await syncRelationToEBoekhouden(apiToken, customer, customerType);
+  if (!relationResult.success || !relationResult.relationId) {
+    return { success: false, error: relationResult.error || 'Relatie kon niet worden gesynchroniseerd' };
+  }
+
+  const { data: mappings } = await supabase
+    .from('eboekhouden_grootboek_mapping')
+    .select('*');
+
+  const defaultMapping = mappings?.find(m => m.local_category === 'default');
+  const defaultLedgerId = defaultMapping?.grootboek_id;
+
+  if (!defaultLedgerId) {
+    return { success: false, error: 'Geen grootboekrekening geconfigureerd. Stel een "Standaard" mapping in bij e-Boekhouden instellingen.' };
+  }
+
+  const lineItems = creditNote.credit_note_line_items || [];
+  const items = lineItems.map(item => ({
+    description: item.description,
+    quantity: 1,
+    pricePerUnit: -Math.abs(item.amount),
+    vatCode: getVatCode(creditNote.vat_rate),
+    ledgerId: defaultLedgerId,
+  }));
+
+  if (items.length === 0) {
+    items.push({
+      description: `Creditnota ${creditNote.credit_note_number}`,
+      quantity: 1,
+      pricePerUnit: -Math.abs(creditNote.subtotal),
+      vatCode: getVatCode(creditNote.vat_rate),
+      ledgerId: defaultLedgerId,
+    });
+  }
+
+  const invoiceData: Record<string, unknown> = {
+    relationId: relationResult.relationId,
+    date: creditNote.credit_date,
+    termOfPayment: 0,
+    invoiceNumber: creditNote.credit_note_number,
+    inExVat: 'EX',
+    items,
+  };
+
+  if (settings.eboekhouden_template_id) {
+    invoiceData.templateId = settings.eboekhouden_template_id;
+  }
+
+  const result = await ebCreateInvoice(apiToken, invoiceData);
+
+  if (!result.success) {
+    await logSync('credit_note', creditNote.id, 'create', 'error', null, JSON.stringify(result.data), invoiceData, result.data);
+    return { success: false, error: 'Kon creditnota niet aanmaken in e-Boekhouden' };
+  }
+
+  const responseData = result.data as any;
+  const factuurId = responseData?.id || responseData?.Id;
+
+  if (factuurId) {
+    await supabase
+      .from('credit_notes')
+      .update({
+        eboekhouden_id: factuurId,
+        eboekhouden_synced_at: new Date().toISOString(),
+      })
+      .eq('id', creditNote.id);
+  }
+
+  await logSync('credit_note', creditNote.id, 'create', 'success', factuurId, null, invoiceData, result.data);
 
   return { success: true };
 }
