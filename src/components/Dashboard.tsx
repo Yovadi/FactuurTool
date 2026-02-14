@@ -252,12 +252,12 @@ export function Dashboard() {
     setExpiredLeases(expiredLeasesData);
 
     const draftInvoicesData = invoices?.filter(
-      inv => inv.status === 'concept'
+      inv => inv.status === 'draft'
     ) || [];
     setDraftInvoices(draftInvoicesData);
 
     const outstandingInvoicesData = invoices?.filter(
-      inv => inv.status === 'verzonden'
+      inv => inv.status === 'sent'
     ) || [];
     setOutstandingInvoices(outstandingInvoicesData);
 
