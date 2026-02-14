@@ -151,13 +151,20 @@ export async function syncInvoiceToEBoekhouden(
   const lineItems = invoice.line_items || [];
   const items = lineItems.map(item => {
     let ledgerId = defaultLedgerId;
-    let selectedCategory = 'default';
+    let source = 'default';
 
-    if (item.local_category) {
+    // First priority: manually set grootboek_id on the line item
+    if (item.grootboek_id) {
+      ledgerId = item.grootboek_id;
+      source = 'manual';
+      console.log(`[Invoice Sync] Line item "${item.description}" -> MANUAL grootboek: ${ledgerId}`);
+    }
+    // Second priority: category mapping
+    else if (item.local_category) {
       const categoryMapping = mappings?.find(m => m.local_category === item.local_category);
       if (categoryMapping?.grootboek_id) {
         ledgerId = categoryMapping.grootboek_id;
-        selectedCategory = item.local_category;
+        source = `category:${item.local_category}`;
         console.log(`[Invoice Sync] Line item "${item.description}" -> category: ${item.local_category}, ledger: ${ledgerId}`);
       } else {
         console.log(`[Invoice Sync] Line item "${item.description}" -> category: ${item.local_category} NOT FOUND in mappings, using default: ${ledgerId}`);
@@ -307,13 +314,24 @@ export async function syncPurchaseInvoiceToEBoekhouden(
   }
 
   const lineItems = invoice.purchase_invoice_line_items || [];
-  const items = lineItems.map(item => ({
-    description: item.description,
-    quantity: 1,
-    pricePerUnit: item.amount,
-    vatCode: getPurchaseVatCode(item.vat_rate || invoice.vat_rate),
-    ledgerId,
-  }));
+  const items = lineItems.map(item => {
+    // Use line-specific grootboek_id if set, otherwise use the invoice-level ledgerId
+    const itemLedgerId = item.grootboek_id || ledgerId;
+
+    if (item.grootboek_id) {
+      console.log(`[Purchase Invoice Sync] Line item "${item.description}" -> MANUAL grootboek: ${itemLedgerId}`);
+    } else {
+      console.log(`[Purchase Invoice Sync] Line item "${item.description}" -> using invoice category ledger: ${itemLedgerId}`);
+    }
+
+    return {
+      description: item.description,
+      quantity: 1,
+      pricePerUnit: item.amount,
+      vatCode: getPurchaseVatCode(item.vat_rate || invoice.vat_rate),
+      ledgerId: itemLedgerId,
+    };
+  });
 
   if (items.length === 0) {
     items.push({
@@ -386,13 +404,24 @@ export async function syncCreditNoteToEBoekhouden(
   }
 
   const lineItems = creditNote.credit_note_line_items || [];
-  const items = lineItems.map(item => ({
-    description: item.description,
-    quantity: 1,
-    pricePerUnit: -Math.abs(item.amount),
-    vatCode: getVatCode(creditNote.vat_rate),
-    ledgerId: defaultLedgerId,
-  }));
+  const items = lineItems.map(item => {
+    // Use line-specific grootboek_id if set, otherwise use default
+    const itemLedgerId = item.grootboek_id || defaultLedgerId;
+
+    if (item.grootboek_id) {
+      console.log(`[Credit Note Sync] Line item "${item.description}" -> MANUAL grootboek: ${itemLedgerId}`);
+    } else {
+      console.log(`[Credit Note Sync] Line item "${item.description}" -> using default ledger: ${itemLedgerId}`);
+    }
+
+    return {
+      description: item.description,
+      quantity: 1,
+      pricePerUnit: -Math.abs(item.amount),
+      vatCode: getVatCode(creditNote.vat_rate),
+      ledgerId: itemLedgerId,
+    };
+  });
 
   if (items.length === 0) {
     items.push({

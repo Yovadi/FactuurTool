@@ -15,6 +15,7 @@ type LineItem = {
   unit_price: number;
   amount: number;
   vat_rate: number;
+  grootboek_id?: number | null;
 };
 
 type PurchaseInvoice = {
@@ -126,6 +127,13 @@ export function PurchaseInvoices() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
   const [syncingIds, setSyncingIds] = useState<Set<string>>(new Set());
+  const [grootboekMappings, setGrootboekMappings] = useState<Array<{
+    id: string;
+    local_category: string;
+    grootboek_code: string;
+    grootboek_id: number;
+    grootboek_omschrijving: string;
+  }>>([]);
   const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
   const [aiNotification, setAiNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const notificationTimerRef = useRef<ReturnType<typeof setTimeout>>();
@@ -139,7 +147,7 @@ export function PurchaseInvoices() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [invoicesRes, settingsRes] = await Promise.all([
+      const [invoicesRes, settingsRes, mappingsRes] = await Promise.all([
         supabase
           .from('purchase_invoices')
           .select('*, purchase_invoice_line_items(*)')
@@ -150,6 +158,10 @@ export function PurchaseInvoices() {
           .order('updated_at', { ascending: false })
           .limit(1)
           .maybeSingle(),
+        supabase
+          .from('eboekhouden_grootboek_mapping')
+          .select('*')
+          .order('local_category'),
       ]);
 
       if (invoicesRes.data) setInvoices(invoicesRes.data);
@@ -157,6 +169,7 @@ export function PurchaseInvoices() {
         setCompanySettings(settingsRes.data);
         if (settingsRes.data.openai_api_key) setOpenaiApiKey(settingsRes.data.openai_api_key);
       }
+      if (mappingsRes.data) setGrootboekMappings(mappingsRes.data);
 
       const url = import.meta.env.VITE_SUPABASE_URL || 'https://qlvndvpxhqmjljjpehkn.supabase.co';
       setSupabaseUrl(url);

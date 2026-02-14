@@ -410,6 +410,14 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     bookingId?: string;
     bookingType?: 'meeting_room' | 'flex';
     local_category?: string | null;
+    grootboek_id?: number | null;
+  }>>([]);
+  const [grootboekMappings, setGrootboekMappings] = useState<Array<{
+    id: string;
+    local_category: string;
+    grootboek_code: string;
+    grootboek_id: number;
+    grootboek_omschrijving: string;
   }>>([]);
 
   useEffect(() => {
@@ -610,6 +618,14 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     }));
 
     setFlexDayBookings(flexWithTenantId);
+
+    const { data: mappingsData } = await supabase
+      .from('eboekhouden_grootboek_mapping')
+      .select('*')
+      .order('local_category');
+
+    setGrootboekMappings(mappingsData || []);
+
     setLoading(false);
   };
 
@@ -776,7 +792,9 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         description: item.description,
         unit_price: item.amount.toString(),
         quantity: '1',
-        bookingId: item.booking_id || undefined
+        bookingId: item.booking_id || undefined,
+        grootboek_id: item.grootboek_id || undefined,
+        local_category: item.local_category || undefined
       })));
     }
 
@@ -884,7 +902,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           unit_price: unitPrice,
           amount: quantity * unitPrice,
           booking_id: item.bookingId || null,
-          local_category: item.local_category || getLocalCategory(item.space_type, item.bookingType)
+          local_category: item.local_category || getLocalCategory(item.space_type, item.bookingType),
+          grootboek_id: item.grootboek_id || null
         };
       });
 
@@ -966,7 +985,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           unit_price: unitPrice,
           amount: quantity * unitPrice,
           booking_id: item.bookingId || null,
-          local_category: item.local_category || getLocalCategory(item.space_type, item.bookingType)
+          local_category: item.local_category || getLocalCategory(item.space_type, item.bookingType),
+          grootboek_id: item.grootboek_id || null
         };
       });
 
@@ -1086,7 +1106,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     setFormData({ ...formData, lease_id: leaseId });
   };
 
-  const updateLineItem = (index: number, field: string, value: string) => {
+  const updateLineItem = (index: number, field: string, value: string | number | null) => {
     const updated = [...lineItems];
     updated[index] = { ...updated[index], [field]: value };
     setLineItems(updated);
@@ -2845,6 +2865,19 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                           className="w-32 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                           readOnly={item.space_type === 'Meeting Room'}
                         />
+                        <select
+                          value={item.grootboek_id || ''}
+                          onChange={(e) => updateLineItem(index, 'grootboek_id', e.target.value ? parseInt(e.target.value) : null)}
+                          className="w-48 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 text-sm"
+                          title="Grootboek (optioneel)"
+                        >
+                          <option value="">Grootboek (auto)</option>
+                          {grootboekMappings.map((mapping) => (
+                            <option key={mapping.id} value={mapping.grootboek_id}>
+                              {mapping.grootboek_code} - {mapping.grootboek_omschrijving}
+                            </option>
+                          ))}
+                        </select>
                         {lineItems.length > 1 && item.space_type !== 'Meeting Room' && (
                           <button
                             type="button"
