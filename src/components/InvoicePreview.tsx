@@ -88,7 +88,21 @@ export function InvoicePreview({
 }: InvoicePreviewProps) {
   const [creditApplications, setCreditApplications] = useState<CreditApplication[]>([]);
   const [loading, setLoading] = useState(true);
-  const invoiceNumberDisplay = invoice.invoice_number.replace(/^INV-/, '');
+
+  if (!invoice || !tenant) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-dark-900 rounded-lg p-6 max-w-md">
+          <p className="text-red-400 mb-4">Fout: Ontbrekende factuurgegevens</p>
+          <button onClick={onClose} className="bg-gold-500 hover:bg-gold-400 text-white px-4 py-2 rounded">
+            Sluiten
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const invoiceNumberDisplay = invoice.invoice_number?.replace(/^INV-/, '') || 'Onbekend';
 
   useEffect(() => {
     if (invoice.id && invoice.applied_credit && invoice.applied_credit > 0) {

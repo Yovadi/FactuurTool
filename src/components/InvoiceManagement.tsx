@@ -2401,6 +2401,17 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
   const showInvoicePreview = async (invoice: InvoiceWithDetails) => {
     setLoadingPreview(true);
     try {
+      console.log('Loading invoice preview for:', invoice);
+
+      // Check if tenant/customer data exists
+      const tenant = getInvoiceTenant(invoice);
+      if (!tenant) {
+        console.error('No tenant/customer found for invoice:', invoice);
+        alert('Fout: Geen klantgegevens gevonden voor deze factuur.');
+        setLoadingPreview(false);
+        return;
+      }
+
       let items = (invoice as any).line_items;
 
       if (!items || items.length === 0) {
@@ -2419,6 +2430,9 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
         if (error) {
           console.error('Error loading line items:', error);
+          alert('Fout bij het laden van factuurregels.');
+          setLoadingPreview(false);
+          return;
         }
 
         items = data;
@@ -2426,7 +2440,11 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
       console.log('Loaded line items:', items);
       const spaces = convertLineItemsToSpaces(items || []);
+      console.log('Converted spaces:', spaces);
       setPreviewInvoice({ invoice: { ...invoice, line_items: items } as any, spaces });
+    } catch (error) {
+      console.error('Error in showInvoicePreview:', error);
+      alert('Fout bij het tonen van de factuurpreview.');
     } finally {
       setLoadingPreview(false);
     }
