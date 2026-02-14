@@ -2872,7 +2872,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                           title="Grootboek (optioneel)"
                         >
                           <option value="">Grootboek (auto)</option>
-                          {grootboekMappings.map((mapping) => (
+                          {grootboekMappings?.map((mapping) => (
                             <option key={mapping.id} value={mapping.grootboek_id}>
                               {mapping.grootboek_code} - {mapping.grootboek_omschrijving}
                             </option>
