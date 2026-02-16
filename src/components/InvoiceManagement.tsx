@@ -2397,6 +2397,27 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
     return invoice.tenant || null;
   };
 
+  const getInvoiceType = (inv: InvoiceWithDetails): InvoiceTypeFilter => {
+    if (inv.lease_id !== null && inv.lease?.lease_type === 'flex') return 'flex';
+    if (inv.lease_id !== null) return 'huur';
+    if (inv.notes?.includes('Flex werkplek boekingen')) return 'flex';
+    if (inv.notes?.includes('Vergaderruimte gebruik') || inv.notes?.includes('Vergaderruimte boekingen') || inv.notes?.includes('Vergaderruimte & Flex werkplek boekingen')) return 'vergaderruimte';
+    if (inv.line_items && inv.line_items.some((item: any) => item.booking_id !== null)) {
+      return 'vergaderruimte';
+    }
+    return 'handmatig';
+  };
+
+  const getInvoiceTypeColor = (inv: InvoiceWithDetails): string => {
+    const type = getInvoiceType(inv);
+    switch (type) {
+      case 'huur': return 'text-green-500';
+      case 'vergaderruimte': return 'text-blue-500';
+      case 'flex': return 'text-purple-500';
+      case 'handmatig': return 'text-orange-500';
+      default: return 'text-gray-400';
+    }
+  };
 
   const showInvoicePreview = async (invoice: InvoiceWithDetails) => {
     setLoadingPreview(true);
@@ -2984,28 +3005,6 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
               return b.invoice_month.localeCompare(a.invoice_month);
             }
             return new Date(b.invoice_date).getTime() - new Date(a.invoice_date).getTime();
-          };
-
-          const getInvoiceType = (inv: InvoiceWithDetails): InvoiceTypeFilter => {
-            if (inv.lease_id !== null && inv.lease?.lease_type === 'flex') return 'flex';
-            if (inv.lease_id !== null) return 'huur';
-            if (inv.notes?.includes('Flex werkplek boekingen')) return 'flex';
-            if (inv.notes?.includes('Vergaderruimte gebruik') || inv.notes?.includes('Vergaderruimte boekingen') || inv.notes?.includes('Vergaderruimte & Flex werkplek boekingen')) return 'vergaderruimte';
-            if (inv.line_items && inv.line_items.some((item: any) => item.booking_id !== null)) {
-              return 'vergaderruimte';
-            }
-            return 'handmatig';
-          };
-
-          const getInvoiceTypeColor = (inv: InvoiceWithDetails): string => {
-            const type = getInvoiceType(inv);
-            switch (type) {
-              case 'huur': return 'text-green-500';
-              case 'vergaderruimte': return 'text-blue-500';
-              case 'flex': return 'text-purple-500';
-              case 'handmatig': return 'text-orange-500';
-              default: return 'text-gray-400';
-            }
           };
 
           const draftHuurInvoices = allDraftInvoices
