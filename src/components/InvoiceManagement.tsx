@@ -2167,6 +2167,11 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
         });
 
         if (existingInvoice) {
+          console.log(`⚠️ DUPLICATE FOUND:`);
+          console.log('  Invoice ID:', existingInvoice.id);
+          console.log('  Invoice Number:', existingInvoice.invoice_number);
+          console.log('  Status:', existingInvoice.status);
+          console.log('  Total:', existingInvoice.total_amount);
           console.log(`⚠️ Skipping duplicate meeting room invoice for customer ${customer.company_name || customer.name} for month ${targetMonth}`);
           meetingFail++;
           continue;
@@ -3632,17 +3637,17 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
         const customersWithMeetingBookings = targetMonth ? allCustomers.filter(customer => {
           const { meeting } = getCustomerBookings(customer);
-          return meeting.length > 0;
+          return meeting.length > 0 && hasNoExistingInvoice(customer);
         }) : [];
 
         const customersWithFlexBookings = targetMonth ? allCustomers.filter(customer => {
           const { flex } = getCustomerBookings(customer);
-          return flex.length > 0;
+          return flex.length > 0 && hasNoExistingInvoice(customer);
         }) : [];
 
         const customersWithBookings = targetMonth ? allCustomers.filter(customer => {
           const { meeting, flex } = getCustomerBookings(customer);
-          return meeting.length > 0 || flex.length > 0;
+          return (meeting.length > 0 || flex.length > 0) && hasNoExistingInvoice(customer);
         }) : [];
 
         return (
