@@ -2092,12 +2092,15 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
     console.log('========================================');
     console.log('Selected leases:', selectedLeases.size);
     console.log('Selected customers:', selectedCustomers.size);
+    console.log('Invoice month:', invoiceMonth);
     console.log('========================================\n');
 
     if (selectedLeases.size === 0 && selectedCustomers.size === 0) {
       alert('Selecteer eerst de huurcontracten en/of klanten waarvoor je facturen wilt genereren.');
       return;
     }
+
+    console.log('Starting invoice generation...');
 
     let totalSuccess = 0;
 
@@ -2119,6 +2122,10 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
   };
 
   const generateMeetingRoomInvoicesForSelectedCustomers = async () => {
+    console.log('🟢 generateMeetingRoomInvoicesForSelectedCustomers CALLED');
+    console.log('Selected customers:', Array.from(selectedCustomers));
+    console.log('Invoice month:', invoiceMonth);
+
     setGeneratingBulk(true);
 
     let meetingSuccess = 0;
@@ -2135,13 +2142,22 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
     }
 
     const targetMonth = invoiceMonth || await getNextMonthString();
+    console.log('Target month:', targetMonth);
 
     const selectedCustomersArray = Array.from(selectedCustomers);
+    console.log('Processing customers:', selectedCustomersArray.length);
     for (const customerId of selectedCustomersArray) {
+      console.log('🔵 Processing customer:', customerId);
       const customer = [...tenants, ...externalCustomers].find(c => c.id === customerId);
-      if (!customer) continue;
+      if (!customer) {
+        console.log('❌ Customer not found:', customerId);
+        continue;
+      }
+
+      console.log('✅ Customer found:', customer.company_name || customer.name);
 
         const isExternal = externalCustomers.some(ec => ec.id === customerId);
+        console.log('Is external:', isExternal);
 
         const existingInvoice = invoices.find(inv => {
           const matchesCustomer = isExternal
@@ -2151,10 +2167,12 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
         });
 
         if (existingInvoice) {
-          console.log(`Skipping duplicate meeting room invoice for customer ${customerId} for month ${targetMonth}`);
+          console.log(`⚠️ Skipping duplicate meeting room invoice for customer ${customer.company_name || customer.name} for month ${targetMonth}`);
           meetingFail++;
           continue;
         }
+
+        console.log('No existing invoice, fetching bookings...');
 
         try {
           const bookings = await fetchMeetingRoomBookingsForMonth(
@@ -2163,7 +2181,10 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             isExternal ? 'external' : 'tenant'
           );
 
+          console.log('📋 Bookings found:', bookings.length);
+
           if (bookings.length === 0) {
+            console.log('⚠️ No bookings found for customer');
             meetingFail++;
             continue;
           }
@@ -2340,16 +2361,20 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
     setGeneratingBulk(false);
 
+    console.log('🏁 FINISHED');
+    console.log('✅ Success:', meetingSuccess);
+    console.log('❌ Failed:', meetingFail);
+
     if (meetingSuccess > 0) {
+      alert(`${meetingSuccess} factuur${meetingSuccess !== 1 ? 'uren' : ''} succesvol aangemaakt!`);
       await loadData();
       setShowGenerateModal(false);
       setInvoiceMonth('');
       setSelectedLeases(new Set());
       setSelectedCustomers(new Set());
       setShowDetailSelection(true);
-    }
-    if (meetingFail > 0) {
-      console.log(`${meetingFail} facturen overgeslagen (bestaan al of fout)`);
+    } else {
+      alert(`Geen facturen aangemaakt. ${meetingFail} facturen overgeslagen (bestaan al, geen boekingen, of fout).`);
     }
   };
 
