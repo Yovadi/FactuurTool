@@ -46,6 +46,7 @@ function App() {
   const [prefilledInvoiceData, setPrefilledInvoiceData] = useState<PrefilledInvoiceData | null>(null);
   const [appVersion, setAppVersion] = useState<string>('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
   const [updateDialog, setUpdateDialog] = useState<UpdateDialogState>({
     show: false,
     type: 'update-not-available'
@@ -119,6 +120,10 @@ function App() {
         syncFolders();
       }, 1000);
     }
+
+    setTimeout(() => {
+      setIsInitialized(true);
+    }, 100);
   }, []);
 
   const syncFolders = async () => {
@@ -235,6 +240,17 @@ function App() {
       await (window as any).electron.installUpdate();
     }
   };
+
+  if (!isInitialized) {
+    return (
+      <div className="h-screen bg-dark-950 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="text-gold-500 animate-spin" size={48} />
+          <p className="text-gray-400">Applicatie laden...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen bg-dark-950 flex flex-col">
