@@ -1542,22 +1542,13 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                           </button>
                         )}
                         {!loggedInTenantId && booking.status === 'completed' && !booking.invoice_id && (
-                          <>
-                            <button
-                              onClick={() => handleGenerateInvoice(booking)}
-                              className="p-2 bg-gold-500 hover:bg-gold-600 text-white rounded-lg transition-colors"
-                              title="Genereer factuur"
-                            >
-                              <FileText size={20} />
-                            </button>
-                            <button
-                              onClick={() => handleStatusChange(booking.id, 'confirmed')}
-                              className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                              title="Zet terug naar bevestigd"
-                            >
-                              <RotateCcw size={20} />
-                            </button>
-                          </>
+                          <button
+                            onClick={() => handleStatusChange(booking.id, 'confirmed')}
+                            className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                            title="Zet terug naar bevestigd"
+                          >
+                            <RotateCcw size={20} />
+                          </button>
                         )}
                         {(booking.status === 'pending' || booking.status === 'confirmed') && (
                           <button
