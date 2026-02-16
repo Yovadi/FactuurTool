@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { InvoiceManagement, InvoiceTypeFilter } from './InvoiceManagement';
+import { InvoiceManagement, InvoiceTypeFilter, InvoiceManagementRef } from './InvoiceManagement';
 import { DebtorsOverview } from './DebtorsOverview';
 import { FileText, AlertTriangle, FileCheck, Plus, Home, Calendar, Zap, PenTool, Database } from 'lucide-react';
 
@@ -15,7 +15,7 @@ type DebiteurenTabsProps = {
 
 export function DebiteurenTabs({ onCreateCreditNote }: DebiteurenTabsProps) {
   const [activeTab, setActiveTab] = useState<'huur' | 'vergaderruimte' | 'flex' | 'handmatig' | 'outstanding' | 'log' | 'sync'>('huur');
-  const invoiceManagementRef = useRef<any>(null);
+  const invoiceManagementRef = useRef<InvoiceManagementRef>(null);
 
   const invoiceSubTabs: { id: InvoiceTypeFilter; label: string; icon: any }[] = [
     { id: 'huur', label: 'Huur', icon: Home },

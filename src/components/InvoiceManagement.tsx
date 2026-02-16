@@ -102,6 +102,10 @@ function getLocalCategory(spaceType?: string, bookingType?: string): string | nu
 
 export type InvoiceTypeFilter = 'all' | 'huur' | 'vergaderruimte' | 'flex' | 'handmatig';
 
+export interface InvoiceManagementRef {
+  openGenerateModal: () => Promise<void>;
+}
+
 type InvoiceManagementProps = {
   onCreateCreditNote?: (invoice: any, tenant: any, spaces: any[]) => void;
   invoiceTypeFilter?: InvoiceTypeFilter;
@@ -1594,7 +1598,9 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
           }
 
           const beforeDiscountAmount = (booking.total_amount || 0) + (booking.discount_amount || 0);
-          const bookingLine = `- ${booking.space?.space_number || 'Vergaderruimte'} - ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)} (${rateDescription}) = €${beforeDiscountAmount.toFixed(2)}`;
+          const startTime = booking.start_time?.substring(0, 5) || '--:--';
+          const endTime = booking.end_time?.substring(0, 5) || '--:--';
+          const bookingLine = `- ${booking.space?.space_number || 'Vergaderruimte'} - ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${startTime}-${endTime} (${rateDescription}) = €${beforeDiscountAmount.toFixed(2)}`;
           notesLines.push(bookingLine);
         });
 
@@ -1663,7 +1669,9 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             rateDescription = `${booking.total_hours}u`;
           }
 
-          const description = `${booking.space?.space_number || 'Vergaderruimte'} - ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)} (${rateDescription})`;
+          const startTime = booking.start_time?.substring(0, 5) || '--:--';
+          const endTime = booking.end_time?.substring(0, 5) || '--:--';
+          const description = `${booking.space?.space_number || 'Vergaderruimte'} - ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${startTime}-${endTime} (${rateDescription})`;
 
           const beforeDiscountAmount = (booking.total_amount || 0) + (booking.discount_amount || 0);
 
@@ -2224,7 +2232,9 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             const bookingAmount = booking.total_amount || 0;
             const bookingDiscount = booking.discount_amount || 0;
             const beforeDiscountAmount = bookingAmount + bookingDiscount;
-            const bookingLine = `- ${booking.space?.space_number || defaultLabel} - ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)} (${rateDescription}) = €${beforeDiscountAmount.toFixed(2)}`;
+            const startTime = booking.start_time?.substring(0, 5) || '--:--';
+            const endTime = booking.end_time?.substring(0, 5) || '--:--';
+            const bookingLine = `- ${booking.space?.space_number || defaultLabel} - ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${startTime}-${endTime} (${rateDescription}) = €${beforeDiscountAmount.toFixed(2)}`;
             notesLines.push(bookingLine);
           });
 

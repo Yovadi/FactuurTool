@@ -157,11 +157,13 @@ export function BookingOverview({ customerId, customerType, customerName, onClos
         ? (booking.tenant_id ? (booking.tenants?.company_name || 'Onbekende huurder') : (booking.external_customers?.company_name || 'Onbekende klant'))
         : (booking.external_customers?.company_name || 'Onbekende klant');
 
+      const spaceNumber = booking.space?.space_number || 'Onbekende ruimte';
+      const bookingDate = new Date(booking.booking_date).toLocaleDateString('nl-NL');
       const bookingDetails = booking.type === 'meeting_room'
-        ? `${booking.space.space_number} op ${new Date(booking.booking_date).toLocaleDateString('nl-NL')} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)}`
+        ? `${spaceNumber} op ${bookingDate} ${booking.start_time?.substring(0, 5) || '--:--'}-${booking.end_time?.substring(0, 5) || '--:--'}`
         : booking.start_time && booking.end_time
-        ? `${booking.space.space_number} op ${new Date(booking.booking_date).toLocaleDateString('nl-NL')} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)}`
-        : `${booking.space.space_number} op ${new Date(booking.booking_date).toLocaleDateString('nl-NL')} ${booking.is_half_day ? (booking.half_day_period === 'morning' ? 'Ochtend' : 'Middag') : 'Hele dag'}`;
+        ? `${spaceNumber} op ${bookingDate} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)}`
+        : `${spaceNumber} op ${bookingDate} ${booking.is_half_day ? (booking.half_day_period === 'morning' ? 'Ochtend' : 'Middag') : 'Hele dag'}`;
 
       await createAdminNotification(
         'booking_cancelled',
@@ -212,7 +214,7 @@ export function BookingOverview({ customerId, customerType, customerName, onClos
 
   const getTimeDisplay = (booking: Booking) => {
     if (booking.type === 'meeting_room') {
-      return `${booking.start_time} - ${booking.end_time}`;
+      return `${booking.start_time || '--:--'} - ${booking.end_time || '--:--'}`;
     } else {
       if (booking.start_time && booking.end_time) {
         return `${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)}`;

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { ChevronLeft, ChevronRight, X, CheckCircle, XCircle, Info, Repeat } from 'lucide-react';
 import { RecurringBookingModal } from './RecurringBookingModal';
@@ -265,23 +265,26 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
     }
   }, [loading]);
 
-  useEffect(() => {
-    const handleMouseUp = () => {
-      if (isDragging) {
-        setIsDragging(false);
-        if (selectedCells.length > 0) {
+  const handleMouseUp = useCallback(() => {
+    if (isDragging) {
+      setIsDragging(false);
+      setSelectedCells(prev => {
+        if (prev.length > 0) {
           setShowForm(true);
         }
-      }
-      if (isDraggingBooking) {
-        setIsDraggingBooking(false);
-        setDraggedBooking(null);
-      }
-    };
+        return prev;
+      });
+    }
+    if (isDraggingBooking) {
+      setIsDraggingBooking(false);
+      setDraggedBooking(null);
+    }
+  }, [isDragging, isDraggingBooking]);
 
+  useEffect(() => {
     document.addEventListener('mouseup', handleMouseUp);
     return () => document.removeEventListener('mouseup', handleMouseUp);
-  }, [isDragging, selectedCells, isDraggingBooking]);
+  }, [handleMouseUp]);
 
   useEffect(() => {
     if (showForm && meetingRooms.length > 0 && !formData.room_id) {
@@ -1456,7 +1459,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                               top: '1px',
                               overflow: 'hidden'
                             }}
-                            title={`${isFlex ? 'FLEXPLEK' : booking.office_spaces?.space_number} - ${booking.external_customer_id ? `Extern: ${booking.external_customers?.company_name}` : booking.tenants?.company_name || ''} (${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)})${isCompleted ? ' - Voltooid' : ''}${isPending ? ' - In afwachting' : ''}${booking.invoice_id ? ' - Gefactureerd' : ''}\nKlik om te beheren${isFlex ? '' : ', sleep om te verplaatsen'}`}
+                            title={`${isFlex ? 'FLEXPLEK' : booking.office_spaces?.space_number} - ${booking.external_customer_id ? `Extern: ${booking.external_customers?.company_name}` : booking.tenants?.company_name || ''} (${booking.start_time?.substring(0, 5) || '--:--'} - ${booking.end_time?.substring(0, 5) || '--:--'})${isCompleted ? ' - Voltooid' : ''}${isPending ? ' - In afwachting' : ''}${booking.invoice_id ? ' - Gefactureerd' : ''}\nKlik om te beheren${isFlex ? '' : ', sleep om te verplaatsen'}`}
                             onMouseDown={(e) => {
                               if (e.button === 0 && !isFlex) {
                                 handleBookingDragStart(booking, e);
@@ -1476,7 +1479,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                                     ? booking.external_customers?.company_name
                                     : booking.tenants?.company_name || ''
                                   }
-                                  <span className="opacity-75 ml-1">{booking.start_time.substring(0, 5)}-{booking.end_time.substring(0, 5)}</span>
+                                  <span className="opacity-75 ml-1">{booking.start_time?.substring(0, 5) || '--:--'}-{booking.end_time?.substring(0, 5) || '--:--'}</span>
                                 </div>
                               ) : (
                                 <>
@@ -1509,7 +1512,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                                     </>
                                   )}
                                   <div className={`${colors.text} text-[10px] opacity-80 leading-tight`}>
-                                    {booking.start_time.substring(0, 5)} - {booking.end_time.substring(0, 5)}
+                                    {booking.start_time?.substring(0, 5) || '--:--'} - {booking.end_time?.substring(0, 5) || '--:--'}
                                   </div>
                                 </>
                               )}
@@ -1865,7 +1868,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                 <p><strong>Bedrijf:</strong> {selectedBooking.tenants?.company_name || selectedBooking.tenants?.name}</p>
               )}
               <p><strong>Datum:</strong> {new Date(selectedBooking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL')}</p>
-              <p><strong>Tijd:</strong> {selectedBooking.start_time.substring(0, 5)} - {selectedBooking.end_time.substring(0, 5)}</p>
+              <p><strong>Tijd:</strong> {selectedBooking.start_time?.substring(0, 5) || '--:--'} - {selectedBooking.end_time?.substring(0, 5) || '--:--'}</p>
               {selectedBooking.recurring_pattern_id && (
                 <p className="text-blue-400 flex items-center gap-1"><Repeat size={14} /> <strong>Terugkerende boeking</strong></p>
               )}
