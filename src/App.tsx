@@ -1,9 +1,9 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { UpdateDialog } from './components/UpdateDialog';
-import { LayoutDashboard, Users, Building, Settings, CalendarClock, Calendar, TrendingUp, FileText, Building2, Calculator, Euro, UserCheck, UserMinus, Loader2, Menu, X, Database } from 'lucide-react';
+import { LayoutDashboard, Users, Building, Settings, CalendarClock, Calendar, FileText, Building2, Calculator, Euro, UserCheck, UserMinus, Loader2, Menu, X, Database } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
-const Dashboard = lazy(() => import('./components/Dashboard').then(m => ({ default: m.Dashboard })));
+const OverzichtTabs = lazy(() => import('./components/OverzichtTabs').then(m => ({ default: m.OverzichtTabs })));
 const TenantManagement = lazy(() => import('./components/TenantManagement').then(m => ({ default: m.TenantManagement })));
 const LeaseManagement = lazy(() => import('./components/LeaseManagement').then(m => ({ default: m.LeaseManagement })));
 const SpaceManagement = lazy(() => import('./components/SpaceManagement').then(m => ({ default: m.SpaceManagement })));
@@ -11,12 +11,11 @@ const SpaceTypeRates = lazy(() => import('./components/SpaceTypeRates').then(m =
 const VerhuurderTabs = lazy(() => import('./components/VerhuurderTabs').then(m => ({ default: m.VerhuurderTabs })));
 const MeetingRoomBookings = lazy(() => import('./components/MeetingRoomBookings').then(m => ({ default: m.MeetingRoomBookings })));
 const FlexWorkspaceBookings = lazy(() => import('./components/FlexWorkspaceBookings').then(m => ({ default: m.FlexWorkspaceBookings })));
-const Analytics = lazy(() => import('./components/Analytics').then(m => ({ default: m.Analytics })));
 const DebiteurenTabs = lazy(() => import('./components/DebiteurenTabs').then(m => ({ default: m.DebiteurenTabs })));
 const CrediteurenTabs = lazy(() => import('./components/CrediteurenTabs').then(m => ({ default: m.CrediteurenTabs })));
 const EBoekhoudenDashboard = lazy(() => import('./components/EBoekhoudenDashboard').then(m => ({ default: m.EBoekhoudenDashboard })));
 
-type Tab = 'dashboard' | 'tenants' | 'spaces-spaces' | 'spaces-rates' | 'contracts' | 'bookings' | 'flex-bookings' | 'financial-debtors' | 'financial-creditors' | 'analytics' | 'eboekhouden' | 'settings';
+type Tab = 'dashboard' | 'tenants' | 'spaces-spaces' | 'spaces-rates' | 'contracts' | 'bookings' | 'flex-bookings' | 'financial-debtors' | 'financial-creditors' | 'eboekhouden' | 'settings';
 
 type MenuSection = {
   id: string;
@@ -203,7 +202,6 @@ function App() {
         { id: 'financial-creditors' as Tab, label: 'Crediteuren', icon: UserMinus },
       ],
     },
-    { id: 'analytics', label: 'Analyses', icon: TrendingUp },
     { id: 'eboekhouden', label: 'e-Boekhouden', icon: Database },
   ];
 
@@ -407,7 +405,7 @@ function App() {
 
           <main className="flex-1 min-w-0 h-full flex flex-col overflow-hidden bg-dark-950 lg:mt-0 mt-0">
             <Suspense fallback={<LoadingFallback />}>
-              {activeTab === 'dashboard' && <Dashboard />}
+              {activeTab === 'dashboard' && <OverzichtTabs />}
               {activeTab === 'tenants' && <TenantManagement />}
               {activeTab === 'spaces-spaces' && <SpaceManagement />}
               {activeTab === 'spaces-rates' && <SpaceTypeRates />}
@@ -428,7 +426,6 @@ function App() {
                   onClearPrefilled={() => setPrefilledInvoiceData(null)}
                 />
               )}
-              {activeTab === 'analytics' && <Analytics />}
               {activeTab === 'eboekhouden' && <EBoekhoudenDashboard />}
               {activeTab === 'settings' && <VerhuurderTabs />}
             </Suspense>
