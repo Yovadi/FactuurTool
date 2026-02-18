@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import type { Invoice, InvoiceLineItem, Tenant, ExternalCustomer, CompanySettings, PurchaseInvoice, PurchaseInvoiceLineItem, CreditNote, CreditNoteLineItem } from './supabase';
-import { createRelation, getRelation, updateRelation, createInvoice as ebCreateInvoice, createMutation, getInvoice as ebGetInvoice } from './eboekhouden';
+import { createRelation, getRelation, updateRelation, createInvoice as ebCreateInvoice, createMutation, getInvoice as ebGetInvoice, getMutation as ebGetMutation } from './eboekhouden';
 
 const VAT_CODE_MAP: Record<number, string> = {
   21: 'HOOG_VERK_21',
@@ -686,4 +686,104 @@ export async function resyncPurchaseInvoiceToEBoekhouden(
     .eq('id', purchaseInvoiceId);
 
   return syncPurchaseInvoiceToEBoekhouden(apiToken, invoice, settings);
+}
+
+export async function checkPurchaseInvoicePaymentStatuses(
+  apiToken: string
+): Promise<{ updated: number; errors: string[] }> {
+  const { data: invoices } = await supabase
+    .from('purchase_invoices')
+    .select('id, eboekhouden_factuur_id, invoice_number')
+    .in('status', ['pending', 'overdue'])
+    .not('eboekhouden_factuur_id', 'is', null);
+
+  if (!invoices?.length) return { updated: 0, errors: [] };
+
+  let updated = 0;
+  const errors: string[] = [];
+
+  for (const inv of invoices) {
+    try {
+      const result = await ebGetMutation(apiToken, inv.eboekhouden_factuur_id);
+      if (result.success) {
+        const mutation = result.data as Record<string, unknown>;
+        const amountOpen = mutation?.amountOpen ?? mutation?.AmountOpen ?? mutation?.openAmount ?? null;
+
+        if (amountOpen !== null && Number(amountOpen) === 0) {
+          await supabase
+            .from('purchase_invoices')
+            .update({ status: 'paid', paid_at: new Date().toISOString() })
+            .eq('id', inv.id);
+          updated++;
+          await logSync('purchase_invoice', inv.id, 'payment_check', 'success', inv.eboekhouden_factuur_id,
+            null, null, { amountOpen: 0, markedPaid: true });
+        }
+      }
+    } catch {
+      errors.push(`Inkoopfactuur ${inv.invoice_number}: Fout bij ophalen status`);
+    }
+  }
+
+  return { updated, errors };
+}
+
+export async function verifyRelationsInEBoekhouden(
+  apiToken: string
+): Promise<{ tenantsChecked: number; tenantsNotFound: number; externalChecked: number; externalNotFound: number; errors: string[] }> {
+  const result = {
+    tenantsChecked: 0,
+    tenantsNotFound: 0,
+    externalChecked: 0,
+    externalNotFound: 0,
+    errors: [] as string[],
+  };
+
+  const { data: tenants } = await supabase
+    .from('tenants')
+    .select('id, name, eboekhouden_relatie_id')
+    .not('eboekhouden_relatie_id', 'is', null);
+
+  for (const tenant of tenants || []) {
+    result.tenantsChecked++;
+    try {
+      const check = await getRelation(apiToken, tenant.eboekhouden_relatie_id);
+      if (!check.success) {
+        result.tenantsNotFound++;
+        await supabase
+          .from('tenants')
+          .update({ eboekhouden_relatie_id: null })
+          .eq('id', tenant.id);
+        await logSync('tenant_relation', tenant.id, 'verify', 'error', tenant.eboekhouden_relatie_id,
+          `Relatie voor huurder "${tenant.name}" niet gevonden in e-Boekhouden (ID: ${tenant.eboekhouden_relatie_id})`, null, check.data);
+      }
+    } catch {
+      result.errors.push(`Huurder ${tenant.name}: Fout bij verificatie relatie`);
+    }
+  }
+
+  const { data: externals } = await supabase
+    .from('external_customers')
+    .select('id, contact_name, company_name, eboekhouden_relatie_id')
+    .not('eboekhouden_relatie_id', 'is', null);
+
+  for (const ext of externals || []) {
+    result.externalChecked++;
+    const displayName = ext.company_name || ext.contact_name || ext.id;
+    try {
+      const check = await getRelation(apiToken, ext.eboekhouden_relatie_id);
+      if (!check.success) {
+        result.externalNotFound++;
+        await supabase
+          .from('external_customers')
+          .update({ eboekhouden_relatie_id: null })
+          .eq('id', ext.id);
+        await logSync('external_relation', ext.id, 'verify', 'error', ext.eboekhouden_relatie_id,
+          `Relatie voor externe klant "${displayName}" niet gevonden in e-Boekhouden (ID: ${ext.eboekhouden_relatie_id})`, null, check.data);
+      }
+    } catch {
+      result.errors.push(`Externe klant ${displayName}: Fout bij verificatie relatie`);
+    }
+  }
+
+  return result;
 }

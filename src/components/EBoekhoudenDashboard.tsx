@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase, type CompanySettings, type EBoekhoudenSyncLog, type EBoekhoudenGrootboekMapping, type Tenant, type ExternalCustomer } from '../lib/supabase';
 import { testConnection, getLedgerAccounts, getInvoiceTemplates, diagnoseConnection } from '../lib/eboekhouden';
-import { syncRelationToEBoekhouden, syncInvoiceToEBoekhouden, syncPurchaseInvoiceToEBoekhouden, checkInvoicePaymentStatuses, verifyInvoiceSyncStatus, type VerificationResult } from '../lib/eboekhoudenSync';
+import { syncRelationToEBoekhouden, syncInvoiceToEBoekhouden, syncPurchaseInvoiceToEBoekhouden, checkInvoicePaymentStatuses, checkPurchaseInvoicePaymentStatuses, verifyInvoiceSyncStatus, verifyRelationsInEBoekhouden, type VerificationResult } from '../lib/eboekhoudenSync';
+import type { ScheduledJob } from '../utils/scheduledJobs';
 import {
   Link2, CheckCircle2, XCircle, Loader2, RefreshCw,
   BookOpen, Users, UserPlus, FileText, ArrowUpRight, ArrowDownRight,
@@ -71,6 +72,12 @@ export function EBoekhoudenDashboard() {
   const [paymentStatusResult, setPaymentStatusResult] = useState<{ updated: number; errors: string[] } | null>(null);
   const [verifyingSync, setVerifyingSync] = useState(false);
   const [verifyResult, setVerifyResult] = useState<VerificationResult | null>(null);
+  const [checkingPurchasePayments, setCheckingPurchasePayments] = useState(false);
+  const [purchasePaymentResult, setPurchasePaymentResult] = useState<{ updated: number; errors: string[] } | null>(null);
+  const [verifyingRelations, setVerifyingRelations] = useState(false);
+  const [relationVerifyResult, setRelationVerifyResult] = useState<{ tenantsChecked: number; tenantsNotFound: number; externalChecked: number; externalNotFound: number; errors: string[] } | null>(null);
+  const [scheduledJobs, setScheduledJobs] = useState<ScheduledJob[]>([]);
+  const [togglingJob, setTogglingJob] = useState<string | null>(null);
 
   useEffect(() => {
     loadDashboardData();
@@ -87,12 +94,30 @@ export function EBoekhoudenDashboard() {
 
   const loadDashboardData = async () => {
     setLoading(true);
-    const [currentSettings] = await Promise.all([loadSettings(), loadSyncStats(), loadSyncLogs(), loadMappings()]);
+    const [currentSettings] = await Promise.all([loadSettings(), loadSyncStats(), loadSyncLogs(), loadMappings(), loadScheduledJobs()]);
     if (currentSettings?.eboekhouden_api_token && currentSettings?.eboekhouden_connected) {
       await loadLedgerAccounts(currentSettings.eboekhouden_api_token);
       setShowLedger(true);
     }
     setLoading(false);
+  };
+
+  const loadScheduledJobs = async () => {
+    const { data } = await supabase
+      .from('scheduled_jobs')
+      .select('*')
+      .order('job_type');
+    setScheduledJobs((data || []) as ScheduledJob[]);
+  };
+
+  const handleToggleJob = async (job: ScheduledJob) => {
+    setTogglingJob(job.id);
+    await supabase
+      .from('scheduled_jobs')
+      .update({ is_enabled: !job.is_enabled, updated_at: new Date().toISOString() })
+      .eq('id', job.id);
+    await loadScheduledJobs();
+    setTogglingJob(null);
   };
 
   const loadSyncStats = async () => {
@@ -572,6 +597,27 @@ export function EBoekhoudenDashboard() {
     await loadSyncLogs();
   };
 
+  const handleCheckPurchasePayments = async () => {
+    if (!settings?.eboekhouden_api_token) return;
+    setCheckingPurchasePayments(true);
+    setPurchasePaymentResult(null);
+    const result = await checkPurchaseInvoicePaymentStatuses(settings.eboekhouden_api_token);
+    setPurchasePaymentResult(result);
+    setCheckingPurchasePayments(false);
+    if (result.updated > 0) await loadSyncStats();
+  };
+
+  const handleVerifyRelations = async () => {
+    if (!settings?.eboekhouden_api_token) return;
+    setVerifyingRelations(true);
+    setRelationVerifyResult(null);
+    const result = await verifyRelationsInEBoekhouden(settings.eboekhouden_api_token);
+    setRelationVerifyResult(result);
+    setVerifyingRelations(false);
+    await loadSyncStats();
+    await loadSyncLogs();
+  };
+
   const [activeSubTab, setActiveSubTab] = useState<'instellingen' | 'debiteuren' | 'crediteuren'>('instellingen');
 
   const connected = settings?.eboekhouden_connected ?? false;
@@ -838,10 +884,28 @@ export function EBoekhoudenDashboard() {
                     onClick={handleCheckPaymentStatuses}
                     disabled={checkingPaymentStatus}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs hover:bg-green-700 transition-colors disabled:opacity-50"
-                    title="Controleer welke facturen in e-Boekhouden als betaald zijn gemarkeerd"
+                    title="Controleer welke verkoopfacturen in e-Boekhouden als betaald zijn gemarkeerd"
                   >
                     {checkingPaymentStatus ? <Loader2 size={12} className="animate-spin" /> : <ArrowDownRight size={12} />}
-                    Betaalstatussen
+                    Verkoop betaald
+                  </button>
+                  <button
+                    onClick={handleCheckPurchasePayments}
+                    disabled={checkingPurchasePayments}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 text-white rounded-lg text-xs hover:bg-teal-700 transition-colors disabled:opacity-50"
+                    title="Controleer welke inkoopfacturen in e-Boekhouden als betaald zijn gemarkeerd"
+                  >
+                    {checkingPurchasePayments ? <Loader2 size={12} className="animate-spin" /> : <ArrowUpRight size={12} />}
+                    Inkoop betaald
+                  </button>
+                  <button
+                    onClick={handleVerifyRelations}
+                    disabled={verifyingRelations}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 text-white rounded-lg text-xs hover:bg-orange-700 transition-colors disabled:opacity-50"
+                    title="Controleer of alle gesynchroniseerde relaties (huurders/externe klanten) nog bestaan in e-Boekhouden"
+                  >
+                    {verifyingRelations ? <Loader2 size={12} className="animate-spin" /> : <Users size={12} />}
+                    Relaties check
                   </button>
                   <button
                     onClick={handleVerifySync}
@@ -865,7 +929,7 @@ export function EBoekhoudenDashboard() {
               )}
             </div>
 
-            {(syncRelationResult || paymentStatusResult || verifyResult) && (
+            {(syncRelationResult || paymentStatusResult || purchasePaymentResult || relationVerifyResult || verifyResult) && (
               <div className="mb-3 bg-dark-800 rounded-lg p-3 border border-dark-700 space-y-2">
                 {syncRelationResult && (
                   <div className="flex items-center gap-2 text-sm">
@@ -883,10 +947,49 @@ export function EBoekhoudenDashboard() {
                   <div className="flex items-center gap-2 text-sm">
                     <CheckCircle2 size={14} className="text-green-400 shrink-0" />
                     <span className="text-gray-200">
-                      {paymentStatusResult.updated} factuur{paymentStatusResult.updated !== 1 ? 'en' : ''} bijgewerkt als betaald
+                      Verkoop: {paymentStatusResult.updated} factuur{paymentStatusResult.updated !== 1 ? 'en' : ''} bijgewerkt als betaald
                     </span>
                   </div>
                 )}
+                {purchasePaymentResult && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <CheckCircle2 size={14} className="text-teal-400 shrink-0" />
+                    <span className="text-gray-200">
+                      Inkoop: {purchasePaymentResult.updated} inkoopfactuur{purchasePaymentResult.updated !== 1 ? 'en' : ''} bijgewerkt als betaald
+                    </span>
+                  </div>
+                )}
+                {relationVerifyResult && (() => {
+                  const totalNotFound = relationVerifyResult.tenantsNotFound + relationVerifyResult.externalNotFound;
+                  const totalChecked = relationVerifyResult.tenantsChecked + relationVerifyResult.externalChecked;
+                  return (
+                    <div>
+                      <div className="flex items-center gap-2 text-sm mb-1">
+                        {totalNotFound === 0 ? (
+                          <CheckCircle2 size={14} className="text-green-400 shrink-0" />
+                        ) : (
+                          <AlertTriangle size={14} className="text-orange-400 shrink-0" />
+                        )}
+                        <span className="text-gray-200">
+                          Relaties: {totalChecked} gecontroleerd
+                          {totalNotFound === 0
+                            ? ' - alle relaties bestaan in e-Boekhouden'
+                            : `, ${totalNotFound} niet gevonden - relatie-ID gereset`}
+                        </span>
+                      </div>
+                      {totalNotFound > 0 && (
+                        <div className="ml-5 space-y-0.5 text-xs text-orange-300">
+                          {relationVerifyResult.tenantsNotFound > 0 && (
+                            <p>{relationVerifyResult.tenantsNotFound} huurder{relationVerifyResult.tenantsNotFound !== 1 ? 's' : ''} - relatie-ID gereset, wordt opnieuw aangemaakt bij volgende sync</p>
+                          )}
+                          {relationVerifyResult.externalNotFound > 0 && (
+                            <p>{relationVerifyResult.externalNotFound} externe klant{relationVerifyResult.externalNotFound !== 1 ? 'en' : ''} - relatie-ID gereset</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
                 {verifyResult && (() => {
                   const totalNotFound = verifyResult.invoicesNotFound + verifyResult.creditNotesNotFound + verifyResult.purchaseInvoicesNotFound;
                   const totalChecked = verifyResult.invoicesChecked + verifyResult.creditNotesChecked + verifyResult.purchaseInvoicesChecked;
@@ -1215,6 +1318,77 @@ export function EBoekhoudenDashboard() {
           )}
 
           <div>
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-semibold text-gray-400 uppercase">Automatische taken</h4>
+              <button
+                onClick={loadScheduledJobs}
+                className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-200 transition-colors"
+              >
+                <RefreshCw size={14} />
+                Vernieuwen
+              </button>
+            </div>
+            <div className="bg-dark-800 rounded-lg border border-dark-700 overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-dark-700/50">
+                  <tr>
+                    <th className="text-left px-4 py-2.5 text-gray-400 font-medium">Taak</th>
+                    <th className="text-left px-4 py-2.5 text-gray-400 font-medium">Laatste uitvoering</th>
+                    <th className="text-left px-4 py-2.5 text-gray-400 font-medium">Volgende uitvoering</th>
+                    <th className="text-center px-4 py-2.5 text-gray-400 font-medium w-24">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {scheduledJobs.map((job) => (
+                    <tr key={job.id} className="border-t border-dark-700 hover:bg-dark-700/30">
+                      <td className="px-4 py-3">
+                        <span className="text-gray-200">{formatJobType(job.job_type)}</span>
+                        <p className="text-xs text-gray-500 mt-0.5">{formatJobDescription(job.job_type)}</p>
+                      </td>
+                      <td className="px-4 py-3 text-gray-400 text-xs">
+                        {job.last_run_at ? formatTimeAgo(job.last_run_at) : <span className="text-gray-600">Nog nooit</span>}
+                      </td>
+                      <td className="px-4 py-3 text-gray-400 text-xs">
+                        {job.is_enabled
+                          ? job.next_run_at
+                            ? new Date(job.next_run_at) <= new Date()
+                              ? <span className="text-amber-400">Bij volgende sessie</span>
+                              : formatTimeAgo(job.next_run_at)
+                            : <span className="text-gray-600">-</span>
+                          : <span className="text-gray-600">Uitgeschakeld</span>}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <button
+                          onClick={() => handleToggleJob(job)}
+                          disabled={togglingJob === job.id}
+                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors disabled:opacity-50 ${
+                            job.is_enabled ? 'bg-green-600' : 'bg-dark-600'
+                          }`}
+                        >
+                          <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                            job.is_enabled ? 'translate-x-4.5' : 'translate-x-1'
+                          }`} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {scheduledJobs.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
+                        <Clock size={20} className="mx-auto mb-2 opacity-40" />
+                        <p className="text-sm">Geen geplande taken gevonden</p>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-xs text-gray-600 mt-2">
+              Taken worden uitgevoerd bij het openen van de app als de geplande tijd is verstreken.
+            </p>
+          </div>
+
+          <div>
             <h4 className="text-sm font-semibold text-gray-400 uppercase mb-3">Recente Synchronisaties</h4>
             <div className="bg-dark-800 rounded-lg border border-dark-700 overflow-hidden">
               {syncLogs.length > 0 ? (
@@ -1444,6 +1618,26 @@ function formatEntityType(type: string): string {
     'supplier_relation': 'Leverancier',
   };
   return map[type] || type;
+}
+
+function formatJobType(jobType: string): string {
+  const map: Record<string, string> = {
+    generate_monthly_invoices: 'Maandelijkse facturen',
+    eboekhouden_payment_status_check: 'Betaalstatus controle',
+    eboekhouden_sync_verification: 'Factuur-sync verificatie',
+    eboekhouden_relation_verification: 'Relatie verificatie',
+  };
+  return map[jobType] || jobType;
+}
+
+function formatJobDescription(jobType: string): string {
+  const map: Record<string, string> = {
+    generate_monthly_invoices: 'Genereert automatisch facturen voor actieve huurcontracten',
+    eboekhouden_payment_status_check: 'Haalt betaalstatus op voor verkoop- en inkoopfacturen uit e-Boekhouden',
+    eboekhouden_sync_verification: 'Controleert of gesynchroniseerde facturen en creditnota\'s nog bestaan in e-Boekhouden',
+    eboekhouden_relation_verification: 'Controleert of gekoppelde huurders en externe klanten nog bestaan als relatie in e-Boekhouden',
+  };
+  return map[jobType] || '';
 }
 
 function formatTimeAgo(dateStr: string): string {

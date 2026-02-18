@@ -70,6 +70,14 @@ export async function createMutation(apiToken: string, data: Record<string, unkn
   return callProxy(apiToken, 'create_mutation', { data });
 }
 
+export async function getMutation(apiToken: string, id: number) {
+  return callProxy(apiToken, 'get_mutation', { id });
+}
+
+export async function getMutations(apiToken: string, limit = 100, offset = 0) {
+  return callProxy(apiToken, 'get_mutations', { limit, offset });
+}
+
 export async function getInvoiceTemplates(apiToken: string) {
   return callProxy(apiToken, 'get_invoice_templates');
 }

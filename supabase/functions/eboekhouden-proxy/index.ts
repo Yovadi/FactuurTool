@@ -295,6 +295,22 @@ Deno.serve(async (req: Request) => {
         );
         break;
 
+      case "get_mutation":
+        result = await proxyRequest(
+          session.token,
+          "GET",
+          `/v1/mutation/${params.id}`
+        );
+        break;
+
+      case "get_mutations":
+        result = await proxyRequest(
+          session.token,
+          "GET",
+          `/v1/mutation?limit=${params?.limit || 100}&offset=${params?.offset || 0}`
+        );
+        break;
+
       case "get_cost_centers":
         result = await proxyRequest(
           session.token,

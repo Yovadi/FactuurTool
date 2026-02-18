@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { checkInvoicePaymentStatuses, checkPurchaseInvoicePaymentStatuses, verifyInvoiceSyncStatus, verifyRelationsInEBoekhouden } from '../lib/eboekhoudenSync';
 
 function getLocalCategory(spaceType?: string): string | null {
   switch (spaceType) {
@@ -32,7 +33,65 @@ export const checkAndRunScheduledJobs = async () => {
   for (const job of jobs) {
     if (job.job_type === 'generate_monthly_invoices') {
       await generateMonthlyInvoices(job);
+    } else if (job.job_type === 'eboekhouden_payment_status_check') {
+      await runEBoekhoudenPaymentStatusCheck(job);
+    } else if (job.job_type === 'eboekhouden_sync_verification') {
+      await runEBoekhoudenSyncVerification(job);
+    } else if (job.job_type === 'eboekhouden_relation_verification') {
+      await runEBoekhoudenRelationVerification(job);
     }
+  }
+};
+
+async function getEBoekhoudenToken(): Promise<string | null> {
+  const { data: settings } = await supabase
+    .from('company_settings')
+    .select('eboekhouden_api_token, eboekhouden_connected')
+    .maybeSingle();
+  if (!settings?.eboekhouden_connected || !settings?.eboekhouden_api_token) return null;
+  return settings.eboekhouden_api_token;
+}
+
+async function advanceJobNextRun(job: ScheduledJob, intervalHours: number) {
+  const next = new Date();
+  next.setHours(next.getHours() + intervalHours);
+  await supabase
+    .from('scheduled_jobs')
+    .update({ last_run_at: new Date().toISOString(), next_run_at: next.toISOString() })
+    .eq('id', job.id);
+}
+
+const runEBoekhoudenPaymentStatusCheck = async (job: ScheduledJob) => {
+  try {
+    const token = await getEBoekhoudenToken();
+    if (!token) return;
+    await checkInvoicePaymentStatuses(token);
+    await checkPurchaseInvoicePaymentStatuses(token);
+    await advanceJobNextRun(job, 24);
+  } catch (error) {
+    console.error('Error running e-Boekhouden payment status check:', error);
+  }
+};
+
+const runEBoekhoudenSyncVerification = async (job: ScheduledJob) => {
+  try {
+    const token = await getEBoekhoudenToken();
+    if (!token) return;
+    await verifyInvoiceSyncStatus(token);
+    await advanceJobNextRun(job, 24);
+  } catch (error) {
+    console.error('Error running e-Boekhouden sync verification:', error);
+  }
+};
+
+const runEBoekhoudenRelationVerification = async (job: ScheduledJob) => {
+  try {
+    const token = await getEBoekhoudenToken();
+    if (!token) return;
+    await verifyRelationsInEBoekhouden(token);
+    await advanceJobNextRun(job, 24);
+  } catch (error) {
+    console.error('Error running e-Boekhouden relation verification:', error);
   }
 };
 
