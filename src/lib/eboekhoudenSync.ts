@@ -545,3 +545,50 @@ export async function resyncInvoiceToEBoekhouden(
 
   return syncInvoiceToEBoekhouden(apiToken, invoice, customer, customerType, settings);
 }
+
+export async function resyncCreditNoteToEBoekhouden(
+  apiToken: string,
+  creditNoteId: string,
+  settings: CompanySettings
+): Promise<{ success: boolean; error?: string }> {
+  const { data: creditNote } = await supabase
+    .from('credit_notes')
+    .select(`*, credit_note_line_items(*), tenants(*), external_customers(*)`)
+    .eq('id', creditNoteId)
+    .maybeSingle();
+
+  if (!creditNote) return { success: false, error: 'Creditnota niet gevonden' };
+
+  await supabase
+    .from('credit_notes')
+    .update({ eboekhouden_id: null, eboekhouden_synced_at: null })
+    .eq('id', creditNoteId);
+
+  const customer = creditNote.tenants?.[0] || creditNote.external_customers?.[0];
+  const customerType = creditNote.tenants?.[0] ? 'tenant' : 'external';
+
+  if (!customer) return { success: false, error: 'Klant niet gevonden' };
+
+  return syncCreditNoteToEBoekhouden(apiToken, creditNote, customer, customerType, settings);
+}
+
+export async function resyncPurchaseInvoiceToEBoekhouden(
+  apiToken: string,
+  purchaseInvoiceId: string,
+  settings: CompanySettings
+): Promise<{ success: boolean; error?: string }> {
+  const { data: invoice } = await supabase
+    .from('purchase_invoices')
+    .select(`*, purchase_invoice_line_items(*)`)
+    .eq('id', purchaseInvoiceId)
+    .maybeSingle();
+
+  if (!invoice) return { success: false, error: 'Inkoopfactuur niet gevonden' };
+
+  await supabase
+    .from('purchase_invoices')
+    .update({ eboekhouden_factuur_id: null, eboekhouden_synced_at: null })
+    .eq('id', purchaseInvoiceId);
+
+  return syncPurchaseInvoiceToEBoekhouden(apiToken, invoice, settings);
+}

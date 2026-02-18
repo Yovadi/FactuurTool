@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { CreditNotes } from './CreditNotes';
 import { CreditOverview } from './CreditOverview';
 import { PurchaseInvoices } from './PurchaseInvoices';
-import { Receipt, DollarSign, FileText } from 'lucide-react';
+import { CrediteurenEBoekhouden } from './CrediteurenEBoekhouden';
+import { Receipt, DollarSign, FileText, Database } from 'lucide-react';
 
 type PrefilledInvoiceData = {
   invoice: any;
@@ -16,7 +17,7 @@ type CrediteurenTabsProps = {
 };
 
 export function CrediteurenTabs({ prefilledInvoiceData, onClearPrefilled }: CrediteurenTabsProps) {
-  const [activeTab, setActiveTab] = useState<'purchaseinvoices' | 'creditnotes' | 'overview'>('creditnotes');
+  const [activeTab, setActiveTab] = useState<'purchaseinvoices' | 'creditnotes' | 'overview' | 'eboekhouden'>('creditnotes');
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
@@ -26,7 +27,7 @@ export function CrediteurenTabs({ prefilledInvoiceData, onClearPrefilled }: Cred
 
       <div className="flex-shrink-0 mb-4">
         <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2">
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <button
               onClick={() => setActiveTab('creditnotes')}
               className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
@@ -60,6 +61,17 @@ export function CrediteurenTabs({ prefilledInvoiceData, onClearPrefilled }: Cred
               <FileText size={20} />
               Inkoopfacturen
             </button>
+            <button
+              onClick={() => setActiveTab('eboekhouden')}
+              className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
+                activeTab === 'eboekhouden'
+                  ? 'bg-gold-500 text-white'
+                  : 'text-gray-300 hover:bg-dark-800'
+              }`}
+            >
+              <Database size={20} />
+              e-Boekhouden
+            </button>
           </div>
         </div>
       </div>
@@ -73,6 +85,7 @@ export function CrediteurenTabs({ prefilledInvoiceData, onClearPrefilled }: Cred
           />
         )}
         {activeTab === 'overview' && <CreditOverview />}
+        {activeTab === 'eboekhouden' && <CrediteurenEBoekhouden />}
       </div>
     </div>
   );
