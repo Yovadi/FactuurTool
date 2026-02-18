@@ -2663,9 +2663,9 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
     <div className="h-full overflow-y-auto">
 
       {showForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 overflow-y-auto py-8">
-          <div className="bg-dark-900 rounded-lg w-full max-w-3xl mx-4 border border-dark-700">
-            <div className="sticky top-0 bg-dark-800 rounded-t-lg border-b border-dark-700 px-6 py-4 flex items-center justify-between">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-dark-900 rounded-lg w-full max-w-3xl border border-dark-700 flex flex-col max-h-[90vh]">
+            <div className="flex-shrink-0 bg-dark-800 rounded-t-lg border-b border-dark-700 px-6 py-4 flex items-center justify-between">
               <h3 className="text-xl font-bold text-gray-100">
                 {editingInvoiceId ? 'Factuur Bewerken' : 'Nieuwe Factuur Aanmaken'}
               </h3>
@@ -2676,7 +2676,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                 <X size={24} />
               </button>
             </div>
-            <div className="p-6">
+            <div className="overflow-y-auto flex-1 p-6">
 
             {!editingInvoiceId && (
               <div className="flex gap-2 mb-4">
@@ -3685,8 +3685,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
         return (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-dark-900 rounded-lg shadow-xl border border-dark-700 max-w-5xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="sticky top-0 bg-dark-800 px-6 py-4 border-b border-dark-700 flex items-center justify-between">
+            <div className="bg-dark-900 rounded-lg shadow-xl border border-dark-700 max-w-5xl w-full max-h-[90vh] flex flex-col">
+              <div className="flex-shrink-0 bg-dark-800 px-6 py-4 border-b border-dark-700 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-gray-100">
                   {invoiceTypeFilter === 'huur' && 'Huur Facturen Genereren'}
                   {invoiceTypeFilter === 'vergaderruimte' && 'Vergaderruimte Facturen Genereren'}
@@ -3708,7 +3708,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                 </button>
               </div>
 
-              <div className="p-6 space-y-4">
+              <div className="overflow-y-auto flex-1 p-6 space-y-4">
                 {invoiceMonth && (
                   (invoiceTypeFilter === 'huur' && regularLeasesToGenerate.length > 0) ||
                   (invoiceTypeFilter === 'flex' && (flexLeasesToGenerate.length > 0 || customersWithFlexBookings.length > 0)) ||

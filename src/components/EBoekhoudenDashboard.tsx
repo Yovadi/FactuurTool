@@ -567,6 +567,7 @@ export function EBoekhoudenDashboard() {
   }
 
   return (
+    <div className="h-full overflow-y-auto p-4 sm:p-6">
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -1221,6 +1222,7 @@ export function EBoekhoudenDashboard() {
           </div>
         </>
       )}
+    </div>
     </div>
   );
 }
