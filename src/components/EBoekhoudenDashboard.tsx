@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { supabase, type CompanySettings, type EBoekhoudenSyncLog, type EBoekhoudenGrootboekMapping, type Tenant, type ExternalCustomer } from '../lib/supabase';
 import { testConnection, getLedgerAccounts, getInvoiceTemplates, diagnoseConnection } from '../lib/eboekhouden';
-import { syncRelationToEBoekhouden, syncInvoiceToEBoekhouden, syncPurchaseInvoiceToEBoekhouden, checkInvoicePaymentStatuses } from '../lib/eboekhoudenSync';
+import { syncRelationToEBoekhouden, syncInvoiceToEBoekhouden, syncPurchaseInvoiceToEBoekhouden, checkInvoicePaymentStatuses, verifyInvoiceSyncStatus, type VerificationResult } from '../lib/eboekhoudenSync';
 import {
   Link2, CheckCircle2, XCircle, Loader2, RefreshCw,
   BookOpen, Users, UserPlus, FileText, ArrowUpRight, ArrowDownRight,
   Clock, AlertTriangle, Activity, Database, Settings2, Plus, Trash2, Edit2, Upload,
-  TrendingDown, TrendingUp
+  TrendingDown, TrendingUp, ShieldCheck
 } from 'lucide-react';
 import { DebtorsOverview } from './DebtorsOverview';
 import { CrediteurenEBoekhouden } from './CrediteurenEBoekhouden';
@@ -69,6 +69,8 @@ export function EBoekhoudenDashboard() {
   const [syncingPurchaseInvoices, setSyncingPurchaseInvoices] = useState(false);
   const [checkingPaymentStatus, setCheckingPaymentStatus] = useState(false);
   const [paymentStatusResult, setPaymentStatusResult] = useState<{ updated: number; errors: string[] } | null>(null);
+  const [verifyingSync, setVerifyingSync] = useState(false);
+  const [verifyResult, setVerifyResult] = useState<VerificationResult | null>(null);
 
   useEffect(() => {
     loadDashboardData();
@@ -558,6 +560,18 @@ export function EBoekhoudenDashboard() {
     }
   };
 
+  const handleVerifySync = async () => {
+    if (!settings?.eboekhouden_api_token) return;
+    setVerifyingSync(true);
+    setVerifyResult(null);
+    setSyncRelationResult(null);
+    const result = await verifyInvoiceSyncStatus(settings.eboekhouden_api_token);
+    setVerifyResult(result);
+    setVerifyingSync(false);
+    await loadSyncStats();
+    await loadSyncLogs();
+  };
+
   const [activeSubTab, setActiveSubTab] = useState<'instellingen' | 'debiteuren' | 'crediteuren'>('instellingen');
 
   const connected = settings?.eboekhouden_connected ?? false;
@@ -830,6 +844,15 @@ export function EBoekhoudenDashboard() {
                     Betaalstatussen
                   </button>
                   <button
+                    onClick={handleVerifySync}
+                    disabled={verifyingSync}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs hover:bg-blue-700 transition-colors disabled:opacity-50"
+                    title="Controleer of alle als gesynchroniseerd gemarkeerde records daadwerkelijk in e-Boekhouden bestaan"
+                  >
+                    {verifyingSync ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} />}
+                    Verificeer sync
+                  </button>
+                  <button
                     onClick={() => handleSyncAllRelations(true)}
                     disabled={syncingRelations}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-gold-500 text-white rounded-lg text-xs hover:bg-gold-600 transition-colors disabled:opacity-50"
@@ -842,14 +865,14 @@ export function EBoekhoudenDashboard() {
               )}
             </div>
 
-            {(syncRelationResult || paymentStatusResult) && (
-              <div className="mb-3 bg-dark-800 rounded-lg p-3 border border-dark-700">
+            {(syncRelationResult || paymentStatusResult || verifyResult) && (
+              <div className="mb-3 bg-dark-800 rounded-lg p-3 border border-dark-700 space-y-2">
                 {syncRelationResult && (
-                  <div className="flex items-center gap-2 text-sm mb-2 last:mb-0">
+                  <div className="flex items-center gap-2 text-sm">
                     {syncRelationResult.failed === 0 ? (
-                      <CheckCircle2 size={14} className="text-green-400" />
+                      <CheckCircle2 size={14} className="text-green-400 shrink-0" />
                     ) : (
-                      <AlertTriangle size={14} className="text-yellow-400" />
+                      <AlertTriangle size={14} className="text-yellow-400 shrink-0" />
                     )}
                     <span className="text-gray-200">
                       Sync: {syncRelationResult.success} geslaagd{syncRelationResult.failed > 0 && `, ${syncRelationResult.failed} mislukt`}
@@ -858,12 +881,47 @@ export function EBoekhoudenDashboard() {
                 )}
                 {paymentStatusResult && (
                   <div className="flex items-center gap-2 text-sm">
-                    <CheckCircle2 size={14} className="text-green-400" />
+                    <CheckCircle2 size={14} className="text-green-400 shrink-0" />
                     <span className="text-gray-200">
-                      {paymentStatusResult.updated} factuur{paymentStatusResult.updated !== 1 ? 'en' : ''} bijgewerkt
+                      {paymentStatusResult.updated} factuur{paymentStatusResult.updated !== 1 ? 'en' : ''} bijgewerkt als betaald
                     </span>
                   </div>
                 )}
+                {verifyResult && (() => {
+                  const totalNotFound = verifyResult.invoicesNotFound + verifyResult.creditNotesNotFound + verifyResult.purchaseInvoicesNotFound;
+                  const totalChecked = verifyResult.invoicesChecked + verifyResult.creditNotesChecked + verifyResult.purchaseInvoicesChecked;
+                  return (
+                    <div>
+                      <div className="flex items-center gap-2 text-sm mb-1">
+                        {totalNotFound === 0 ? (
+                          <CheckCircle2 size={14} className="text-green-400 shrink-0" />
+                        ) : (
+                          <AlertTriangle size={14} className="text-orange-400 shrink-0" />
+                        )}
+                        <span className="text-gray-200">
+                          Verificatie: {totalChecked} gecontroleerd
+                          {totalNotFound === 0
+                            ? ' - alles klopt!'
+                            : `, ${totalNotFound} niet gevonden in e-Boekhouden`}
+                        </span>
+                      </div>
+                      {totalNotFound > 0 && (
+                        <div className="ml-5 space-y-0.5 text-xs text-orange-300">
+                          {verifyResult.invoicesNotFound > 0 && (
+                            <p>{verifyResult.invoicesNotFound} verkoopfactuur{verifyResult.invoicesNotFound !== 1 ? 'en' : ''} - sync-status gereset</p>
+                          )}
+                          {verifyResult.creditNotesNotFound > 0 && (
+                            <p>{verifyResult.creditNotesNotFound} creditnota{'\''}s - sync-status gereset</p>
+                          )}
+                          {verifyResult.purchaseInvoicesNotFound > 0 && (
+                            <p>{verifyResult.purchaseInvoicesNotFound} inkoopfactuur{verifyResult.purchaseInvoicesNotFound !== 1 ? 'en' : ''} - sync-status gereset</p>
+                          )}
+                          <p className="text-gray-400 mt-1">Deze records staan nu klaar om opnieuw gesynchroniseerd te worden.</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
