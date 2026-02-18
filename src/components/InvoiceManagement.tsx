@@ -2930,89 +2930,78 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                       + Regel Toevoegen
                     </button>
                   </div>
-                  <div className="space-y-3">
-                    {lineItems.map((item, index) => (
-                      <div key={index} className="bg-dark-800 rounded-lg p-3 space-y-2 border border-dark-600">
-                        {item.space_type === 'Meeting Room' && (
-                          <div className="flex items-center gap-2 text-xs text-blue-400">
-                            <span className="bg-blue-900/30 px-2 py-0.5 rounded">Vergaderruimte boeking</span>
-                          </div>
-                        )}
-                        <div className="flex items-center gap-2">
+                  <div className="space-y-1.5">
+                    {lineItems.map((item, index) => {
+                      const autoCategory = item.local_category || getLocalCategory(item.space_type, item.bookingType);
+                      const autoMapping = autoCategory ? grootboekMappings?.find(m => m.local_category === autoCategory) : grootboekMappings?.find(m => m.local_category === 'default');
+                      const autoLabel = autoMapping ? `Auto: ${autoMapping.grootboek_code} ${autoMapping.grootboek_omschrijving}` : 'Automatisch';
+                      return (
+                        <div key={index} className="grid gap-1.5 bg-dark-800 rounded-lg px-3 py-2 border border-dark-600" style={{ gridTemplateColumns: invoiceMode === 'manual' ? '1fr auto auto 2fr auto' : '1fr auto 2fr auto' }}>
                           <input
                             type="text"
                             required
                             placeholder="Omschrijving"
                             value={item.description}
                             onChange={(e) => updateLineItem(index, 'description', e.target.value)}
-                            className="flex-1 px-3 py-2 bg-dark-700 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 text-sm min-w-0"
+                            className="px-2.5 py-1.5 bg-dark-700 border border-dark-600 text-gray-100 rounded-md focus:outline-none focus:ring-1 focus:ring-gold-500 text-sm min-w-0"
                             readOnly={item.space_type === 'Meeting Room'}
                           />
-                          {lineItems.length > 1 && item.space_type !== 'Meeting Room' && (
-                            <button
-                              type="button"
-                              onClick={() => removeLineItem(index)}
-                              className="flex-shrink-0 text-red-400 hover:text-red-300 transition-colors p-1"
-                            >
-                              <X size={16} />
-                            </button>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
                           {invoiceMode === 'manual' && (
-                            <div className="flex-1">
-                              <label className="block text-xs text-gray-400 mb-1">Aantal</label>
-                              <input
-                                type="text"
-                                inputMode="decimal"
-                                placeholder="1"
-                                value={item.quantity || ''}
-                                onChange={(e) => {
-                                  const value = e.target.value;
-                                  if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                                    updateLineItem(index, 'quantity', value);
-                                  }
-                                }}
-                                className="w-full px-3 py-2 bg-dark-700 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 text-sm"
-                              />
-                            </div>
-                          )}
-                          <div className="flex-1">
-                            <label className="block text-xs text-gray-400 mb-1">Prijs (€)</label>
                             <input
                               type="text"
                               inputMode="decimal"
-                              required
-                              placeholder="0.00"
-                              value={item.unit_price}
+                              placeholder="Aantal"
+                              value={item.quantity || ''}
                               onChange={(e) => {
                                 const value = e.target.value;
-                                if (value === '' || /^-?\d*\.?\d*$/.test(value)) {
-                                  updateLineItem(index, 'unit_price', value);
+                                if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                                  updateLineItem(index, 'quantity', value);
                                 }
                               }}
-                              className="w-full px-3 py-2 bg-dark-700 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 text-sm"
-                              readOnly={item.space_type === 'Meeting Room'}
+                              className="w-20 px-2.5 py-1.5 bg-dark-700 border border-dark-600 text-gray-100 rounded-md focus:outline-none focus:ring-1 focus:ring-gold-500 text-sm"
                             />
-                          </div>
-                          <div className="flex-[2]">
-                            <label className="block text-xs text-gray-400 mb-1">Grootboek</label>
-                            <select
-                              value={item.grootboek_id || ''}
-                              onChange={(e) => updateLineItem(index, 'grootboek_id', e.target.value ? parseInt(e.target.value) : null)}
-                              className="w-full px-3 py-2 bg-dark-700 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 text-sm"
+                          )}
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            required
+                            placeholder="Prijs"
+                            value={item.unit_price}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value === '' || /^-?\d*\.?\d*$/.test(value)) {
+                                updateLineItem(index, 'unit_price', value);
+                              }
+                            }}
+                            className="w-24 px-2.5 py-1.5 bg-dark-700 border border-dark-600 text-gray-100 rounded-md focus:outline-none focus:ring-1 focus:ring-gold-500 text-sm"
+                            readOnly={item.space_type === 'Meeting Room'}
+                          />
+                          <select
+                            value={item.grootboek_id || ''}
+                            onChange={(e) => updateLineItem(index, 'grootboek_id', e.target.value ? parseInt(e.target.value) : null)}
+                            className="px-2.5 py-1.5 bg-dark-700 border border-dark-600 text-gray-100 rounded-md focus:outline-none focus:ring-1 focus:ring-gold-500 text-sm min-w-0"
+                          >
+                            <option value="">{autoLabel}</option>
+                            {grootboekMappings?.map((mapping) => (
+                              <option key={mapping.id} value={mapping.grootboek_id}>
+                                {mapping.grootboek_code} - {mapping.grootboek_omschrijving}
+                              </option>
+                            ))}
+                          </select>
+                          {lineItems.length > 1 && item.space_type !== 'Meeting Room' ? (
+                            <button
+                              type="button"
+                              onClick={() => removeLineItem(index)}
+                              className="flex-shrink-0 text-red-400 hover:text-red-300 transition-colors"
                             >
-                              <option value="">Automatisch</option>
-                              {grootboekMappings?.map((mapping) => (
-                                <option key={mapping.id} value={mapping.grootboek_id}>
-                                  {mapping.grootboek_code} - {mapping.grootboek_omschrijving}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
+                              <X size={15} />
+                            </button>
+                          ) : (
+                            <span />
+                          )}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                   <div className="mt-3 p-3 bg-dark-800 rounded-lg space-y-1 text-sm">
                     <div className="flex justify-between">
