@@ -4,6 +4,7 @@ import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, Cre
 import { syncInvoiceToEBoekhouden, checkInvoicePaymentStatuses } from '../lib/eboekhoudenSync';
 import { generateInvoicePDF } from '../utils/pdfGenerator';
 import { InvoicePreview } from './InvoicePreview';
+import { Toast } from './Toast';
 import { checkAndRunScheduledJobs } from '../utils/scheduledJobs';
 
 type LeaseWithDetails = Lease & {
@@ -146,6 +147,16 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [showDetailSelection, setShowDetailSelection] = useState(true);
   const [syncingInvoiceId, setSyncingInvoiceId] = useState<string | null>(null);
+  const [toasts, setToasts] = useState<{ id: number; message: string; type: 'success' | 'error' | 'info' }[]>([]);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+  };
+
+  const removeToast = (id: number) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
 
   const handleSyncToEBoekhouden = async (invoice: InvoiceWithDetails) => {
     if (!companySettings?.eboekhouden_api_token || !companySettings?.eboekhouden_connected) return;
@@ -167,12 +178,12 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         companySettings
       );
       if (result.success) {
-        await loadData();
+        await refreshInvoices();
       } else {
-        alert(result.error || 'Synchronisatie mislukt');
+        showToast(result.error || 'Synchronisatie mislukt', 'error');
       }
     } catch {
-      alert('Fout bij synchronisatie naar e-Boekhouden');
+      showToast('Fout bij synchronisatie naar e-Boekhouden', 'error');
     } finally {
       setSyncingInvoiceId(null);
     }
@@ -633,6 +644,28 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     setLoading(false);
   };
 
+  const refreshInvoices = async () => {
+    const { data: invoicesData } = await supabase
+      .from('invoices')
+      .select(`
+        *,
+        lease:leases(
+          *,
+          tenant:tenants(*),
+          lease_spaces:lease_spaces(
+            *,
+            space:office_spaces(*)
+          )
+        ),
+        tenant:tenants(*),
+        external_customer:external_customers(*),
+        line_items:invoice_line_items(*)
+      `)
+      .order('created_at', { ascending: false });
+
+    setInvoices(invoicesData as InvoiceWithDetails[] || []);
+  };
+
   const calculateVAT = (baseAmount: number, vatRate: number, vatInclusive: boolean) => {
     if (vatInclusive) {
       const total = Math.round(baseAmount * 100) / 100;
@@ -828,17 +861,17 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     e.preventDefault();
 
     if (invoiceMode === 'lease' && !formData.lease_id) {
-      alert('Selecteer een huurcontract');
+      showToast('Selecteer een huurcontract', 'error');
       return;
     }
 
     if (invoiceMode === 'manual') {
       if (formData.customer_type === 'tenant' && !formData.tenant_id) {
-        alert('Selecteer een huurder');
+        showToast('Selecteer een huurder', 'error');
         return;
       }
       if (formData.customer_type === 'external' && !formData.external_customer_id) {
-        alert('Selecteer een externe klant');
+        showToast('Selecteer een externe klant', 'error');
         return;
       }
     }
@@ -1471,7 +1504,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
   const generateMeetingRoomInvoices = async () => {
     if (selectedCustomers.size === 0) {
-      alert('Selecteer eerst de klanten waarvoor je facturen wilt genereren.');
+      showToast('Selecteer eerst de klanten waarvoor je facturen wilt genereren.', 'error');
       return;
     }
 
@@ -1791,7 +1824,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
   const generateBulkInvoices = async () => {
     if (selectedLeases.size === 0) {
-      alert('Selecteer eerst de huurcontracten waarvoor je facturen wilt genereren.');
+      showToast('Selecteer eerst de huurcontracten waarvoor je facturen wilt genereren.', 'error');
       return;
     }
 
@@ -2096,7 +2129,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
     console.log('========================================\n');
 
     if (selectedLeases.size === 0 && selectedCustomers.size === 0) {
-      alert('Selecteer eerst de huurcontracten en/of klanten waarvoor je facturen wilt genereren.');
+      showToast('Selecteer eerst de huurcontracten en/of klanten waarvoor je facturen wilt genereren.', 'error');
       return;
     }
 
@@ -2112,12 +2145,13 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
     if (selectedCustomers.size > 0) {
       await generateMeetingRoomInvoicesForSelectedCustomers();
     } else if (totalSuccess > 0) {
-      await loadData();
+      await refreshInvoices();
       setShowGenerateModal(false);
       setInvoiceMonth('');
       setSelectedLeases(new Set());
       setSelectedCustomers(new Set());
       setShowDetailSelection(true);
+      showToast(`${totalSuccess} factuur${totalSuccess !== 1 ? 'uren' : ''} succesvol aangemaakt!`, 'success');
     }
   };
 
@@ -2371,15 +2405,15 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
     console.log('❌ Failed:', meetingFail);
 
     if (meetingSuccess > 0) {
-      alert(`${meetingSuccess} factuur${meetingSuccess !== 1 ? 'uren' : ''} succesvol aangemaakt!`);
-      await loadData();
+      await refreshInvoices();
       setShowGenerateModal(false);
       setInvoiceMonth('');
       setSelectedLeases(new Set());
       setSelectedCustomers(new Set());
       setShowDetailSelection(true);
+      showToast(`${meetingSuccess} factuur${meetingSuccess !== 1 ? 'uren' : ''} succesvol aangemaakt!`, 'success');
     } else {
-      alert(`Geen facturen aangemaakt. ${meetingFail} facturen overgeslagen (bestaan al, geen boekingen, of fout).`);
+      showToast(`Geen facturen aangemaakt. ${meetingFail} facturen overgeslagen (bestaan al, geen boekingen, of fout).`, 'error');
     }
   };
 
@@ -2468,7 +2502,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
       const tenant = getInvoiceTenant(invoice);
       if (!tenant) {
         console.error('No tenant/customer found for invoice:', invoice);
-        alert('Fout: Geen klantgegevens gevonden voor deze factuur.');
+        showToast('Fout: Geen klantgegevens gevonden voor deze factuur.', 'error');
         setLoadingPreview(false);
         return;
       }
@@ -2491,7 +2525,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
         if (error) {
           console.error('Error loading line items:', error);
-          alert('Fout bij het laden van factuurregels.');
+          showToast('Fout bij het laden van factuurregels.', 'error');
           setLoadingPreview(false);
           return;
         }
@@ -2505,7 +2539,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
       setPreviewInvoice({ invoice: { ...invoice, line_items: items } as any, spaces });
     } catch (error) {
       console.error('Error in showInvoicePreview:', error);
-      alert('Fout bij het tonen van de factuurpreview.');
+      showToast('Fout bij het tonen van de factuurpreview.', 'error');
     } finally {
       setLoadingPreview(false);
     }
@@ -4197,6 +4231,17 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
           } : undefined}
         />
       )}
+
+      <div className="fixed top-4 right-4 z-[9999] space-y-2 max-w-md">
+        {toasts.map(toast => (
+          <Toast
+            key={toast.id}
+            message={toast.message}
+            type={toast.type}
+            onClose={() => removeToast(toast.id)}
+          />
+        ))}
+      </div>
     </div>
   );
 });
