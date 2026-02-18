@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Euro, Calendar, AlertCircle, CheckCircle, FileText, Trash2, Eye, Filter, RefreshCw, Loader2, Database, XCircle } from 'lucide-react';
+import { Euro, Calendar, AlertCircle, CheckCircle, FileText, Trash2, Eye, Filter, RefreshCw, Loader2, Database, XCircle, Square, CheckSquare, AlertTriangle } from 'lucide-react';
 import { resyncInvoiceToEBoekhouden } from '../lib/eboekhoudenSync';
 
 const getInvoiceTypeColor = (invoice: any): string => {
@@ -53,6 +53,9 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
   const [companySettings, setCompanySettings] = useState<any>(null);
   const [syncedInvoices, setSyncedInvoices] = useState<any[]>([]);
   const [resyncingInvoiceId, setResyncingInvoiceId] = useState<string | null>(null);
+  const [selectedSyncIds, setSelectedSyncIds] = useState<Set<string>>(new Set());
+  const [bulkResyncing, setBulkResyncing] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
 
   useEffect(() => {
     setActiveTab(initialTab);
@@ -294,6 +297,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
           amount,
           eboekhouden_factuur_id,
           eboekhouden_synced_at,
+          eboekhouden_not_found,
           tenant_id,
           external_customer_id,
           tenants (id, name, company_name, email),
@@ -301,7 +305,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
         `)
         .not('eboekhouden_factuur_id', 'is', null)
         .order('eboekhouden_synced_at', { ascending: false })
-        .limit(100);
+        .limit(200);
 
       if (error) {
         console.error('Error loading synced invoices:', error);
@@ -355,6 +359,11 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
 
     setResyncingInvoiceId(invoiceId);
     const result = await resyncInvoiceToEBoekhouden(companySettings.eboekhouden_api_token, invoiceId, companySettings);
+    if (result.success) {
+      await supabase.from('invoices').update({ eboekhouden_not_found: false }).eq('id', invoiceId);
+    } else if (result.error?.toLowerCase().includes('niet gevonden') || result.error?.toLowerCase().includes('not found')) {
+      await supabase.from('invoices').update({ eboekhouden_not_found: true }).eq('id', invoiceId);
+    }
     setResyncingInvoiceId(null);
     if (result.success) {
       await loadSyncedInvoices();
@@ -362,6 +371,61 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
     } else {
       alert(result.error || 'Synchronisatie mislukt');
     }
+  };
+
+  const handleBulkResync = async () => {
+    if (!companySettings?.eboekhouden_api_token || selectedSyncIds.size === 0) return;
+
+    const confirmed = confirm(
+      `Weet je zeker dat je ${selectedSyncIds.size} factuur/facturen opnieuw wilt synchroniseren?\n\n` +
+      'Dit vervangt de bestaande facturen in e-Boekhouden met nieuwe gegevens.'
+    );
+    if (!confirmed) return;
+
+    setBulkResyncing(true);
+    const ids = Array.from(selectedSyncIds);
+    setBulkProgress({ done: 0, total: ids.length });
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < ids.length; i++) {
+      const id = ids[i];
+      const result = await resyncInvoiceToEBoekhouden(companySettings.eboekhouden_api_token, id, companySettings);
+      if (result.success) {
+        await supabase.from('invoices').update({ eboekhouden_not_found: false }).eq('id', id);
+        successCount++;
+      } else {
+        if (result.error?.toLowerCase().includes('niet gevonden') || result.error?.toLowerCase().includes('not found')) {
+          await supabase.from('invoices').update({ eboekhouden_not_found: true }).eq('id', id);
+        }
+        failCount++;
+      }
+      setBulkProgress({ done: i + 1, total: ids.length });
+    }
+
+    setBulkResyncing(false);
+    setBulkProgress(null);
+    setSelectedSyncIds(new Set());
+    await loadSyncedInvoices();
+    alert(`Klaar: ${successCount} geslaagd, ${failCount} mislukt.`);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedSyncIds.size === syncedInvoices.length) {
+      setSelectedSyncIds(new Set());
+    } else {
+      setSelectedSyncIds(new Set(syncedInvoices.map(inv => inv.id)));
+    }
+  };
+
+  const toggleSelectInvoice = (id: string) => {
+    setSelectedSyncIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
   const confirmDeleteInvoice = async () => {
@@ -801,11 +865,31 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
             </div>
           ) : (
             <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="px-4 py-3 bg-blue-900/10 border-b border-dark-600 flex-shrink-0">
+              <div className="px-4 py-3 bg-blue-900/10 border-b border-dark-600 flex-shrink-0 flex items-center justify-between gap-4 flex-wrap">
                 <p className="text-xs text-gray-400 leading-relaxed">
                   <span className="font-medium text-blue-300">Reset sync status</span> als een factuur in e-Boekhouden is verwijderd, zodat je deze opnieuw kunt synchroniseren.
                   <span className="font-medium text-gold-400 ml-2">Opnieuw synchroniseren</span> vervangt de bestaande factuur in e-Boekhouden met nieuwe gegevens.
+                  <span className="ml-2 inline-flex items-center gap-1 text-amber-400"><AlertTriangle size={11} /> Oranje rij</span> = niet gevonden in e-Boekhouden.
                 </p>
+                {selectedSyncIds.size > 0 && (
+                  <button
+                    onClick={handleBulkResync}
+                    disabled={bulkResyncing}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-gold-600 hover:bg-gold-500 text-dark-900 font-medium text-sm rounded-lg transition-colors disabled:opacity-60 flex-shrink-0"
+                  >
+                    {bulkResyncing ? (
+                      <>
+                        <Loader2 size={14} className="animate-spin" />
+                        {bulkProgress ? `${bulkProgress.done}/${bulkProgress.total}` : 'Bezig...'}
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw size={14} />
+                        {selectedSyncIds.size} opnieuw synchroniseren
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
               {syncedInvoices.length === 0 ? (
                 <div className="flex-1 flex items-center justify-center p-8">
@@ -820,6 +904,13 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                   <table className="w-full">
                     <thead className="bg-dark-800 sticky top-0 border-b border-dark-700">
                       <tr>
+                        <th className="px-3 py-3">
+                          <button onClick={toggleSelectAll} className="text-gray-400 hover:text-gray-200 transition-colors">
+                            {selectedSyncIds.size === syncedInvoices.length && syncedInvoices.length > 0
+                              ? <CheckSquare size={16} className="text-gold-500" />
+                              : <Square size={16} />}
+                          </button>
+                        </th>
                         <th className="text-left px-4 py-3 text-gray-300 font-medium text-sm">Factuurnr.</th>
                         <th className="text-left px-4 py-3 text-gray-300 font-medium text-sm">Klant</th>
                         <th className="text-left px-4 py-3 text-gray-300 font-medium text-sm">Datum</th>
@@ -834,14 +925,39 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                         const customerName = inv.tenant_id
                           ? (inv.tenants?.company_name || inv.tenants?.name)
                           : (inv.external_customers?.company_name || inv.external_customers?.contact_name);
+                        const isSelected = selectedSyncIds.has(inv.id);
+                        const isNotFound = inv.eboekhouden_not_found === true;
 
                         return (
-                        <tr key={inv.id} className="border-b border-dark-800 hover:bg-dark-800 transition-colors">
-                          <td className="px-4 py-3 text-gray-200 font-mono">{inv.invoice_number}</td>
+                        <tr
+                          key={inv.id}
+                          className={`border-b transition-colors ${
+                            isNotFound
+                              ? 'border-amber-900/40 bg-amber-950/20 hover:bg-amber-950/30'
+                              : isSelected
+                              ? 'border-dark-700 bg-dark-700/60 hover:bg-dark-700'
+                              : 'border-dark-800 hover:bg-dark-800'
+                          }`}
+                        >
+                          <td className="px-3 py-3">
+                            <button onClick={() => toggleSelectInvoice(inv.id)} className="text-gray-400 hover:text-gray-200 transition-colors">
+                              {isSelected
+                                ? <CheckSquare size={16} className="text-gold-500" />
+                                : <Square size={16} />}
+                            </button>
+                          </td>
+                          <td className="px-4 py-3 font-mono">
+                            <span className={isNotFound ? 'text-amber-400' : 'text-gray-200'}>{inv.invoice_number}</span>
+                            {isNotFound && (
+                              <span className="ml-2 inline-flex items-center gap-1 text-xs text-amber-500 bg-amber-950/40 border border-amber-800/40 rounded px-1.5 py-0.5">
+                                <AlertTriangle size={10} /> Niet gevonden
+                              </span>
+                            )}
+                          </td>
                           <td className="px-4 py-3 text-gray-300">{customerName || '-'}</td>
                           <td className="px-4 py-3 text-gray-300">{new Date(inv.invoice_date).toLocaleDateString('nl-NL')}</td>
                           <td className="px-4 py-3 text-right text-gray-200">€{Number(inv.amount).toFixed(2)}</td>
-                          <td className="px-4 py-3 text-gray-400 font-mono">{inv.eboekhouden_factuur_id}</td>
+                          <td className={`px-4 py-3 font-mono ${isNotFound ? 'text-amber-600 line-through' : 'text-gray-400'}`}>{inv.eboekhouden_factuur_id}</td>
                           <td className="px-4 py-3 text-right text-xs text-gray-500">
                             {new Date(inv.eboekhouden_synced_at).toLocaleDateString('nl-NL')} {new Date(inv.eboekhouden_synced_at).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}
                           </td>
@@ -849,7 +965,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                             <div className="flex items-center justify-center gap-2">
                               <button
                                 onClick={() => handleResyncInvoice(inv.id)}
-                                disabled={resyncingInvoiceId === inv.id}
+                                disabled={resyncingInvoiceId === inv.id || bulkResyncing}
                                 className="p-2 text-gray-400 hover:text-gold-500 hover:bg-dark-700 transition-colors disabled:opacity-50 rounded"
                                 title="Opnieuw synchroniseren (vervangt bestaande factuur in e-Boekhouden)"
                               >
@@ -861,7 +977,8 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                               </button>
                               <button
                                 onClick={() => handleResetSyncStatus(inv.id)}
-                                className="p-2 text-gray-400 hover:text-red-500 hover:bg-dark-700 transition-colors rounded"
+                                disabled={bulkResyncing}
+                                className="p-2 text-gray-400 hover:text-red-500 hover:bg-dark-700 transition-colors disabled:opacity-50 rounded"
                                 title="Reset sync status (verwijdert koppeling, factuur blijft in e-Boekhouden)"
                               >
                                 <XCircle size={16} />
