@@ -5,8 +5,11 @@ import { syncRelationToEBoekhouden, syncInvoiceToEBoekhouden, syncPurchaseInvoic
 import {
   Link2, CheckCircle2, XCircle, Loader2, RefreshCw,
   BookOpen, Users, UserPlus, FileText, ArrowUpRight, ArrowDownRight,
-  Clock, AlertTriangle, Activity, Database, Settings2, Plus, Trash2, Edit2, Upload
+  Clock, AlertTriangle, Activity, Database, Settings2, Plus, Trash2, Edit2, Upload,
+  TrendingDown, TrendingUp
 } from 'lucide-react';
+import { DebtorsOverview } from './DebtorsOverview';
+import { CrediteurenEBoekhouden } from './CrediteurenEBoekhouden';
 
 interface SyncStats {
   tenantsTotal: number;
@@ -555,6 +558,8 @@ export function EBoekhoudenDashboard() {
     }
   };
 
+  const [activeSubTab, setActiveSubTab] = useState<'instellingen' | 'debiteuren' | 'crediteuren'>('instellingen');
+
   const connected = settings?.eboekhouden_connected ?? false;
   const hasToken = !!settings?.eboekhouden_api_token;
 
@@ -566,23 +571,86 @@ export function EBoekhoudenDashboard() {
     );
   }
 
+  if (activeSubTab === 'debiteuren') {
+    return (
+      <div className="h-full flex flex-col overflow-hidden">
+        <div className="flex-shrink-0 mb-4">
+          <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2">
+            <div className="flex gap-2">
+              <button onClick={() => setActiveSubTab('instellingen')} className="flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors text-gray-300 hover:bg-dark-800">
+                <Database size={20} /> Instellingen
+              </button>
+              <button onClick={() => setActiveSubTab('debiteuren')} className="flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors bg-gold-500 text-white">
+                <TrendingUp size={20} /> Debiteuren
+              </button>
+              <button onClick={() => setActiveSubTab('crediteuren')} className="flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors text-gray-300 hover:bg-dark-800">
+                <TrendingDown size={20} /> Crediteuren
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <DebtorsOverview initialTab="sync" />
+        </div>
+      </div>
+    );
+  }
+
+  if (activeSubTab === 'crediteuren') {
+    return (
+      <div className="h-full flex flex-col overflow-hidden">
+        <div className="flex-shrink-0 mb-4">
+          <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2">
+            <div className="flex gap-2">
+              <button onClick={() => setActiveSubTab('instellingen')} className="flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors text-gray-300 hover:bg-dark-800">
+                <Database size={20} /> Instellingen
+              </button>
+              <button onClick={() => setActiveSubTab('debiteuren')} className="flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors text-gray-300 hover:bg-dark-800">
+                <TrendingUp size={20} /> Debiteuren
+              </button>
+              <button onClick={() => setActiveSubTab('crediteuren')} className="flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors bg-gold-500 text-white">
+                <TrendingDown size={20} /> Crediteuren
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <CrediteurenEBoekhouden />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full overflow-y-auto p-4 sm:p-6">
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2">
           <Database size={20} className="text-gold-500" />
           <h3 className="text-lg font-semibold text-gray-100">e-Boekhouden Integratie</h3>
         </div>
-        {hasToken && (
-          <button
-            onClick={loadDashboardData}
-            className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-200 transition-colors"
-          >
-            <RefreshCw size={14} />
-            Vernieuwen
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          <div className="bg-dark-800 border border-dark-700 rounded-lg p-1 flex gap-1">
+            <button onClick={() => setActiveSubTab('instellingen')} className="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium bg-gold-600 text-dark-900 transition-colors">
+              <Database size={13} /> Instellingen
+            </button>
+            <button onClick={() => setActiveSubTab('debiteuren')} className="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium text-gray-400 hover:text-gray-200 transition-colors">
+              <TrendingUp size={13} /> Debiteuren
+            </button>
+            <button onClick={() => setActiveSubTab('crediteuren')} className="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium text-gray-400 hover:text-gray-200 transition-colors">
+              <TrendingDown size={13} /> Crediteuren
+            </button>
+          </div>
+          {hasToken && (
+            <button
+              onClick={loadDashboardData}
+              className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-200 transition-colors"
+            >
+              <RefreshCw size={14} />
+              Vernieuwen
+            </button>
+          )}
+        </div>
       </div>
 
       <div className={`rounded-lg p-4 border ${connected ? 'bg-green-900/10 border-green-800/30' : hasToken ? 'bg-yellow-900/10 border-yellow-800/30' : 'bg-dark-800 border-dark-700'}`}>
