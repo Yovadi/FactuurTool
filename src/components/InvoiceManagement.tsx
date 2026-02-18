@@ -2663,8 +2663,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
     <div className="h-full overflow-y-auto">
 
       {showForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-          <div className="bg-dark-900 rounded-lg w-full max-w-2xl my-8 mx-4 border border-dark-700">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 overflow-y-auto py-8">
+          <div className="bg-dark-900 rounded-lg w-full max-w-3xl mx-4 border border-dark-700">
             <div className="sticky top-0 bg-dark-800 rounded-t-lg border-b border-dark-700 px-6 py-4 flex items-center justify-between">
               <h3 className="text-xl font-bold text-gray-100">
                 {editingInvoiceId ? 'Factuur Bewerken' : 'Nieuwe Factuur Aanmaken'}
@@ -2930,76 +2930,86 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                       + Regel Toevoegen
                     </button>
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {lineItems.map((item, index) => (
-                      <div key={index} className="space-y-1">
+                      <div key={index} className="bg-dark-800 rounded-lg p-3 space-y-2 border border-dark-600">
                         {item.space_type === 'Meeting Room' && (
                           <div className="flex items-center gap-2 text-xs text-blue-400">
-                            <span className="bg-blue-900/30 px-2 py-0.5 rounded">Vergaderruimte boekingen</span>
+                            <span className="bg-blue-900/30 px-2 py-0.5 rounded">Vergaderruimte boeking</span>
                           </div>
                         )}
-                        <div className="flex gap-2">
+                        <div className="flex items-center gap-2">
                           <input
                             type="text"
                             required
                             placeholder="Omschrijving"
                             value={item.description}
                             onChange={(e) => updateLineItem(index, 'description', e.target.value)}
-                            className="flex-1 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                            className="flex-1 px-3 py-2 bg-dark-700 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 text-sm min-w-0"
                             readOnly={item.space_type === 'Meeting Room'}
                           />
-                        {invoiceMode === 'manual' && (
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            placeholder="Aantal (optioneel)"
-                            value={item.quantity || ''}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                                updateLineItem(index, 'quantity', value);
-                              }
-                            }}
-                            className="w-32 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                          />
-                        )}
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          required
-                          placeholder="Prijs"
-                          value={item.unit_price}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                              updateLineItem(index, 'unit_price', value);
-                            }
-                          }}
-                          className="w-32 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                          readOnly={item.space_type === 'Meeting Room'}
-                        />
-                        <select
-                          value={item.grootboek_id || ''}
-                          onChange={(e) => updateLineItem(index, 'grootboek_id', e.target.value ? parseInt(e.target.value) : null)}
-                          className="w-48 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 text-sm"
-                          title="Grootboek (optioneel)"
-                        >
-                          <option value="">Grootboek (auto)</option>
-                          {grootboekMappings?.map((mapping) => (
-                            <option key={mapping.id} value={mapping.grootboek_id}>
-                              {mapping.grootboek_code} - {mapping.grootboek_omschrijving}
-                            </option>
-                          ))}
-                        </select>
-                        {lineItems.length > 1 && item.space_type !== 'Meeting Room' && (
-                          <button
-                            type="button"
-                            onClick={() => removeLineItem(index)}
-                            className="text-red-400 hover:text-red-300"
-                          >
-                            ×
-                          </button>
-                        )}
+                          {lineItems.length > 1 && item.space_type !== 'Meeting Room' && (
+                            <button
+                              type="button"
+                              onClick={() => removeLineItem(index)}
+                              className="flex-shrink-0 text-red-400 hover:text-red-300 transition-colors p-1"
+                            >
+                              <X size={16} />
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {invoiceMode === 'manual' && (
+                            <div className="flex-1">
+                              <label className="block text-xs text-gray-400 mb-1">Aantal</label>
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                placeholder="1"
+                                value={item.quantity || ''}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                                    updateLineItem(index, 'quantity', value);
+                                  }
+                                }}
+                                className="w-full px-3 py-2 bg-dark-700 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 text-sm"
+                              />
+                            </div>
+                          )}
+                          <div className="flex-1">
+                            <label className="block text-xs text-gray-400 mb-1">Prijs (€)</label>
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              required
+                              placeholder="0.00"
+                              value={item.unit_price}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                if (value === '' || /^-?\d*\.?\d*$/.test(value)) {
+                                  updateLineItem(index, 'unit_price', value);
+                                }
+                              }}
+                              className="w-full px-3 py-2 bg-dark-700 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 text-sm"
+                              readOnly={item.space_type === 'Meeting Room'}
+                            />
+                          </div>
+                          <div className="flex-[2]">
+                            <label className="block text-xs text-gray-400 mb-1">Grootboek</label>
+                            <select
+                              value={item.grootboek_id || ''}
+                              onChange={(e) => updateLineItem(index, 'grootboek_id', e.target.value ? parseInt(e.target.value) : null)}
+                              className="w-full px-3 py-2 bg-dark-700 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 text-sm"
+                            >
+                              <option value="">Automatisch</option>
+                              {grootboekMappings?.map((mapping) => (
+                                <option key={mapping.id} value={mapping.grootboek_id}>
+                                  {mapping.grootboek_code} - {mapping.grootboek_omschrijving}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
                         </div>
                       </div>
                     ))}
