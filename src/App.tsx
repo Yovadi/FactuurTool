@@ -134,6 +134,14 @@ function App() {
       .then(({ data }) => {
         if (data?.eboekhouden_enabled) setEBoekhoudenEnabled(true);
       });
+
+    const handleEboekhoudenChange = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      setEBoekhoudenEnabled(detail.enabled);
+      if (!detail.enabled) setActiveTab(prev => prev === 'eboekhouden' ? 'settings' : prev);
+    };
+    window.addEventListener('eboekhouden-enabled-changed', handleEboekhoudenChange);
+    return () => window.removeEventListener('eboekhouden-enabled-changed', handleEboekhoudenChange);
   }, []);
 
   const syncFolders = async () => {

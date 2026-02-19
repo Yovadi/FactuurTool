@@ -30,7 +30,7 @@ export function Integrations() {
 
     if (data) {
       setSettings(data);
-      setEbEnabled(data.eboekhouden_enabled || data.eboekhouden_connected || false);
+      setEbEnabled(data.eboekhouden_enabled ?? false);
       setEbToken(data.eboekhouden_api_token ?? '');
     }
     setLoading(false);
@@ -52,6 +52,7 @@ export function Integrations() {
 
     if (!error && data) {
       setSettings(data);
+      window.dispatchEvent(new CustomEvent('eboekhouden-enabled-changed', { detail: { enabled: ebEnabled } }));
     }
     setSaving(false);
   };
@@ -89,10 +90,10 @@ export function Integrations() {
   };
 
   const hasChanges = settings
-    ? ebEnabled !== settings.eboekhouden_enabled || ebToken !== (settings.eboekhouden_api_token ?? '')
+    ? ebEnabled !== (settings.eboekhouden_enabled ?? false) || ebToken !== (settings.eboekhouden_api_token ?? '')
     : false;
 
-  const showDashboard = settings?.eboekhouden_connected && ebToken === (settings?.eboekhouden_api_token ?? '') && !hasChanges;
+  const showDashboard = ebEnabled && !hasChanges;
 
   if (loading) {
     return (
