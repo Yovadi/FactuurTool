@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, type CompanySettings } from '../lib/supabase';
-import { Plug, Database, Eye, EyeOff, Link2, CheckCircle2, XCircle, Loader2, Unlink, Mail, Send } from 'lucide-react';
+import { Plug, Database, Eye, EyeOff, Link2, CheckCircle2, XCircle, Loader2, Unlink, Mail, Send, Cloud } from 'lucide-react';
 import { testConnection } from '../lib/eboekhouden';
 
 type ConfirmModal = {
@@ -13,12 +13,16 @@ export function Integrations() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingSmtp, setSavingSmtp] = useState(false);
+  const [savingGraph, setSavingGraph] = useState(false);
   const [showToken, setShowToken] = useState(false);
   const [showSmtpPassword, setShowSmtpPassword] = useState(false);
+  const [showGraphSecret, setShowGraphSecret] = useState(false);
   const [testLoading, setTestLoading] = useState(false);
   const [testSmtpLoading, setTestSmtpLoading] = useState(false);
+  const [testGraphLoading, setTestGraphLoading] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [testSmtpResult, setTestSmtpResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [testGraphResult, setTestGraphResult] = useState<{ success: boolean; message: string } | null>(null);
   const [confirmModal, setConfirmModal] = useState<ConfirmModal>({ show: false, enabling: false });
   const [applyingChange, setApplyingChange] = useState(false);
 
@@ -32,6 +36,13 @@ export function Integrations() {
   const [smtpPassword, setSmtpPassword] = useState('');
   const [smtpFromName, setSmtpFromName] = useState('');
   const [smtpFromEmail, setSmtpFromEmail] = useState('');
+
+  const [graphEnabled, setGraphEnabled] = useState(false);
+  const [graphTenantId, setGraphTenantId] = useState('');
+  const [graphClientId, setGraphClientId] = useState('');
+  const [graphClientSecret, setGraphClientSecret] = useState('');
+  const [graphFromEmail, setGraphFromEmail] = useState('');
+  const [graphFromName, setGraphFromName] = useState('');
 
   useEffect(() => {
     loadSettings();
@@ -57,6 +68,12 @@ export function Integrations() {
       setSmtpPassword(data.smtp_password ?? '');
       setSmtpFromName(data.smtp_from_name ?? '');
       setSmtpFromEmail(data.smtp_from_email ?? '');
+      setGraphEnabled(data.graph_enabled ?? false);
+      setGraphTenantId(data.graph_tenant_id ?? '');
+      setGraphClientId(data.graph_client_id ?? '');
+      setGraphClientSecret(data.graph_client_secret ?? '');
+      setGraphFromEmail(data.graph_from_email ?? '');
+      setGraphFromName(data.graph_from_name ?? '');
     }
     setLoading(false);
   };
@@ -132,6 +149,30 @@ export function Integrations() {
       setSettings(data);
     }
     setSavingSmtp(false);
+  };
+
+  const handleSaveGraph = async () => {
+    if (!settings) return;
+    setSavingGraph(true);
+    const { data, error } = await supabase
+      .from('company_settings')
+      .update({
+        graph_enabled: graphEnabled,
+        graph_tenant_id: graphTenantId,
+        graph_client_id: graphClientId,
+        graph_client_secret: graphClientSecret,
+        graph_from_email: graphFromEmail,
+        graph_from_name: graphFromName,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', settings.id)
+      .select()
+      .single();
+
+    if (!error && data) {
+      setSettings(data);
+    }
+    setSavingGraph(false);
   };
 
   const handleTestConnection = async () => {
@@ -223,6 +264,62 @@ export function Integrations() {
     }
   };
 
+  const handleTestGraph = async () => {
+    if (!graphTenantId || !graphClientId || !graphClientSecret || !graphFromEmail) return;
+    setTestGraphLoading(true);
+    setTestGraphResult(null);
+
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://qlvndvpxhqmjljjpehkn.supabase.co';
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFsdm5kdnB4aHFtamxqanBlaGtuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA5MjI1MzQsImV4cCI6MjA3NjQ5ODUzNH0.q1Kel_GCQqUx2J5Nd9WFOVz7okodFPcoAJkKL6YVkUk';
+
+      const response = await fetch(`${supabaseUrl}/functions/v1/graph-send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseAnonKey}`,
+        },
+        body: JSON.stringify({
+          action: 'test',
+          graph: {
+            tenant_id: graphTenantId,
+            client_id: graphClientId,
+            client_secret: graphClientSecret,
+            from_email: graphFromEmail,
+            from_name: graphFromName,
+          },
+          to: graphFromEmail,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setTestGraphResult({ success: true, message: 'Verbinding succesvol! Test e-mail verzonden.' });
+        if (settings) {
+          await supabase
+            .from('company_settings')
+            .update({ graph_connected: true, updated_at: new Date().toISOString() })
+            .eq('id', settings.id);
+          setSettings({ ...settings, graph_connected: true });
+        }
+      } else {
+        setTestGraphResult({ success: false, message: result.error || 'Verbinding mislukt. Controleer de Graph API instellingen.' });
+        if (settings) {
+          await supabase
+            .from('company_settings')
+            .update({ graph_connected: false, updated_at: new Date().toISOString() })
+            .eq('id', settings.id);
+          setSettings({ ...settings, graph_connected: false });
+        }
+      }
+    } catch {
+      setTestGraphResult({ success: false, message: 'Fout bij het testen van de Graph API verbinding' });
+    } finally {
+      setTestGraphLoading(false);
+    }
+  };
+
   const hasTokenChanges = settings
     ? ebToken !== (settings.eboekhouden_api_token ?? '')
     : false;
@@ -235,6 +332,15 @@ export function Integrations() {
       smtpPassword !== (settings.smtp_password ?? '') ||
       smtpFromName !== (settings.smtp_from_name ?? '') ||
       smtpFromEmail !== (settings.smtp_from_email ?? '')
+    : false;
+
+  const hasGraphChanges = settings
+    ? graphEnabled !== (settings.graph_enabled ?? false) ||
+      graphTenantId !== (settings.graph_tenant_id ?? '') ||
+      graphClientId !== (settings.graph_client_id ?? '') ||
+      graphClientSecret !== (settings.graph_client_secret ?? '') ||
+      graphFromEmail !== (settings.graph_from_email ?? '') ||
+      graphFromName !== (settings.graph_from_name ?? '')
     : false;
 
   if (loading) {
@@ -447,7 +553,7 @@ export function Integrations() {
             </div>
           </div>
 
-          <div className={`transition-all duration-300 overflow-hidden ${smtpEnabled ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'}`}>
+          <div className={`transition-all duration-300 overflow-hidden ${smtpEnabled ? 'max-h-[900px] opacity-100' : 'max-h-0 opacity-0'}`}>
             <div className="px-6 py-5 space-y-4">
               <p className="text-sm text-gray-400">
                 Configureer je SMTP server om facturen en e-mails te verzenden vanuit je eigen mailaccount.
@@ -578,6 +684,9 @@ export function Integrations() {
                           <span className="font-semibold text-gray-300">Oplossing voor Microsoft 365 (zakelijk):</span><br />
                           De beheerder moet via het Microsoft 365 Admin Center SMTP AUTH inschakelen voor dit postvak: <span className="font-mono text-gray-200">admin.microsoft.com</span> &gt; Actieve gebruikers &gt; [gebruiker] &gt; E-mail &gt; E-mailapps &gt; Geverifieerde SMTP.
                         </p>
+                        <p className="text-xs text-amber-400/80 leading-relaxed border-t border-dark-700 pt-2">
+                          Overweeg de <span className="font-semibold">Microsoft Graph API</span> koppeling hieronder als alternatief. Die werkt zonder SMTP AUTH en is de moderne Microsoft-aanbevolen methode.
+                        </p>
                       </div>
                     ) : testSmtpResult.message.includes('535') || testSmtpResult.message.includes('Authentication') ? (
                       <div className="ml-5">
@@ -611,6 +720,193 @@ export function Integrations() {
             >
               {savingSmtp ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
               {savingSmtp ? 'Opslaan...' : 'SMTP instellingen opslaan'}
+            </button>
+          </div>
+        )}
+
+        {/* Microsoft Graph API */}
+        <div className="bg-dark-900 rounded-xl border border-dark-700 overflow-hidden">
+          <div className="px-6 py-4 border-b border-dark-700 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-sky-500/10 flex items-center justify-center">
+              <Cloud size={18} className="text-sky-400" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-gray-100">Microsoft Graph API</h3>
+              <p className="text-xs text-gray-400 mt-0.5">E-mails verzenden via Microsoft 365 zonder SMTP</p>
+            </div>
+            <div className="flex items-center gap-3">
+              {graphEnabled && (
+                <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium ${
+                  settings?.graph_connected
+                    ? 'bg-green-500/10 text-green-400 border border-green-500/20'
+                    : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${settings?.graph_connected ? 'bg-green-400' : 'bg-amber-400'}`} />
+                  {settings?.graph_connected ? 'Verbonden' : 'Niet getest'}
+                </span>
+              )}
+              <button
+                onClick={() => setGraphEnabled(!graphEnabled)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                  graphEnabled ? 'bg-sky-600' : 'bg-dark-600'
+                }`}
+                title={graphEnabled ? 'Graph API uitschakelen' : 'Graph API inschakelen'}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                  graphEnabled ? 'translate-x-6' : 'translate-x-1'
+                }`} />
+              </button>
+            </div>
+          </div>
+
+          <div className={`transition-all duration-300 overflow-hidden ${graphEnabled ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
+            <div className="px-6 py-5 space-y-4">
+              <div className="rounded-lg bg-sky-500/5 border border-sky-500/20 p-4 space-y-1.5">
+                <p className="text-sm text-sky-300 font-medium">Vereiste voorbereiding in Azure</p>
+                <ol className="text-xs text-gray-400 space-y-1 list-decimal list-inside leading-relaxed">
+                  <li>Ga naar <span className="font-mono text-gray-300">portal.azure.com</span> &gt; Azure Active Directory &gt; App-registraties</li>
+                  <li>Maak een nieuwe registratie aan en noteer de <span className="font-semibold text-gray-300">Directory (tenant) ID</span> en <span className="font-semibold text-gray-300">Application (client) ID</span></li>
+                  <li>Ga naar Certificaten &amp; geheimen &gt; Nieuw clientgeheim en kopieer de waarde</li>
+                  <li>Ga naar API-machtigingen &gt; Toevoegen &gt; Microsoft Graph &gt; Toepassingsmachtigingen &gt; <span className="font-mono text-gray-300">Mail.Send</span> &gt; Beheerderstoestemming verlenen</li>
+                </ol>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-200 mb-1.5">Tenant ID <span className="text-gray-500 font-normal">(Directory ID)</span></label>
+                  <input
+                    type="text"
+                    value={graphTenantId}
+                    onChange={(e) => setGraphTenantId(e.target.value)}
+                    className="w-full px-3 py-2.5 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono text-sm"
+                    placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-200 mb-1.5">Client ID <span className="text-gray-500 font-normal">(Application ID)</span></label>
+                  <input
+                    type="text"
+                    value={graphClientId}
+                    onChange={(e) => setGraphClientId(e.target.value)}
+                    className="w-full px-3 py-2.5 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono text-sm"
+                    placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-200 mb-1.5">Client Secret</label>
+                <div className="relative">
+                  <input
+                    type={showGraphSecret ? 'text' : 'password'}
+                    value={graphClientSecret}
+                    onChange={(e) => setGraphClientSecret(e.target.value)}
+                    className="w-full px-3 py-2.5 pr-10 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono text-sm"
+                    placeholder="Clientgeheim waarde"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowGraphSecret(!showGraphSecret)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-300 transition-colors"
+                  >
+                    {showGraphSecret ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="border-t border-dark-700 pt-4">
+                <p className="text-xs text-gray-500 mb-3 uppercase font-semibold tracking-wide">Afzender</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-200 mb-1.5">Van e-mailadres <span className="text-red-400">*</span></label>
+                    <input
+                      type="email"
+                      value={graphFromEmail}
+                      onChange={(e) => setGraphFromEmail(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm"
+                      placeholder="facturen@bedrijf.nl"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Moet een geldig Microsoft 365 postvak zijn</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-200 mb-1.5">Weergavenaam</label>
+                    <input
+                      type="text"
+                      value={graphFromName}
+                      onChange={(e) => setGraphFromName(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm"
+                      placeholder="HAL5 Factuuradministratie"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3 pt-1">
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleTestGraph}
+                    disabled={testGraphLoading || !graphTenantId || !graphClientId || !graphClientSecret || !graphFromEmail}
+                    className="flex items-center gap-2 bg-dark-800 text-gray-200 px-4 py-2 rounded-lg hover:bg-dark-700 transition-colors border border-dark-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  >
+                    {testGraphLoading ? (
+                      <Loader2 size={15} className="animate-spin" />
+                    ) : (
+                      <Send size={15} />
+                    )}
+                    Test Verbinding
+                  </button>
+                  {testGraphResult && testGraphResult.success && (
+                    <div className="flex items-center gap-1.5 text-sm text-green-400">
+                      <CheckCircle2 size={15} />
+                      {testGraphResult.message}
+                    </div>
+                  )}
+                </div>
+
+                {testGraphResult && !testGraphResult.success && (
+                  <div className="rounded-lg border border-red-800/50 bg-red-950/30 p-4 space-y-2">
+                    <div className="flex items-start gap-2">
+                      <XCircle size={15} className="text-red-400 mt-0.5 shrink-0" />
+                      <p className="text-sm text-red-300 font-medium">Verbinding mislukt</p>
+                    </div>
+                    {testGraphResult.message.includes('AADSTS') || testGraphResult.message.includes('tenant') || testGraphResult.message.includes('client') ? (
+                      <div className="ml-5 space-y-1">
+                        <p className="text-sm text-red-200">Azure App configuratie fout. Controleer Tenant ID en Client ID.</p>
+                        <p className="text-xs text-gray-400">{testGraphResult.message}</p>
+                      </div>
+                    ) : testGraphResult.message.includes('Mail.Send') || testGraphResult.message.includes('Authorization') || testGraphResult.message.includes('forbidden') ? (
+                      <div className="ml-5 space-y-1">
+                        <p className="text-sm text-red-200">Onvoldoende machtigingen. Controleer of Mail.Send is toegevoegd en beheerderstoestemming is verleend.</p>
+                        <p className="text-xs text-gray-400">{testGraphResult.message}</p>
+                      </div>
+                    ) : (
+                      <div className="ml-5">
+                        <p className="text-xs text-gray-400 break-words">{testGraphResult.message}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {!graphEnabled && (
+            <div className="px-6 py-4 text-sm text-gray-500">
+              Schakel Microsoft Graph API in als alternatief voor SMTP — werkt zonder SMTP AUTH vereisten.
+            </div>
+          )}
+        </div>
+
+        {hasGraphChanges && (
+          <div className="flex justify-end">
+            <button
+              onClick={handleSaveGraph}
+              disabled={savingGraph}
+              className="flex items-center gap-2 bg-sky-600 hover:bg-sky-500 text-white px-5 py-2.5 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            >
+              {savingGraph ? <Loader2 size={16} className="animate-spin" /> : <Cloud size={16} />}
+              {savingGraph ? 'Opslaan...' : 'Graph API instellingen opslaan'}
             </button>
           </div>
         )}

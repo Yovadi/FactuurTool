@@ -163,6 +163,13 @@ export type CompanySettings = {
   smtp_from_email: string | null;
   smtp_enabled: boolean;
   smtp_connected: boolean;
+  graph_enabled: boolean;
+  graph_tenant_id: string | null;
+  graph_client_id: string | null;
+  graph_client_secret: string | null;
+  graph_from_email: string | null;
+  graph_from_name: string | null;
+  graph_connected: boolean;
   created_at: string;
   updated_at: string;
 };
