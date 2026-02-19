@@ -644,7 +644,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
       )}
 
       {activeTab === 'log' && (
-        <div className="flex-1 flex flex-col bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
+        <div className="flex flex-col bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
             <h2 className="text-lg font-bold text-gray-100 px-4 py-3 bg-dark-800 border-b border-amber-500 flex-shrink-0">
               Facturen Logboek (Betaald & Gecrediteerd)
             </h2>
@@ -654,8 +654,8 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                 <p className="text-gray-400">Geen betaalde of gecrediteerde facturen gevonden</p>
               </div>
             ) : (
-              <div className="flex flex-col flex-1 overflow-hidden">
-                <div className="px-4 py-3 bg-dark-800 border-b border-dark-700 flex-shrink-0">
+              <div className="flex flex-col">
+                <div className="px-4 py-3 bg-dark-800 border-b border-dark-700">
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
                       <Filter size={16} className="text-gray-400" />
@@ -740,7 +740,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                     </div>
                   </div>
                 </div>
-                <div className="overflow-auto flex-1">
+                <div className="overflow-auto" style={{ maxHeight: 'calc(100vh - 320px)' }}>
                   <table className="w-full table-fixed min-w-[1100px]">
                     <thead>
                       <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">

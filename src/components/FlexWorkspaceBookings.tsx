@@ -1092,7 +1092,7 @@ export function FlexWorkspaceBookings() {
   }
 
   return (
-    <div>
+    <div className="h-full flex flex-col overflow-hidden">
       <div className="fixed top-4 right-4 z-50 space-y-2 max-w-md">
         {notifications.map((notification) => (
           <div
@@ -1119,7 +1119,7 @@ export function FlexWorkspaceBookings() {
         ))}
       </div>
 
-      <div className="mb-6">
+      <div className="flex-1 overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-100">Flexplek Boekingen</h1>

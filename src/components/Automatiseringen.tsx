@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import {
   Loader2, RefreshCw, CheckCircle2, Clock, FileText,
-  Receipt, Link2, Users, Calendar, ChevronDown, ChevronUp, Play
+  Receipt, Link2, Users, Calendar, ChevronDown, ChevronUp, Play, DoorOpen, Armchair
 } from 'lucide-react';
 
 interface ScheduledJob {
@@ -23,9 +23,25 @@ const JOB_META: Record<string, {
   category: 'facturatie' | 'eboekhouden';
 }> = {
   generate_monthly_invoices: {
-    label: 'Maandelijkse facturen aanmaken',
+    label: 'Maandelijkse huurfacturen aanmaken',
     description: 'Genereert automatisch facturen voor alle actieve huurovereenkomsten aan het begin van elke maand.',
     icon: <FileText size={18} />,
+    accentColor: 'teal',
+    interval: 'Maandelijks (1e van de maand)',
+    category: 'facturatie',
+  },
+  generate_meeting_room_invoices: {
+    label: 'Vergaderruimte facturen aanmaken',
+    description: 'Genereert automatisch facturen voor alle bevestigde en voltooide vergaderruimte boekingen van de vorige maand die nog niet zijn gefactureerd. Boekingen worden per klant gegroepeerd op één factuur.',
+    icon: <DoorOpen size={18} />,
+    accentColor: 'teal',
+    interval: 'Maandelijks (1e van de maand)',
+    category: 'facturatie',
+  },
+  generate_flex_invoices: {
+    label: 'Flexplek facturen aanmaken',
+    description: 'Genereert automatisch facturen voor alle bevestigde en voltooide flexwerkplek boekingen van de vorige maand die nog niet zijn gefactureerd. Boekingen worden per klant gegroepeerd op één factuur.',
+    icon: <Armchair size={18} />,
     accentColor: 'teal',
     interval: 'Maandelijks (1e van de maand)',
     category: 'facturatie',
