@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase, type CompanySettings } from '../lib/supabase';
 import { Plug, Database, Eye, EyeOff, Link2, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { testConnection } from '../lib/eboekhouden';
+import { EBoekhoudenDashboard } from './EBoekhoudenDashboard';
 
 export function Integrations() {
   const [settings, setSettings] = useState<CompanySettings | null>(null);
@@ -29,7 +30,7 @@ export function Integrations() {
 
     if (data) {
       setSettings(data);
-      setEbEnabled(data.eboekhouden_enabled ?? false);
+      setEbEnabled(data.eboekhouden_enabled || data.eboekhouden_connected || false);
       setEbToken(data.eboekhouden_api_token ?? '');
     }
     setLoading(false);
@@ -90,6 +91,8 @@ export function Integrations() {
   const hasChanges = settings
     ? ebEnabled !== settings.eboekhouden_enabled || ebToken !== (settings.eboekhouden_api_token ?? '')
     : false;
+
+  const showDashboard = settings?.eboekhouden_connected && ebToken === (settings?.eboekhouden_api_token ?? '') && !hasChanges;
 
   if (loading) {
     return (
@@ -203,6 +206,10 @@ export function Integrations() {
             {saving ? 'Opslaan...' : 'Wijzigingen opslaan'}
           </button>
         </div>
+      )}
+
+      {showDashboard && (
+        <EBoekhoudenDashboard />
       )}
     </div>
   );
