@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, type CompanySettings } from '../lib/supabase';
-import { Building2, Edit2, Mail, Phone, MapPin, CreditCard, Lock, FolderOpen, RefreshCw, Wifi, Network, Zap, FileText, Sparkles, Eye, EyeOff, Link2, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
-import { testConnection } from '../lib/eboekhouden';
+import { Building2, Edit2, Mail, Phone, MapPin, CreditCard, Lock, FolderOpen, RefreshCw, Wifi, Network, Zap, FileText, Sparkles, Loader2 } from 'lucide-react';
 import { EBoekhoudenDashboard } from './EBoekhoudenDashboard';
 
 export function CompanySettings() {
@@ -12,9 +11,6 @@ export function CompanySettings() {
   const [updateMessage, setUpdateMessage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'company' | 'building' | 'eboekhouden'>('company');
   const [showApiKey, setShowApiKey] = useState(false);
-  const [showEbToken, setShowEbToken] = useState(false);
-  const [ebTestLoading, setEbTestLoading] = useState(false);
-  const [ebTestResult, setEbTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
   const [formData, setFormData] = useState({
     company_name: '',
@@ -203,43 +199,6 @@ export function CompanySettings() {
       }, 5000);
     }
   };
-
-  const handleTestEbConnection = async () => {
-    const token = formData.eboekhouden_api_token || settings?.eboekhouden_api_token;
-    if (!token) {
-      setEbTestResult({ success: false, message: 'Vul eerst een API token in' });
-      return;
-    }
-    setEbTestLoading(true);
-    setEbTestResult(null);
-    try {
-      const result = await testConnection(token);
-      if (result.success) {
-        setEbTestResult({ success: true, message: 'Verbinding succesvol!' });
-        if (settings) {
-          await supabase
-            .from('company_settings')
-            .update({ eboekhouden_connected: true, updated_at: new Date().toISOString() })
-            .eq('id', settings.id);
-          setSettings({ ...settings, eboekhouden_connected: true });
-        }
-      } else {
-        setEbTestResult({ success: false, message: result.error || 'Verbinding mislukt. Controleer je API token.' });
-        if (settings) {
-          await supabase
-            .from('company_settings')
-            .update({ eboekhouden_connected: false, updated_at: new Date().toISOString() })
-            .eq('id', settings.id);
-          setSettings({ ...settings, eboekhouden_connected: false });
-        }
-      }
-    } catch {
-      setEbTestResult({ success: false, message: 'Fout bij het testen van de verbinding' });
-    } finally {
-      setEbTestLoading(false);
-    }
-  };
-
 
   if (loading) {
     return <div className="text-center py-8">Verhuurder gegevens laden...</div>;
@@ -515,76 +474,6 @@ export function CompanySettings() {
                   <p className="text-xs text-gray-400 mt-1">
                     Nodig voor automatische herkenning van inkoopfacturen via AI (GPT-4 Vision)
                   </p>
-                </div>
-              </div>
-
-              <div className="border-t border-dark-700 pt-4 mt-4">
-                <h4 className="text-lg font-semibold text-gray-100 mb-3">e-Boekhouden Koppeling</h4>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-200">e-Boekhouden activeren</p>
-                      <p className="text-xs text-gray-400 mt-0.5">Schakel de koppeling in om de integratie zichtbaar en beschikbaar te maken</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, eboekhouden_enabled: !formData.eboekhouden_enabled })}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        formData.eboekhouden_enabled ? 'bg-teal-600' : 'bg-dark-600'
-                      }`}
-                    >
-                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        formData.eboekhouden_enabled ? 'translate-x-6' : 'translate-x-1'
-                      }`} />
-                    </button>
-                  </div>
-                  {formData.eboekhouden_enabled && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-200 mb-1">
-                      API Token
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={showEbToken ? 'text' : 'password'}
-                        value={formData.eboekhouden_api_token}
-                        onChange={(e) => setFormData({ ...formData, eboekhouden_api_token: e.target.value })}
-                        className="w-full px-3 py-2 pr-10 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 font-mono text-sm"
-                        placeholder="Plak hier je e-Boekhouden API token"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowEbToken(!showEbToken)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-300"
-                      >
-                        {showEbToken ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
-                    <p className="text-xs text-gray-400 mt-1">
-                      Te vinden in e-Boekhouden via Beheer &gt; Inrichting &gt; Instellingen &gt; Koppelingen &gt; API/SOAP
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={handleTestEbConnection}
-                      disabled={ebTestLoading || !formData.eboekhouden_api_token}
-                      className="flex items-center gap-2 bg-dark-800 text-gray-200 px-4 py-2 rounded-lg hover:bg-dark-700 transition-colors border border-dark-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {ebTestLoading ? (
-                        <Loader2 size={16} className="animate-spin" />
-                      ) : (
-                        <Link2 size={16} />
-                      )}
-                      Test Verbinding
-                    </button>
-                    {ebTestResult && (
-                      <div className={`flex items-center gap-1.5 text-sm ${ebTestResult.success ? 'text-green-400' : 'text-red-400'}`}>
-                        {ebTestResult.success ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
-                        {ebTestResult.message}
-                      </div>
-                    )}
-                  </div>
-                  )}
                 </div>
               </div>
 
