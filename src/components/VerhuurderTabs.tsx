@@ -3,9 +3,10 @@ import { CompanyInfo } from './CompanyInfo';
 import { BuildingInfo } from './BuildingInfo';
 import { AppInfo } from './AppInfo';
 import { Integrations } from './Integrations';
-import { Building2, Home, Settings, Plug } from 'lucide-react';
+import { Automatiseringen } from './Automatiseringen';
+import { Building2, Home, Settings, Plug, Zap } from 'lucide-react';
 
-type Tab = 'company' | 'building' | 'app' | 'integrations';
+type Tab = 'company' | 'building' | 'app' | 'integrations' | 'automatiseringen';
 
 export function VerhuurderTabs() {
   const [activeTab, setActiveTab] = useState<Tab>('company');
@@ -15,6 +16,7 @@ export function VerhuurderTabs() {
     { id: 'building', label: 'Pand Informatie', icon: <Home size={20} /> },
     { id: 'app', label: 'App Gegevens', icon: <Settings size={20} /> },
     { id: 'integrations', label: 'Integraties', icon: <Plug size={20} /> },
+    { id: 'automatiseringen', label: 'Automatiseringen', icon: <Zap size={20} /> },
   ];
 
   return (
@@ -22,7 +24,7 @@ export function VerhuurderTabs() {
       <div className="flex-shrink-0 sticky top-0 z-10 bg-dark-950 pb-4">
         <h2 className="text-2xl font-bold text-gray-100 mb-4">Verhuurder</h2>
         <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2">
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -46,6 +48,7 @@ export function VerhuurderTabs() {
         {activeTab === 'building' && <BuildingInfo />}
         {activeTab === 'app' && <AppInfo />}
         {activeTab === 'integrations' && <Integrations />}
+        {activeTab === 'automatiseringen' && <Automatiseringen />}
       </div>
     </div>
   );
