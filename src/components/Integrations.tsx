@@ -1,8 +1,12 @@
 import { useState, useEffect } from 'react';
 import { supabase, type CompanySettings } from '../lib/supabase';
-import { Plug, Database, Eye, EyeOff, Link2, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { Plug, Database, Eye, EyeOff, Link2, CheckCircle2, XCircle, Loader2, Unlink } from 'lucide-react';
 import { testConnection } from '../lib/eboekhouden';
-import { EBoekhoudenDashboard } from './EBoekhoudenDashboard';
+
+type ConfirmModal = {
+  show: boolean;
+  enabling: boolean;
+};
 
 export function Integrations() {
   const [settings, setSettings] = useState<CompanySettings | null>(null);
@@ -11,6 +15,8 @@ export function Integrations() {
   const [showToken, setShowToken] = useState(false);
   const [testLoading, setTestLoading] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [confirmModal, setConfirmModal] = useState<ConfirmModal>({ show: false, enabling: false });
+  const [applyingChange, setApplyingChange] = useState(false);
 
   const [ebEnabled, setEbEnabled] = useState(false);
   const [ebToken, setEbToken] = useState('');
@@ -36,13 +42,37 @@ export function Integrations() {
     setLoading(false);
   };
 
+  const handleToggleClick = () => {
+    setConfirmModal({ show: true, enabling: !ebEnabled });
+  };
+
+  const handleConfirmToggle = async () => {
+    if (!settings) return;
+    setConfirmModal({ show: false, enabling: false });
+    setApplyingChange(true);
+
+    const newEnabled = !ebEnabled;
+
+    await supabase
+      .from('company_settings')
+      .update({
+        eboekhouden_enabled: newEnabled,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', settings.id);
+
+    await new Promise(resolve => setTimeout(resolve, 1200));
+
+    window.dispatchEvent(new CustomEvent('eboekhouden-enabled-changed', { detail: { enabled: newEnabled } }));
+    window.location.reload();
+  };
+
   const handleSave = async () => {
     if (!settings) return;
     setSaving(true);
     const { data, error } = await supabase
       .from('company_settings')
       .update({
-        eboekhouden_enabled: ebEnabled,
         eboekhouden_api_token: ebToken,
         updated_at: new Date().toISOString(),
       })
@@ -52,7 +82,6 @@ export function Integrations() {
 
     if (!error && data) {
       setSettings(data);
-      window.dispatchEvent(new CustomEvent('eboekhouden-enabled-changed', { detail: { enabled: ebEnabled } }));
     }
     setSaving(false);
   };
@@ -89,11 +118,9 @@ export function Integrations() {
     }
   };
 
-  const hasChanges = settings
-    ? ebEnabled !== (settings.eboekhouden_enabled ?? false) || ebToken !== (settings.eboekhouden_api_token ?? '')
+  const hasTokenChanges = settings
+    ? ebToken !== (settings.eboekhouden_api_token ?? '')
     : false;
-
-  const showDashboard = ebEnabled && !hasChanges;
 
   if (loading) {
     return (
@@ -104,114 +131,171 @@ export function Integrations() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="bg-dark-900 rounded-xl border border-dark-700 overflow-hidden">
-        <div className="px-6 py-4 border-b border-dark-700 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-teal-500/10 flex items-center justify-center">
-            <Database size={18} className="text-teal-400" />
-          </div>
-          <div className="flex-1">
-            <h3 className="font-semibold text-gray-100">e-Boekhouden</h3>
-            <p className="text-xs text-gray-400 mt-0.5">Online boekhoudpakket koppeling</p>
-          </div>
-          <div className="flex items-center gap-3">
-            {settings?.eboekhouden_enabled && (
-              <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium ${
-                settings.eboekhouden_connected
-                  ? 'bg-green-500/10 text-green-400 border border-green-500/20'
-                  : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-              }`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${settings.eboekhouden_connected ? 'bg-green-400' : 'bg-amber-400'}`} />
-                {settings.eboekhouden_connected ? 'Verbonden' : 'Niet verbonden'}
-              </span>
-            )}
-            <button
-              onClick={() => setEbEnabled(!ebEnabled)}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
-                ebEnabled ? 'bg-teal-600' : 'bg-dark-600'
-              }`}
-              title={ebEnabled ? 'Koppeling deactiveren' : 'Koppeling activeren'}
-            >
-              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-                ebEnabled ? 'translate-x-6' : 'translate-x-1'
-              }`} />
-            </button>
+    <>
+      {applyingChange && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-dark-950/90 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-5">
+            <div className="relative">
+              <div className="w-16 h-16 rounded-full border-4 border-dark-700" />
+              <div className="absolute inset-0 w-16 h-16 rounded-full border-4 border-t-teal-400 animate-spin" />
+            </div>
+            <div className="text-center">
+              <p className="text-gray-100 font-semibold text-lg">Koppeling bijwerken...</p>
+              <p className="text-gray-400 text-sm mt-1">De app wordt opnieuw geladen</p>
+            </div>
           </div>
         </div>
+      )}
 
-        <div className={`transition-all duration-300 overflow-hidden ${ebEnabled ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
-          <div className="px-6 py-5 space-y-4">
-            <p className="text-sm text-gray-400">
-              Voer je API token in om de koppeling met e-Boekhouden te activeren. Het token is te vinden via
-              <span className="text-gray-300"> Beheer &gt; Inrichting &gt; Instellingen &gt; Koppelingen &gt; API/SOAP</span>.
-            </p>
-            <div>
-              <label className="block text-sm font-medium text-gray-200 mb-1.5">API Token</label>
-              <div className="relative">
-                <input
-                  type={showToken ? 'text' : 'password'}
-                  value={ebToken}
-                  onChange={(e) => setEbToken(e.target.value)}
-                  className="w-full px-3 py-2.5 pr-10 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 font-mono text-sm"
-                  placeholder="Plak hier je e-Boekhouden API token"
-                />
+      {confirmModal.show && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-dark-900 border border-dark-700 rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+            <div className="p-6">
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${
+                confirmModal.enabling ? 'bg-teal-500/10' : 'bg-red-500/10'
+              }`}>
+                {confirmModal.enabling
+                  ? <Link2 size={22} className="text-teal-400" />
+                  : <Unlink size={22} className="text-red-400" />
+                }
+              </div>
+              <h3 className="text-gray-100 font-semibold text-lg mb-2">
+                {confirmModal.enabling ? 'Koppeling activeren' : 'Koppeling verbreken'}
+              </h3>
+              <p className="text-gray-400 text-sm leading-relaxed">
+                {confirmModal.enabling
+                  ? 'De e-Boekhouden koppeling wordt geactiveerd. Het tabblad "e-Boekhouden" verschijnt in de navigatie. De app wordt hierna opnieuw geladen.'
+                  : 'De e-Boekhouden koppeling wordt verbroken. Het tabblad "e-Boekhouden" verdwijnt uit de navigatie. De app wordt hierna opnieuw geladen.'
+                }
+              </p>
+            </div>
+            <div className="px-6 pb-6 flex gap-3">
+              <button
+                onClick={() => setConfirmModal({ show: false, enabling: false })}
+                className="flex-1 px-4 py-2.5 rounded-lg border border-dark-600 text-gray-300 hover:bg-dark-800 transition-colors text-sm font-medium"
+              >
+                Annuleren
+              </button>
+              <button
+                onClick={handleConfirmToggle}
+                className={`flex-1 px-4 py-2.5 rounded-lg text-white text-sm font-medium transition-colors ${
+                  confirmModal.enabling
+                    ? 'bg-teal-600 hover:bg-teal-500'
+                    : 'bg-red-600 hover:bg-red-500'
+                }`}
+              >
+                {confirmModal.enabling ? 'Activeren' : 'Verbreken'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-4">
+        <div className="bg-dark-900 rounded-xl border border-dark-700 overflow-hidden">
+          <div className="px-6 py-4 border-b border-dark-700 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-teal-500/10 flex items-center justify-center">
+              <Database size={18} className="text-teal-400" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-gray-100">e-Boekhouden</h3>
+              <p className="text-xs text-gray-400 mt-0.5">Online boekhoudpakket koppeling</p>
+            </div>
+            <div className="flex items-center gap-3">
+              {ebEnabled && (
+                <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium ${
+                  settings?.eboekhouden_connected
+                    ? 'bg-green-500/10 text-green-400 border border-green-500/20'
+                    : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${settings?.eboekhouden_connected ? 'bg-green-400' : 'bg-amber-400'}`} />
+                  {settings?.eboekhouden_connected ? 'Verbonden' : 'Niet verbonden'}
+                </span>
+              )}
+              <button
+                onClick={handleToggleClick}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                  ebEnabled ? 'bg-teal-600' : 'bg-dark-600'
+                }`}
+                title={ebEnabled ? 'Koppeling verbreken' : 'Koppeling activeren'}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                  ebEnabled ? 'translate-x-6' : 'translate-x-1'
+                }`} />
+              </button>
+            </div>
+          </div>
+
+          <div className={`transition-all duration-300 overflow-hidden ${ebEnabled ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
+            <div className="px-6 py-5 space-y-4">
+              <p className="text-sm text-gray-400">
+                Voer je API token in om de koppeling met e-Boekhouden te activeren. Het token is te vinden via
+                <span className="text-gray-300"> Beheer &gt; Inrichting &gt; Instellingen &gt; Koppelingen &gt; API/SOAP</span>.
+              </p>
+              <div>
+                <label className="block text-sm font-medium text-gray-200 mb-1.5">API Token</label>
+                <div className="relative">
+                  <input
+                    type={showToken ? 'text' : 'password'}
+                    value={ebToken}
+                    onChange={(e) => setEbToken(e.target.value)}
+                    className="w-full px-3 py-2.5 pr-10 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 font-mono text-sm"
+                    placeholder="Plak hier je e-Boekhouden API token"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowToken(!showToken)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-300 transition-colors"
+                  >
+                    {showToken ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  onClick={() => setShowToken(!showToken)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-300 transition-colors"
+                  onClick={handleTestConnection}
+                  disabled={testLoading || !ebToken}
+                  className="flex items-center gap-2 bg-dark-800 text-gray-200 px-4 py-2 rounded-lg hover:bg-dark-700 transition-colors border border-dark-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                 >
-                  {showToken ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {testLoading ? (
+                    <Loader2 size={15} className="animate-spin" />
+                  ) : (
+                    <Link2 size={15} />
+                  )}
+                  Test Verbinding
                 </button>
+                {testResult && (
+                  <div className={`flex items-center gap-1.5 text-sm ${testResult.success ? 'text-green-400' : 'text-red-400'}`}>
+                    {testResult.success ? <CheckCircle2 size={15} /> : <XCircle size={15} />}
+                    {testResult.message}
+                  </div>
+                )}
               </div>
             </div>
-
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={handleTestConnection}
-                disabled={testLoading || !ebToken}
-                className="flex items-center gap-2 bg-dark-800 text-gray-200 px-4 py-2 rounded-lg hover:bg-dark-700 transition-colors border border-dark-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-              >
-                {testLoading ? (
-                  <Loader2 size={15} className="animate-spin" />
-                ) : (
-                  <Link2 size={15} />
-                )}
-                Test Verbinding
-              </button>
-              {testResult && (
-                <div className={`flex items-center gap-1.5 text-sm ${testResult.success ? 'text-green-400' : 'text-red-400'}`}>
-                  {testResult.success ? <CheckCircle2 size={15} /> : <XCircle size={15} />}
-                  {testResult.message}
-                </div>
-              )}
-            </div>
           </div>
+
+          {!ebEnabled && (
+            <div className="px-6 py-4 text-sm text-gray-500">
+              Schakel de koppeling in om de e-Boekhouden integratie te configureren en te gebruiken.
+            </div>
+          )}
         </div>
 
-        {!ebEnabled && (
-          <div className="px-6 py-4 text-sm text-gray-500">
-            Schakel de koppeling in om de e-Boekhouden integratie te configureren en te gebruiken.
+        {hasTokenChanges && (
+          <div className="flex justify-end">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex items-center gap-2 bg-teal-600 hover:bg-teal-500 text-white px-5 py-2.5 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            >
+              {saving ? <Loader2 size={16} className="animate-spin" /> : <Plug size={16} />}
+              {saving ? 'Opslaan...' : 'Token opslaan'}
+            </button>
           </div>
         )}
       </div>
-
-      {hasChanges && (
-        <div className="flex justify-end">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-2 bg-teal-600 hover:bg-teal-500 text-white px-5 py-2.5 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-          >
-            {saving ? <Loader2 size={16} className="animate-spin" /> : <Plug size={16} />}
-            {saving ? 'Opslaan...' : 'Wijzigingen opslaan'}
-          </button>
-        </div>
-      )}
-
-      {showDashboard && (
-        <EBoekhoudenDashboard />
-      )}
-    </div>
+    </>
   );
 }
