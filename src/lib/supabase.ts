@@ -170,6 +170,11 @@ export type CompanySettings = {
   graph_from_email: string | null;
   graph_from_name: string | null;
   graph_connected: boolean;
+  resend_enabled: boolean;
+  resend_api_key: string | null;
+  resend_from_email: string | null;
+  resend_from_name: string | null;
+  resend_connected: boolean;
   created_at: string;
   updated_at: string;
 };
