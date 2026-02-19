@@ -536,24 +536,59 @@ export function Integrations() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 pt-1">
-                <button
-                  type="button"
-                  onClick={handleTestSmtp}
-                  disabled={testSmtpLoading || !smtpHost || !smtpUser || !smtpPassword}
-                  className="flex items-center gap-2 bg-dark-800 text-gray-200 px-4 py-2 rounded-lg hover:bg-dark-700 transition-colors border border-dark-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                >
-                  {testSmtpLoading ? (
-                    <Loader2 size={15} className="animate-spin" />
-                  ) : (
-                    <Send size={15} />
+              <div className="space-y-3 pt-1">
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleTestSmtp}
+                    disabled={testSmtpLoading || !smtpHost || !smtpUser || !smtpPassword}
+                    className="flex items-center gap-2 bg-dark-800 text-gray-200 px-4 py-2 rounded-lg hover:bg-dark-700 transition-colors border border-dark-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  >
+                    {testSmtpLoading ? (
+                      <Loader2 size={15} className="animate-spin" />
+                    ) : (
+                      <Send size={15} />
+                    )}
+                    Test Verbinding
+                  </button>
+                  {testSmtpResult && testSmtpResult.success && (
+                    <div className="flex items-center gap-1.5 text-sm text-green-400">
+                      <CheckCircle2 size={15} />
+                      {testSmtpResult.message}
+                    </div>
                   )}
-                  Test Verbinding
-                </button>
-                {testSmtpResult && (
-                  <div className={`flex items-center gap-1.5 text-sm ${testSmtpResult.success ? 'text-green-400' : 'text-red-400'}`}>
-                    {testSmtpResult.success ? <CheckCircle2 size={15} /> : <XCircle size={15} />}
-                    {testSmtpResult.message}
+                </div>
+
+                {testSmtpResult && !testSmtpResult.success && (
+                  <div className="rounded-lg border border-red-800/50 bg-red-950/30 p-4 space-y-2">
+                    <div className="flex items-start gap-2">
+                      <XCircle size={15} className="text-red-400 mt-0.5 shrink-0" />
+                      <p className="text-sm text-red-300 font-medium">Verbinding mislukt</p>
+                    </div>
+                    {testSmtpResult.message.includes('SmtpClientAuthentication') || testSmtpResult.message.includes('5.7.139') ? (
+                      <div className="ml-5 space-y-2">
+                        <p className="text-sm text-red-200">
+                          SMTP verificatie is uitgeschakeld voor dit Microsoft/Outlook account.
+                        </p>
+                        <p className="text-xs text-gray-400 leading-relaxed">
+                          <span className="font-semibold text-gray-300">Oplossing voor Outlook.com / Hotmail:</span><br />
+                          Ga naar <span className="font-mono text-gray-200">account.microsoft.com</span> &gt; Beveiliging &gt; Geavanceerde beveiligingsopties en schakel "Authenticatie voor andere e-mail-apps" in.
+                        </p>
+                        <p className="text-xs text-gray-400 leading-relaxed">
+                          <span className="font-semibold text-gray-300">Oplossing voor Microsoft 365 (zakelijk):</span><br />
+                          De beheerder moet via het Microsoft 365 Admin Center SMTP AUTH inschakelen voor dit postvak: <span className="font-mono text-gray-200">admin.microsoft.com</span> &gt; Actieve gebruikers &gt; [gebruiker] &gt; E-mail &gt; E-mailapps &gt; Geverifieerde SMTP.
+                        </p>
+                      </div>
+                    ) : testSmtpResult.message.includes('535') || testSmtpResult.message.includes('Authentication') ? (
+                      <div className="ml-5">
+                        <p className="text-sm text-red-200">Authenticatie mislukt. Controleer je gebruikersnaam en wachtwoord.</p>
+                        <p className="text-xs text-gray-400 mt-1">Als je 2FA gebruikt, maak dan een app-wachtwoord aan in de accountinstellingen.</p>
+                      </div>
+                    ) : (
+                      <div className="ml-5">
+                        <p className="text-xs text-gray-400 break-words">{testSmtpResult.message}</p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
