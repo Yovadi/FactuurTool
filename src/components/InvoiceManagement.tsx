@@ -3045,11 +3045,15 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                   </div>
                   <div className="space-y-1.5">
                     {lineItems.map((item, index) => {
+                      const ebEnabled = companySettings?.eboekhouden_enabled && companySettings?.eboekhouden_connected;
                       const autoCategory = item.local_category || getLocalCategory(item.space_type, item.bookingType);
                       const autoMapping = autoCategory ? grootboekMappings?.find(m => m.local_category === autoCategory) : grootboekMappings?.find(m => m.local_category === 'default');
                       const autoLabel = autoMapping ? `Auto: ${autoMapping.grootboek_code} ${autoMapping.grootboek_omschrijving}` : 'Automatisch';
+                      const gridCols = ebEnabled
+                        ? (invoiceMode === 'manual' ? '1fr auto auto 2fr auto' : '1fr auto 2fr auto')
+                        : (invoiceMode === 'manual' ? '1fr auto auto auto' : '1fr auto auto');
                       return (
-                        <div key={index} className="grid gap-1.5 bg-dark-800 rounded-lg px-3 py-2 border border-dark-600" style={{ gridTemplateColumns: invoiceMode === 'manual' ? '1fr auto auto 2fr auto' : '1fr auto 2fr auto' }}>
+                        <div key={index} className="grid gap-1.5 bg-dark-800 rounded-lg px-3 py-2 border border-dark-600" style={{ gridTemplateColumns: gridCols }}>
                           <input
                             type="text"
                             required
@@ -3089,18 +3093,20 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                             className="w-24 px-2.5 py-1.5 bg-dark-700 border border-dark-600 text-gray-100 rounded-md focus:outline-none focus:ring-1 focus:ring-gold-500 text-sm"
                             readOnly={item.space_type === 'Meeting Room'}
                           />
-                          <select
-                            value={item.grootboek_id || ''}
-                            onChange={(e) => updateLineItem(index, 'grootboek_id', e.target.value ? parseInt(e.target.value) : null)}
-                            className="px-2.5 py-1.5 bg-dark-700 border border-dark-600 text-gray-100 rounded-md focus:outline-none focus:ring-1 focus:ring-gold-500 text-sm min-w-0"
-                          >
-                            <option value="">{autoLabel}</option>
-                            {grootboekMappings?.map((mapping) => (
-                              <option key={mapping.id} value={mapping.grootboek_id}>
-                                {mapping.grootboek_code} - {mapping.grootboek_omschrijving}
-                              </option>
-                            ))}
-                          </select>
+                          {ebEnabled && (
+                            <select
+                              value={item.grootboek_id || ''}
+                              onChange={(e) => updateLineItem(index, 'grootboek_id', e.target.value ? parseInt(e.target.value) : null)}
+                              className="px-2.5 py-1.5 bg-dark-700 border border-dark-600 text-gray-100 rounded-md focus:outline-none focus:ring-1 focus:ring-gold-500 text-sm min-w-0"
+                            >
+                              <option value="">{autoLabel}</option>
+                              {grootboekMappings?.map((mapping) => (
+                                <option key={mapping.id} value={mapping.grootboek_id}>
+                                  {mapping.grootboek_code} - {mapping.grootboek_omschrijving}
+                                </option>
+                              ))}
+                            </select>
+                          )}
                           {lineItems.length > 1 && item.space_type !== 'Meeting Room' ? (
                             <button
                               type="button"
