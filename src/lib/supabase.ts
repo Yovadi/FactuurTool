@@ -151,6 +151,7 @@ export type CompanySettings = {
   meter_cabinet_info: string | null;
   building_notes: string | null;
   openai_api_key: string | null;
+  eboekhouden_enabled: boolean;
   eboekhouden_api_token: string | null;
   eboekhouden_connected: boolean;
   eboekhouden_template_id: number | null;

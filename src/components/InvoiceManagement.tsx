@@ -1180,7 +1180,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
   const handleMarkAsPaid = async (invoiceId: string) => {
     const invoice = invoices.find(inv => inv.id === invoiceId);
-    if (invoice?.eboekhouden_factuur_id && companySettings?.eboekhouden_connected) {
+    if (invoice?.eboekhouden_factuur_id && companySettings?.eboekhouden_enabled && companySettings?.eboekhouden_connected) {
       setEBoekhoudenPaidWarning({ invoiceId, invoiceNumber: invoice.invoice_number });
       return;
     }
@@ -2650,7 +2650,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
   const handleBatchStatusChange = async (newStatus: string, skipEBoekhoudenCheck = false) => {
     if (selectedInvoices.size === 0) return;
 
-    if (newStatus === 'paid' && !skipEBoekhoudenCheck && companySettings?.eboekhouden_connected) {
+    if (newStatus === 'paid' && !skipEBoekhoudenCheck && companySettings?.eboekhouden_enabled && companySettings?.eboekhouden_connected) {
       const idsArr = Array.from(selectedInvoices);
       const syncedCount = idsArr.filter(id => invoices.find(inv => inv.id === id)?.eboekhouden_factuur_id).length;
       if (syncedCount > 0) {
@@ -3466,7 +3466,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                                     )}
                                   </button>
                                 )}
-                                {invoice.eboekhouden_factuur_id && (
+                                {companySettings?.eboekhouden_enabled && invoice.eboekhouden_factuur_id && (
                                   <span className="text-teal-500 p-1.5" title={`Gesynchroniseerd met e-Boekhouden (ID: ${invoice.eboekhouden_factuur_id})`}>
                                     <CheckCircle2 size={18} />
                                   </span>
@@ -3694,7 +3694,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                                         )}
                                       </button>
                                     )}
-                                    {invoice.eboekhouden_factuur_id && (
+                                    {companySettings?.eboekhouden_enabled && invoice.eboekhouden_factuur_id && (
                                       <span className="text-teal-500 p-1.5" title={`Gesynchroniseerd met e-Boekhouden (ID: ${invoice.eboekhouden_factuur_id})`}>
                                         <CheckCircle2 size={18} />
                                       </span>

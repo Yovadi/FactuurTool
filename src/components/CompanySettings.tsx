@@ -38,7 +38,8 @@ export function CompanySettings() {
     meter_cabinet_info: '',
     building_notes: '',
     openai_api_key: '',
-    eboekhouden_api_token: ''
+    eboekhouden_api_token: '',
+    eboekhouden_enabled: false
   });
 
   useEffect(() => {
@@ -128,7 +129,8 @@ export function CompanySettings() {
         meter_cabinet_info: settings.meter_cabinet_info || '',
         building_notes: settings.building_notes || '',
         openai_api_key: settings.openai_api_key || '',
-        eboekhouden_api_token: settings.eboekhouden_api_token || ''
+        eboekhouden_api_token: settings.eboekhouden_api_token || '',
+        eboekhouden_enabled: settings.eboekhouden_enabled || false
       });
     }
     setShowForm(true);
@@ -157,7 +159,8 @@ export function CompanySettings() {
       meter_cabinet_info: '',
       building_notes: '',
       openai_api_key: '',
-      eboekhouden_api_token: ''
+      eboekhouden_api_token: '',
+      eboekhouden_enabled: false
     });
     setShowForm(false);
   };
@@ -518,6 +521,24 @@ export function CompanySettings() {
               <div className="border-t border-dark-700 pt-4 mt-4">
                 <h4 className="text-lg font-semibold text-gray-100 mb-3">e-Boekhouden Koppeling</h4>
                 <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-200">e-Boekhouden activeren</p>
+                      <p className="text-xs text-gray-400 mt-0.5">Schakel de koppeling in om de integratie zichtbaar en beschikbaar te maken</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, eboekhouden_enabled: !formData.eboekhouden_enabled })}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        formData.eboekhouden_enabled ? 'bg-teal-600' : 'bg-dark-600'
+                      }`}
+                    >
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        formData.eboekhouden_enabled ? 'translate-x-6' : 'translate-x-1'
+                      }`} />
+                    </button>
+                  </div>
+                  {formData.eboekhouden_enabled && (
                   <div>
                     <label className="block text-sm font-medium text-gray-200 mb-1">
                       API Token
@@ -563,6 +584,7 @@ export function CompanySettings() {
                       </div>
                     )}
                   </div>
+                  )}
                 </div>
               </div>
 
@@ -699,19 +721,21 @@ export function CompanySettings() {
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gold-500"></div>
               )}
             </button>
-            <button
-              onClick={() => setActiveTab('eboekhouden')}
-              className={`px-4 py-3 font-medium transition-colors relative ${
-                activeTab === 'eboekhouden'
-                  ? 'text-gold-500'
-                  : 'text-gray-400 hover:text-gray-300'
-              }`}
-            >
-              e-Boekhouden
-              {activeTab === 'eboekhouden' && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gold-500"></div>
-              )}
-            </button>
+            {settings.eboekhouden_enabled && (
+              <button
+                onClick={() => setActiveTab('eboekhouden')}
+                className={`px-4 py-3 font-medium transition-colors relative ${
+                  activeTab === 'eboekhouden'
+                    ? 'text-gold-500'
+                    : 'text-gray-400 hover:text-gray-300'
+                }`}
+              >
+                e-Boekhouden
+                {activeTab === 'eboekhouden' && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gold-500"></div>
+                )}
+              </button>
+            )}
           </div>
 
           <div className="p-6">
@@ -846,6 +870,20 @@ export function CompanySettings() {
                         </p>
                       </div>
                     </div>
+                  </div>
+                </div>
+
+                <div className="border-t border-dark-700 pt-6">
+                  <h4 className="text-sm font-semibold text-gray-400 uppercase mb-3">e-Boekhouden Koppeling</h4>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-2 h-2 rounded-full ${settings.eboekhouden_enabled ? (settings.eboekhouden_connected ? 'bg-green-500' : 'bg-amber-500') : 'bg-gray-600'}`} />
+                    <span className="text-sm text-gray-300">
+                      {settings.eboekhouden_enabled
+                        ? settings.eboekhouden_connected
+                          ? 'Verbonden en actief'
+                          : 'Geactiveerd, nog niet verbonden'
+                        : 'Niet geactiveerd'}
+                    </span>
                   </div>
                 </div>
 

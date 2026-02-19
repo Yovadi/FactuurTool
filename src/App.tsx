@@ -46,6 +46,7 @@ function App() {
   const [appVersion, setAppVersion] = useState<string>('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [eBoekhoudenEnabled, setEBoekhoudenEnabled] = useState(false);
   const [updateDialog, setUpdateDialog] = useState<UpdateDialogState>({
     show: false,
     type: 'update-not-available'
@@ -123,6 +124,16 @@ function App() {
     setTimeout(() => {
       setIsInitialized(true);
     }, 100);
+
+    supabase
+      .from('company_settings')
+      .select('eboekhouden_enabled')
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.eboekhouden_enabled) setEBoekhoudenEnabled(true);
+      });
   }, []);
 
   const syncFolders = async () => {
@@ -202,8 +213,8 @@ function App() {
         { id: 'financial-creditors' as Tab, label: 'Crediteuren', icon: UserMinus },
       ],
     },
-    { id: 'eboekhouden', label: 'e-Boekhouden', icon: Database },
-  ];
+    ...(eBoekhoudenEnabled ? [{ id: 'eboekhouden', label: 'e-Boekhouden', icon: Database }] : []),
+  ] as MenuSection[];
 
   const bottomNavigation: MenuSection[] = [
     { id: 'settings', label: 'Verhuurder', icon: Settings },
@@ -426,7 +437,7 @@ function App() {
                   onClearPrefilled={() => setPrefilledInvoiceData(null)}
                 />
               )}
-              {activeTab === 'eboekhouden' && <EBoekhoudenDashboard />}
+              {activeTab === 'eboekhouden' && eBoekhoudenEnabled && <EBoekhoudenDashboard />}
               {activeTab === 'settings' && <VerhuurderTabs />}
             </Suspense>
           </main>
