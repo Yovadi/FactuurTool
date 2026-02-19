@@ -74,7 +74,7 @@ export function DebiteurenTabs({ onCreateCreditNote }: DebiteurenTabsProps) {
                 Logboek
               </button>
             </div>
-            {isInvoiceTab && (
+            {isInvoiceTab && activeTab !== 'handmatig' && (
               <button
                 onClick={() => invoiceManagementRef.current?.openGenerateModal()}
                 className="flex items-center gap-2 px-4 py-2 bg-gold-500 text-white font-medium rounded-lg hover:bg-gold-400 transition-colors"
