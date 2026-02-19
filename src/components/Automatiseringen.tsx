@@ -238,18 +238,20 @@ export function Automatiseringen() {
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [refreshing, setRefreshing] = useState(false);
+  const [eboekhoudenEnabled, setEboekhoudenEnabled] = useState(false);
 
   useEffect(() => {
     loadJobs();
   }, []);
 
   const loadJobs = async () => {
-    const { data } = await supabase
-      .from('scheduled_jobs')
-      .select('*')
-      .order('created_at', { ascending: true });
+    const [jobsResult, settingsResult] = await Promise.all([
+      supabase.from('scheduled_jobs').select('*').order('created_at', { ascending: true }),
+      supabase.from('company_settings').select('eboekhouden_enabled').maybeSingle(),
+    ]);
 
-    if (data) setJobs(data);
+    if (jobsResult.data) setJobs(jobsResult.data);
+    if (settingsResult.data) setEboekhoudenEnabled(settingsResult.data.eboekhouden_enabled ?? false);
     setLoading(false);
   };
 
@@ -294,15 +296,18 @@ export function Automatiseringen() {
   }
 
   const facturatieJobs = jobs.filter(j => JOB_META[j.job_type]?.category === 'facturatie');
-  const eboekhoudenJobs = jobs.filter(j => JOB_META[j.job_type]?.category === 'eboekhouden');
-  const enabledCount = jobs.filter(j => j.is_enabled).length;
+  const eboekhoudenJobs = eboekhoudenEnabled
+    ? jobs.filter(j => JOB_META[j.job_type]?.category === 'eboekhouden')
+    : [];
+  const visibleJobs = [...facturatieJobs, ...eboekhoudenJobs];
+  const enabledCount = visibleJobs.filter(j => j.is_enabled).length;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm text-gray-400">
-            {enabledCount} van {jobs.length} automatiseringen actief
+            {enabledCount} van {visibleJobs.length} automatiseringen actief
           </p>
         </div>
         <button
@@ -346,7 +351,19 @@ export function Automatiseringen() {
         </div>
       )}
 
-      {jobs.length === 0 && (
+      {!eboekhoudenEnabled && (
+        <div className="rounded-xl bg-dark-900 border border-dark-700 px-5 py-4 flex items-start gap-3">
+          <CheckCircle2 size={16} className="text-gray-600 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="text-sm font-medium text-gray-500">e-Boekhouden synchronisatie</p>
+            <p className="text-xs text-gray-600 mt-0.5">
+              Activeer de e-Boekhouden integratie via het tabblad Integraties om deze automatiseringen beschikbaar te maken.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {visibleJobs.length === 0 && eboekhoudenEnabled && (
         <div className="text-center py-16 text-gray-500">
           <RefreshCw size={32} className="mx-auto mb-3 opacity-40" />
           <p className="text-sm">Geen automatiseringen gevonden</p>
