@@ -1249,14 +1249,11 @@
         .list-content {
             flex: 1;
             overflow-y: auto;
-            padding: 2rem;
-            max-width: 860px;
-            margin: 0 auto;
-            width: 100%;
+            padding: 1.5rem 2rem;
         }
 
         .bookings-section {
-            margin-bottom: 2.5rem;
+            margin-bottom: 1.75rem;
         }
 
         .bookings-section-header {
@@ -1471,16 +1468,20 @@
         }
 
         .no-bookings {
-            text-align: center;
-            padding: 2.5rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.875rem 1rem;
             color: #4B5563;
-            font-size: 0.875rem;
+            font-size: 0.8125rem;
+            background: #111113;
+            border: 1px solid rgba(255,255,255,0.04);
+            border-radius: 10px;
         }
 
         .no-bookings-icon {
-            font-size: 2rem;
-            margin-bottom: 0.625rem;
             opacity: 0.35;
+            flex-shrink: 0;
         }
 
         /* Custom scrollbar */
@@ -3340,19 +3341,13 @@
                 if (pastCount) pastCount.textContent = past.length;
 
                 if (upcoming.length === 0) {
-                    upcomingDiv.innerHTML = `
-                        <div class="no-bookings">
-                            <div class="no-bookings-icon">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                            </div>
-                            Geen toekomstige boekingen
-                        </div>`;
+                    upcomingDiv.innerHTML = `<div class="no-bookings"><span class="no-bookings-icon"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg></span>Geen toekomstige boekingen</div>`;
                 } else {
                     upcomingDiv.innerHTML = upcoming.map(b => renderBookingCard(b, 'upcoming')).join('');
                 }
 
                 if (past.length === 0) {
-                    pastDiv.innerHTML = `<div class="no-bookings"><div class="no-bookings-icon" style="font-size:1.5rem;opacity:0.3;">✓</div>Geen afgelopen boekingen</div>`;
+                    pastDiv.innerHTML = `<div class="no-bookings"><span class="no-bookings-icon"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span>Geen afgelopen boekingen</div>`;
                 } else {
                     pastDiv.innerHTML = past.map(b => renderBookingCard(b, 'past')).join('');
                 }
