@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, type CompanySettings } from '../lib/supabase';
-import { Plug, Database, Eye, EyeOff, Link2, CheckCircle2, XCircle, Loader2, Unlink } from 'lucide-react';
+import { Plug, Database, Eye, EyeOff, Link2, CheckCircle2, XCircle, Loader2, Unlink, Mail, Send } from 'lucide-react';
 import { testConnection } from '../lib/eboekhouden';
 
 type ConfirmModal = {
@@ -12,14 +12,26 @@ export function Integrations() {
   const [settings, setSettings] = useState<CompanySettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingSmtp, setSavingSmtp] = useState(false);
   const [showToken, setShowToken] = useState(false);
+  const [showSmtpPassword, setShowSmtpPassword] = useState(false);
   const [testLoading, setTestLoading] = useState(false);
+  const [testSmtpLoading, setTestSmtpLoading] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [testSmtpResult, setTestSmtpResult] = useState<{ success: boolean; message: string } | null>(null);
   const [confirmModal, setConfirmModal] = useState<ConfirmModal>({ show: false, enabling: false });
   const [applyingChange, setApplyingChange] = useState(false);
 
   const [ebEnabled, setEbEnabled] = useState(false);
   const [ebToken, setEbToken] = useState('');
+
+  const [smtpEnabled, setSmtpEnabled] = useState(false);
+  const [smtpHost, setSmtpHost] = useState('');
+  const [smtpPort, setSmtpPort] = useState('587');
+  const [smtpUser, setSmtpUser] = useState('');
+  const [smtpPassword, setSmtpPassword] = useState('');
+  const [smtpFromName, setSmtpFromName] = useState('');
+  const [smtpFromEmail, setSmtpFromEmail] = useState('');
 
   useEffect(() => {
     loadSettings();
@@ -38,6 +50,13 @@ export function Integrations() {
       setSettings(data);
       setEbEnabled(data.eboekhouden_enabled ?? false);
       setEbToken(data.eboekhouden_api_token ?? '');
+      setSmtpEnabled(data.smtp_enabled ?? false);
+      setSmtpHost(data.smtp_host ?? '');
+      setSmtpPort(String(data.smtp_port ?? 587));
+      setSmtpUser(data.smtp_user ?? '');
+      setSmtpPassword(data.smtp_password ?? '');
+      setSmtpFromName(data.smtp_from_name ?? '');
+      setSmtpFromEmail(data.smtp_from_email ?? '');
     }
     setLoading(false);
   };
@@ -90,6 +109,31 @@ export function Integrations() {
     setSaving(false);
   };
 
+  const handleSaveSmtp = async () => {
+    if (!settings) return;
+    setSavingSmtp(true);
+    const { data, error } = await supabase
+      .from('company_settings')
+      .update({
+        smtp_enabled: smtpEnabled,
+        smtp_host: smtpHost,
+        smtp_port: parseInt(smtpPort) || 587,
+        smtp_user: smtpUser,
+        smtp_password: smtpPassword,
+        smtp_from_name: smtpFromName,
+        smtp_from_email: smtpFromEmail,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', settings.id)
+      .select()
+      .single();
+
+    if (!error && data) {
+      setSettings(data);
+    }
+    setSavingSmtp(false);
+  };
+
   const handleTestConnection = async () => {
     if (!ebToken) return;
     setTestLoading(true);
@@ -122,8 +166,75 @@ export function Integrations() {
     }
   };
 
+  const handleTestSmtp = async () => {
+    if (!smtpHost || !smtpUser || !smtpPassword) return;
+    setTestSmtpLoading(true);
+    setTestSmtpResult(null);
+
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://qlvndvpxhqmjljjpehkn.supabase.co';
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFsdm5kdnB4aHFtamxqanBlaGtuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA5MjI1MzQsImV4cCI6MjA3NjQ5ODUzNH0.q1Kel_GCQqUx2J5Nd9WFOVz7okodFPcoAJkKL6YVkUk';
+
+      const response = await fetch(`${supabaseUrl}/functions/v1/smtp-send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseAnonKey}`,
+        },
+        body: JSON.stringify({
+          action: 'test',
+          smtp: {
+            host: smtpHost,
+            port: parseInt(smtpPort) || 587,
+            user: smtpUser,
+            password: smtpPassword,
+            from_name: smtpFromName || smtpUser,
+            from_email: smtpFromEmail || smtpUser,
+          },
+          to: smtpFromEmail || smtpUser,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setTestSmtpResult({ success: true, message: 'Verbinding succesvol! Test e-mail verzonden.' });
+        if (settings) {
+          await supabase
+            .from('company_settings')
+            .update({ smtp_connected: true, updated_at: new Date().toISOString() })
+            .eq('id', settings.id);
+          setSettings({ ...settings, smtp_connected: true });
+        }
+      } else {
+        setTestSmtpResult({ success: false, message: result.error || 'Verbinding mislukt. Controleer de SMTP instellingen.' });
+        if (settings) {
+          await supabase
+            .from('company_settings')
+            .update({ smtp_connected: false, updated_at: new Date().toISOString() })
+            .eq('id', settings.id);
+          setSettings({ ...settings, smtp_connected: false });
+        }
+      }
+    } catch {
+      setTestSmtpResult({ success: false, message: 'Fout bij het testen van de SMTP verbinding' });
+    } finally {
+      setTestSmtpLoading(false);
+    }
+  };
+
   const hasTokenChanges = settings
     ? ebToken !== (settings.eboekhouden_api_token ?? '')
+    : false;
+
+  const hasSmtpChanges = settings
+    ? smtpEnabled !== (settings.smtp_enabled ?? false) ||
+      smtpHost !== (settings.smtp_host ?? '') ||
+      smtpPort !== String(settings.smtp_port ?? 587) ||
+      smtpUser !== (settings.smtp_user ?? '') ||
+      smtpPassword !== (settings.smtp_password ?? '') ||
+      smtpFromName !== (settings.smtp_from_name ?? '') ||
+      smtpFromEmail !== (settings.smtp_from_email ?? '')
     : false;
 
   if (loading) {
@@ -196,6 +307,7 @@ export function Integrations() {
       )}
 
       <div className="space-y-4">
+        {/* e-Boekhouden */}
         <div className="bg-dark-900 rounded-xl border border-dark-700 overflow-hidden">
           <div className="px-6 py-4 border-b border-dark-700 flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-teal-500/10 flex items-center justify-center">
@@ -296,6 +408,174 @@ export function Integrations() {
             >
               {saving ? <Loader2 size={16} className="animate-spin" /> : <Plug size={16} />}
               {saving ? 'Opslaan...' : 'Token opslaan'}
+            </button>
+          </div>
+        )}
+
+        {/* SMTP E-mail */}
+        <div className="bg-dark-900 rounded-xl border border-dark-700 overflow-hidden">
+          <div className="px-6 py-4 border-b border-dark-700 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-blue-500/10 flex items-center justify-center">
+              <Mail size={18} className="text-blue-400" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-gray-100">SMTP E-mail</h3>
+              <p className="text-xs text-gray-400 mt-0.5">E-mails verzenden via eigen mailserver</p>
+            </div>
+            <div className="flex items-center gap-3">
+              {smtpEnabled && (
+                <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium ${
+                  settings?.smtp_connected
+                    ? 'bg-green-500/10 text-green-400 border border-green-500/20'
+                    : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${settings?.smtp_connected ? 'bg-green-400' : 'bg-amber-400'}`} />
+                  {settings?.smtp_connected ? 'Verbonden' : 'Niet getest'}
+                </span>
+              )}
+              <button
+                onClick={() => setSmtpEnabled(!smtpEnabled)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                  smtpEnabled ? 'bg-blue-600' : 'bg-dark-600'
+                }`}
+                title={smtpEnabled ? 'SMTP uitschakelen' : 'SMTP inschakelen'}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                  smtpEnabled ? 'translate-x-6' : 'translate-x-1'
+                }`} />
+              </button>
+            </div>
+          </div>
+
+          <div className={`transition-all duration-300 overflow-hidden ${smtpEnabled ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'}`}>
+            <div className="px-6 py-5 space-y-4">
+              <p className="text-sm text-gray-400">
+                Configureer je SMTP server om facturen en e-mails te verzenden vanuit je eigen mailaccount.
+                Voor Microsoft 365 gebruik je <span className="text-gray-300 font-mono">smtp.office365.com</span> op poort <span className="text-gray-300 font-mono">587</span>.
+              </p>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-200 mb-1.5">SMTP Server</label>
+                  <input
+                    type="text"
+                    value={smtpHost}
+                    onChange={(e) => setSmtpHost(e.target.value)}
+                    className="w-full px-3 py-2.5 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    placeholder="smtp.office365.com"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-200 mb-1.5">Poort</label>
+                  <input
+                    type="number"
+                    value={smtpPort}
+                    onChange={(e) => setSmtpPort(e.target.value)}
+                    className="w-full px-3 py-2.5 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    placeholder="587"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-200 mb-1.5">Gebruikersnaam / E-mailadres</label>
+                  <input
+                    type="email"
+                    value={smtpUser}
+                    onChange={(e) => setSmtpUser(e.target.value)}
+                    className="w-full px-3 py-2.5 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    placeholder="facturen@bedrijf.nl"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-200 mb-1.5">Wachtwoord</label>
+                  <div className="relative">
+                    <input
+                      type={showSmtpPassword ? 'text' : 'password'}
+                      value={smtpPassword}
+                      onChange={(e) => setSmtpPassword(e.target.value)}
+                      className="w-full px-3 py-2.5 pr-10 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                      placeholder="Wachtwoord of app-wachtwoord"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowSmtpPassword(!showSmtpPassword)}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-300 transition-colors"
+                    >
+                      {showSmtpPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-dark-700 pt-4">
+                <p className="text-xs text-gray-500 mb-3 uppercase font-semibold tracking-wide">Afzender</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-200 mb-1.5">Weergavenaam</label>
+                    <input
+                      type="text"
+                      value={smtpFromName}
+                      onChange={(e) => setSmtpFromName(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                      placeholder="HAL5 Factuuradministratie"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-200 mb-1.5">Van e-mailadres</label>
+                    <input
+                      type="email"
+                      value={smtpFromEmail}
+                      onChange={(e) => setSmtpFromEmail(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                      placeholder="facturen@bedrijf.nl"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Laat leeg om gebruikersnaam te gebruiken</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={handleTestSmtp}
+                  disabled={testSmtpLoading || !smtpHost || !smtpUser || !smtpPassword}
+                  className="flex items-center gap-2 bg-dark-800 text-gray-200 px-4 py-2 rounded-lg hover:bg-dark-700 transition-colors border border-dark-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                >
+                  {testSmtpLoading ? (
+                    <Loader2 size={15} className="animate-spin" />
+                  ) : (
+                    <Send size={15} />
+                  )}
+                  Test Verbinding
+                </button>
+                {testSmtpResult && (
+                  <div className={`flex items-center gap-1.5 text-sm ${testSmtpResult.success ? 'text-green-400' : 'text-red-400'}`}>
+                    {testSmtpResult.success ? <CheckCircle2 size={15} /> : <XCircle size={15} />}
+                    {testSmtpResult.message}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {!smtpEnabled && (
+            <div className="px-6 py-4 text-sm text-gray-500">
+              Schakel SMTP in om e-mails te versturen via je eigen mailserver.
+            </div>
+          )}
+        </div>
+
+        {hasSmtpChanges && (
+          <div className="flex justify-end">
+            <button
+              onClick={handleSaveSmtp}
+              disabled={savingSmtp}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            >
+              {savingSmtp ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
+              {savingSmtp ? 'Opslaan...' : 'SMTP instellingen opslaan'}
             </button>
           </div>
         )}

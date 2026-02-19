@@ -777,6 +777,23 @@ export function CompanySettings() {
                 </div>
 
                 <div className="border-t border-dark-700 pt-6">
+                  <h4 className="text-sm font-semibold text-gray-400 uppercase mb-3">SMTP E-mail Koppeling</h4>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-2 h-2 rounded-full ${settings.smtp_enabled ? (settings.smtp_connected ? 'bg-green-500' : 'bg-amber-500') : 'bg-gray-600'}`} />
+                    <span className="text-sm text-gray-300">
+                      {settings.smtp_enabled
+                        ? settings.smtp_connected
+                          ? `Verbonden via ${settings.smtp_host || 'SMTP server'}`
+                          : 'Geactiveerd, nog niet getest'
+                        : 'Niet geactiveerd'}
+                    </span>
+                  </div>
+                  {settings.smtp_enabled && settings.smtp_from_email && (
+                    <p className="text-xs text-gray-500 mt-2 ml-5">Afzender: {settings.smtp_from_name ? `${settings.smtp_from_name} <${settings.smtp_from_email}>` : settings.smtp_from_email}</p>
+                  )}
+                </div>
+
+                <div className="border-t border-dark-700 pt-6">
                   <h4 className="text-sm font-semibold text-gray-400 uppercase mb-3">Software Updates</h4>
                   <div className="flex items-center gap-3">
                     <button

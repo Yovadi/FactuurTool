@@ -155,6 +155,14 @@ export type CompanySettings = {
   eboekhouden_api_token: string | null;
   eboekhouden_connected: boolean;
   eboekhouden_template_id: number | null;
+  smtp_host: string | null;
+  smtp_port: number | null;
+  smtp_user: string | null;
+  smtp_password: string | null;
+  smtp_from_name: string | null;
+  smtp_from_email: string | null;
+  smtp_enabled: boolean;
+  smtp_connected: boolean;
   created_at: string;
   updated_at: string;
 };
