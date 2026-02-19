@@ -1,6 +1,6 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { supabase, type Invoice, type Lease, type Tenant, type ExternalCustomer, type LeaseSpace, type OfficeSpace, type InvoiceLineItem } from '../lib/supabase';
-import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, CreditCard as Edit, Search, CreditCard as Edit2, AlertCircle, CheckSquare, Square, Check, X, Home, Zap, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, CreditCard as Edit, Search, CreditCard as Edit2, AlertCircle, AlertTriangle, CheckSquare, Square, Check, X, Home, Zap, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { syncInvoiceToEBoekhouden, checkInvoicePaymentStatuses } from '../lib/eboekhoudenSync';
 import { generateInvoicePDF } from '../utils/pdfGenerator';
 import { InvoicePreview } from './InvoicePreview';
@@ -148,6 +148,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   const [showDetailSelection, setShowDetailSelection] = useState(true);
   const [syncingInvoiceId, setSyncingInvoiceId] = useState<string | null>(null);
   const [markingPaidId, setMarkingPaidId] = useState<string | null>(null);
+  const [eBoekhoudenPaidWarning, setEBoekhoudenPaidWarning] = useState<{ invoiceId: string; invoiceNumber: string } | null>(null);
+  const [eBoekhoudenBatchPaidWarning, setEBoekhoudenBatchPaidWarning] = useState<{ syncedCount: number; totalCount: number } | null>(null);
   const [toasts, setToasts] = useState<{ id: number; message: string; type: 'success' | 'error' | 'info' }[]>([]);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info') => {
@@ -1177,9 +1179,28 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   };
 
   const handleMarkAsPaid = async (invoiceId: string) => {
+    const invoice = invoices.find(inv => inv.id === invoiceId);
+    if (invoice?.eboekhouden_factuur_id && companySettings?.eboekhouden_connected) {
+      setEBoekhoudenPaidWarning({ invoiceId, invoiceNumber: invoice.invoice_number });
+      return;
+    }
     setMarkingPaidId(invoiceId);
     await markAsPaid(invoiceId);
     setMarkingPaidId(null);
+  };
+
+  const confirmMarkAsPaid = async () => {
+    if (!eBoekhoudenPaidWarning) return;
+    const { invoiceId } = eBoekhoudenPaidWarning;
+    setEBoekhoudenPaidWarning(null);
+    setMarkingPaidId(invoiceId);
+    await markAsPaid(invoiceId);
+    setMarkingPaidId(null);
+  };
+
+  const confirmBatchMarkAsPaid = async () => {
+    setEBoekhoudenBatchPaidWarning(null);
+    await handleBatchStatusChange('paid', true);
   };
 
   const loadLogoAsBase64 = async (): Promise<string | null> => {
@@ -2626,8 +2647,18 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
     setShowDeleteConfirm('bulk');
   };
 
-  const handleBatchStatusChange = async (newStatus: string) => {
+  const handleBatchStatusChange = async (newStatus: string, skipEBoekhoudenCheck = false) => {
     if (selectedInvoices.size === 0) return;
+
+    if (newStatus === 'paid' && !skipEBoekhoudenCheck && companySettings?.eboekhouden_connected) {
+      const idsArr = Array.from(selectedInvoices);
+      const syncedCount = idsArr.filter(id => invoices.find(inv => inv.id === id)?.eboekhouden_factuur_id).length;
+      if (syncedCount > 0) {
+        setEBoekhoudenBatchPaidWarning({ syncedCount, totalCount: idsArr.length });
+        return;
+      }
+    }
+
     if (!window.confirm(`Weet je zeker dat je ${selectedInvoices.size} facturen wilt markeren als ${getStatusLabel(newStatus)}?`)) return;
 
     const idsToUpdate = Array.from(selectedInvoices);
@@ -2667,6 +2698,82 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
   return (
     <div className="h-full overflow-y-auto">
+
+      {eBoekhoudenPaidWarning && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] p-4">
+          <div className="bg-dark-900 rounded-xl w-full max-w-md border border-amber-700 shadow-2xl">
+            <div className="px-6 py-5 border-b border-dark-700 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-900 flex items-center justify-center flex-shrink-0">
+                <AlertTriangle size={20} className="text-amber-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-gray-100">Gesynchroniseerd met e-Boekhouden</h3>
+                <p className="text-xs text-gray-400 mt-0.5">Factuur {eBoekhoudenPaidWarning.invoiceNumber}</p>
+              </div>
+            </div>
+            <div className="px-6 py-5">
+              <p className="text-sm text-gray-300 leading-relaxed">
+                Deze factuur is gesynchroniseerd met e-Boekhouden. Als je hier op <span className="text-amber-400 font-medium">Betaald</span> drukt, wordt de status alleen lokaal bijgewerkt.
+              </p>
+              <p className="text-sm text-gray-400 mt-3 leading-relaxed">
+                Vergeet niet de betaling ook in e-Boekhouden te registreren, anders loopt de administratie uit de pas.
+              </p>
+            </div>
+            <div className="px-6 pb-5 flex gap-3">
+              <button
+                onClick={() => setEBoekhoudenPaidWarning(null)}
+                className="flex-1 px-4 py-2 rounded-lg border border-dark-600 text-gray-300 hover:bg-dark-700 transition-colors text-sm"
+              >
+                Annuleren
+              </button>
+              <button
+                onClick={confirmMarkAsPaid}
+                className="flex-1 px-4 py-2 rounded-lg bg-green-700 hover:bg-green-600 text-white transition-colors text-sm font-medium"
+              >
+                Toch Betaald Markeren
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {eBoekhoudenBatchPaidWarning && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] p-4">
+          <div className="bg-dark-900 rounded-xl w-full max-w-md border border-amber-700 shadow-2xl">
+            <div className="px-6 py-5 border-b border-dark-700 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-900 flex items-center justify-center flex-shrink-0">
+                <AlertTriangle size={20} className="text-amber-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-gray-100">Gesynchroniseerde facturen geselecteerd</h3>
+                <p className="text-xs text-gray-400 mt-0.5">{eBoekhoudenBatchPaidWarning.syncedCount} van {eBoekhoudenBatchPaidWarning.totalCount} facturen</p>
+              </div>
+            </div>
+            <div className="px-6 py-5">
+              <p className="text-sm text-gray-300 leading-relaxed">
+                <span className="text-amber-400 font-medium">{eBoekhoudenBatchPaidWarning.syncedCount} {eBoekhoudenBatchPaidWarning.syncedCount === 1 ? 'factuur is' : 'facturen zijn'}</span> gesynchroniseerd met e-Boekhouden. De betaalstatus wordt alleen lokaal bijgewerkt.
+              </p>
+              <p className="text-sm text-gray-400 mt-3 leading-relaxed">
+                Vergeet niet de betalingen ook in e-Boekhouden te registreren.
+              </p>
+            </div>
+            <div className="px-6 pb-5 flex gap-3">
+              <button
+                onClick={() => setEBoekhoudenBatchPaidWarning(null)}
+                className="flex-1 px-4 py-2 rounded-lg border border-dark-600 text-gray-300 hover:bg-dark-700 transition-colors text-sm"
+              >
+                Annuleren
+              </button>
+              <button
+                onClick={confirmBatchMarkAsPaid}
+                className="flex-1 px-4 py-2 rounded-lg bg-green-700 hover:bg-green-600 text-white transition-colors text-sm font-medium"
+              >
+                Toch Betaald Markeren
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
