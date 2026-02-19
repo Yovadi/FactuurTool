@@ -61,9 +61,13 @@ export function Integrations() {
       })
       .eq('id', settings.id);
 
-    await new Promise(resolve => setTimeout(resolve, 1200));
+    await new Promise(resolve => setTimeout(resolve, 800));
 
     window.dispatchEvent(new CustomEvent('eboekhouden-enabled-changed', { detail: { enabled: newEnabled } }));
+
+    document.documentElement.style.backgroundColor = '#0a0a0f';
+    document.body.style.backgroundColor = '#0a0a0f';
+
     window.location.reload();
   };
 
