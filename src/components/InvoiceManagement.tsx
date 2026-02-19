@@ -147,6 +147,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [showDetailSelection, setShowDetailSelection] = useState(true);
   const [syncingInvoiceId, setSyncingInvoiceId] = useState<string | null>(null);
+  const [markingPaidId, setMarkingPaidId] = useState<string | null>(null);
   const [toasts, setToasts] = useState<{ id: number; message: string; type: 'success' | 'error' | 'info' }[]>([]);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info') => {
@@ -1168,12 +1169,17 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       return;
     }
 
-    // Update local state without full reload
     setInvoices(prev => prev.map(inv =>
       inv.id === invoiceId
         ? { ...inv, status: 'paid' as const, paid_at: new Date().toISOString() }
         : inv
     ));
+  };
+
+  const handleMarkAsPaid = async (invoiceId: string) => {
+    setMarkingPaidId(invoiceId);
+    await markAsPaid(invoiceId);
+    setMarkingPaidId(null);
   };
 
   const loadLogoAsBase64 = async (): Promise<string | null> => {
@@ -3339,18 +3345,22 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                             </td>
                             <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                               <div className="flex gap-1 justify-end">
-                                {companySettings?.eboekhouden_connected && !invoice.eboekhouden_factuur_id && (
+                                {(invoice.status === 'sent' || invoice.status === 'overdue') && (
                                   <button
-                                    onClick={() => handleSyncToEBoekhouden(invoice)}
-                                    disabled={syncingInvoiceId === invoice.id}
-                                    className="text-teal-500 hover:text-teal-400 transition-colors p-1.5 rounded hover:bg-dark-700 disabled:opacity-50"
-                                    title="Sync naar e-Boekhouden"
+                                    onClick={() => handleMarkAsPaid(invoice.id)}
+                                    disabled={markingPaidId === invoice.id}
+                                    className="text-green-500 hover:text-green-400 transition-colors p-1.5 rounded hover:bg-dark-700 disabled:opacity-50"
+                                    title="Markeer als betaald"
                                   >
-                                    <RefreshCw size={18} className={syncingInvoiceId === invoice.id ? 'animate-spin' : ''} />
+                                    {markingPaidId === invoice.id ? (
+                                      <Loader2 size={18} className="animate-spin" />
+                                    ) : (
+                                      <Check size={18} />
+                                    )}
                                   </button>
                                 )}
                                 {invoice.eboekhouden_factuur_id && (
-                                  <span className="text-green-500 p-1.5" title={`Gesynchroniseerd (ID: ${invoice.eboekhouden_factuur_id})`}>
+                                  <span className="text-teal-500 p-1.5" title={`Gesynchroniseerd met e-Boekhouden (ID: ${invoice.eboekhouden_factuur_id})`}>
                                     <CheckCircle2 size={18} />
                                   </span>
                                 )}
@@ -3563,18 +3573,22 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                                 </td>
                                 <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                                   <div className="flex gap-1 justify-end">
-                                    {companySettings?.eboekhouden_connected && !invoice.eboekhouden_factuur_id && (
+                                    {(invoice.status === 'sent' || invoice.status === 'overdue') && (
                                       <button
-                                        onClick={() => handleSyncToEBoekhouden(invoice)}
-                                        disabled={syncingInvoiceId === invoice.id}
-                                        className="text-teal-500 hover:text-teal-400 transition-colors p-1.5 rounded hover:bg-dark-700 disabled:opacity-50"
-                                        title="Sync naar e-Boekhouden"
+                                        onClick={() => handleMarkAsPaid(invoice.id)}
+                                        disabled={markingPaidId === invoice.id}
+                                        className="text-green-500 hover:text-green-400 transition-colors p-1.5 rounded hover:bg-dark-700 disabled:opacity-50"
+                                        title="Markeer als betaald"
                                       >
-                                        <RefreshCw size={18} className={syncingInvoiceId === invoice.id ? 'animate-spin' : ''} />
+                                        {markingPaidId === invoice.id ? (
+                                          <Loader2 size={18} className="animate-spin" />
+                                        ) : (
+                                          <Check size={18} />
+                                        )}
                                       </button>
                                     )}
                                     {invoice.eboekhouden_factuur_id && (
-                                      <span className="text-green-500 p-1.5" title={`Gesynchroniseerd (ID: ${invoice.eboekhouden_factuur_id})`}>
+                                      <span className="text-teal-500 p-1.5" title={`Gesynchroniseerd met e-Boekhouden (ID: ${invoice.eboekhouden_factuur_id})`}>
                                         <CheckCircle2 size={18} />
                                       </span>
                                     )}
