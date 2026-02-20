@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { UpdateDialog } from './components/UpdateDialog';
 import { LayoutDashboard, Users, Building, Settings, CalendarClock, Calendar, FileText, Building2, Calculator, Euro, UserCheck, UserMinus, Loader2, Menu, X, Database, Bell, AlertTriangle, TrendingUp, CalendarCheck, DoorOpen } from 'lucide-react';
 import { supabase } from './lib/supabase';
-import { markAllNotificationsRead } from './utils/notificationHelper';
+import { markAllNotificationsRead, deleteReadNotifications, deleteNotification } from './utils/notificationHelper';
 
 const OverzichtTabs = lazy(() => import('./components/OverzichtTabs').then(m => ({ default: m.OverzichtTabs })));
 const TenantManagement = lazy(() => import('./components/TenantManagement').then(m => ({ default: m.TenantManagement })));
@@ -179,7 +179,9 @@ function App() {
 
   const handleMarkAllRead = async () => {
     await markAllNotificationsRead();
-    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    await deleteReadNotifications();
+    setNotifications([]);
+    setNotifOpen(false);
   };
 
   const syncFolders = async () => {
@@ -424,6 +426,16 @@ function App() {
                                       <p className="text-xs text-gray-500 mt-0.5 leading-relaxed line-clamp-2">{n.message}</p>
                                       <p className="text-xs text-gray-600 mt-1">{date}</p>
                                     </div>
+                                    <button
+                                      onClick={async () => {
+                                        await deleteNotification(n.id);
+                                        setNotifications(prev => prev.filter(x => x.id !== n.id));
+                                      }}
+                                      className="flex-shrink-0 p-0.5 text-gray-600 hover:text-gray-300 transition-colors"
+                                      title="Verwijderen"
+                                    >
+                                      <X size={12} />
+                                    </button>
                                   </div>
                                 </div>
                               );

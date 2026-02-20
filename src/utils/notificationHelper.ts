@@ -97,3 +97,17 @@ export async function markAllNotificationsRead(): Promise<void> {
     .update({ is_read: true })
     .eq('is_read', false);
 }
+
+export async function deleteReadNotifications(): Promise<void> {
+  await supabase
+    .from('admin_notifications')
+    .delete()
+    .eq('is_read', true);
+}
+
+export async function deleteNotification(id: string): Promise<void> {
+  await supabase
+    .from('admin_notifications')
+    .delete()
+    .eq('id', id);
+}
