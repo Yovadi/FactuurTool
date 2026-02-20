@@ -55,6 +55,8 @@ function App() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [notifOpen, setNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
+  const notifBtnRef = useRef<HTMLButtonElement>(null);
+  const [notifPos, setNotifPos] = useState({ top: 0, left: 0 });
 
   useEffect(() => {
     const isElectronApp = !!(window as any).electronAPI;
@@ -150,7 +152,10 @@ function App() {
     const notifInterval = setInterval(loadNotifications, 60000);
 
     const handleClickOutside = (e: MouseEvent) => {
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      const clickedBtn = notifBtnRef.current?.contains(target);
+      const clickedPanel = notifRef.current?.contains(target);
+      if (!clickedBtn && !clickedPanel) {
         setNotifOpen(false);
       }
     };
@@ -352,9 +357,16 @@ function App() {
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="relative" ref={notifRef}>
+                  <div className="relative">
                     <button
-                      onClick={() => setNotifOpen(o => !o)}
+                      ref={notifBtnRef}
+                      onClick={() => {
+                        if (notifBtnRef.current) {
+                          const rect = notifBtnRef.current.getBoundingClientRect();
+                          setNotifPos({ top: rect.bottom + 8, left: rect.left });
+                        }
+                        setNotifOpen(o => !o);
+                      }}
                       className="relative p-1.5 text-gray-400 hover:text-gray-200 transition-colors rounded-lg hover:bg-dark-800"
                       title="Meldingen"
                     >
@@ -367,7 +379,11 @@ function App() {
                     </button>
 
                     {notifOpen && (
-                      <div className="absolute left-0 top-full mt-2 w-80 bg-dark-800 border border-dark-600 rounded-xl shadow-2xl z-50 overflow-hidden">
+                      <div
+                        ref={notifRef}
+                        className="fixed w-80 bg-dark-800 border border-dark-600 rounded-xl shadow-2xl z-[200] overflow-hidden"
+                        style={{ top: notifPos.top, left: notifPos.left }}
+                      >
                         <div className="flex items-center justify-between px-4 py-3 border-b border-dark-700">
                           <span className="text-sm font-semibold text-gray-100">Meldingen</span>
                           {notifications.some(n => !n.is_read) && (
