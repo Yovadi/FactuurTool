@@ -890,9 +890,9 @@ export function BuildingInfo() {
                     </div>
 
                     {hasAnyData ? (
-                      <div className="p-4 space-y-4">
+                      <div className="p-4 space-y-3">
                         {[0, 1].map((row) => (
-                          <div key={row} className="flex gap-1.5 flex-wrap">
+                          <div key={row} className="grid grid-cols-12 gap-1.5">
                             {Array.from({ length: 12 }, (_, i) => row * 12 + i + 1).map((portNum) => {
                               const port = patchPorts.find(p => p.switch_number === switchNum && p.port_number === portNum);
                               const assignmentType = port?.assignment_type || 'eigen';
@@ -903,29 +903,31 @@ export function BuildingInfo() {
                               return (
                                 <div key={portNum} className="group relative flex flex-col items-center">
                                   <div
-                                    className="w-9 h-7 rounded-sm border flex items-center justify-center cursor-default transition-transform group-hover:scale-110"
+                                    className="w-full h-14 rounded border-2 flex flex-col items-center justify-center cursor-default transition-all group-hover:scale-105 group-hover:z-10 relative overflow-hidden px-1"
                                     style={{
-                                      backgroundColor: hasInfo ? color + '33' : 'transparent',
+                                      backgroundColor: hasInfo ? color + '22' : '#1f2937',
                                       borderColor: hasInfo ? color : '#374151',
                                     }}
-                                    title={`Poort ${portNum}: ${label}${port?.notes ? ` — ${port.notes}` : ''}`}
                                   >
                                     <div
-                                      className="w-2 h-3 rounded-sm"
+                                      className="w-2 h-3.5 rounded-sm mb-1 flex-shrink-0"
                                       style={{ backgroundColor: hasInfo ? color : '#374151' }}
                                     />
+                                    <span
+                                      className="text-[9px] font-medium leading-tight text-center w-full truncate px-0.5"
+                                      style={{ color: hasInfo ? color : '#6B7280' }}
+                                    >
+                                      {hasInfo ? label : '—'}
+                                    </span>
                                   </div>
                                   <span className="text-[9px] text-gray-600 mt-0.5 leading-none">{portNum}</span>
                                   {hasInfo && (
-                                    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-10 hidden group-hover:block pointer-events-none">
-                                      <div className="bg-dark-900 border border-dark-500 rounded-lg p-2.5 text-left shadow-xl min-w-[140px]">
+                                    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-20 hidden group-hover:block pointer-events-none">
+                                      <div className="bg-dark-900 border border-dark-500 rounded-lg p-2.5 text-left shadow-xl min-w-[150px]">
                                         <p className="text-xs font-semibold text-gray-200 whitespace-nowrap">Poort {portNum}</p>
                                         <p className="text-xs text-gray-400 mt-0.5 whitespace-nowrap">{label}</p>
                                         {port?.notes && <p className="text-xs text-gray-500 mt-0.5 whitespace-nowrap">{port.notes}</p>}
-                                        <div
-                                          className="w-full h-1 rounded mt-2"
-                                          style={{ backgroundColor: color }}
-                                        />
+                                        <div className="w-full h-1 rounded mt-2" style={{ backgroundColor: color }} />
                                       </div>
                                     </div>
                                   )}
@@ -934,31 +936,6 @@ export function BuildingInfo() {
                             })}
                           </div>
                         ))}
-
-                        <div className="pt-3 border-t border-dark-700">
-                          <p className="text-xs font-medium text-gray-500 mb-2">Toegewezen poorten</p>
-                          <div className="flex flex-wrap gap-2">
-                            {Array.from({ length: 24 }, (_, i) => i + 1).map((portNum) => {
-                              const port = patchPorts.find(p => p.switch_number === switchNum && p.port_number === portNum);
-                              if (!port || (port.assignment_type === 'eigen' && !port.tenant_id && !port.notes)) return null;
-                              const assignmentType = port.assignment_type || 'eigen';
-                              const color = getAssignmentColor(assignmentType, port.tenant_id);
-                              const label = getAssignmentLabel(assignmentType, port.tenant_id);
-                              return (
-                                <div
-                                  key={portNum}
-                                  className="flex items-center gap-1.5 bg-dark-900 rounded-md px-2.5 py-1.5 border"
-                                  style={{ borderColor: color + '55' }}
-                                >
-                                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-                                  <span className="text-xs text-gray-400">P{portNum}</span>
-                                  <span className="text-xs text-gray-200 font-medium">{label}</span>
-                                  {port.notes && <span className="text-xs text-gray-500">— {port.notes}</span>}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
                       </div>
                     ) : (
                       <div className="px-4 py-8 text-center">
