@@ -875,52 +875,95 @@ export function BuildingInfo() {
           ) : (
             <div className="space-y-6">
               {[1, 2].map((switchNum) => {
-                const switchPorts = patchPorts.filter(p => p.switch_number === switchNum && (p.assignment_type !== 'eigen' || p.tenant_id || p.notes));
+                const switchPorts = patchPorts.filter(p => p.switch_number === switchNum);
+                const hasAnyData = switchPorts.some(p => p.assignment_type !== 'eigen' || p.tenant_id || p.notes);
 
                 return (
-                  <div key={switchNum} className="bg-dark-800 rounded-lg p-6 border border-dark-700">
-                    <h4 className="text-lg font-semibold text-gray-200 mb-4">Switch {switchNum}</h4>
-                    {switchPorts.length > 0 ? (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                        {Array.from({ length: 24 }, (_, i) => i + 1).map((portNum) => {
-                          const port = patchPorts.find(p => p.switch_number === switchNum && p.port_number === portNum);
-                          const hasData = port && (port.assignment_type !== 'eigen' || port.tenant_id || port.notes);
+                  <div key={switchNum} className="bg-dark-800 rounded-xl border border-dark-600 overflow-hidden">
+                    <div className="px-4 py-3 bg-dark-750 border-b border-dark-600 flex items-center gap-3">
+                      <div className="flex gap-1">
+                        <div className="w-2 h-2 rounded-full bg-green-500" />
+                        <div className="w-2 h-2 rounded-full bg-green-500 opacity-60" />
+                      </div>
+                      <h4 className="text-sm font-semibold text-gray-200 tracking-wide">Switch {switchNum}</h4>
+                      <span className="text-xs text-gray-500 ml-auto">24 poorten</span>
+                    </div>
 
-                          if (!hasData) return null;
+                    {hasAnyData ? (
+                      <div className="p-4 space-y-4">
+                        {[0, 1].map((row) => (
+                          <div key={row} className="flex gap-1.5 flex-wrap">
+                            {Array.from({ length: 12 }, (_, i) => row * 12 + i + 1).map((portNum) => {
+                              const port = patchPorts.find(p => p.switch_number === switchNum && p.port_number === portNum);
+                              const assignmentType = port?.assignment_type || 'eigen';
+                              const color = port ? getAssignmentColor(assignmentType, port.tenant_id) : SPACE_COLORS.eigen;
+                              const label = port ? getAssignmentLabel(assignmentType, port.tenant_id) : 'Eigen gebruik';
+                              const hasInfo = port && (port.assignment_type !== 'eigen' || port.tenant_id || port.notes);
 
-                          const assignmentType = port.assignment_type || 'eigen';
-                          const assignmentLabel = getAssignmentLabel(assignmentType, port.tenant_id);
-                          const color = getAssignmentColor(assignmentType, port.tenant_id);
+                              return (
+                                <div key={portNum} className="group relative flex flex-col items-center">
+                                  <div
+                                    className="w-9 h-7 rounded-sm border flex items-center justify-center cursor-default transition-transform group-hover:scale-110"
+                                    style={{
+                                      backgroundColor: hasInfo ? color + '33' : 'transparent',
+                                      borderColor: hasInfo ? color : '#374151',
+                                    }}
+                                    title={`Poort ${portNum}: ${label}${port?.notes ? ` — ${port.notes}` : ''}`}
+                                  >
+                                    <div
+                                      className="w-2 h-3 rounded-sm"
+                                      style={{ backgroundColor: hasInfo ? color : '#374151' }}
+                                    />
+                                  </div>
+                                  <span className="text-[9px] text-gray-600 mt-0.5 leading-none">{portNum}</span>
+                                  {hasInfo && (
+                                    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-10 hidden group-hover:block pointer-events-none">
+                                      <div className="bg-dark-900 border border-dark-500 rounded-lg p-2.5 text-left shadow-xl min-w-[140px]">
+                                        <p className="text-xs font-semibold text-gray-200 whitespace-nowrap">Poort {portNum}</p>
+                                        <p className="text-xs text-gray-400 mt-0.5 whitespace-nowrap">{label}</p>
+                                        {port?.notes && <p className="text-xs text-gray-500 mt-0.5 whitespace-nowrap">{port.notes}</p>}
+                                        <div
+                                          className="w-full h-1 rounded mt-2"
+                                          style={{ backgroundColor: color }}
+                                        />
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ))}
 
-                          return (
-                            <div
-                              key={portNum}
-                              className="bg-dark-900 rounded-lg p-3 border-2"
-                              style={{ borderColor: color }}
-                            >
-                              <div className="flex items-center justify-between mb-2">
-                                <p className="text-xs font-medium text-gray-400">Poort {portNum}</p>
+                        <div className="pt-3 border-t border-dark-700">
+                          <p className="text-xs font-medium text-gray-500 mb-2">Toegewezen poorten</p>
+                          <div className="flex flex-wrap gap-2">
+                            {Array.from({ length: 24 }, (_, i) => i + 1).map((portNum) => {
+                              const port = patchPorts.find(p => p.switch_number === switchNum && p.port_number === portNum);
+                              if (!port || (port.assignment_type === 'eigen' && !port.tenant_id && !port.notes)) return null;
+                              const assignmentType = port.assignment_type || 'eigen';
+                              const color = getAssignmentColor(assignmentType, port.tenant_id);
+                              const label = getAssignmentLabel(assignmentType, port.tenant_id);
+                              return (
                                 <div
-                                  className="w-4 h-4 rounded border border-dark-700 flex-shrink-0"
-                                  style={{ backgroundColor: color }}
-                                />
-                              </div>
-                              <div className="space-y-1">
-                                <p className="text-xs text-gray-200 font-medium truncate" title={assignmentLabel}>
-                                  {assignmentLabel}
-                                </p>
-                                {port.notes && (
-                                  <p className="text-xs text-gray-400 truncate" title={port.notes}>
-                                    {port.notes}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
+                                  key={portNum}
+                                  className="flex items-center gap-1.5 bg-dark-900 rounded-md px-2.5 py-1.5 border"
+                                  style={{ borderColor: color + '55' }}
+                                >
+                                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                                  <span className="text-xs text-gray-400">P{portNum}</span>
+                                  <span className="text-xs text-gray-200 font-medium">{label}</span>
+                                  {port.notes && <span className="text-xs text-gray-500">— {port.notes}</span>}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
                       </div>
                     ) : (
-                      <p className="text-sm text-gray-500">Geen poorten geconfigureerd</p>
+                      <div className="px-4 py-8 text-center">
+                        <p className="text-sm text-gray-500">Geen poorten geconfigureerd</p>
+                      </div>
                     )}
                   </div>
                 );
@@ -1182,7 +1225,7 @@ export function BuildingInfo() {
           ) : (
             <div>
               {meterGroups.length > 0 || rcboBreakers.length > 0 ? (
-                <div className="space-y-6">
+                <div className="space-y-4">
                   {Array.from({ length: 10 }, (_, i) => `ALA${i + 1}`).map(alaGroup => {
                     const alaGroups = meterGroups.filter(g => g.ala_group === alaGroup);
                     const alaRcbos = rcboBreakers.filter(b => b.ala_group === alaGroup);
@@ -1190,104 +1233,90 @@ export function BuildingInfo() {
                     if (alaGroups.length === 0 && alaRcbos.length === 0) return null;
 
                     const isRcbo = alaRcbos.length > 0;
+                    const alaNum = alaGroup.replace('ALA', '');
 
                     if (isRcbo) {
+                      const sortedRcbos = [...alaRcbos].sort((a, b) => a.rcbo_number - b.rcbo_number);
                       return (
-                        <div key={alaGroup} className="border border-dark-700 rounded-lg p-4">
-                          <div className="flex items-center justify-between mb-3">
-                            <h4 className="text-sm font-semibold text-gold-500">Aardlek {alaGroup.replace('ALA', '')} - Aardlekautomaten</h4>
+                        <div key={alaGroup} className="bg-dark-800 rounded-xl border border-dark-600 overflow-hidden">
+                          <div className="px-4 py-3 bg-dark-750 border-b border-dark-600 flex items-center gap-3">
+                            <div className="w-2 h-2 rounded-full bg-amber-400" />
+                            <h4 className="text-sm font-semibold text-gray-200">Aardlek {alaNum}</h4>
+                            <span className="text-xs bg-dark-900 text-gray-400 px-2 py-0.5 rounded-full border border-dark-600">Aardlekautomaten</span>
+                            <span className="text-xs text-gray-500 ml-auto">{sortedRcbos.length} automaten</span>
                           </div>
-
-                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                            {alaRcbos.map(breaker => {
-                              const assignmentType = breaker.assignment_type || 'eigen';
-                              const displayLabel = getAssignmentLabel(assignmentType, breaker.tenant_id);
-                              const color = getAssignmentColor(assignmentType, breaker.tenant_id);
-
-                              return (
-                                <div
-                                  key={breaker.id}
-                                  className="bg-dark-800 rounded-lg p-3 border-2"
-                                  style={{ borderColor: color }}
-                                >
-                                  <div className="flex items-center justify-between mb-2">
-                                    <p className="text-xs font-medium text-gray-400">Automaat {breaker.rcbo_number}</p>
+                          <div className="p-4">
+                            <div className="flex flex-wrap gap-2">
+                              {sortedRcbos.map(breaker => {
+                                const assignmentType = breaker.assignment_type || 'eigen';
+                                const displayLabel = getAssignmentLabel(assignmentType, breaker.tenant_id);
+                                const color = getAssignmentColor(assignmentType, breaker.tenant_id);
+                                return (
+                                  <div
+                                    key={breaker.id}
+                                    className="flex-shrink-0 w-[120px] bg-dark-900 rounded-lg border overflow-hidden"
+                                    style={{ borderColor: color + '66' }}
+                                  >
                                     <div
-                                      className="w-4 h-4 rounded border border-dark-700 flex-shrink-0"
+                                      className="h-1.5 w-full"
                                       style={{ backgroundColor: color }}
                                     />
+                                    <div className="p-2.5">
+                                      <p className="text-[10px] font-semibold text-gray-500 mb-1">Automaat {breaker.rcbo_number}</p>
+                                      <p className="text-xs font-medium text-gray-200 leading-tight truncate" title={displayLabel}>{displayLabel}</p>
+                                      {breaker.description && (
+                                        <p className="text-[10px] text-gray-400 mt-1 leading-tight line-clamp-2" title={breaker.description}>
+                                          {breaker.description}
+                                        </p>
+                                      )}
+                                    </div>
                                   </div>
-                                  <div className="space-y-1">
-                                    {displayLabel && (
-                                      <p className="text-xs text-gray-200 font-medium truncate" title={displayLabel}>
-                                        {displayLabel}
-                                      </p>
-                                    )}
-                                    {breaker.description && (
-                                      <p className="text-xs text-gray-400 whitespace-pre-wrap break-words">
-                                        {breaker.description}
-                                      </p>
-                                    )}
-                                    {!displayLabel && !breaker.description && (
-                                      <p className="text-xs text-gray-500">Geen gegevens</p>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })}
+                                );
+                              })}
+                            </div>
                           </div>
                         </div>
                       );
                     } else {
-                      const groupedByK = alaGroups.reduce((acc, group) => {
-                        if (!acc[group.group_number]) {
-                          acc[group.group_number] = [];
-                        }
-                        acc[group.group_number].push(group);
-                        return acc;
-                      }, {} as { [key: number]: MeterGroup[] });
-
+                      const sortedGroups = [...alaGroups].sort((a, b) => a.group_number - b.group_number);
                       return (
-                        <div key={alaGroup} className="border border-dark-700 rounded-lg p-4">
-                          <div className="flex items-center justify-between mb-3">
-                            <h4 className="text-sm font-semibold text-gold-500">Aardlek {alaGroup.replace('ALA', '')} - Groepen</h4>
+                        <div key={alaGroup} className="bg-dark-800 rounded-xl border border-dark-600 overflow-hidden">
+                          <div className="px-4 py-3 bg-dark-750 border-b border-dark-600 flex items-center gap-3">
+                            <div className="w-2 h-2 rounded-full bg-blue-400" />
+                            <h4 className="text-sm font-semibold text-gray-200">Aardlek {alaNum}</h4>
+                            <span className="text-xs bg-dark-900 text-gray-400 px-2 py-0.5 rounded-full border border-dark-600">Groepen</span>
+                            <span className="text-xs text-gray-500 ml-auto">{sortedGroups.length} groepen</span>
                           </div>
-
-                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                            {Object.entries(groupedByK).sort(([a], [b]) => parseInt(a) - parseInt(b)).map(([groupNum, groups]) => {
-                              const globalK = getGlobalKNumber(alaGroup, parseInt(groupNum));
-                              return (
-                                <div key={groupNum} className="bg-dark-800 rounded p-3 border border-dark-600">
-                                  <p className="text-xs font-medium text-gray-400 mb-2">K{globalK}</p>
-                                  <div className="space-y-2">
-                                    {groups.map(group => {
-                                      const assignmentType = group.assignment_type || 'eigen';
-                                      const displayLabel = getAssignmentLabel(assignmentType, group.tenant_id);
-                                      const color = getAssignmentColor(assignmentType, group.tenant_id);
-
-                                      return (
-                                        <div key={group.id} className="flex items-start gap-2">
-                                          <div
-                                            className="w-3 h-3 rounded border border-dark-700 flex-shrink-0 mt-0.5"
-                                            style={{ backgroundColor: color }}
-                                          />
-                                          <div className="flex-1 min-w-0">
-                                            <p className="text-xs text-gray-200 font-medium truncate" title={displayLabel || ''}>
-                                              {displayLabel}
-                                            </p>
-                                            {group.description && (
-                                              <p className="text-xs text-gray-400 whitespace-pre-wrap break-words">
-                                                {group.description}
-                                              </p>
-                                            )}
-                                          </div>
-                                        </div>
-                                      );
-                                    })}
+                          <div className="p-4">
+                            <div className="flex flex-wrap gap-2">
+                              {sortedGroups.map(group => {
+                                const assignmentType = group.assignment_type || 'eigen';
+                                const displayLabel = getAssignmentLabel(assignmentType, group.tenant_id);
+                                const color = getAssignmentColor(assignmentType, group.tenant_id);
+                                const globalK = getGlobalKNumber(alaGroup, group.group_number);
+                                return (
+                                  <div
+                                    key={group.id}
+                                    className="flex-shrink-0 w-[120px] bg-dark-900 rounded-lg border overflow-hidden"
+                                    style={{ borderColor: color + '66' }}
+                                  >
+                                    <div
+                                      className="h-1.5 w-full"
+                                      style={{ backgroundColor: color }}
+                                    />
+                                    <div className="p-2.5">
+                                      <p className="text-[10px] font-semibold text-gray-500 mb-1">K{globalK}</p>
+                                      <p className="text-xs font-medium text-gray-200 leading-tight truncate" title={displayLabel || ''}>{displayLabel}</p>
+                                      {group.description && (
+                                        <p className="text-[10px] text-gray-400 mt-1 leading-tight line-clamp-2" title={group.description}>
+                                          {group.description}
+                                        </p>
+                                      )}
+                                    </div>
                                   </div>
-                                </div>
-                              );
-                            })}
+                                );
+                              })}
+                            </div>
                           </div>
                         </div>
                       );
