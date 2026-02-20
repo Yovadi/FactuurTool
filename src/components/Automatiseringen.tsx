@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import {
   Loader2, RefreshCw, CheckCircle2, Clock, FileText,
-  Receipt, Link2, Users, Calendar, ChevronDown, ChevronUp, Play, DoorOpen, Armchair
+  Receipt, Link2, Users, Calendar, ChevronDown, ChevronUp, Play, DoorOpen, Armchair,
+  AlertTriangle, TrendingUp, CalendarCheck
 } from 'lucide-react';
 
 interface ScheduledJob {
@@ -20,7 +21,7 @@ const JOB_META: Record<string, {
   icon: React.ReactNode;
   accentColor: string;
   interval: string;
-  category: 'facturatie' | 'eboekhouden';
+  category: 'facturatie' | 'eboekhouden' | 'beheer';
 }> = {
   generate_monthly_invoices: {
     label: 'Maandelijkse huurfacturen aanmaken',
@@ -45,6 +46,30 @@ const JOB_META: Record<string, {
     accentColor: 'teal',
     interval: 'Maandelijks (1e van de maand)',
     category: 'facturatie',
+  },
+  check_expiring_leases: {
+    label: 'Verlopen contracten signaleren',
+    description: 'Controleert dagelijks of huurcontracten binnen 30 of 60 dagen aflopen en maakt een melding aan in het notificatiecentrum. Per contract wordt maximaal één keer per week een melding gestuurd.',
+    icon: <AlertTriangle size={18} />,
+    accentColor: 'amber',
+    interval: 'Dagelijks (elke 24 uur)',
+    category: 'beheer',
+  },
+  apply_rent_indexation: {
+    label: 'Jaarlijkse huurprijsverhoging toepassen',
+    description: 'Past jaarlijks op 1 januari automatisch het ingestelde verhogingspercentage toe op alle actieve huurcontracten (alleen vaste huur). Elk contract wordt maximaal één keer per jaar verhoogd.',
+    icon: <TrendingUp size={18} />,
+    accentColor: 'amber',
+    interval: 'Jaarlijks (1 januari)',
+    category: 'beheer',
+  },
+  complete_past_bookings: {
+    label: 'Verlopen boekingen afronden',
+    description: 'Zet vergaderruimte- en flexplekboekingen die in het verleden liggen maar nog op "bevestigd" staan automatisch op "voltooid". Zo blijft het boekingenoverzicht netjes en kloppen de statistieken.',
+    icon: <CalendarCheck size={18} />,
+    accentColor: 'amber',
+    interval: 'Dagelijks (elke 24 uur)',
+    category: 'beheer',
   },
   eboekhouden_payment_status_check: {
     label: 'Betaalstatus facturen controleren',
@@ -89,6 +114,14 @@ const COLOR_CLASSES: Record<string, { bg: string; text: string; ring: string; to
     badge: 'bg-blue-500/10 border-blue-500/20',
     badgeText: 'text-blue-400',
   },
+  amber: {
+    bg: 'bg-amber-500/10',
+    text: 'text-amber-400',
+    ring: 'focus:ring-amber-500',
+    toggle: 'bg-amber-600',
+    badge: 'bg-amber-500/10 border-amber-500/20',
+    badgeText: 'text-amber-400',
+  },
 };
 
 function formatDateTime(iso: string | null): string {
@@ -114,10 +147,11 @@ function getNextRunStatus(next_run_at: string | null, is_enabled: boolean): {
   return { label: `Over ${mins}m`, color: 'amber' };
 }
 
-function JobCard({ job, onToggle, onRunNow }: {
+function JobCard({ job, onToggle, onRunNow, extraConfig }: {
   job: ScheduledJob;
   onToggle: (id: string, enabled: boolean) => void;
   onRunNow: (id: string, jobType: string) => void;
+  extraConfig?: React.ReactNode;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [toggling, setToggling] = useState(false);
@@ -213,6 +247,12 @@ function JobCard({ job, onToggle, onRunNow }: {
         <div className="border-t border-dark-800 px-5 py-4 space-y-4">
           <p className="text-sm text-gray-400 leading-relaxed">{meta.description}</p>
 
+          {extraConfig && (
+            <div className="bg-dark-800 rounded-lg p-4">
+              {extraConfig}
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-dark-800 rounded-lg px-4 py-3">
               <p className="text-xs text-gray-500 mb-1">Laatste uitvoering</p>
@@ -255,6 +295,8 @@ export function Automatiseringen() {
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [refreshing, setRefreshing] = useState(false);
   const [eboekhoudenEnabled, setEboekhoudenEnabled] = useState(false);
+  const [indexationPercentage, setIndexationPercentage] = useState<number>(0);
+  const [savingPercentage, setSavingPercentage] = useState(false);
 
   useEffect(() => {
     loadJobs();
@@ -263,11 +305,14 @@ export function Automatiseringen() {
   const loadJobs = async () => {
     const [jobsResult, settingsResult] = await Promise.all([
       supabase.from('scheduled_jobs').select('*').order('created_at', { ascending: true }),
-      supabase.from('company_settings').select('eboekhouden_enabled').maybeSingle(),
+      supabase.from('company_settings').select('eboekhouden_enabled, rent_indexation_percentage').maybeSingle(),
     ]);
 
     if (jobsResult.data) setJobs(jobsResult.data);
-    if (settingsResult.data) setEboekhoudenEnabled(settingsResult.data.eboekhouden_enabled ?? false);
+    if (settingsResult.data) {
+      setEboekhoudenEnabled(settingsResult.data.eboekhouden_enabled ?? false);
+      setIndexationPercentage(settingsResult.data.rent_indexation_percentage ?? 0);
+    }
     setLoading(false);
   };
 
@@ -303,6 +348,16 @@ export function Automatiseringen() {
     await loadJobs();
   };
 
+  const handleSaveIndexationPercentage = async (value: number) => {
+    setSavingPercentage(true);
+    const { data: existing } = await supabase.from('company_settings').select('id').maybeSingle();
+    if (existing?.id) {
+      await supabase.from('company_settings').update({ rent_indexation_percentage: value }).eq('id', existing.id);
+    }
+    setIndexationPercentage(value);
+    setSavingPercentage(false);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -312,11 +367,39 @@ export function Automatiseringen() {
   }
 
   const facturatieJobs = jobs.filter(j => JOB_META[j.job_type]?.category === 'facturatie');
+  const beheerJobs = jobs.filter(j => JOB_META[j.job_type]?.category === 'beheer');
   const eboekhoudenJobs = eboekhoudenEnabled
     ? jobs.filter(j => JOB_META[j.job_type]?.category === 'eboekhouden')
     : [];
-  const visibleJobs = [...facturatieJobs, ...eboekhoudenJobs];
+  const visibleJobs = [...facturatieJobs, ...beheerJobs, ...eboekhoudenJobs];
   const enabledCount = visibleJobs.filter(j => j.is_enabled).length;
+
+  const indexationConfig = (
+    <div className="space-y-2">
+      <p className="text-xs font-medium text-gray-300">Verhogingspercentage (%)</p>
+      <p className="text-xs text-gray-500">Dit percentage wordt jaarlijks op 1 januari toegepast op de huurprijs van alle actieve vaste huurcontracten.</p>
+      <div className="flex items-center gap-3 mt-2">
+        <input
+          type="number"
+          min="0"
+          max="100"
+          step="0.1"
+          value={indexationPercentage}
+          onChange={e => setIndexationPercentage(parseFloat(e.target.value) || 0)}
+          className="w-24 bg-dark-700 border border-dark-600 text-gray-200 text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-amber-500"
+        />
+        <span className="text-sm text-gray-400">%</span>
+        <button
+          onClick={() => handleSaveIndexationPercentage(indexationPercentage)}
+          disabled={savingPercentage}
+          className="flex items-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+        >
+          {savingPercentage ? <Loader2 size={12} className="animate-spin" /> : null}
+          Opslaan
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -351,6 +434,24 @@ export function Automatiseringen() {
           </div>
           {facturatieJobs.map(job => (
             <JobCard key={job.id} job={job} onToggle={handleToggle} onRunNow={handleRunNow} />
+          ))}
+        </div>
+      )}
+
+      {beheerJobs.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <AlertTriangle size={15} className="text-gray-500" />
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Contractbeheer</h3>
+          </div>
+          {beheerJobs.map(job => (
+            <JobCard
+              key={job.id}
+              job={job}
+              onToggle={handleToggle}
+              onRunNow={handleRunNow}
+              extraConfig={job.job_type === 'apply_rent_indexation' ? indexationConfig : undefined}
+            />
           ))}
         </div>
       )}

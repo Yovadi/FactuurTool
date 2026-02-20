@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { checkInvoicePaymentStatuses, checkPurchaseInvoicePaymentStatuses, verifyInvoiceSyncStatus, verifyRelationsInEBoekhouden } from '../lib/eboekhoudenSync';
+import { createLeaseNotification } from './notificationHelper';
 
 function getLocalCategory(spaceType?: string): string | null {
   switch (spaceType) {
@@ -43,6 +44,12 @@ export const checkAndRunScheduledJobs = async () => {
       await runEBoekhoudenSyncVerification(job);
     } else if (job.job_type === 'eboekhouden_relation_verification') {
       await runEBoekhoudenRelationVerification(job);
+    } else if (job.job_type === 'check_expiring_leases') {
+      await checkExpiringLeases(job);
+    } else if (job.job_type === 'apply_rent_indexation') {
+      await applyRentIndexation(job);
+    } else if (job.job_type === 'complete_past_bookings') {
+      await completePastBookings(job);
     }
   }
 };
@@ -346,6 +353,172 @@ const generateFlexInvoices = async (job: ScheduledJob) => {
     await advanceJobToNextMonth(job);
   } catch (error) {
     console.error('Error generating flex invoices:', error);
+  }
+};
+
+const checkExpiringLeases = async (job: ScheduledJob) => {
+  try {
+    const today = new Date();
+    const in30Days = new Date(today);
+    in30Days.setDate(in30Days.getDate() + 30);
+    const in60Days = new Date(today);
+    in60Days.setDate(in60Days.getDate() + 60);
+
+    const todayStr = today.toISOString().split('T')[0];
+    const in30Str = in30Days.toISOString().split('T')[0];
+    const in60Str = in60Days.toISOString().split('T')[0];
+
+    const { data: leases } = await supabase
+      .from('leases')
+      .select('id, end_date, tenant_id, tenant:tenants(company_name)')
+      .eq('status', 'active')
+      .gte('end_date', todayStr)
+      .lte('end_date', in60Str);
+
+    if (!leases) {
+      await advanceJobNextRun(job, 24);
+      return;
+    }
+
+    for (const lease of leases as any[]) {
+      const endDate = new Date(lease.end_date + 'T00:00:00');
+      const diffDays = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      const tenantName = lease.tenant?.company_name || 'Onbekende huurder';
+      const endDateStr = endDate.toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+      const { data: existingNotif } = await supabase
+        .from('admin_notifications')
+        .select('id')
+        .eq('tenant_id', lease.tenant_id)
+        .in('notification_type', ['lease_expiring_30', 'lease_expiring_60'])
+        .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+        .maybeSingle();
+
+      if (existingNotif) continue;
+
+      if (diffDays <= 30) {
+        await createLeaseNotification(
+          'lease_expiring_30',
+          lease.id,
+          tenantName,
+          `Einddatum: ${endDateStr} (nog ${diffDays} dagen)`,
+          lease.tenant_id
+        );
+      } else if (diffDays <= 60) {
+        await createLeaseNotification(
+          'lease_expiring_60',
+          lease.id,
+          tenantName,
+          `Einddatum: ${endDateStr} (nog ${diffDays} dagen)`,
+          lease.tenant_id
+        );
+      }
+    }
+
+    await advanceJobNextRun(job, 24);
+  } catch (error) {
+    console.error('Error checking expiring leases:', error);
+  }
+};
+
+const applyRentIndexation = async (job: ScheduledJob) => {
+  try {
+    const { data: settings } = await supabase
+      .from('company_settings')
+      .select('rent_indexation_percentage')
+      .maybeSingle();
+
+    const percentage = settings?.rent_indexation_percentage ?? 0;
+    if (!percentage || percentage <= 0) {
+      await advanceJobNextRun(job, 24);
+      return;
+    }
+
+    const currentYear = new Date().getFullYear();
+    const currentYearStart = `${currentYear}-01-01`;
+
+    const { data: leases } = await supabase
+      .from('leases')
+      .select('id, tenant_id, last_indexation_at, tenant:tenants(company_name), lease_spaces(*)')
+      .eq('status', 'active')
+      .eq('lease_type', 'full_time');
+
+    if (!leases) {
+      await advanceJobNextRun(job, 24);
+      return;
+    }
+
+    for (const lease of leases as any[]) {
+      if (lease.last_indexation_at && lease.last_indexation_at >= currentYearStart) continue;
+
+      const multiplier = 1 + percentage / 100;
+      const tenantName = lease.tenant?.company_name || 'Onbekende huurder';
+      let totalOld = 0;
+      let totalNew = 0;
+
+      for (const ls of lease.lease_spaces) {
+        const oldRent = Number(ls.monthly_rent);
+        const newRent = Math.round(oldRent * multiplier * 100) / 100;
+        const oldPricePerSqm = Number(ls.price_per_sqm);
+        const newPricePerSqm = Math.round(oldPricePerSqm * multiplier * 100) / 100;
+
+        await supabase
+          .from('lease_spaces')
+          .update({ monthly_rent: newRent, price_per_sqm: newPricePerSqm })
+          .eq('id', ls.id);
+
+        totalOld += oldRent;
+        totalNew += newRent;
+      }
+
+      await supabase
+        .from('leases')
+        .update({ last_indexation_at: new Date().toISOString().split('T')[0] })
+        .eq('id', lease.id);
+
+      await createLeaseNotification(
+        'rent_indexation_applied',
+        lease.id,
+        tenantName,
+        `${percentage}% verhoging: €${totalOld.toFixed(2)} → €${totalNew.toFixed(2)}/maand`,
+        lease.tenant_id
+      );
+    }
+
+    const nextYear = new Date();
+    nextYear.setFullYear(nextYear.getFullYear() + 1);
+    nextYear.setMonth(0);
+    nextYear.setDate(1);
+    nextYear.setHours(0, 0, 0, 0);
+
+    await supabase
+      .from('scheduled_jobs')
+      .update({ last_run_at: new Date().toISOString(), next_run_at: nextYear.toISOString() })
+      .eq('id', job.id);
+  } catch (error) {
+    console.error('Error applying rent indexation:', error);
+  }
+};
+
+const completePastBookings = async (job: ScheduledJob) => {
+  try {
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    await supabase
+      .from('meeting_room_bookings')
+      .update({ status: 'completed' })
+      .eq('status', 'confirmed')
+      .lt('booking_date', todayStr);
+
+    await supabase
+      .from('flex_day_bookings')
+      .update({ status: 'completed' })
+      .eq('status', 'confirmed')
+      .lt('booking_date', todayStr);
+
+    await advanceJobNextRun(job, 24);
+  } catch (error) {
+    console.error('Error completing past bookings:', error);
   }
 };
 
