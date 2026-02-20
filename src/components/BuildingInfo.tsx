@@ -879,7 +879,7 @@ export function BuildingInfo() {
                 const hasAnyData = switchPorts.some(p => p.assignment_type !== 'eigen' || p.tenant_id || p.notes);
 
                 return (
-                  <div key={switchNum} className="bg-dark-800 rounded-xl border border-dark-600 overflow-hidden">
+                  <div key={switchNum} className="bg-dark-800 rounded-xl border border-dark-600" style={{ overflow: 'visible' }}>
                     <div className="px-4 py-3 bg-dark-750 border-b border-dark-600 flex items-center gap-3">
                       <div className="flex gap-1">
                         <div className="w-2 h-2 rounded-full bg-green-500" />
@@ -890,9 +890,9 @@ export function BuildingInfo() {
                     </div>
 
                     {hasAnyData ? (
-                      <div className="p-4 space-y-3">
+                      <div className="p-4 space-y-3 overflow-visible">
                         {[0, 1].map((row) => (
-                          <div key={row} className="grid grid-cols-12 gap-1.5">
+                          <div key={row} className="grid grid-cols-12 gap-1.5 overflow-visible">
                             {Array.from({ length: 12 }, (_, i) => row * 12 + i + 1).map((portNum) => {
                               const port = patchPorts.find(p => p.switch_number === switchNum && p.port_number === portNum);
                               const assignmentType = port?.assignment_type || 'eigen';
@@ -901,9 +901,9 @@ export function BuildingInfo() {
                               const hasInfo = port && (port.assignment_type !== 'eigen' || port.tenant_id || port.notes);
 
                               return (
-                                <div key={portNum} className="group relative flex flex-col items-center">
+                                <div key={portNum} className="group relative flex flex-col items-center" style={{ zIndex: 'auto' }}>
                                   <div
-                                    className="w-full h-14 rounded border-2 flex flex-col items-center justify-center cursor-default transition-all group-hover:scale-105 group-hover:z-10 relative overflow-hidden px-1"
+                                    className="w-full h-14 rounded border-2 flex flex-col items-center justify-center cursor-default transition-all group-hover:scale-105 px-1"
                                     style={{
                                       backgroundColor: hasInfo ? color + '22' : '#1f2937',
                                       borderColor: hasInfo ? color : '#374151',
@@ -922,8 +922,8 @@ export function BuildingInfo() {
                                   </div>
                                   <span className="text-[9px] text-gray-600 mt-0.5 leading-none">{portNum}</span>
                                   {hasInfo && (
-                                    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-20 hidden group-hover:block pointer-events-none">
-                                      <div className="bg-dark-900 border border-dark-500 rounded-lg p-2.5 text-left shadow-xl min-w-[150px]">
+                                    <div className="absolute bottom-[calc(100%+4px)] left-1/2 -translate-x-1/2 z-[9999] hidden group-hover:block pointer-events-none">
+                                      <div className="bg-gray-900 border border-gray-600 rounded-lg p-2.5 text-left shadow-2xl min-w-[150px]">
                                         <p className="text-xs font-semibold text-gray-200 whitespace-nowrap">Poort {portNum}</p>
                                         <p className="text-xs text-gray-400 mt-0.5 whitespace-nowrap">{label}</p>
                                         {port?.notes && <p className="text-xs text-gray-500 mt-0.5 whitespace-nowrap">{port.notes}</p>}
