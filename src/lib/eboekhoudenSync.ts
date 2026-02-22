@@ -157,20 +157,12 @@ export async function syncInvoiceToEBoekhouden(
     if (item.grootboek_id) {
       ledgerId = item.grootboek_id;
       source = 'manual';
-      console.log(`[Invoice Sync] Line item "${item.description}" -> MANUAL grootboek: ${ledgerId}`);
-    }
-    // Second priority: category mapping
-    else if (item.local_category) {
+    } else if (item.local_category) {
       const categoryMapping = mappings?.find(m => m.local_category === item.local_category);
       if (categoryMapping?.grootboek_id) {
         ledgerId = categoryMapping.grootboek_id;
         source = `category:${item.local_category}`;
-        console.log(`[Invoice Sync] Line item "${item.description}" -> category: ${item.local_category}, ledger: ${ledgerId}`);
-      } else {
-        console.log(`[Invoice Sync] Line item "${item.description}" -> category: ${item.local_category} NOT FOUND in mappings, using default: ${ledgerId}`);
       }
-    } else {
-      console.log(`[Invoice Sync] Line item "${item.description}" -> NO category, using default: ${ledgerId}`);
     }
 
     return {
@@ -303,12 +295,6 @@ export async function syncPurchaseInvoiceToEBoekhouden(
   const defaultMapping = mappings?.find(m => m.local_category === 'inkoop_default') || mappings?.find(m => m.local_category === 'default');
   const ledgerId = categoryMapping?.grootboek_id || defaultMapping?.grootboek_id;
 
-  if (categoryMapping?.grootboek_id) {
-    console.log(`[Purchase Invoice Sync] Category "${categoryKey}" found, ledger: ${ledgerId}`);
-  } else {
-    console.log(`[Purchase Invoice Sync] Category "${categoryKey}" NOT FOUND, using default/inkoop_default: ${ledgerId}`);
-  }
-
   if (!ledgerId) {
     return { success: false, error: 'Geen grootboekrekening geconfigureerd. Stel een "Inkoop - Standaard" of "Standaard" mapping in bij e-Boekhouden instellingen.' };
   }
@@ -317,12 +303,6 @@ export async function syncPurchaseInvoiceToEBoekhouden(
   const items = lineItems.map(item => {
     // Use line-specific grootboek_id if set, otherwise use the invoice-level ledgerId
     const itemLedgerId = item.grootboek_id || ledgerId;
-
-    if (item.grootboek_id) {
-      console.log(`[Purchase Invoice Sync] Line item "${item.description}" -> MANUAL grootboek: ${itemLedgerId}`);
-    } else {
-      console.log(`[Purchase Invoice Sync] Line item "${item.description}" -> using invoice category ledger: ${itemLedgerId}`);
-    }
 
     return {
       description: item.description,
@@ -407,12 +387,6 @@ export async function syncCreditNoteToEBoekhouden(
   const items = lineItems.map(item => {
     // Use line-specific grootboek_id if set, otherwise use default
     const itemLedgerId = item.grootboek_id || defaultLedgerId;
-
-    if (item.grootboek_id) {
-      console.log(`[Credit Note Sync] Line item "${item.description}" -> MANUAL grootboek: ${itemLedgerId}`);
-    } else {
-      console.log(`[Credit Note Sync] Line item "${item.description}" -> using default ledger: ${itemLedgerId}`);
-    }
 
     return {
       description: item.description,

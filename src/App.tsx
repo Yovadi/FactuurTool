@@ -65,9 +65,7 @@ function App() {
     if ((window as any).electron?.getAppVersion) {
       (window as any).electron.getAppVersion().then((version: string) => {
         setAppVersion(version);
-      }).catch((err: any) => {
-        console.error('Error getting app version:', err);
-      });
+      }).catch(() => {});
     }
 
     if ((window as any).electron?.onUpdateAvailable) {
@@ -121,15 +119,17 @@ function App() {
       });
     }
 
+    const timers: ReturnType<typeof setTimeout>[] = [];
+
     if (isElectronApp) {
-      setTimeout(() => {
+      timers.push(setTimeout(() => {
         syncFolders();
-      }, 1000);
+      }, 1000));
     }
 
-    setTimeout(() => {
+    timers.push(setTimeout(() => {
       setIsInitialized(true);
-    }, 100);
+    }, 100));
 
     supabase
       .from('company_settings')
@@ -162,6 +162,7 @@ function App() {
     document.addEventListener('mousedown', handleClickOutside);
 
     return () => {
+      timers.forEach(clearTimeout);
       window.removeEventListener('eboekhouden-enabled-changed', handleEboekhoudenChange);
       clearInterval(notifInterval);
       document.removeEventListener('mousedown', handleClickOutside);
@@ -186,54 +187,32 @@ function App() {
 
   const syncFolders = async () => {
     try {
-      console.log('🔄 Starting folder sync...');
-
       const { data: settings } = await supabase
         .from('company_settings')
-        .select('*')
+        .select('root_folder_path')
         .order('updated_at', { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      console.log('📁 Root folder path:', settings?.root_folder_path);
-      console.log('🔌 electronAPI available:', !!(window as any).electronAPI?.createTenantFolder);
+      if (!settings?.root_folder_path) return;
+      if (!(window as any).electronAPI?.createTenantFolder) return;
 
-      if (!settings?.root_folder_path) {
-        console.log('⚠️ No root folder path configured');
-        return;
-      }
-
-      if (!(window as any).electronAPI?.createTenantFolder) {
-        console.log('⚠️ electronAPI not available');
-        return;
-      }
-
-      const { data: tenants } = await supabase
-        .from('tenants')
-        .select('company_name');
-
-      const { data: externalCustomers } = await supabase
-        .from('external_customers')
-        .select('company_name');
+      const [{ data: tenants }, { data: externalCustomers }] = await Promise.all([
+        supabase.from('tenants').select('company_name'),
+        supabase.from('external_customers').select('company_name'),
+      ]);
 
       const allCustomers = [
         ...(tenants || []).map(t => t.company_name),
         ...(externalCustomers || []).map(c => c.company_name)
       ];
 
-      console.log(`📋 Syncing folders for ${allCustomers.length} customers...`);
-
-      for (const companyName of allCustomers) {
-        const result = await (window as any).electronAPI.createTenantFolder(
-          settings.root_folder_path,
-          companyName
-        );
-        console.log(`✓ ${companyName}:`, result.success ? 'OK' : result.error);
-      }
-
-      console.log('✅ Folder sync complete');
-    } catch (error) {
-      console.error('❌ Error syncing folders:', error);
+      await Promise.all(
+        allCustomers.map(companyName =>
+          (window as any).electronAPI.createTenantFolder(settings.root_folder_path, companyName)
+        )
+      );
+    } catch {
     }
   };
 

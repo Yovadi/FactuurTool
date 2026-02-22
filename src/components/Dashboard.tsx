@@ -144,26 +144,21 @@ export function Dashboard() {
   const loadDashboardStats = async () => {
     setLoading(true);
 
-    const { data: tenants } = await supabase
-      .from('tenants')
-      .select('id');
-
-    const { data: spaces } = await supabase
-      .from('office_spaces')
-      .select('is_available, space_type')
-      .in('space_type', ['kantoor', 'bedrijfsruimte']);
-
-    const { data: leases } = await supabase
-      .from('leases')
-      .select('id, end_date, status, tenant_id, tenants(name)');
-
-    const { data: leaseSpaces } = await supabase
-      .from('lease_spaces')
-      .select('space_id, lease_id, leases!inner(status)');
-
-    const { data: invoices } = await supabase
-      .from('invoices')
-      .select(`
+    const [
+      { data: tenants },
+      { data: spaces },
+      { data: leases },
+      { data: leaseSpaces },
+      { data: invoices },
+      { data: bookings },
+      { data: pendingMeetingRooms },
+      { data: pendingFlexBookings },
+    ] = await Promise.all([
+      supabase.from('tenants').select('id'),
+      supabase.from('office_spaces').select('is_available, space_type').in('space_type', ['kantoor', 'bedrijfsruimte']),
+      supabase.from('leases').select('id, end_date, status, tenant_id, tenants(name)'),
+      supabase.from('lease_spaces').select('space_id, lease_id, leases!inner(status)'),
+      supabase.from('invoices').select(`
         invoice_number,
         amount,
         status,
@@ -172,46 +167,42 @@ export function Dashboard() {
         external_customer_id,
         tenants(company_name),
         external_customers(company_name)
-      `);
-
-    const { data: bookings } = await supabase
-      .from('meeting_room_bookings')
-      .select('id, booking_date, start_time, end_time, status');
-
-    const { data: pendingMeetingRooms } = await supabase
-      .from('meeting_room_bookings')
-      .select(`
-        id,
-        booking_date,
-        start_time,
-        end_time,
-        tenant_id,
-        external_customer_id,
-        space:office_spaces(space_number),
-        tenants(company_name),
-        external_customers(company_name)
-      `)
-      .eq('status', 'pending')
-      .order('booking_date', { ascending: true })
-      .order('start_time', { ascending: true })
-      .limit(10);
-
-    const { data: pendingFlexBookings } = await supabase
-      .from('flex_day_bookings')
-      .select(`
-        id,
-        booking_date,
-        start_time,
-        end_time,
-        is_half_day,
-        half_day_period,
-        external_customer_id,
-        space:office_spaces(space_number),
-        external_customers(company_name)
-      `)
-      .eq('status', 'pending')
-      .order('booking_date', { ascending: true })
-      .limit(10);
+      `),
+      supabase.from('meeting_room_bookings').select('id, booking_date, start_time, end_time, status'),
+      supabase
+        .from('meeting_room_bookings')
+        .select(`
+          id,
+          booking_date,
+          start_time,
+          end_time,
+          tenant_id,
+          external_customer_id,
+          space:office_spaces(space_number),
+          tenants(company_name),
+          external_customers(company_name)
+        `)
+        .eq('status', 'pending')
+        .order('booking_date', { ascending: true })
+        .order('start_time', { ascending: true })
+        .limit(10),
+      supabase
+        .from('flex_day_bookings')
+        .select(`
+          id,
+          booking_date,
+          start_time,
+          end_time,
+          is_half_day,
+          half_day_period,
+          external_customer_id,
+          space:office_spaces(space_number),
+          external_customers(company_name)
+        `)
+        .eq('status', 'pending')
+        .order('booking_date', { ascending: true })
+        .limit(10),
+    ]);
 
     const allPendingBookings: PendingBooking[] = [
       ...(pendingMeetingRooms || []).map(b => ({ ...b, booking_type: 'meeting_room' as const })),
