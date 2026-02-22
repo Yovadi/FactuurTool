@@ -478,7 +478,8 @@ export function Dashboard() {
         </div>
       </div>
 
-      <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="p-2 bg-dark-700 rounded-lg">
             <AlertCircle className="text-orange-400" size={20} />
@@ -588,7 +589,7 @@ export function Dashboard() {
         )}
       </div>
 
-      <div className="mt-6 bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4 sm:p-6">
+      <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4 sm:p-6">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 bg-dark-700 rounded-lg">
             <DollarSign className="text-green-400" size={20} />
@@ -746,6 +747,7 @@ export function Dashboard() {
             <p className="text-gray-500 text-sm mt-1">Alles is up-to-date</p>
           </div>
         )}
+      </div>
       </div>
     </div>
   );
