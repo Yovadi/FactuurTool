@@ -478,7 +478,117 @@ export function Dashboard() {
         </div>
       </div>
 
-      <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4 sm:p-6 mb-6">
+      <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6 mb-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-2 bg-dark-700 rounded-lg">
+            <AlertCircle className="text-orange-400" size={20} />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-100">Boekingen In Afwachting</h3>
+          {pendingBookings.length > 0 && (
+            <span className="ml-auto bg-orange-900 text-orange-400 px-3 py-1 rounded-full text-sm font-medium">
+              {pendingBookings.length}
+            </span>
+          )}
+        </div>
+
+        {pendingBookings.length > 0 ? (
+          <div className="bg-dark-800 rounded-lg border border-dark-700 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
+                    <th className="text-left px-4 py-3 font-semibold">Type</th>
+                    <th className="text-left px-4 py-3 font-semibold">Klant</th>
+                    <th className="text-left px-4 py-3 font-semibold">Datum</th>
+                    <th className="text-left px-4 py-3 font-semibold">Tijd</th>
+                    <th className="text-left px-4 py-3 font-semibold">Ruimte</th>
+                    <th className="text-center px-4 py-3 font-semibold">Acties</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pendingBookings.map((booking) => (
+                    <tr
+                      key={booking.id}
+                      className="border-b border-dark-700 hover:bg-dark-700 transition-colors"
+                    >
+                      <td className="px-4 py-3">
+                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                          booking.booking_type === 'meeting_room' ? 'bg-blue-900 text-blue-400' : 'bg-teal-900 text-teal-400'
+                        }`}>
+                          {booking.booking_type === 'meeting_room' ? 'Vergader' : 'Flex'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-gray-100 font-medium">
+                          {booking.booking_type === 'meeting_room'
+                            ? (booking.tenant_id ? booking.tenants?.company_name : booking.external_customers?.company_name)
+                            : booking.external_customers?.company_name}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2 text-gray-300">
+                          <Calendar size={16} className="text-gold-500" />
+                          {new Date(booking.booking_date).toLocaleDateString('nl-NL', {
+                            weekday: 'short',
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric'
+                          })}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2 text-gray-300">
+                          <Clock size={16} className="text-gold-500" />
+                          {booking.booking_type === 'meeting_room'
+                            ? `${booking.start_time.substring(0, 5)} - ${booking.end_time?.substring(0, 5)}`
+                            : booking.start_time && booking.end_time
+                            ? `${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)}`
+                            : booking.is_half_day
+                            ? (booking.half_day_period === 'morning' ? 'Ochtend' : 'Middag')
+                            : 'Hele dag'}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-gray-100 font-medium">
+                          {booking.space.space_number}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => handleStatusChange(booking, 'confirmed')}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg transition-colors"
+                            title="Accepteren"
+                          >
+                            <Check size={14} />
+                            Accepteren
+                          </button>
+                          <button
+                            onClick={() => handleStatusChange(booking, 'cancelled')}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-lg transition-colors"
+                            title="Weigeren"
+                          >
+                            <XCircle size={14} />
+                            Weigeren
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-dark-800 rounded-lg p-8 text-center">
+            <CheckCircle size={48} className="text-green-500 mx-auto mb-3" />
+            <p className="text-gray-400 font-medium">Geen openstaande aanvragen</p>
+            <p className="text-gray-500 text-sm mt-1">Alle boekingen zijn verwerkt</p>
+          </div>
+        )}
+      </div>
+
+      <div className="mt-6 bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4 sm:p-6">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 bg-dark-700 rounded-lg">
             <DollarSign className="text-green-400" size={20} />
@@ -634,116 +744,6 @@ export function Dashboard() {
             <CheckCircle size={48} className="text-green-500 mx-auto mb-3" />
             <p className="text-gray-400 font-medium">Geen financiële meldingen</p>
             <p className="text-gray-500 text-sm mt-1">Alles is up-to-date</p>
-          </div>
-        )}
-      </div>
-
-      <div className="mt-6 bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 bg-dark-700 rounded-lg">
-            <AlertCircle className="text-orange-400" size={20} />
-          </div>
-          <h3 className="text-lg font-semibold text-gray-100">Boekingen In Afwachting</h3>
-          {pendingBookings.length > 0 && (
-            <span className="ml-auto bg-orange-900 text-orange-400 px-3 py-1 rounded-full text-sm font-medium">
-              {pendingBookings.length}
-            </span>
-          )}
-        </div>
-
-        {pendingBookings.length > 0 ? (
-          <div className="bg-dark-800 rounded-lg border border-dark-700 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
-                    <th className="text-left px-4 py-3 font-semibold">Type</th>
-                    <th className="text-left px-4 py-3 font-semibold">Klant</th>
-                    <th className="text-left px-4 py-3 font-semibold">Datum</th>
-                    <th className="text-left px-4 py-3 font-semibold">Tijd</th>
-                    <th className="text-left px-4 py-3 font-semibold">Ruimte</th>
-                    <th className="text-center px-4 py-3 font-semibold">Acties</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pendingBookings.map((booking) => (
-                    <tr
-                      key={booking.id}
-                      className="border-b border-dark-700 hover:bg-dark-700 transition-colors"
-                    >
-                      <td className="px-4 py-3">
-                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                          booking.booking_type === 'meeting_room' ? 'bg-blue-900 text-blue-400' : 'bg-purple-900 text-purple-400'
-                        }`}>
-                          {booking.booking_type === 'meeting_room' ? 'Vergader' : 'Flex'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-gray-100 font-medium">
-                          {booking.booking_type === 'meeting_room'
-                            ? (booking.tenant_id ? booking.tenants?.company_name : booking.external_customers?.company_name)
-                            : booking.external_customers?.company_name}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2 text-gray-300">
-                          <Calendar size={16} className="text-gold-500" />
-                          {new Date(booking.booking_date).toLocaleDateString('nl-NL', {
-                            weekday: 'short',
-                            day: 'numeric',
-                            month: 'short',
-                            year: 'numeric'
-                          })}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2 text-gray-300">
-                          <Clock size={16} className="text-gold-500" />
-                          {booking.booking_type === 'meeting_room'
-                            ? `${booking.start_time.substring(0, 5)} - ${booking.end_time?.substring(0, 5)}`
-                            : booking.start_time && booking.end_time
-                            ? `${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)}`
-                            : booking.is_half_day
-                            ? (booking.half_day_period === 'morning' ? 'Ochtend' : 'Middag')
-                            : 'Hele dag'}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-gray-100 font-medium">
-                          {booking.space.space_number}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <button
-                            onClick={() => handleStatusChange(booking, 'confirmed')}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg transition-colors"
-                            title="Accepteren"
-                          >
-                            <Check size={14} />
-                            Accepteren
-                          </button>
-                          <button
-                            onClick={() => handleStatusChange(booking, 'cancelled')}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-lg transition-colors"
-                            title="Weigeren"
-                          >
-                            <XCircle size={14} />
-                            Weigeren
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        ) : (
-          <div className="bg-dark-800 rounded-lg p-8 text-center">
-            <CheckCircle size={48} className="text-green-500 mx-auto mb-3" />
-            <p className="text-gray-400 font-medium">Geen openstaande aanvragen</p>
-            <p className="text-gray-500 text-sm mt-1">Alle boekingen zijn verwerkt</p>
           </div>
         )}
       </div>
