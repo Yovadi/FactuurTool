@@ -1274,7 +1274,23 @@ export function Integrations() {
             </button>
           </div>
         )}
+          </div>
+        </div>
 
+        <div className="border-t border-dark-700" />
+
+        <div>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+              <HardDrive size={16} className="text-cyan-400" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-gray-200 uppercase tracking-wide">Opslag</h3>
+              <p className="text-xs text-gray-500">Facturen automatisch opslaan in de cloud</p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
         {/* OneDrive */}
         <div className="bg-dark-900 rounded-xl border border-dark-700 overflow-hidden">
           <div className="px-6 py-4 border-b border-dark-700 flex items-center gap-3">
@@ -1410,6 +1426,7 @@ export function Integrations() {
         )}
           </div>
         </div>
+
       </div>
     </>
   );
