@@ -4,9 +4,9 @@ import { Euro, Calendar, AlertCircle, CheckCircle, FileText, Trash2, Eye, Filter
 import { resyncInvoiceToEBoekhouden } from '../lib/eboekhoudenSync';
 
 const getInvoiceTypeColor = (invoice: any): string => {
-  if (invoice.lease_id !== null && invoice.lease?.lease_type === 'flex') return 'text-purple-500';
+  if (invoice.lease_id !== null && invoice.lease?.lease_type === 'flex') return 'text-teal-500';
   if (invoice.lease_id !== null) return 'text-green-500';
-  if (invoice.notes?.includes('Flex werkplek boekingen')) return 'text-purple-500';
+  if (invoice.notes?.includes('Flex werkplek boekingen')) return 'text-teal-500';
   if (invoice.notes?.includes('Vergaderruimte gebruik') || invoice.notes?.includes('Vergaderruimte boekingen') || invoice.notes?.includes('Vergaderruimte & Flex werkplek boekingen')) return 'text-blue-500';
   if (invoice.invoice_line_items?.some((item: any) => item.booking_id !== null)) return 'text-blue-500';
   return 'text-orange-500';

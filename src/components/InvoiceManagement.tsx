@@ -2516,7 +2516,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
     switch (type) {
       case 'huur': return 'text-green-500';
       case 'vergaderruimte': return 'text-blue-500';
-      case 'flex': return 'text-purple-500';
+      case 'flex': return 'text-teal-500';
       case 'handmatig': return 'text-orange-500';
       default: return 'text-gray-400';
     }
