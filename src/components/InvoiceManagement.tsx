@@ -2,7 +2,7 @@ import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { supabase, type Invoice, type Lease, type Tenant, type ExternalCustomer, type LeaseSpace, type OfficeSpace, type InvoiceLineItem } from '../lib/supabase';
 import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, CreditCard as Edit, Search, CreditCard as Edit2, AlertCircle, AlertTriangle, CheckSquare, Square, Check, X, Home, Zap, RefreshCw, CheckCircle2, Loader2, Filter } from 'lucide-react';
 import { syncInvoiceToEBoekhouden, checkInvoicePaymentStatuses } from '../lib/eboekhoudenSync';
-import { generateInvoicePDF } from '../utils/pdfGenerator';
+import { generateInvoicePDF, generateInvoicePDFBase64 } from '../utils/pdfGenerator';
 import { InvoicePreview } from './InvoicePreview';
 import { Toast } from './Toast';
 import { checkAndRunScheduledJobs } from '../utils/scheduledJobs';
@@ -1397,6 +1397,54 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
         if (result.warning) {
           console.warn(result.warning);
+        }
+      }
+
+      if (companySettings.onedrive_enabled && companySettings.onedrive_user_email &&
+          companySettings.graph_tenant_id && companySettings.graph_client_id && companySettings.graph_client_secret) {
+        try {
+          const pdfBase64 = await generateInvoicePDFBase64(invoiceData);
+          const invoiceDate = new Date(invoice.invoice_date);
+          const year = invoiceDate.getFullYear().toString();
+          const month = String(invoiceDate.getMonth() + 1).padStart(2, '0');
+          const basePath = companySettings.onedrive_folder_path || 'Facturen';
+          const folderPath = `${basePath}/${year}/${month}`;
+          const customerName = (tenant.company_name || '').replace(/[<>:"/\\|?*]/g, '_').trim();
+          const fileName = customerName
+            ? `${invoice.invoice_number}_${customerName}.pdf`
+            : `${invoice.invoice_number}.pdf`;
+
+          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+          const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+          const response = await fetch(`${supabaseUrl}/functions/v1/onedrive-upload`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseAnonKey}`,
+            },
+            body: JSON.stringify({
+              action: 'upload',
+              graph: {
+                tenant_id: companySettings.graph_tenant_id,
+                client_id: companySettings.graph_client_id,
+                client_secret: companySettings.graph_client_secret,
+              },
+              user_email: companySettings.onedrive_user_email,
+              folder_path: folderPath,
+              file_name: fileName,
+              file_content_base64: pdfBase64,
+            }),
+          });
+
+          const result = await response.json();
+          if (result.success) {
+            console.log('Invoice uploaded to OneDrive:', result.webUrl);
+          } else {
+            console.error('OneDrive upload failed:', result.error);
+          }
+        } catch (onedriveErr) {
+          console.error('OneDrive upload error:', onedriveErr);
         }
       }
 

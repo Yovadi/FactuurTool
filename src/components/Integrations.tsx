@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, type CompanySettings } from '../lib/supabase';
-import { Plug, Database, Eye, EyeOff, Link2, CheckCircle2, XCircle, Loader2, Unlink, Mail, Send, Cloud, Zap } from 'lucide-react';
+import { Plug, Database, Eye, EyeOff, Link2, CheckCircle2, XCircle, Loader2, Unlink, Mail, Send, Cloud, Zap, HardDrive, FolderUp } from 'lucide-react';
 import { testConnection } from '../lib/eboekhouden';
 
 type ConfirmModal = {
@@ -53,6 +53,13 @@ export function Integrations() {
   const [testResendLoading, setTestResendLoading] = useState(false);
   const [testResendResult, setTestResendResult] = useState<{ success: boolean; message: string } | null>(null);
 
+  const [onedriveEnabled, setOnedriveEnabled] = useState(false);
+  const [onedriveFolderPath, setOnedriveFolderPath] = useState('Facturen');
+  const [onedriveUserEmail, setOnedriveUserEmail] = useState('');
+  const [savingOnedrive, setSavingOnedrive] = useState(false);
+  const [testOnedriveLoading, setTestOnedriveLoading] = useState(false);
+  const [testOnedriveResult, setTestOnedriveResult] = useState<{ success: boolean; message: string } | null>(null);
+
   useEffect(() => {
     loadSettings();
   }, []);
@@ -87,6 +94,9 @@ export function Integrations() {
       setResendApiKey(data.resend_api_key ?? '');
       setResendFromEmail(data.resend_from_email ?? '');
       setResendFromName(data.resend_from_name ?? '');
+      setOnedriveEnabled(data.onedrive_enabled ?? false);
+      setOnedriveFolderPath(data.onedrive_folder_path ?? 'Facturen');
+      setOnedriveUserEmail(data.onedrive_user_email ?? '');
     }
     setLoading(false);
   };
@@ -409,6 +419,68 @@ export function Integrations() {
     }
   };
 
+  const handleSaveOnedrive = async () => {
+    if (!settings) return;
+    setSavingOnedrive(true);
+    const { data, error } = await supabase
+      .from('company_settings')
+      .update({
+        onedrive_enabled: onedriveEnabled,
+        onedrive_folder_path: onedriveFolderPath,
+        onedrive_user_email: onedriveUserEmail,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', settings.id)
+      .select()
+      .single();
+
+    if (!error && data) {
+      setSettings(data);
+    }
+    setSavingOnedrive(false);
+  };
+
+  const handleTestOnedrive = async () => {
+    if (!graphTenantId || !graphClientId || !graphClientSecret || !onedriveUserEmail) return;
+    setTestOnedriveLoading(true);
+    setTestOnedriveResult(null);
+
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+      const response = await fetch(`${supabaseUrl}/functions/v1/onedrive-upload`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseAnonKey}`,
+        },
+        body: JSON.stringify({
+          action: 'test',
+          graph: {
+            tenant_id: graphTenantId,
+            client_id: graphClientId,
+            client_secret: graphClientSecret,
+          },
+          user_email: onedriveUserEmail,
+          folder_path: onedriveFolderPath || 'Facturen',
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setTestOnedriveResult({ success: true, message: `Verbinding succesvol! Map gevonden/aangemaakt.` });
+      } else {
+        setTestOnedriveResult({ success: false, message: result.error || 'Verbinding mislukt.' });
+      }
+    } catch {
+      setTestOnedriveResult({ success: false, message: 'Fout bij het testen van de OneDrive verbinding' });
+    } finally {
+      setTestOnedriveLoading(false);
+    }
+  };
+
   const hasTokenChanges = settings
     ? ebToken !== (settings.eboekhouden_api_token ?? '')
     : false;
@@ -437,6 +509,12 @@ export function Integrations() {
       resendApiKey !== (settings.resend_api_key ?? '') ||
       resendFromEmail !== (settings.resend_from_email ?? '') ||
       resendFromName !== (settings.resend_from_name ?? '')
+    : false;
+
+  const hasOnedriveChanges = settings
+    ? onedriveEnabled !== (settings.onedrive_enabled ?? false) ||
+      onedriveFolderPath !== (settings.onedrive_folder_path ?? 'Facturen') ||
+      onedriveUserEmail !== (settings.onedrive_user_email ?? '')
     : false;
 
   if (loading) {
@@ -1193,6 +1271,140 @@ export function Integrations() {
             >
               {savingResend ? <Loader2 size={16} className="animate-spin" /> : <Zap size={16} />}
               {savingResend ? 'Opslaan...' : 'Resend instellingen opslaan'}
+            </button>
+          </div>
+        )}
+
+        {/* OneDrive */}
+        <div className="bg-dark-900 rounded-xl border border-dark-700 overflow-hidden">
+          <div className="px-6 py-4 border-b border-dark-700 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-blue-500/10 flex items-center justify-center">
+              <HardDrive size={18} className="text-blue-400" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-gray-100">OneDrive</h3>
+              <p className="text-xs text-gray-400 mt-0.5">Facturen automatisch opslaan in OneDrive via Microsoft Graph API</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setOnedriveEnabled(!onedriveEnabled)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                  onedriveEnabled ? 'bg-blue-600' : 'bg-dark-600'
+                }`}
+                title={onedriveEnabled ? 'OneDrive uitschakelen' : 'OneDrive inschakelen'}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                  onedriveEnabled ? 'translate-x-6' : 'translate-x-1'
+                }`} />
+              </button>
+            </div>
+          </div>
+
+          <div className={`transition-all duration-300 overflow-hidden ${onedriveEnabled ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'}`}>
+            <div className="px-6 py-5 space-y-4">
+              {(!graphTenantId || !graphClientId || !graphClientSecret) && (
+                <div className="rounded-lg bg-amber-500/5 border border-amber-500/20 p-4">
+                  <p className="text-sm text-amber-300 font-medium">Microsoft Graph API vereist</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    OneDrive gebruikt dezelfde Graph API instellingen als de e-mail koppeling hierboven.
+                    Configureer eerst de Tenant ID, Client ID en Client Secret bij de Microsoft Graph API sectie.
+                  </p>
+                </div>
+              )}
+
+              <div className="rounded-lg bg-blue-500/5 border border-blue-500/20 p-4 space-y-1.5">
+                <p className="text-sm text-blue-300 font-medium">Vereiste Azure AD permissies</p>
+                <ol className="text-xs text-gray-400 space-y-1 list-decimal list-inside leading-relaxed">
+                  <li>Ga naar <span className="font-mono text-gray-300">Azure Portal &gt; App registrations &gt; API permissions</span></li>
+                  <li>Voeg <span className="font-mono text-gray-300">Files.ReadWrite.All</span> (Application) permissie toe</li>
+                  <li>Klik op <span className="font-mono text-gray-300">Grant admin consent</span> om de permissie te activeren</li>
+                </ol>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-200 mb-1.5">OneDrive gebruiker e-mail <span className="text-red-400">*</span></label>
+                <input
+                  type="email"
+                  value={onedriveUserEmail}
+                  onChange={(e) => setOnedriveUserEmail(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  placeholder="admin@bedrijf.onmicrosoft.com"
+                />
+                <p className="text-xs text-gray-500 mt-1">Het e-mailadres van de gebruiker wiens OneDrive wordt gebruikt voor opslag</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-200 mb-1.5">Map in OneDrive</label>
+                <div className="relative">
+                  <FolderUp size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                  <input
+                    type="text"
+                    value={onedriveFolderPath}
+                    onChange={(e) => setOnedriveFolderPath(e.target.value)}
+                    className="w-full px-3 py-2.5 pl-9 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    placeholder="Facturen"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Submappen worden automatisch aangemaakt per jaar en maand, bijv.
+                  <span className="font-mono text-gray-400 ml-1">Facturen/2026/02</span>
+                </p>
+              </div>
+
+              <div className="space-y-3 pt-1">
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleTestOnedrive}
+                    disabled={testOnedriveLoading || !graphTenantId || !graphClientId || !graphClientSecret || !onedriveUserEmail}
+                    className="flex items-center gap-2 bg-dark-800 text-gray-200 px-4 py-2 rounded-lg hover:bg-dark-700 transition-colors border border-dark-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  >
+                    {testOnedriveLoading ? (
+                      <Loader2 size={15} className="animate-spin" />
+                    ) : (
+                      <HardDrive size={15} />
+                    )}
+                    Test Verbinding
+                  </button>
+                  {testOnedriveResult && testOnedriveResult.success && (
+                    <div className="flex items-center gap-1.5 text-sm text-green-400">
+                      <CheckCircle2 size={15} />
+                      {testOnedriveResult.message}
+                    </div>
+                  )}
+                </div>
+
+                {testOnedriveResult && !testOnedriveResult.success && (
+                  <div className="rounded-lg border border-red-800/50 bg-red-950/30 p-4 space-y-2">
+                    <div className="flex items-start gap-2">
+                      <XCircle size={15} className="text-red-400 mt-0.5 shrink-0" />
+                      <p className="text-sm text-red-300 font-medium">Verbinding mislukt</p>
+                    </div>
+                    <div className="ml-5">
+                      <p className="text-xs text-gray-400 break-words">{testOnedriveResult.message}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {!onedriveEnabled && (
+            <div className="px-6 py-4 text-sm text-gray-500">
+              Schakel OneDrive in om factuur-PDFs automatisch op te slaan in OneDrive bij het versturen van facturen.
+            </div>
+          )}
+        </div>
+
+        {hasOnedriveChanges && (
+          <div className="flex justify-end">
+            <button
+              onClick={handleSaveOnedrive}
+              disabled={savingOnedrive}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            >
+              {savingOnedrive ? <Loader2 size={16} className="animate-spin" /> : <HardDrive size={16} />}
+              {savingOnedrive ? 'Opslaan...' : 'OneDrive instellingen opslaan'}
             </button>
           </div>
         )}

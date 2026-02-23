@@ -175,6 +175,9 @@ export type CompanySettings = {
   resend_from_email: string | null;
   resend_from_name: string | null;
   resend_connected: boolean;
+  onedrive_enabled: boolean;
+  onedrive_folder_path: string | null;
+  onedrive_user_email: string | null;
   created_at: string;
   updated_at: string;
 };
