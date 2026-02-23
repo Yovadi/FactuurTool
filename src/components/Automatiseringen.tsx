@@ -468,19 +468,7 @@ export function Automatiseringen() {
         </div>
       )}
 
-      {!eboekhoudenEnabled && (
-        <div className="rounded-xl bg-dark-900 border border-dark-700 px-5 py-4 flex items-start gap-3">
-          <CheckCircle2 size={16} className="text-gray-600 mt-0.5 flex-shrink-0" />
-          <div>
-            <p className="text-sm font-medium text-gray-500">e-Boekhouden synchronisatie</p>
-            <p className="text-xs text-gray-600 mt-0.5">
-              Activeer de e-Boekhouden integratie via het tabblad Integraties om deze automatiseringen beschikbaar te maken.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {visibleJobs.length === 0 && eboekhoudenEnabled && (
+      {visibleJobs.length === 0 && (
         <div className="text-center py-16 text-gray-500">
           <RefreshCw size={32} className="mx-auto mb-3 opacity-40" />
           <p className="text-sm">Geen automatiseringen gevonden</p>

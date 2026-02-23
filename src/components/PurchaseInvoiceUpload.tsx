@@ -168,7 +168,7 @@ export function PurchaseInvoiceUpload({ hasApiKey, onManualEntry, onSaveAndProce
                     <div>
                       <p className="text-sm text-yellow-200 font-medium">Geen API key ingesteld</p>
                       <p className="text-xs text-yellow-300/70 mt-1">
-                        Stel een OpenAI API key in bij Verhuurder om AI herkenning te gebruiken.
+                        Stel een OpenAI API key in bij Integraties om AI herkenning te gebruiken.
                       </p>
                     </div>
                   </div>

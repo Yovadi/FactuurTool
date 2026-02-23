@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, type CompanySettings } from '../lib/supabase';
-import { Plug, Database, Eye, EyeOff, Link2, CheckCircle2, XCircle, Loader2, Unlink, Mail, Send, Cloud, Zap, HardDrive, FolderUp } from 'lucide-react';
+import { Plug, Database, Eye, EyeOff, Link2, CheckCircle2, XCircle, Loader2, Unlink, Mail, Send, Cloud, Zap, HardDrive, FolderUp, Sparkles } from 'lucide-react';
 import { testConnection } from '../lib/eboekhouden';
 
 type ConfirmModal = {
@@ -60,6 +60,10 @@ export function Integrations() {
   const [testOnedriveLoading, setTestOnedriveLoading] = useState(false);
   const [testOnedriveResult, setTestOnedriveResult] = useState<{ success: boolean; message: string } | null>(null);
 
+  const [openaiApiKey, setOpenaiApiKey] = useState('');
+  const [showOpenaiKey, setShowOpenaiKey] = useState(false);
+  const [savingOpenai, setSavingOpenai] = useState(false);
+
   useEffect(() => {
     loadSettings();
   }, []);
@@ -97,6 +101,7 @@ export function Integrations() {
       setOnedriveEnabled(data.onedrive_enabled ?? false);
       setOnedriveFolderPath(data.onedrive_folder_path ?? 'Facturen');
       setOnedriveUserEmail(data.onedrive_user_email ?? '');
+      setOpenaiApiKey((data as any).openai_api_key ?? '');
     }
     setLoading(false);
   };
@@ -480,6 +485,29 @@ export function Integrations() {
       setTestOnedriveLoading(false);
     }
   };
+
+  const handleSaveOpenai = async () => {
+    if (!settings) return;
+    setSavingOpenai(true);
+    const { data, error } = await supabase
+      .from('company_settings')
+      .update({
+        openai_api_key: openaiApiKey,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', settings.id)
+      .select()
+      .single();
+
+    if (!error && data) {
+      setSettings(data);
+    }
+    setSavingOpenai(false);
+  };
+
+  const hasOpenaiChanges = settings
+    ? openaiApiKey !== ((settings as any).openai_api_key ?? '')
+    : false;
 
   const hasTokenChanges = settings
     ? ebToken !== (settings.eboekhouden_api_token ?? '')
@@ -1424,6 +1452,83 @@ export function Integrations() {
             </button>
           </div>
         )}
+          </div>
+        </div>
+
+        <div className="border-t border-dark-700" />
+
+        <div>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+              <Sparkles size={16} className="text-emerald-400" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-gray-200 uppercase tracking-wide">AI</h3>
+              <p className="text-xs text-gray-500">Automatische factuurherkenning met kunstmatige intelligentie</p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="bg-dark-900 rounded-xl border border-dark-700 overflow-hidden">
+              <div className="px-6 py-4 border-b border-dark-700 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                  <Sparkles size={18} className="text-emerald-400" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-gray-100">OpenAI</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">Automatische herkenning van inkoopfacturen via GPT-4 Vision</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  {openaiApiKey && (
+                    <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium bg-green-500/10 text-green-400 border border-green-500/20">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
+                      Geconfigureerd
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="px-6 py-5 space-y-4">
+                <p className="text-sm text-gray-400">
+                  Met een OpenAI API key worden geuploadde inkoopfacturen automatisch herkend. De factuurgegevens zoals leverancier, bedragen en regelitems worden via GPT-4 Vision uitgelezen.
+                </p>
+                <div>
+                  <label className="block text-sm font-medium text-gray-200 mb-1.5">API Key</label>
+                  <div className="relative">
+                    <input
+                      type={showOpenaiKey ? 'text' : 'password'}
+                      value={openaiApiKey}
+                      onChange={(e) => setOpenaiApiKey(e.target.value)}
+                      className="w-full px-3 py-2.5 pr-10 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-sm"
+                      placeholder="sk-..."
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowOpenaiKey(!showOpenaiKey)}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-300 transition-colors"
+                    >
+                      {showOpenaiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1.5">
+                    Verkrijgbaar via <span className="text-gray-300">platform.openai.com/api-keys</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {hasOpenaiChanges && (
+              <div className="flex justify-end">
+                <button
+                  onClick={handleSaveOpenai}
+                  disabled={savingOpenai}
+                  className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                >
+                  {savingOpenai ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                  {savingOpenai ? 'Opslaan...' : 'OpenAI instellingen opslaan'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
