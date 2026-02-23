@@ -1,4 +1,4 @@
-import { X, Download, Edit, Trash2, Link, Send } from 'lucide-react';
+import { X, Download, Edit, Trash2, Link, Send, ExternalLink } from 'lucide-react';
 
 type CreditNoteLineItem = {
   description: string;
@@ -41,9 +41,10 @@ type CreditNotePreviewProps = {
   onDelete?: () => void;
   onApply?: () => void;
   onSend?: () => void;
+  onPopOut?: () => void;
 };
 
-export function CreditNotePreview({ creditNote, companySettings, onClose, onDownload, onEdit, onDelete, onApply, onSend }: CreditNotePreviewProps) {
+export function CreditNotePreview({ creditNote, companySettings, onClose, onDownload, onEdit, onDelete, onApply, onSend, onPopOut }: CreditNotePreviewProps) {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('nl-NL', {
       style: 'currency',
@@ -113,6 +114,16 @@ export function CreditNotePreview({ creditNote, companySettings, onClose, onDown
                 title="Verwijderen"
               >
                 <Trash2 size={18} />
+              </button>
+            )}
+            {onPopOut && (
+              <button
+                onClick={onPopOut}
+                className="flex items-center gap-1.5 bg-dark-700 hover:bg-dark-600 text-gray-300 hover:text-white transition-colors px-3 py-1.5 rounded-lg"
+                title="Open in apart venster"
+              >
+                <ExternalLink size={18} />
+                <span className="text-sm font-medium">Venster</span>
               </button>
             )}
             <button

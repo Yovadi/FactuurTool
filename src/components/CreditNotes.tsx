@@ -945,6 +945,27 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
             setApplyingCreditNote(previewCreditNote);
           }}
           onSend={() => handleSendCreditNote(previewCreditNote)}
+          onPopOut={() => {
+            const electron = (window as any).electron;
+            if (electron?.openPreviewWindow) {
+              electron.openPreviewWindow({
+                type: 'credit-note',
+                props: {
+                  creditNote: {
+                    ...previewCreditNote,
+                    tenant: Array.isArray(previewCreditNote.tenants)
+                      ? previewCreditNote.tenants[0]
+                      : previewCreditNote.tenants,
+                    external_customer: Array.isArray(previewCreditNote.external_customers)
+                      ? previewCreditNote.external_customers[0]
+                      : previewCreditNote.external_customers,
+                  },
+                  companySettings
+                }
+              });
+              setPreviewCreditNote(null);
+            }
+          }}
         />
       )}
 

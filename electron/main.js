@@ -3,6 +3,7 @@ const { autoUpdater } = require('electron-updater');
 const path = require('path');
 
 let mainWindow;
+let previewWindow = null;
 let isManualUpdateCheck = false;
 
 autoUpdater.autoDownload = false;
@@ -480,6 +481,73 @@ function startPeriodicUpdateCheck() {
     }, 60 * 60 * 1000); // Elk uur
   }
 }
+
+function createPreviewWindow() {
+  const { screen } = require('electron');
+  const displays = screen.getAllDisplays();
+  const primaryDisplay = screen.getPrimaryDisplay();
+
+  let targetDisplay = displays.length > 1
+    ? displays.find(d => d.id !== primaryDisplay.id) || primaryDisplay
+    : primaryDisplay;
+
+  previewWindow = new BrowserWindow({
+    x: targetDisplay.bounds.x + 50,
+    y: targetDisplay.bounds.y + 50,
+    width: Math.min(1200, targetDisplay.workAreaSize.width - 100),
+    height: Math.min(900, targetDisplay.workAreaSize.height - 100),
+    minWidth: 600,
+    minHeight: 400,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js'),
+      enableRemoteModule: false,
+      sandbox: false
+    },
+    icon: path.join(__dirname, '../public/Logo.png'),
+    title: 'HAL5 - Preview',
+    show: false,
+    frame: true,
+    autoHideMenuBar: true
+  });
+
+  const isDev = process.env.NODE_ENV === 'development';
+
+  if (isDev) {
+    previewWindow.loadURL('http://localhost:5173/preview.html');
+  } else {
+    previewWindow.loadFile(path.join(__dirname, '../dist/preview.html'));
+  }
+
+  previewWindow.once('ready-to-show', () => {
+    previewWindow.show();
+  });
+
+  previewWindow.on('closed', () => {
+    previewWindow = null;
+  });
+
+  return previewWindow;
+}
+
+ipcMain.handle('open-preview-window', async (event, previewData) => {
+  try {
+    if (!previewWindow || previewWindow.isDestroyed()) {
+      createPreviewWindow();
+      previewWindow.webContents.once('did-finish-load', () => {
+        previewWindow.webContents.send('preview-data', previewData);
+      });
+    } else {
+      previewWindow.webContents.send('preview-data', previewData);
+      previewWindow.focus();
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('Error opening preview window:', error);
+    return { success: false, error: error.message };
+  }
+});
 
 app.whenReady().then(() => {
   createWindow();

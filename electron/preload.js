@@ -42,6 +42,12 @@ contextBridge.exposeInMainWorld('electron', {
   },
   getLogoBase64: () => {
     return ipcRenderer.invoke('get-logo-base64');
+  },
+  openPreviewWindow: (previewData) => {
+    return ipcRenderer.invoke('open-preview-window', previewData);
+  },
+  onPreviewData: (callback) => {
+    ipcRenderer.on('preview-data', (_, data) => callback(data));
   }
 });
 
@@ -87,5 +93,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   getLogoBase64: () => {
     return ipcRenderer.invoke('get-logo-base64');
+  },
+  openPreviewWindow: (previewData) => {
+    return ipcRenderer.invoke('open-preview-window', previewData);
+  },
+  onPreviewData: (callback) => {
+    ipcRenderer.on('preview-data', (_, data) => callback(data));
   }
 });

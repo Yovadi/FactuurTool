@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Download, Send, Edit, Receipt, FileText } from 'lucide-react';
+import { X, Download, Send, Edit, Receipt, FileText, ExternalLink } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface InvoiceSpace {
@@ -70,6 +70,7 @@ interface InvoicePreviewProps {
   onEdit?: () => void;
   onMarkAsPaid?: () => void;
   onCreateCreditNote?: () => void;
+  onPopOut?: () => void;
 }
 
 export function InvoicePreview({
@@ -85,6 +86,7 @@ export function InvoicePreview({
   onEdit,
   onMarkAsPaid,
   onCreateCreditNote,
+  onPopOut,
 }: InvoicePreviewProps) {
   const [creditApplications, setCreditApplications] = useState<CreditApplication[]>([]);
   const [loading, setLoading] = useState(true);
@@ -200,6 +202,16 @@ export function InvoicePreview({
                 title="Markeer als betaald"
               >
                 <span className="text-sm font-medium">Betaald</span>
+              </button>
+            )}
+            {onPopOut && (
+              <button
+                onClick={onPopOut}
+                className="flex items-center gap-1.5 bg-dark-700 hover:bg-dark-600 text-gray-300 hover:text-white transition-colors px-3 py-1.5 rounded-lg"
+                title="Open in apart venster"
+              >
+                <ExternalLink size={18} />
+                <span className="text-sm font-medium">Venster</span>
               </button>
             )}
             <button
