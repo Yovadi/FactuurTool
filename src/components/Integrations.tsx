@@ -508,7 +508,19 @@ export function Integrations() {
         </div>
       )}
 
-      <div className="space-y-4">
+      <div className="space-y-6">
+        <div>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-8 h-8 rounded-lg bg-teal-500/10 flex items-center justify-center">
+              <Database size={16} className="text-teal-400" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-gray-200 uppercase tracking-wide">Boekhouding</h3>
+              <p className="text-xs text-gray-500">Koppeling met je boekhoudpakket</p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
         {/* e-Boekhouden */}
         <div className="bg-dark-900 rounded-xl border border-dark-700 overflow-hidden">
           <div className="px-6 py-4 border-b border-dark-700 flex items-center gap-3">
@@ -613,7 +625,23 @@ export function Integrations() {
             </button>
           </div>
         )}
+          </div>
+        </div>
 
+        <div className="border-t border-dark-700" />
+
+        <div>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
+              <Mail size={16} className="text-blue-400" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-gray-200 uppercase tracking-wide">E-mail</h3>
+              <p className="text-xs text-gray-500">Configureer hoe facturen per e-mail worden verzonden</p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
         {/* SMTP E-mail */}
         <div className="bg-dark-900 rounded-xl border border-dark-700 overflow-hidden">
           <div className="px-6 py-4 border-b border-dark-700 flex items-center gap-3">
@@ -1168,6 +1196,8 @@ export function Integrations() {
             </button>
           </div>
         )}
+          </div>
+        </div>
       </div>
     </>
   );
