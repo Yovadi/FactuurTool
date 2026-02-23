@@ -105,6 +105,8 @@ export type InvoiceTypeFilter = 'all' | 'huur' | 'vergaderruimte' | 'flex' | 'ha
 
 export interface InvoiceManagementRef {
   openGenerateModal: () => Promise<void>;
+  openGenerateHuurModal: () => Promise<void>;
+  openGenerateBookingsModal: () => Promise<void>;
 }
 
 type InvoiceManagementProps = {
@@ -145,6 +147,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   const [meetingRoomBookings, setMeetingRoomBookings] = useState<any[]>([]);
   const [flexDayBookings, setFlexDayBookings] = useState<any[]>([]);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [generateModalType, setGenerateModalType] = useState<'all' | 'huur' | 'bookings'>('all');
   const [showDetailSelection, setShowDetailSelection] = useState(true);
   const [syncingInvoiceId, setSyncingInvoiceId] = useState<string | null>(null);
   const [markingPaidId, setMarkingPaidId] = useState<string | null>(null);
@@ -198,6 +201,19 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     openGenerateModal: async () => {
       const defaultMonth = await getDefaultInvoiceMonth(invoiceTypeFilter);
       setInvoiceMonth(defaultMonth);
+      setGenerateModalType('all');
+      setShowGenerateModal(true);
+    },
+    openGenerateHuurModal: async () => {
+      const defaultMonth = await getDefaultInvoiceMonth('huur');
+      setInvoiceMonth(defaultMonth);
+      setGenerateModalType('huur');
+      setShowGenerateModal(true);
+    },
+    openGenerateBookingsModal: async () => {
+      const defaultMonth = await getDefaultInvoiceMonth('vergaderruimte');
+      setInvoiceMonth(defaultMonth);
+      setGenerateModalType('bookings');
       setShowGenerateModal(true);
     }
   }));
@@ -3637,7 +3653,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             <div className="bg-dark-900 rounded-lg shadow-xl border border-dark-700 max-w-5xl w-full max-h-[90vh] flex flex-col">
               <div className="flex-shrink-0 bg-dark-800 px-6 py-4 border-b border-dark-700 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-gray-100">
-                  Facturen Genereren
+                  {generateModalType === 'huur' ? 'Huur Facturen Genereren' : generateModalType === 'bookings' ? 'Boeking Facturen Genereren' : 'Facturen Genereren'}
                 </h2>
                 <button
                   onClick={() => {
@@ -3655,11 +3671,15 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
               <div className="overflow-y-auto flex-1 p-6 space-y-4">
                 {invoiceMonth && (
-                  (invoiceTypeFilter === 'huur' && regularLeasesToGenerate.length > 0) ||
-                  (invoiceTypeFilter === 'flex' && (flexLeasesToGenerate.length > 0 || customersWithFlexBookings.length > 0)) ||
-                  (invoiceTypeFilter === 'vergaderruimte' && customersWithMeetingBookings.length > 0) ||
-                  (invoiceTypeFilter === 'all' && (regularLeasesToGenerate.length > 0 || flexLeasesToGenerate.length > 0 || customersWithBookings.length > 0)) ||
-                  (invoiceTypeFilter === 'handmatig')
+                  (generateModalType === 'huur' && (regularLeasesToGenerate.length > 0 || flexLeasesToGenerate.length > 0)) ||
+                  (generateModalType === 'bookings' && (customersWithFlexBookings.length > 0 || customersWithMeetingBookings.length > 0)) ||
+                  (generateModalType === 'all' && (
+                    (invoiceTypeFilter === 'huur' && regularLeasesToGenerate.length > 0) ||
+                    (invoiceTypeFilter === 'flex' && (flexLeasesToGenerate.length > 0 || customersWithFlexBookings.length > 0)) ||
+                    (invoiceTypeFilter === 'vergaderruimte' && customersWithMeetingBookings.length > 0) ||
+                    (invoiceTypeFilter === 'all' && (regularLeasesToGenerate.length > 0 || flexLeasesToGenerate.length > 0 || customersWithBookings.length > 0)) ||
+                    (invoiceTypeFilter === 'handmatig')
+                  ))
                 ) ? (
                   <div className="space-y-4">
                     {/* Maandkeuze en Overzicht tellers - naast elkaar */}
@@ -3677,12 +3697,16 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                             className="w-full px-4 py-2 bg-dark-700 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                           />
                           <div className="space-y-1">
-                            <p className="text-xs text-emerald-400">
-                              Huur wordt vooraf gefactureerd
-                            </p>
-                            <p className="text-xs text-blue-400">
-                              Vergaderruimte & Flex worden achteraf gefactureerd
-                            </p>
+                            {(generateModalType === 'all' || generateModalType === 'huur') && (
+                              <p className="text-xs text-emerald-400">
+                                Huur wordt vooraf gefactureerd
+                              </p>
+                            )}
+                            {(generateModalType === 'all' || generateModalType === 'bookings') && (
+                              <p className="text-xs text-blue-400">
+                                Vergaderruimte & Flex worden achteraf gefactureerd
+                              </p>
+                            )}
                           </div>
                           {invoiceMonth && (
                             <div className="space-y-2">
@@ -3710,7 +3734,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                           )}
                         </div>
 
-                        {(invoiceTypeFilter === 'huur' || invoiceTypeFilter === 'all') && regularLeasesToGenerate.length > 0 && (
+                        {(generateModalType === 'huur' || generateModalType === 'all') && (invoiceTypeFilter === 'huur' || invoiceTypeFilter === 'all') && regularLeasesToGenerate.length > 0 && (
                           <div className="bg-dark-700 rounded-lg p-3">
                             <div className="flex items-center gap-2 text-emerald-500 mb-1">
                               <Home size={16} />
@@ -3721,9 +3745,9 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                           </div>
                         )}
 
-                        {(invoiceTypeFilter === 'flex' || invoiceTypeFilter === 'all') && flexLeasesToGenerate.length > 0 && (
+                        {(generateModalType === 'huur' || generateModalType === 'all') && (invoiceTypeFilter === 'flex' || invoiceTypeFilter === 'all') && flexLeasesToGenerate.length > 0 && (
                           <div className="bg-dark-700 rounded-lg p-3">
-                            <div className="flex items-center gap-2 text-amber-500 mb-1">
+                            <div className="flex items-center gap-2 text-teal-500 mb-1">
                               <Zap size={16} />
                               <span className="text-sm font-medium">Flex contracten</span>
                             </div>
@@ -3732,9 +3756,9 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                           </div>
                         )}
 
-                        {(invoiceTypeFilter === 'flex' || invoiceTypeFilter === 'all') && customersWithFlexBookings.length > 0 && (
+                        {(generateModalType === 'bookings' || generateModalType === 'all') && (invoiceTypeFilter === 'flex' || invoiceTypeFilter === 'all') && customersWithFlexBookings.length > 0 && (
                           <div className="bg-dark-700 rounded-lg p-3">
-                            <div className="flex items-center gap-2 text-amber-500 mb-1">
+                            <div className="flex items-center gap-2 text-teal-500 mb-1">
                               <Zap size={16} />
                               <span className="text-sm font-medium">Flex boekingen</span>
                             </div>
@@ -3743,7 +3767,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                           </div>
                         )}
 
-                        {(invoiceTypeFilter === 'vergaderruimte' || invoiceTypeFilter === 'all') && customersWithMeetingBookings.length > 0 && (
+                        {(generateModalType === 'bookings' || generateModalType === 'all') && (invoiceTypeFilter === 'vergaderruimte' || invoiceTypeFilter === 'all') && customersWithMeetingBookings.length > 0 && (
                           <div className="bg-dark-700 rounded-lg p-3">
                             <div className="flex items-center gap-2 text-blue-500 mb-1">
                               <Calendar size={16} />
@@ -3759,7 +3783,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                     {/* Gedetailleerde selectie - 3 kolommen naast elkaar */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {/* Huurcontracten */}
-                      {(invoiceTypeFilter === 'huur' || invoiceTypeFilter === 'all') && regularLeasesToGenerate.length > 0 && (
+                      {(generateModalType === 'huur' || generateModalType === 'all') && (invoiceTypeFilter === 'huur' || invoiceTypeFilter === 'all') && regularLeasesToGenerate.length > 0 && (
                           <div className="space-y-3">
                             <div className="flex items-center justify-between">
                               <h4 className="text-sm font-medium text-gray-300 flex items-center gap-2">
@@ -3822,11 +3846,11 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                         )}
 
                         {/* Flex contracten */}
-                        {(invoiceTypeFilter === 'flex' || invoiceTypeFilter === 'all') && flexLeasesToGenerate.length > 0 && (
+                        {(generateModalType === 'huur' || generateModalType === 'all') && (invoiceTypeFilter === 'flex' || invoiceTypeFilter === 'all') && flexLeasesToGenerate.length > 0 && (
                           <div className="space-y-3">
                             <div className="flex items-center justify-between">
                               <h4 className="text-sm font-medium text-gray-300 flex items-center gap-2">
-                                <Zap size={16} className="text-amber-500" />
+                                <Zap size={16} className="text-teal-500" />
                                 Flex contracten ({flexLeasesToGenerate.length})
                               </h4>
                             </div>
@@ -3856,7 +3880,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                                     onClick={() => toggleLeaseSelection(lease.id)}
                                     className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-all ${
                                       selectedLeases.has(lease.id)
-                                        ? 'bg-amber-900/20 border-amber-700'
+                                        ? 'bg-teal-900/20 border-teal-700'
                                         : 'bg-dark-800 border-dark-700 hover:border-dark-600'
                                     }`}
                                   >
@@ -3864,7 +3888,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                                       type="checkbox"
                                       checked={selectedLeases.has(lease.id)}
                                       onChange={() => {}}
-                                      className="w-4 h-4 rounded border-dark-600 text-amber-600 focus:ring-amber-500 flex-shrink-0"
+                                      className="w-4 h-4 rounded border-dark-600 text-teal-600 focus:ring-teal-500 flex-shrink-0"
                                     />
                                     <div className="flex-1 min-w-0">
                                       <div className="text-sm font-medium text-gray-200 truncate">
@@ -3885,11 +3909,11 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                         )}
 
                         {/* Flex boekingen */}
-                        {(invoiceTypeFilter === 'flex' || invoiceTypeFilter === 'all') && customersWithFlexBookings.length > 0 && (
+                        {(generateModalType === 'bookings' || generateModalType === 'all') && (invoiceTypeFilter === 'flex' || invoiceTypeFilter === 'all') && customersWithFlexBookings.length > 0 && (
                           <div className="space-y-3">
                             <div className="flex items-center justify-between">
                               <h4 className="text-sm font-medium text-gray-300 flex items-center gap-2">
-                                <Zap size={16} className="text-amber-500" />
+                                <Zap size={16} className="text-teal-500" />
                                 Flex boekingen ({customersWithFlexBookings.length})
                               </h4>
                             </div>
@@ -3919,7 +3943,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                                     onClick={() => toggleCustomerSelection(customer.id)}
                                     className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-all ${
                                       selectedCustomers.has(customer.id)
-                                        ? 'bg-amber-900/20 border-amber-700'
+                                        ? 'bg-teal-900/20 border-teal-700'
                                         : 'bg-dark-800 border-dark-700 hover:border-dark-600'
                                     }`}
                                   >
@@ -3927,7 +3951,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                                       type="checkbox"
                                       checked={selectedCustomers.has(customer.id)}
                                       onChange={() => {}}
-                                      className="w-4 h-4 rounded border-dark-600 text-amber-600 focus:ring-amber-500 flex-shrink-0"
+                                      className="w-4 h-4 rounded border-dark-600 text-teal-600 focus:ring-teal-500 flex-shrink-0"
                                     />
                                     <div className="flex-1 min-w-0">
                                       <div className="text-sm font-medium text-gray-200 truncate">
@@ -3948,7 +3972,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                         )}
 
                         {/* Vergaderruimte boekingen */}
-                        {(invoiceTypeFilter === 'vergaderruimte' || invoiceTypeFilter === 'all') && customersWithMeetingBookings.length > 0 && (
+                        {(generateModalType === 'bookings' || generateModalType === 'all') && (invoiceTypeFilter === 'vergaderruimte' || invoiceTypeFilter === 'all') && customersWithMeetingBookings.length > 0 && (
                           <div className="space-y-3">
                             <div className="flex items-center justify-between">
                               <h4 className="text-sm font-medium text-gray-300 flex items-center gap-2">

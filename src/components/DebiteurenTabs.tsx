@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { InvoiceManagement, InvoiceManagementRef } from './InvoiceManagement';
 import { DebtorsOverview } from './DebtorsOverview';
-import { FileText, AlertTriangle, FileCheck, Plus } from 'lucide-react';
+import { FileText, AlertTriangle, FileCheck, Plus, Home, Calendar } from 'lucide-react';
 
 type DebiteurenTabsProps = {
   onCreateCreditNote?: (invoice: any, tenant: any, spaces: any[]) => void;
@@ -43,13 +43,22 @@ export function DebiteurenTabs({ onCreateCreditNote }: DebiteurenTabsProps) {
               ))}
             </div>
             {activeTab === 'facturen' && (
-              <button
-                onClick={() => invoiceManagementRef.current?.openGenerateModal()}
-                className="flex items-center gap-2 px-4 py-2 bg-gold-500 text-white font-medium rounded-lg hover:bg-gold-400 transition-colors"
-              >
-                <Plus size={18} />
-                Genereer Facturen
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => invoiceManagementRef.current?.openGenerateHuurModal()}
+                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-500 transition-colors"
+                >
+                  <Home size={18} />
+                  Huur Facturen
+                </button>
+                <button
+                  onClick={() => invoiceManagementRef.current?.openGenerateBookingsModal()}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-500 transition-colors"
+                >
+                  <Calendar size={18} />
+                  Boeking Facturen
+                </button>
+              </div>
             )}
           </div>
         </div>
