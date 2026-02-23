@@ -105,8 +105,8 @@ type TimeSegment = {
   isAvailable: boolean;
 };
 
-const BUSINESS_START = 9;
-const BUSINESS_END = 17;
+const BUSINESS_START = 7;
+const BUSINESS_END = 21;
 
 function parseTime(t: string): number {
   const [h, m] = t.split(':').map(Number);
@@ -1011,8 +1011,8 @@ export function FlexWorkspaceBookings() {
 
     if (slotBookings.length === 0 || !slotBookings[0].startTime) {
       return [{
-        startHour: 8,
-        endHour: 18,
+        startHour: 7,
+        endHour: 21,
         booking: null,
         isAvailable: true
       }];
@@ -1032,8 +1032,8 @@ export function FlexWorkspaceBookings() {
 
     bookedPeriods.sort((a, b) => a.start - b.start);
 
-    let currentHour = 8;
-    const workdayEnd = 18;
+    let currentHour = 7;
+    const workdayEnd = 21;
 
     bookedPeriods.forEach(period => {
       if (currentHour < period.start) {
@@ -1438,8 +1438,8 @@ export function FlexWorkspaceBookings() {
                             <div>
                               <div className="text-lg font-bold text-gray-100">Plek {slotNumber}</div>
                               <div className={`text-sm font-semibold ${
-                                totalAvailable > 7 ? 'text-green-400' :
-                                totalAvailable > 4 ? 'text-orange-400' :
+                                totalAvailable > 10 ? 'text-green-400' :
+                                totalAvailable > 5 ? 'text-orange-400' :
                                 totalAvailable > 0 ? 'text-red-400' : 'text-gray-500'
                               }`}>
                                 {totalAvailable > 0 ? `${totalAvailable} uur beschikbaar` : 'Volledig geboekt'}
@@ -1452,7 +1452,7 @@ export function FlexWorkspaceBookings() {
                           <div className="relative w-full h-[200px] bg-dark-900 rounded-lg border border-dark-600 overflow-hidden">
                             <div className="absolute inset-0 flex">
                               {timeSegments.map((segment, idx) => {
-                                const totalHours = 10;
+                                const totalHours = 14;
                                 const segmentHours = segment.endHour - segment.startHour;
                                 const widthPercent = (segmentHours / totalHours) * 100;
 
@@ -1542,12 +1542,11 @@ export function FlexWorkspaceBookings() {
                             </div>
 
                             <div className="absolute bottom-0 left-0 right-0 h-8 bg-dark-900/95 flex text-xs text-gray-400 font-semibold border-t border-dark-700">
-                              <div className="flex-1 border-r border-dark-700 flex items-center justify-center">08:00</div>
-                              <div className="flex-1 border-r border-dark-700 flex items-center justify-center">10:00</div>
-                              <div className="flex-1 border-r border-dark-700 flex items-center justify-center">12:00</div>
-                              <div className="flex-1 border-r border-dark-700 flex items-center justify-center">14:00</div>
-                              <div className="flex-1 border-r border-dark-700 flex items-center justify-center">16:00</div>
-                              <div className="flex-1 flex items-center justify-center">18:00</div>
+                              {[7, 9, 11, 13, 15, 17, 19, 21].map((h, i, arr) => (
+                                <div key={h} className={`flex-1 ${i < arr.length - 1 ? 'border-r border-dark-700' : ''} flex items-center justify-center`}>
+                                  {String(h).padStart(2, '0')}:00
+                                </div>
+                              ))}
                             </div>
                           </div>
                         ) : (
@@ -1557,7 +1556,7 @@ export function FlexWorkspaceBookings() {
                           >
                             <Plus size={48} className="text-emerald-300 group-hover:scale-110 transition-transform mb-3" />
                             <span className="text-xl text-emerald-300 font-bold">Volledig Beschikbaar</span>
-                            <span className="text-sm text-emerald-400 font-semibold mt-2">10 uur vrij (08:00 - 18:00)</span>
+                            <span className="text-sm text-emerald-400 font-semibold mt-2">14 uur vrij (07:00 - 21:00)</span>
                             <span className="text-xs text-emerald-500 font-medium mt-1">Klik om te boeken</span>
                           </button>
                         )}
@@ -2011,7 +2010,7 @@ export function FlexWorkspaceBookings() {
                       {slotsWithBookings.map(({ slotNumber }) => {
                         const segments = getTimeSegments(slotNumber, selectedCalendarDay.dateStr, space.id);
                         const hasBookings = segments.some(s => !s.isAvailable);
-                        const totalHours = 10;
+                        const totalHours = 14;
 
                         return (
                           <div key={slotNumber}>
@@ -2021,7 +2020,7 @@ export function FlexWorkspaceBookings() {
                                 <span className="text-xs text-emerald-400 font-medium">Volledig beschikbaar</span>
                               )}
                             </div>
-                            <div className="relative w-full h-14 bg-dark-900 rounded-lg border border-dark-600 overflow-hidden">
+                            <div className="relative w-full h-24 bg-dark-900 rounded-lg border border-dark-600 overflow-hidden">
                               <div className="absolute inset-0 flex">
                                 {segments.map((segment, idx) => {
                                   const segmentHours = segment.endHour - segment.startHour;
@@ -2107,9 +2106,9 @@ export function FlexWorkspaceBookings() {
                                   );
                                 })}
                               </div>
-                              <div className="absolute bottom-0 left-0 right-0 h-4 bg-dark-900/80 flex text-[9px] text-gray-500 font-medium pointer-events-none">
-                                {[8, 10, 12, 14, 16, 18].map((h, i) => (
-                                  <div key={h} className={`flex-1 flex items-center justify-center ${i < 5 ? 'border-r border-dark-700/50' : ''}`}>
+                              <div className="absolute bottom-0 left-0 right-0 h-5 bg-dark-900/80 flex text-[10px] text-gray-500 font-medium pointer-events-none">
+                                {[7, 9, 11, 13, 15, 17, 19, 21].map((h, i, arr) => (
+                                  <div key={h} className={`flex-1 flex items-center justify-center ${i < arr.length - 1 ? 'border-r border-dark-700/50' : ''}`}>
                                     {h}:00
                                   </div>
                                 ))}
