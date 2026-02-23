@@ -560,7 +560,7 @@ export function PurchaseInvoices() {
     }
   };
 
-  const ebConnected = companySettings?.eboekhouden_connected && !!companySettings?.eboekhouden_api_token;
+  const ebConnected = companySettings?.eboekhouden_enabled && companySettings?.eboekhouden_connected && !!companySettings?.eboekhouden_api_token;
 
   const handleSyncToEBoekhouden = async (invoice: PurchaseInvoice) => {
     if (!companySettings?.eboekhouden_api_token || !companySettings) return;

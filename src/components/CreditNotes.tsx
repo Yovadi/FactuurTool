@@ -546,7 +546,7 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
 
   const { subtotal, vatAmount, total } = calculateTotals();
 
-  const ebConnected = (companySettings as any)?.eboekhouden_connected && !!(companySettings as any)?.eboekhouden_api_token;
+  const ebConnected = (companySettings as any)?.eboekhouden_enabled && (companySettings as any)?.eboekhouden_connected && !!(companySettings as any)?.eboekhouden_api_token;
 
   const handleSyncToEBoekhouden = async (note: CreditNote) => {
     if (!(companySettings as any)?.eboekhouden_api_token || !companySettings) return;
@@ -633,7 +633,7 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
                     <th className="text-left px-4 py-3 font-semibold w-[18%]">Reden</th>
                     <th className="text-right px-4 py-3 font-semibold w-[10%]">Bedrag</th>
                     <th className="text-center px-4 py-3 font-semibold w-[10%]">Status</th>
-                    <th className="text-center px-4 py-3 font-semibold w-[11%]">e-Boekhouden</th>
+                    {ebConnected && <th className="text-center px-4 py-3 font-semibold w-[11%]">e-Boekhouden</th>}
                     <th className="text-right px-4 py-3 font-semibold w-[13%]">Acties</th>
                   </tr>
                 </thead>
@@ -674,9 +674,9 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
                             {getStatusText(note.status)}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
-                          {ebConnected && (
-                            note.eboekhouden_id ? (
+                        {ebConnected && (
+                          <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                            {note.eboekhouden_id ? (
                               <span className="inline-flex items-center gap-1 text-green-400 text-xs font-mono" title={`Gesynchroniseerd (ID: ${note.eboekhouden_id})`}>
                                 <Link2 size={14} />
                                 {note.eboekhouden_id}
@@ -690,9 +690,9 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
                               >
                                 {syncingIds.has(note.id) ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
                               </button>
-                            )
-                          )}
-                        </td>
+                            )}
+                          </td>
+                        )}
                         <td className="px-4 py-3">
                           <div className="flex gap-1 justify-end">
                             <button
