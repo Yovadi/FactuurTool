@@ -3390,6 +3390,25 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                     Reset
                   </button>
                 )}
+                <div className="hidden sm:flex items-center gap-3 ml-4 border-l border-dark-600 pl-4">
+                  <span className="text-xs text-gray-500">Legenda:</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-green-500" />
+                    <span className="text-xs text-gray-400">Huur</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-blue-500" />
+                    <span className="text-xs text-gray-400">Vergaderruimte</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-teal-500" />
+                    <span className="text-xs text-gray-400">Flex</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-amber-500" />
+                    <span className="text-xs text-gray-400">Handmatig</span>
+                  </div>
+                </div>
                 <button
                   onClick={() => setShowForm(true)}
                   className="ml-auto flex items-center gap-2 px-3 py-1.5 bg-gold-500 text-white text-sm font-medium rounded-lg hover:bg-gold-400 transition-colors"
@@ -3657,16 +3676,14 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                             onChange={(e) => setInvoiceMonth(e.target.value)}
                             className="w-full px-4 py-2 bg-dark-700 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                           />
-                          {invoiceTypeFilter === 'huur' && (
+                          <div className="space-y-1">
                             <p className="text-xs text-emerald-400">
                               Huur wordt vooraf gefactureerd
                             </p>
-                          )}
-                          {(invoiceTypeFilter === 'vergaderruimte' || invoiceTypeFilter === 'flex') && (
                             <p className="text-xs text-blue-400">
-                              Boekingen worden achteraf gefactureerd
+                              Vergaderruimte & Flex worden achteraf gefactureerd
                             </p>
-                          )}
+                          </div>
                           {invoiceMonth && (
                             <div className="space-y-2">
                               {((invoicedMonths.leaseCount.get(invoiceMonth) || 0) > 0 || (invoicedMonths.meetingRoomCount.get(invoiceMonth) || 0) > 0) && (
