@@ -1,6 +1,6 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { supabase, type Invoice, type Lease, type Tenant, type ExternalCustomer, type LeaseSpace, type OfficeSpace, type InvoiceLineItem } from '../lib/supabase';
-import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, CreditCard as Edit, Search, CreditCard as Edit2, AlertCircle, AlertTriangle, CheckSquare, Square, Check, X, Home, Zap, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, CreditCard as Edit, Search, CreditCard as Edit2, AlertCircle, AlertTriangle, CheckSquare, Square, Check, X, Home, Zap, RefreshCw, CheckCircle2, Loader2, Filter } from 'lucide-react';
 import { syncInvoiceToEBoekhouden, checkInvoicePaymentStatuses } from '../lib/eboekhoudenSync';
 import { generateInvoicePDF } from '../utils/pdfGenerator';
 import { InvoicePreview } from './InvoicePreview';
@@ -151,6 +151,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   const [eBoekhoudenPaidWarning, setEBoekhoudenPaidWarning] = useState<{ invoiceId: string; invoiceNumber: string } | null>(null);
   const [eBoekhoudenBatchPaidWarning, setEBoekhoudenBatchPaidWarning] = useState<{ syncedCount: number; totalCount: number } | null>(null);
   const [toasts, setToasts] = useState<{ id: number; message: string; type: 'success' | 'error' | 'info' }[]>([]);
+  const [filterType, setFilterType] = useState<InvoiceTypeFilter>('all');
+  const [filterCustomer, setFilterCustomer] = useState<string>('all');
 
   const showToast = (message: string, type: 'success' | 'error' | 'info') => {
     const id = Date.now();
@@ -3182,10 +3184,8 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
         </div>
       )}
 
-      <div className="space-y-8">
+      <div className="space-y-4">
         {(() => {
-          const allDraftInvoices = invoices.filter(inv => inv.status === 'draft');
-
           const sortByTenantAndDate = (a: InvoiceWithDetails, b: InvoiceWithDetails) => {
             const tenantA = getInvoiceTenant(a);
             const tenantB = getInvoiceTenant(b);
@@ -3199,370 +3199,280 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             return new Date(b.invoice_date).getTime() - new Date(a.invoice_date).getTime();
           };
 
-          const draftHuurInvoices = allDraftInvoices
-            .filter(inv => getInvoiceType(inv) === 'huur')
-            .sort(sortByTenantAndDate);
+          const applyFilters = (list: InvoiceWithDetails[]) => {
+            let result = list;
+            if (filterType !== 'all') {
+              result = result.filter(inv => getInvoiceType(inv) === filterType);
+            }
+            if (filterCustomer !== 'all') {
+              result = result.filter(inv => {
+                const tenant = getInvoiceTenant(inv);
+                return tenant?.id === filterCustomer;
+              });
+            }
+            return result;
+          };
 
-          const draftFlexInvoices = allDraftInvoices
-            .filter(inv => getInvoiceType(inv) === 'flex')
-            .sort(sortByTenantAndDate);
+          const allDraftInvoices = applyFilters(
+            invoices.filter(inv => inv.status === 'draft')
+          ).sort(sortByTenantAndDate);
 
-          const draftMeetingRoomInvoices = allDraftInvoices
-            .filter(inv => getInvoiceType(inv) === 'vergaderruimte')
-            .sort(sortByTenantAndDate);
+          const allOpenInvoices = applyFilters(
+            invoices.filter(inv => inv.status !== 'paid' && inv.status !== 'draft' && inv.status !== 'credited')
+          ).sort(sortByTenantAndDate);
 
-          const draftManualInvoices = allDraftInvoices
-            .filter(inv => getInvoiceType(inv) === 'handmatig')
-            .sort(sortByTenantAndDate);
+          const uniqueCustomers = Array.from(
+            new Map(
+              invoices
+                .map(inv => getInvoiceTenant(inv))
+                .filter((t): t is Tenant | ExternalCustomer => t !== null)
+                .map(t => [t.id, t])
+            ).values()
+          ).sort((a, b) => a.company_name.localeCompare(b.company_name));
 
-            const openInvoices = invoices
-              .filter(inv => inv.status !== 'paid' && inv.status !== 'draft' && inv.status !== 'credited')
-              .sort(sortByTenantAndDate);
+          const getInvoiceTypeLabel = (type: InvoiceTypeFilter): string => {
+            switch (type) {
+              case 'huur': return 'Huur';
+              case 'vergaderruimte': return 'Vergaderruimte';
+              case 'flex': return 'Flex';
+              case 'handmatig': return 'Handmatig';
+              default: return '';
+            }
+          };
 
-            const paidInvoices = invoices
-              .filter(inv => inv.status === 'paid' || inv.status === 'credited')
-              .sort(sortByTenantAndDate);
+          const renderInvoiceRow = (invoice: InvoiceWithDetails, showDueDate: boolean) => {
+            const tenant = getInvoiceTenant(invoice);
+            const displayName = tenant?.company_name || 'Onbekende huurder';
 
-            const filterOpenInvoices = (type: InvoiceTypeFilter) => {
-              if (type === 'all') return openInvoices;
-              return openInvoices.filter(inv => getInvoiceType(inv) === type);
-            };
-
-            const filteredOpenInvoices = filterOpenInvoices(invoiceTypeFilter);
-
-            console.log('DEBUG Invoice Filtering:', {
-              invoiceTypeFilter,
-              totalInvoices: invoices.length,
-              draftCount: allDraftInvoices.length,
-              openCount: openInvoices.length,
-              filteredOpenCount: filteredOpenInvoices.length,
-              draftByType: {
-                huur: draftHuurInvoices.length,
-                flex: draftFlexInvoices.length,
-                vergaderruimte: draftMeetingRoomInvoices.length,
-                handmatig: draftManualInvoices.length
-              },
-              openInvoicesTypes: openInvoices.map(inv => ({
-                number: inv.invoice_number,
-                type: getInvoiceType(inv),
-                hasLineItems: !!inv.line_items,
-                lineItemsCount: inv.line_items?.length || 0,
-                hasBookingIds: inv.line_items?.some((item: any) => item.booking_id !== null) || false,
-                notes: inv.notes?.substring(0, 50)
-              }))
-            });
-
-          const renderInvoiceTable = (invoices: typeof draftHuurInvoices, title: string, borderColor: string, buttonConfig?: { label: string; onClick: () => void; color: string; disabled?: boolean }) => {
-            const selectedInThisTable = invoices.filter(inv => selectedInvoices.has(inv.id)).length;
             return (
-            <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700">
-              <div className="flex items-center justify-between px-4 py-3 bg-dark-800 border-b" style={{ borderBottomColor: borderColor }}>
-                <h2 className="text-lg font-bold text-gray-100">
-                  {title}
-                </h2>
-                <div className="flex items-center gap-2">
-                  {selectedInThisTable > 0 && (
-                    <>
-                      <div className="flex items-center gap-2 bg-purple-600 text-white px-3 py-1.5 rounded-lg text-sm">
-                        <CheckSquare size={16} />
-                        {selectedInThisTable} Geselecteerd
-                      </div>
-                      <button
-                        onClick={() => handleBatchStatusChange('sent')}
-                        className="flex items-center gap-2 bg-amber-600 text-white px-3 py-1.5 rounded-lg hover:bg-amber-700 transition-colors text-sm"
-                      >
-                        <Send size={16} />
-                        Markeer Verzonden
-                      </button>
-                      <button
-                        onClick={handleBatchDelete}
-                        className="flex items-center gap-2 bg-red-600 text-white px-3 py-1.5 rounded-lg hover:bg-red-700 transition-colors text-sm"
-                      >
-                        <Trash2 size={16} />
-                        Verwijder
-                      </button>
-                    </>
+              <tr
+                key={invoice.id}
+                onClick={() => showInvoicePreview(invoice)}
+                className="border-b border-dark-600 hover:bg-dark-800 hover:border-gold-500 transition-colors cursor-pointer"
+              >
+                <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    onClick={() => toggleSelectInvoice(invoice.id)}
+                    className="text-gray-300 hover:text-gold-500 transition-colors"
+                  >
+                    {selectedInvoices.has(invoice.id) ? (
+                      <CheckSquare size={18} />
+                    ) : (
+                      <Square size={18} />
+                    )}
+                  </button>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <FileText className="text-gray-500" size={18} />
+                    <span className="text-gray-100 font-medium">{displayName}</span>
+                  </div>
+                </td>
+                <td className={`px-4 py-3 ${getInvoiceTypeColor(invoice)} font-medium text-sm`}>
+                  {invoice.invoice_number.replace(/^INV-/, '')}
+                </td>
+                <td className="px-4 py-3 text-center">
+                  <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
+                    getInvoiceType(invoice) === 'huur' ? 'bg-green-900/50 text-green-400' :
+                    getInvoiceType(invoice) === 'vergaderruimte' ? 'bg-blue-900/50 text-blue-400' :
+                    getInvoiceType(invoice) === 'flex' ? 'bg-teal-900/50 text-teal-400' :
+                    'bg-amber-900/50 text-amber-400'
+                  }`}>
+                    {getInvoiceTypeLabel(getInvoiceType(invoice))}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-gray-300 text-sm">
+                  {invoice.invoice_month ?
+                    new Date(invoice.invoice_month + '-01').toLocaleDateString('nl-NL', { month: 'short', year: 'numeric' })
+                  : '-'}
+                </td>
+                <td className="px-4 py-3 text-gray-300 text-sm">
+                  {new Date(invoice.invoice_date).toLocaleDateString('nl-NL')}
+                </td>
+                {showDueDate && (
+                  <td className="px-4 py-3 text-gray-300 text-sm">
+                    <div className="flex items-center gap-1">
+                      <Calendar size={14} className="text-gold-500" />
+                      {new Date(invoice.due_date).toLocaleDateString('nl-NL')}
+                    </div>
+                  </td>
+                )}
+                <td className="px-4 py-3 text-right">
+                  <div className="text-gray-100 font-bold">
+                    {'\u20AC'}{invoice.amount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  {invoice.applied_credit > 0 && (
+                    <div className="text-xs text-green-400">
+                      -{'\u20AC'}{invoice.applied_credit.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} credit
+                    </div>
                   )}
-                  {buttonConfig && (
-                    <button
-                      onClick={buttonConfig.onClick}
-                      disabled={buttonConfig.disabled}
-                      className={`flex items-center gap-2 ${buttonConfig.color} text-white px-4 py-2 rounded-lg hover:opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
-                    >
-                      <Calendar size={18} />
-                      {buttonConfig.label}
-                    </button>
-                  )}
-                </div>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full table-fixed min-w-[1000px]">
-                  <thead>
-                    <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
-                    <th className="text-center px-4 py-3 font-semibold w-[5%]">
+                </td>
+                <td className="px-4 py-3 text-center">
+                  <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(invoice.status)}`}>
+                    {getStatusLabel(invoice.status)}
+                  </span>
+                </td>
+                <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex gap-1 justify-end">
+                    {(invoice.status === 'sent' || invoice.status === 'overdue') && (
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleSelectAll(invoices);
-                        }}
-                        className="text-gray-300 hover:text-gold-500 transition-colors"
+                        onClick={() => handleMarkAsPaid(invoice.id)}
+                        disabled={markingPaidId === invoice.id}
+                        className="text-green-500 hover:text-green-400 transition-colors p-1.5 rounded hover:bg-dark-700 disabled:opacity-50"
+                        title="Markeer als betaald"
                       >
-                        {invoices.every(inv => selectedInvoices.has(inv.id)) && invoices.length > 0 ? (
-                          <CheckSquare size={18} />
+                        {markingPaidId === invoice.id ? (
+                          <Loader2 size={18} className="animate-spin" />
                         ) : (
-                          <Square size={18} />
+                          <Check size={18} />
                         )}
                       </button>
-                    </th>
-                    <th className="text-left px-4 py-3 font-semibold w-[19%]">Klant</th>
-                    <th className="text-left px-4 py-3 font-semibold w-[10%]">Factuur Nr.</th>
-                    <th className="text-left px-4 py-3 font-semibold w-[10%]">Maand</th>
-                    <th className="text-left px-4 py-3 font-semibold w-[12%]">Factuur Datum</th>
-                    <th className="text-left px-4 py-3 font-semibold w-[12%]">Omschrijving</th>
-                    <th className="text-right px-4 py-3 font-semibold w-[10%]">Bedrag</th>
-                    <th className="text-center px-4 py-3 font-semibold w-[10%]">Status</th>
-                    <th className="text-right px-4 py-3 font-semibold w-[16%]">Acties</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {invoices.length === 0 ? (
-                    <tr>
-                      <td colSpan={9} className="px-4 py-8 text-center text-gray-400">
-                        Geen facturen in deze categorie
-                      </td>
-                    </tr>
-                  ) : (
-                    invoices.map((invoice) => {
-                        const tenant = getInvoiceTenant(invoice);
-                        const displayName = tenant?.company_name || 'Onbekende huurder';
-                        const hasLease = invoice.lease && invoice.lease.lease_spaces;
-
-                        return (
-                          <tr
-                            key={invoice.id}
-                            onClick={() => showInvoicePreview(invoice)}
-                            className="border-b border-dark-600 hover:bg-dark-800 hover:border-gold-500 transition-colors cursor-pointer"
-                          >
-                            <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
-                              <button
-                                onClick={() => toggleSelectInvoice(invoice.id)}
-                                className="text-gray-300 hover:text-gold-500 transition-colors"
-                              >
-                                {selectedInvoices.has(invoice.id) ? (
-                                  <CheckSquare size={18} />
-                                ) : (
-                                  <Square size={18} />
-                                )}
-                              </button>
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-2">
-                                <FileText className="text-gray-500" size={18} />
-                                <span className="text-gray-100 font-medium">{displayName}</span>
-                              </div>
-                            </td>
-                            <td className={`px-4 py-3 ${getInvoiceTypeColor(invoice)} font-medium text-sm`}>
-                              {invoice.invoice_number.replace(/^INV-/, '')}
-                            </td>
-                            <td className="px-4 py-3 text-gray-300 text-sm">
-                              {invoice.invoice_month ?
-                                new Date(invoice.invoice_month + '-01').toLocaleDateString('nl-NL', { month: 'short', year: 'numeric' })
-                              : '-'}
-                            </td>
-                            <td className="px-4 py-3 text-gray-300 text-sm">
-                              {new Date(invoice.invoice_date).toLocaleDateString('nl-NL')}
-                            </td>
-                            <td className="px-4 py-3 text-gray-300 text-sm">
-                              {invoice.line_items && invoice.line_items.length > 0 ? (
-                                (() => {
-                                  const isMeetingRoomInvoice = invoice.notes?.toLowerCase().includes('vergaderruimte');
-                                  const allLines = invoice.notes ? invoice.notes.split('\n').filter((line: string) => line.trim().startsWith('-')) : [];
-                                  const bookingLines = allLines.filter((line: string) => !line.toLowerCase().includes('korting'));
-
-                                  // If more than 10 booking lines in meeting room invoice, show summary
-                                  if (isMeetingRoomInvoice && bookingLines.length > 10) {
-                                    const totalAmount = bookingLines.reduce((sum, line) => {
-                                      const amountMatch = line.match(/=\s*€([\d.]+)\s*$/);
-                                      if (amountMatch) {
-                                        return sum + parseFloat(amountMatch[1]);
-                                      }
-                                      return sum;
-                                    }, 0);
-
-                                    // Check for discount
-                                    let hasDiscount = false;
-                                    let discountPercentage = 0;
-                                    allLines.forEach(line => {
-                                      const discountMatch = line.match(/(\d+)%\s*huurderkorting/);
-                                      if (discountMatch) {
-                                        hasDiscount = true;
-                                        discountPercentage = parseInt(discountMatch[1]);
-                                      }
-                                    });
-
-                                    return (
-                                      <div className="text-xs space-y-1">
-                                        <div className="font-medium text-blue-400">Vergaderruimte boekingen</div>
-                                        <div className="text-gray-400">
-                                          {bookingLines.length} boekingen{hasDiscount ? ` (${discountPercentage}% korting)` : ''}
-                                        </div>
-                                      </div>
-                                    );
-                                  }
-
-                                  // Show summary based on invoice notes
-                                  // Check if this is a booking invoice by looking at notes
-                                  const isBookingInvoice = invoice.notes &&
-                                    (invoice.notes.includes('Vergaderruimte boekingen:') ||
-                                     invoice.notes.includes('Flexwerkplek boekingen:'));
-
-                                  if (isBookingInvoice) {
-                                    // Count booking lines (lines that start with "- " but exclude discount lines)
-                                    const allLines = invoice.notes.split('\n').filter(line => line.trim().startsWith('- '));
-                                    const bookingCount = allLines.filter(line => !line.toLowerCase().includes('korting')).length;
-                                    return (
-                                      <div className="text-xs text-gray-400">
-                                        {bookingCount} {bookingCount === 1 ? 'boeking' : 'boekingen'}
-                                      </div>
-                                    );
-                                  }
-
-                                  // For regular rental invoices, show space details
-                                  return (
-                                    <div className="text-xs text-gray-400 space-y-1">
-                                      {invoice.line_items.slice(0, 3).map((item: any, idx: number) => (
-                                        <div key={idx}>
-                                          {item.description}
-                                          {item.quantity > 0 && ` (${item.quantity} ${item.quantity_label || item.unit || 'm²'})`}
-                                        </div>
-                                      ))}
-                                      {invoice.line_items.length > 3 && (
-                                        <div className="text-gray-500">
-                                          +{invoice.line_items.length - 3} meer
-                                        </div>
-                                      )}
-                                    </div>
-                                  );
-                                })()
-                              ) : '-'}
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              <div className="text-gray-100 font-bold">
-                                €{invoice.amount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(invoice.status)}`}>
-                                {getStatusLabel(invoice.status)}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                              <div className="flex gap-1 justify-end">
-                                {(invoice.status === 'sent' || invoice.status === 'overdue') && (
-                                  <button
-                                    onClick={() => handleMarkAsPaid(invoice.id)}
-                                    disabled={markingPaidId === invoice.id}
-                                    className="text-green-500 hover:text-green-400 transition-colors p-1.5 rounded hover:bg-dark-700 disabled:opacity-50"
-                                    title="Markeer als betaald"
-                                  >
-                                    {markingPaidId === invoice.id ? (
-                                      <Loader2 size={18} className="animate-spin" />
-                                    ) : (
-                                      <Check size={18} />
-                                    )}
-                                  </button>
-                                )}
-                                {companySettings?.eboekhouden_enabled && invoice.eboekhouden_factuur_id && (
-                                  <span className="text-teal-500 p-1.5" title={`Gesynchroniseerd met e-Boekhouden (ID: ${invoice.eboekhouden_factuur_id})`}>
-                                    <CheckCircle2 size={18} />
-                                  </span>
-                                )}
-                                <button
-                                  onClick={() => {
-                                    setShowDeleteConfirm(invoice.id);
-                                    setDeleteError('');
-                                    setDeletePassword('');
-                                  }}
-                                  className="text-red-500 hover:text-red-400 transition-colors p-1.5 rounded hover:bg-dark-700"
-                                  title="Verwijderen"
-                                >
-                                  <Trash2 size={18} />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })
                     )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ); };
+                    {companySettings?.eboekhouden_enabled && invoice.eboekhouden_factuur_id && (
+                      <span className="text-teal-500 p-1.5" title={`Gesynchroniseerd met e-Boekhouden (ID: ${invoice.eboekhouden_factuur_id})`}>
+                        <CheckCircle2 size={18} />
+                      </span>
+                    )}
+                    <button
+                      onClick={() => {
+                        setShowDeleteConfirm(invoice.id);
+                        setDeleteError('');
+                        setDeletePassword('');
+                      }}
+                      className="text-red-500 hover:text-red-400 transition-colors p-1.5 rounded hover:bg-dark-700"
+                      title="Verwijderen"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            );
+          };
+
+          const draftSelected = allDraftInvoices.filter(inv => selectedInvoices.has(inv.id)).length;
+          const openSelected = allOpenInvoices.filter(inv => selectedInvoices.has(inv.id)).length;
 
           return (
-            <div className="space-y-4">
-              {/* Concept Huur Facturen */}
-              {(invoiceTypeFilter === 'all' || invoiceTypeFilter === 'huur') && (
-                <div>
-                  {renderInvoiceTable(
-                    draftHuurInvoices,
-                    'Concept Huur Facturen',
-                    '#10b981'
-                  )}
+            <>
+              <div className="flex flex-wrap items-center gap-3 bg-dark-900 rounded-lg border border-dark-700 px-4 py-3">
+                <div className="flex items-center gap-2 text-gray-400">
+                  <Filter size={16} />
+                  <span className="text-sm font-medium">Filters</span>
                 </div>
-              )}
+                <select
+                  value={filterType}
+                  onChange={(e) => setFilterType(e.target.value as InvoiceTypeFilter)}
+                  className="px-3 py-1.5 bg-dark-800 border border-dark-600 text-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                >
+                  <option value="all">Alle types</option>
+                  <option value="huur">Huur</option>
+                  <option value="vergaderruimte">Vergaderruimte</option>
+                  <option value="flex">Flex</option>
+                  <option value="handmatig">Handmatig</option>
+                </select>
+                <select
+                  value={filterCustomer}
+                  onChange={(e) => setFilterCustomer(e.target.value)}
+                  className="px-3 py-1.5 bg-dark-800 border border-dark-600 text-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold-500 max-w-[220px]"
+                >
+                  <option value="all">Alle klanten</option>
+                  {uniqueCustomers.map(c => (
+                    <option key={c.id} value={c.id}>{c.company_name}</option>
+                  ))}
+                </select>
+                {(filterType !== 'all' || filterCustomer !== 'all') && (
+                  <button
+                    onClick={() => { setFilterType('all'); setFilterCustomer('all'); }}
+                    className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-400 hover:text-gray-200 bg-dark-800 border border-dark-600 rounded-lg transition-colors"
+                  >
+                    <X size={14} />
+                    Reset
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowForm(true)}
+                  className="ml-auto flex items-center gap-2 px-3 py-1.5 bg-gold-500 text-white text-sm font-medium rounded-lg hover:bg-gold-400 transition-colors"
+                >
+                  <Plus size={16} />
+                  Nieuwe Factuur
+                </button>
+              </div>
 
-              {/* Concept Flex Facturen */}
-              {(invoiceTypeFilter === 'all' || invoiceTypeFilter === 'flex') && (
-                <div>
-                  {renderInvoiceTable(
-                    draftFlexInvoices,
-                    'Concept Flex Facturen',
-                    '#8b5cf6'
-                  )}
+              <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700">
+                <div className="flex items-center justify-between px-4 py-3 bg-dark-800 border-b border-emerald-500">
+                  <h2 className="text-lg font-bold text-gray-100">Concept Facturen</h2>
+                  <div className="flex items-center gap-2">
+                    {draftSelected > 0 && (
+                      <>
+                        <div className="flex items-center gap-2 bg-gold-600 text-white px-3 py-1.5 rounded-lg text-sm">
+                          <CheckSquare size={16} />
+                          {draftSelected} Geselecteerd
+                        </div>
+                        <button
+                          onClick={() => handleBatchStatusChange('sent')}
+                          className="flex items-center gap-2 bg-amber-600 text-white px-3 py-1.5 rounded-lg hover:bg-amber-700 transition-colors text-sm"
+                        >
+                          <Send size={16} />
+                          Markeer Verzonden
+                        </button>
+                        <button
+                          onClick={handleBatchDelete}
+                          className="flex items-center gap-2 bg-red-600 text-white px-3 py-1.5 rounded-lg hover:bg-red-700 transition-colors text-sm"
+                        >
+                          <Trash2 size={16} />
+                          Verwijder
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
-              )}
-
-              {/* Concept Vergaderruimte Facturen */}
-              {(invoiceTypeFilter === 'all' || invoiceTypeFilter === 'vergaderruimte') && (
-                <div>
-                  {renderInvoiceTable(
-                    draftMeetingRoomInvoices,
-                    'Concept Vergaderruimte Facturen',
-                    '#3b82f6'
-                  )}
+                <div className="overflow-x-auto">
+                  <table className="w-full table-fixed min-w-[1000px]">
+                    <thead>
+                      <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
+                        <th className="text-center px-4 py-3 font-semibold w-[4%]">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); toggleSelectAll(allDraftInvoices); }}
+                            className="text-gray-300 hover:text-gold-500 transition-colors"
+                          >
+                            {allDraftInvoices.every(inv => selectedInvoices.has(inv.id)) && allDraftInvoices.length > 0 ? <CheckSquare size={18} /> : <Square size={18} />}
+                          </button>
+                        </th>
+                        <th className="text-left px-4 py-3 font-semibold w-[17%]">Klant</th>
+                        <th className="text-left px-4 py-3 font-semibold w-[10%]">Factuur Nr.</th>
+                        <th className="text-center px-4 py-3 font-semibold w-[10%]">Type</th>
+                        <th className="text-left px-4 py-3 font-semibold w-[8%]">Maand</th>
+                        <th className="text-left px-4 py-3 font-semibold w-[10%]">Factuur Datum</th>
+                        <th className="text-right px-4 py-3 font-semibold w-[10%]">Bedrag</th>
+                        <th className="text-center px-4 py-3 font-semibold w-[10%]">Status</th>
+                        <th className="text-right px-4 py-3 font-semibold w-[13%]">Acties</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {allDraftInvoices.length === 0 ? (
+                        <tr>
+                          <td colSpan={9} className="px-4 py-8 text-center text-gray-400">
+                            Geen concept facturen
+                          </td>
+                        </tr>
+                      ) : (
+                        allDraftInvoices.map(inv => renderInvoiceRow(inv, false))
+                      )}
+                    </tbody>
+                  </table>
                 </div>
-              )}
+              </div>
 
-              {/* Concept Handgemaakte Facturen */}
-              {(invoiceTypeFilter === 'all' || invoiceTypeFilter === 'handmatig') && (
-                <div>
-                  {renderInvoiceTable(
-                    draftManualInvoices,
-                    'Concept Handgemaakte Facturen',
-                    '#f59e0b',
-                    {
-                      label: 'Nieuwe Factuur',
-                      onClick: () => setShowForm(true),
-                      color: 'bg-gold-500'
-                    }
-                  )}
-                </div>
-              )}
-
-              {/* Open facturen */}
               <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700">
                 <div className="flex items-center justify-between px-4 py-3 bg-dark-800 border-b border-amber-500">
-                  <h2 className="text-lg font-bold text-gray-100">
-                    Openstaande Facturen
-                  </h2>
+                  <h2 className="text-lg font-bold text-gray-100">Openstaande Facturen</h2>
                   <div className="flex items-center gap-2">
-                    {filteredOpenInvoices.filter(inv => selectedInvoices.has(inv.id)).length > 0 && (
+                    {openSelected > 0 && (
                       <>
-                        <div className="flex items-center gap-2 bg-purple-600 text-white px-3 py-1.5 rounded-lg text-sm">
+                        <div className="flex items-center gap-2 bg-gold-600 text-white px-3 py-1.5 rounded-lg text-sm">
                           <CheckSquare size={16} />
-                          {filteredOpenInvoices.filter(inv => selectedInvoices.has(inv.id)).length} Geselecteerd
+                          {openSelected} Geselecteerd
                         </div>
                         <button
                           onClick={() => handleBatchStatusChange('paid')}
@@ -3583,152 +3493,45 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                   </div>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full table-fixed min-w-[1000px]">
-                      <thead>
-                        <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
-                          <th className="text-center px-4 py-3 font-semibold w-[5%]">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleSelectAll(filteredOpenInvoices);
-                              }}
-                              className="text-gray-300 hover:text-gold-500 transition-colors"
-                            >
-                              {selectedInvoices.size === filteredOpenInvoices.length && filteredOpenInvoices.length > 0 ? (
-                                <CheckSquare size={18} />
-                              ) : (
-                                <Square size={18} />
-                              )}
-                            </button>
-                          </th>
-                          <th className="text-left px-4 py-3 font-semibold w-[19%]">Klant</th>
-                          <th className="text-left px-4 py-3 font-semibold w-[10%]">Factuur Nr.</th>
-                          <th className="text-left px-4 py-3 font-semibold w-[10%]">Maand</th>
-                          <th className="text-left px-4 py-3 font-semibold w-[12%]">Factuur Datum</th>
-                          <th className="text-left px-4 py-3 font-semibold w-[12%]">Vervaldatum</th>
-                          <th className="text-right px-4 py-3 font-semibold w-[10%]">Bedrag</th>
-                          <th className="text-center px-4 py-3 font-semibold w-[10%]">Status</th>
-                          <th className="text-right px-4 py-3 font-semibold w-[16%]">Acties</th>
+                  <table className="w-full table-fixed min-w-[1100px]">
+                    <thead>
+                      <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
+                        <th className="text-center px-4 py-3 font-semibold w-[4%]">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); toggleSelectAll(allOpenInvoices); }}
+                            className="text-gray-300 hover:text-gold-500 transition-colors"
+                          >
+                            {allOpenInvoices.every(inv => selectedInvoices.has(inv.id)) && allOpenInvoices.length > 0 ? <CheckSquare size={18} /> : <Square size={18} />}
+                          </button>
+                        </th>
+                        <th className="text-left px-4 py-3 font-semibold w-[15%]">Klant</th>
+                        <th className="text-left px-4 py-3 font-semibold w-[9%]">Factuur Nr.</th>
+                        <th className="text-center px-4 py-3 font-semibold w-[9%]">Type</th>
+                        <th className="text-left px-4 py-3 font-semibold w-[7%]">Maand</th>
+                        <th className="text-left px-4 py-3 font-semibold w-[9%]">Factuur Datum</th>
+                        <th className="text-left px-4 py-3 font-semibold w-[9%]">Vervaldatum</th>
+                        <th className="text-right px-4 py-3 font-semibold w-[9%]">Bedrag</th>
+                        <th className="text-center px-4 py-3 font-semibold w-[9%]">Status</th>
+                        <th className="text-right px-4 py-3 font-semibold w-[12%]">Acties</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {allOpenInvoices.length === 0 ? (
+                        <tr>
+                          <td colSpan={10} className="px-4 py-8 text-center text-gray-400">
+                            Geen openstaande facturen
+                          </td>
                         </tr>
-                      </thead>
-                      <tbody>
-                        {filteredOpenInvoices.length === 0 ? (
-                          <tr>
-                            <td colSpan={9} className="px-4 py-8 text-center text-gray-400">
-                              Geen openstaande facturen
-                            </td>
-                          </tr>
-                        ) : (
-                          filteredOpenInvoices.map((invoice) => {
-                            const tenant = getInvoiceTenant(invoice);
-                            const displayName = tenant?.company_name || 'Onbekende huurder';
-                            const hasLease = invoice.lease && invoice.lease.lease_spaces;
-
-                            return (
-                              <tr
-                                key={invoice.id}
-                                onClick={() => showInvoicePreview(invoice)}
-                                className="border-b border-dark-600 hover:bg-dark-800 hover:border-gold-500 transition-colors cursor-pointer"
-                              >
-                                <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
-                                  <button
-                                    onClick={() => toggleSelectInvoice(invoice.id)}
-                                    className="text-gray-300 hover:text-gold-500 transition-colors"
-                                  >
-                                    {selectedInvoices.has(invoice.id) ? (
-                                      <CheckSquare size={18} />
-                                    ) : (
-                                      <Square size={18} />
-                                    )}
-                                  </button>
-                                </td>
-                                <td className="px-4 py-3">
-                                  <div className="flex items-center gap-2">
-                                    <FileText className="text-gray-500" size={18} />
-                                    <span className="text-gray-100 font-medium">{displayName}</span>
-                                  </div>
-                                </td>
-                                <td className={`px-4 py-3 ${getInvoiceTypeColor(invoice)} font-medium text-sm`}>
-                                  {invoice.invoice_number.replace(/^INV-/, '')}
-                                </td>
-                                <td className="px-4 py-3 text-gray-300 text-sm">
-                                  {invoice.invoice_month ? (
-                                    (() => {
-                                      const [year, month] = invoice.invoice_month.split('-');
-                                      const monthNames = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
-                                      return `${monthNames[parseInt(month) - 1]} ${year}`;
-                                    })()
-                                  ) : '-'}
-                                </td>
-                                <td className="px-4 py-3 text-gray-300 text-sm">
-                                  {new Date(invoice.invoice_date).toLocaleDateString('nl-NL')}
-                                </td>
-                                <td className="px-4 py-3 text-gray-300 text-sm">
-                                  <div className="flex items-center gap-1">
-                                    <Calendar size={14} className="text-gold-500" />
-                                    {new Date(invoice.due_date).toLocaleDateString('nl-NL')}
-                                  </div>
-                                </td>
-                                <td className="px-4 py-3 text-right">
-                                  <div className="text-gray-100 font-bold">
-                                    €{invoice.amount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                  </div>
-                                  {invoice.applied_credit > 0 && (
-                                    <div className="text-xs text-green-400">
-                                      -€{invoice.applied_credit.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} credit
-                                    </div>
-                                  )}
-                                </td>
-                                <td className="px-4 py-3 text-center">
-                                  <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(invoice.status)}`}>
-                                    {getStatusLabel(invoice.status)}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                                  <div className="flex gap-1 justify-end">
-                                    {(invoice.status === 'sent' || invoice.status === 'overdue') && (
-                                      <button
-                                        onClick={() => handleMarkAsPaid(invoice.id)}
-                                        disabled={markingPaidId === invoice.id}
-                                        className="text-green-500 hover:text-green-400 transition-colors p-1.5 rounded hover:bg-dark-700 disabled:opacity-50"
-                                        title="Markeer als betaald"
-                                      >
-                                        {markingPaidId === invoice.id ? (
-                                          <Loader2 size={18} className="animate-spin" />
-                                        ) : (
-                                          <Check size={18} />
-                                        )}
-                                      </button>
-                                    )}
-                                    {companySettings?.eboekhouden_enabled && invoice.eboekhouden_factuur_id && (
-                                      <span className="text-teal-500 p-1.5" title={`Gesynchroniseerd met e-Boekhouden (ID: ${invoice.eboekhouden_factuur_id})`}>
-                                        <CheckCircle2 size={18} />
-                                      </span>
-                                    )}
-                                    <button
-                                      onClick={() => {
-                                        setShowDeleteConfirm(invoice.id);
-                                        setDeleteError('');
-                                        setDeletePassword('');
-                                      }}
-                                      className="text-red-500 hover:text-red-400 transition-colors p-1.5 rounded hover:bg-dark-700"
-                                      title="Verwijderen"
-                                    >
-                                      <Trash2 size={18} />
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
-                    </table>
+                      ) : (
+                        allOpenInvoices.map(inv => renderInvoiceRow(inv, true))
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </div>
-            </div>
+            </>
           );
-          })()}
+        })()}
       </div>
 
       {/* Genereer Facturen Modal */}
@@ -3815,11 +3618,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             <div className="bg-dark-900 rounded-lg shadow-xl border border-dark-700 max-w-5xl w-full max-h-[90vh] flex flex-col">
               <div className="flex-shrink-0 bg-dark-800 px-6 py-4 border-b border-dark-700 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-gray-100">
-                  {invoiceTypeFilter === 'huur' && 'Huur Facturen Genereren'}
-                  {invoiceTypeFilter === 'vergaderruimte' && 'Vergaderruimte Facturen Genereren'}
-                  {invoiceTypeFilter === 'flex' && 'Flex Facturen Genereren'}
-                  {invoiceTypeFilter === 'handmatig' && 'Handmatige Facturen Genereren'}
-                  {!invoiceTypeFilter && 'Facturen Genereren'}
+                  Facturen Genereren
                 </h2>
                 <button
                   onClick={() => {
