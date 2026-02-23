@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { InvoicePreview } from './InvoicePreview';
 import { CreditNotePreview } from './CreditNotePreview';
 import { PurchaseInvoicePreview } from './PurchaseInvoicePreview';
 import { Loader2 } from 'lucide-react';
 
+const LazyEmailTab = lazy(() => import('./EmailTab').then(m => ({ default: m.EmailTab })));
+
 type PreviewData = {
-  type: 'invoice' | 'credit-note' | 'purchase-invoice';
+  type: 'invoice' | 'credit-note' | 'purchase-invoice' | 'email';
   props: any;
 };
 
@@ -52,6 +54,20 @@ export function PreviewWindow() {
     return (
       <div className="h-screen bg-dark-950 overflow-y-auto">
         <DetachedPurchaseInvoicePreview {...previewData.props} />
+      </div>
+    );
+  }
+
+  if (previewData.type === 'email') {
+    return (
+      <div className="h-screen bg-dark-950 overflow-y-auto p-6">
+        <Suspense fallback={
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="animate-spin text-gold-500" size={32} />
+          </div>
+        }>
+          <LazyEmailTab />
+        </Suspense>
       </div>
     );
   }

@@ -68,6 +68,13 @@ export function Integrations() {
     loadSettings();
   }, []);
 
+  const dispatchEmailChange = (updatedSettings: CompanySettings) => {
+    const hasEmail = (updatedSettings.smtp_enabled && updatedSettings.smtp_connected) ||
+      (updatedSettings.graph_enabled && updatedSettings.graph_connected) ||
+      (updatedSettings.resend_enabled && updatedSettings.resend_connected);
+    window.dispatchEvent(new CustomEvent('email-enabled-changed', { detail: { enabled: hasEmail } }));
+  };
+
   const loadSettings = async () => {
     setLoading(true);
     const { data } = await supabase
@@ -175,6 +182,7 @@ export function Integrations() {
 
     if (!error && data) {
       setSettings(data);
+      dispatchEmailChange(data);
     }
     setSavingSmtp(false);
   };
@@ -199,6 +207,7 @@ export function Integrations() {
 
     if (!error && data) {
       setSettings(data);
+      dispatchEmailChange(data);
     }
     setSavingGraph(false);
   };
@@ -273,7 +282,9 @@ export function Integrations() {
             .from('company_settings')
             .update({ smtp_connected: true, updated_at: new Date().toISOString() })
             .eq('id', settings.id);
-          setSettings({ ...settings, smtp_connected: true });
+          const updated = { ...settings, smtp_connected: true };
+          setSettings(updated);
+          dispatchEmailChange(updated);
         }
       } else {
         setTestSmtpResult({ success: false, message: result.error || 'Verbinding mislukt. Controleer de SMTP instellingen.' });
@@ -282,7 +293,9 @@ export function Integrations() {
             .from('company_settings')
             .update({ smtp_connected: false, updated_at: new Date().toISOString() })
             .eq('id', settings.id);
-          setSettings({ ...settings, smtp_connected: false });
+          const updated = { ...settings, smtp_connected: false };
+          setSettings(updated);
+          dispatchEmailChange(updated);
         }
       }
     } catch {
@@ -329,7 +342,9 @@ export function Integrations() {
             .from('company_settings')
             .update({ graph_connected: true, updated_at: new Date().toISOString() })
             .eq('id', settings.id);
-          setSettings({ ...settings, graph_connected: true });
+          const updated = { ...settings, graph_connected: true };
+          setSettings(updated);
+          dispatchEmailChange(updated);
         }
       } else {
         setTestGraphResult({ success: false, message: result.error || 'Verbinding mislukt. Controleer de Graph API instellingen.' });
@@ -338,7 +353,9 @@ export function Integrations() {
             .from('company_settings')
             .update({ graph_connected: false, updated_at: new Date().toISOString() })
             .eq('id', settings.id);
-          setSettings({ ...settings, graph_connected: false });
+          const updated = { ...settings, graph_connected: false };
+          setSettings(updated);
+          dispatchEmailChange(updated);
         }
       }
     } catch {
@@ -366,6 +383,7 @@ export function Integrations() {
 
     if (!error && data) {
       setSettings(data);
+      dispatchEmailChange(data);
     }
     setSavingResend(false);
   };
@@ -405,7 +423,9 @@ export function Integrations() {
             .from('company_settings')
             .update({ resend_connected: true, updated_at: new Date().toISOString() })
             .eq('id', settings.id);
-          setSettings({ ...settings, resend_connected: true });
+          const updated = { ...settings, resend_connected: true };
+          setSettings(updated);
+          dispatchEmailChange(updated);
         }
       } else {
         setTestResendResult({ success: false, message: result.error || 'Verbinding mislukt. Controleer de Resend instellingen.' });
@@ -414,7 +434,9 @@ export function Integrations() {
             .from('company_settings')
             .update({ resend_connected: false, updated_at: new Date().toISOString() })
             .eq('id', settings.id);
-          setSettings({ ...settings, resend_connected: false });
+          const updated = { ...settings, resend_connected: false };
+          setSettings(updated);
+          dispatchEmailChange(updated);
         }
       }
     } catch {
