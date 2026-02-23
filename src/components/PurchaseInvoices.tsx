@@ -113,6 +113,19 @@ export function PurchaseInvoices() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [previewInvoice, setPreviewInvoice] = useState<PurchaseInvoice | null>(null);
+
+  const openPreview = (inv: PurchaseInvoice) => {
+    const splitscreen = localStorage.getItem('hal5-splitscreen') === 'true';
+    const electron = (window as any).electron;
+    if (splitscreen && electron?.openPreviewWindow) {
+      electron.openPreviewWindow({
+        type: 'purchase-invoice',
+        props: { invoice: inv }
+      });
+    } else {
+      setPreviewInvoice(inv);
+    }
+  };
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [openaiApiKey, setOpenaiApiKey] = useState('');
@@ -837,7 +850,7 @@ export function PurchaseInvoices() {
                       <tr
                         key={inv.id}
                         className="border-b border-dark-800 hover:bg-dark-800 transition-colors cursor-pointer"
-                        onClick={() => setPreviewInvoice(inv)}
+                        onClick={() => openPreview(inv)}
                       >
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
@@ -887,7 +900,7 @@ export function PurchaseInvoices() {
                               )
                             )}
                             <button
-                              onClick={(e) => { e.stopPropagation(); setPreviewInvoice(inv); }}
+                              onClick={(e) => { e.stopPropagation(); openPreview(inv); }}
                               className="text-gold-500 hover:text-gold-400 p-1.5 rounded hover:bg-dark-700 transition-colors"
                               title="Bekijken"
                             >

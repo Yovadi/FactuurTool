@@ -2629,7 +2629,36 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
       console.log('Loaded line items:', items);
       const spaces = convertLineItemsToSpaces(items || []);
       console.log('Converted spaces:', spaces);
-      setPreviewInvoice({ invoice: { ...invoice, line_items: items } as any, spaces });
+
+      const splitscreen = localStorage.getItem('hal5-splitscreen') === 'true';
+      const electron = (window as any).electron;
+      if (splitscreen && electron?.openPreviewWindow) {
+        const tenant = getInvoiceTenant(invoice);
+        electron.openPreviewWindow({
+          type: 'invoice',
+          props: {
+            invoice: { ...invoice, line_items: items },
+            tenant: tenant || { name: '', company_name: '', email: '' },
+            spaces,
+            contractType: invoice.lease?.lease_type,
+            invoiceTypeColor: getInvoiceTypeColor(invoice),
+            company: companySettings ? {
+              name: companySettings.company_name,
+              address: companySettings.address,
+              postal_code: companySettings.postal_code,
+              city: companySettings.city,
+              kvk: companySettings.kvk_number,
+              btw: companySettings.vat_number,
+              iban: companySettings.bank_account,
+              email: companySettings.email,
+              phone: companySettings.phone,
+              website: companySettings.website
+            } : undefined
+          }
+        });
+      } else {
+        setPreviewInvoice({ invoice: { ...invoice, line_items: items } as any, spaces });
+      }
     } catch (error) {
       console.error('Error in showInvoicePreview:', error);
       showToast('Fout bij het tonen van de factuurpreview.', 'error');

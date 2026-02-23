@@ -393,7 +393,27 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
       }
     }
 
-    setPreviewCreditNote(enrichedCreditNote);
+    const splitscreen = localStorage.getItem('hal5-splitscreen') === 'true';
+    const electron = (window as any).electron;
+    if (splitscreen && electron?.openPreviewWindow) {
+      electron.openPreviewWindow({
+        type: 'credit-note',
+        props: {
+          creditNote: {
+            ...enrichedCreditNote,
+            tenant: Array.isArray(enrichedCreditNote.tenants)
+              ? enrichedCreditNote.tenants[0]
+              : enrichedCreditNote.tenants,
+            external_customer: Array.isArray(enrichedCreditNote.external_customers)
+              ? enrichedCreditNote.external_customers[0]
+              : enrichedCreditNote.external_customers,
+          },
+          companySettings
+        }
+      });
+    } else {
+      setPreviewCreditNote(enrichedCreditNote);
+    }
   };
 
   const handleSendCreditNote = async (creditNote: CreditNote) => {

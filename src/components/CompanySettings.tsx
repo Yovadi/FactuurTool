@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, type CompanySettings } from '../lib/supabase';
-import { Building2, Edit2, Mail, Phone, MapPin, CreditCard, Lock, FolderOpen, RefreshCw, Wifi, Network, Zap, FileText, Sparkles, Loader2 } from 'lucide-react';
+import { Building2, Edit2, Mail, Phone, MapPin, CreditCard, Lock, FolderOpen, RefreshCw, Wifi, Network, Zap, FileText, Sparkles, Loader2, Monitor } from 'lucide-react';
 import { EBoekhoudenDashboard } from './EBoekhoudenDashboard';
 
 export function CompanySettings() {
@@ -11,6 +11,10 @@ export function CompanySettings() {
   const [updateMessage, setUpdateMessage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'company' | 'building' | 'eboekhouden'>('company');
   const [showApiKey, setShowApiKey] = useState(false);
+  const [splitscreenEnabled, setSplitscreenEnabled] = useState(() => {
+    return localStorage.getItem('hal5-splitscreen') === 'true';
+  });
+  const isElectron = !!(window as any).electronAPI;
 
   const [formData, setFormData] = useState({
     company_name: '',
@@ -792,6 +796,42 @@ export function CompanySettings() {
                     <p className="text-xs text-gray-500 mt-2 ml-5">Afzender: {settings.smtp_from_name ? `${settings.smtp_from_name} <${settings.smtp_from_email}>` : settings.smtp_from_email}</p>
                   )}
                 </div>
+
+                {isElectron && (
+                  <div className="border-t border-dark-700 pt-6">
+                    <h4 className="text-sm font-semibold text-gray-400 uppercase mb-3">Splitscreen Modus</h4>
+                    <div className="flex items-start gap-3">
+                      <Monitor size={16} className="mt-0.5 text-gray-500 flex-shrink-0" />
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm text-gray-200">Previews openen in apart venster</p>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              Factuur- en creditnota-previews worden automatisch in een apart venster geopend, ideaal voor twee schermen
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => {
+                              const newValue = !splitscreenEnabled;
+                              setSplitscreenEnabled(newValue);
+                              localStorage.setItem('hal5-splitscreen', String(newValue));
+                              window.dispatchEvent(new CustomEvent('splitscreen-changed', { detail: { enabled: newValue } }));
+                            }}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ${
+                              splitscreenEnabled ? 'bg-gold-500' : 'bg-dark-600'
+                            }`}
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                splitscreenEnabled ? 'translate-x-6' : 'translate-x-1'
+                              }`}
+                            />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="border-t border-dark-700 pt-6">
                   <h4 className="text-sm font-semibold text-gray-400 uppercase mb-3">Software Updates</h4>
