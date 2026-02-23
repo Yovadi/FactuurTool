@@ -1119,12 +1119,9 @@ export function FlexWorkspaceBookings() {
         ))}
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-shrink-0 mb-4">
         <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-100">Flexplek Boekingen</h1>
-            <p className="text-sm text-gray-400 mt-1">Beheer externe flexplekboekingen</p>
-          </div>
+          <h1 className="text-2xl font-bold text-gray-100">Flexplek Boekingen</h1>
           <div className="flex items-center gap-2">
             <button
               onClick={loadData}
@@ -1143,8 +1140,7 @@ export function FlexWorkspaceBookings() {
             </button>
           </div>
         </div>
-
-        <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2 mb-4">
+        <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2">
           <div className="flex gap-2">
             <button
               onClick={() => setSelectedView('resource')}
@@ -1181,33 +1177,6 @@ export function FlexWorkspaceBookings() {
             </button>
           </div>
         </div>
-
-        {selectedView === 'list' && (
-          <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-4 mb-4">
-            <div className="flex items-center gap-2">
-              <Filter size={18} className="text-gray-400" />
-              <div className="flex gap-2 flex-wrap">
-                {[
-                  { value: 'all', label: 'Alle' },
-                  { value: 'upcoming', label: 'Komend' },
-                  { value: 'invoiced', label: 'Gefactureerd' }
-                ].map(filter => (
-                  <button
-                    key={filter.value}
-                    onClick={() => setSelectedFilter(filter.value as any)}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                      selectedFilter === filter.value
-                        ? 'bg-gold-500 text-white'
-                        : 'bg-dark-800 text-gray-300 hover:bg-dark-700'
-                    }`}
-                  >
-                    {filter.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {showForm && (
@@ -1608,6 +1577,30 @@ export function FlexWorkspaceBookings() {
         </div>
       ) : selectedView === 'list' ? (
         <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 overflow-hidden">
+          <div className="flex-shrink-0 flex justify-between items-center px-4 py-3 bg-dark-800 border-b border-teal-500">
+            <h2 className="text-lg font-bold text-gray-100">Flexplek Boekingen</h2>
+            <div className="flex items-center gap-4">
+              <div className="flex gap-2">
+                {[
+                  { value: 'all', label: 'Alle' },
+                  { value: 'upcoming', label: 'Aankomend' },
+                  { value: 'invoiced', label: 'Gefactureerd' }
+                ].map(filter => (
+                  <button
+                    key={filter.value}
+                    onClick={() => setSelectedFilter(filter.value as any)}
+                    className={`px-3 py-1.5 rounded-lg transition-colors text-sm ${
+                      selectedFilter === filter.value
+                        ? 'bg-gold-600 text-white'
+                        : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
+                    }`}
+                  >
+                    {filter.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
           {bookings.filter(b => b.status === 'pending').length > 0 && (
             <div className="bg-orange-900/20 border-b border-orange-700/50 px-6 py-3">
               <div className="flex items-center gap-2 text-orange-300">
