@@ -46,6 +46,9 @@ contextBridge.exposeInMainWorld('electron', {
   openPreviewWindow: (previewData) => {
     return ipcRenderer.invoke('open-preview-window', previewData);
   },
+  closePreviewWindow: () => {
+    return ipcRenderer.invoke('close-preview-window');
+  },
   onPreviewData: (callback) => {
     ipcRenderer.on('preview-data', (_, data) => callback(data));
   },
@@ -99,6 +102,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   openPreviewWindow: (previewData) => {
     return ipcRenderer.invoke('open-preview-window', previewData);
+  },
+  closePreviewWindow: () => {
+    return ipcRenderer.invoke('close-preview-window');
   },
   onPreviewData: (callback) => {
     ipcRenderer.on('preview-data', (_, data) => callback(data));

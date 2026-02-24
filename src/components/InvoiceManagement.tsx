@@ -543,6 +543,16 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     updateInvoicedMonthsCounts();
   }, [invoices]);
 
+  useEffect(() => {
+    return () => {
+      const splitscreen = localStorage.getItem('hal5-splitscreen') === 'true';
+      const electron = (window as any).electron;
+      if (splitscreen && electron?.closePreviewWindow) {
+        electron.closePreviewWindow();
+      }
+    };
+  }, []);
+
   const loadData = async () => {
     setLoading(true);
 
@@ -2717,7 +2727,35 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       const spaces = convertLineItemsToSpaces(items || []);
       console.log('Converted spaces:', spaces);
 
-      setPreviewInvoice({ invoice: { ...invoice, line_items: items } as any, spaces });
+      const enrichedInvoice = { ...invoice, line_items: items } as any;
+      const splitscreen = localStorage.getItem('hal5-splitscreen') === 'true';
+      const electron = (window as any).electron;
+      if (splitscreen && electron?.openPreviewWindow) {
+        electron.openPreviewWindow({
+          type: 'invoice',
+          props: {
+            invoice: enrichedInvoice,
+            tenant: tenant || { name: '', company_name: '', email: '' },
+            spaces,
+            contractType: invoice.lease?.lease_type,
+            invoiceTypeColor: getInvoiceTypeColor(invoice),
+            company: companySettings ? {
+              name: companySettings.company_name,
+              address: companySettings.address,
+              postal_code: companySettings.postal_code,
+              city: companySettings.city,
+              kvk: companySettings.kvk_number,
+              btw: companySettings.vat_number,
+              iban: companySettings.bank_account,
+              email: companySettings.email,
+              phone: companySettings.phone,
+              website: companySettings.website
+            } : undefined
+          }
+        });
+      } else {
+        setPreviewInvoice({ invoice: enrichedInvoice, spaces });
+      }
     } catch (error) {
       console.error('Error in showInvoicePreview:', error);
       showToast('Fout bij het tonen van de factuurpreview.', 'error');

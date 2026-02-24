@@ -562,6 +562,19 @@ ipcMain.handle('open-preview-window', async (event, previewData) => {
   }
 });
 
+ipcMain.handle('close-preview-window', async () => {
+  try {
+    if (previewWindow && !previewWindow.isDestroyed()) {
+      previewWindow.close();
+      previewWindow = null;
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('Error closing preview window:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 app.whenReady().then(() => {
   createWindow();
 
