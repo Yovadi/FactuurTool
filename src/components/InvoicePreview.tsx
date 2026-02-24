@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { X, Download, Send, Edit, Receipt, FileText, ExternalLink, Loader2, Eye } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { X, Download, Send, Edit, Receipt, FileText, ExternalLink, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { generateInvoicePDFBlobUrl } from '../utils/pdfGenerator';
 
@@ -95,12 +95,14 @@ export function InvoicePreview({
   const [loading, setLoading] = useState(true);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const pdfLoadingRef = useRef(false);
 
   useEffect(() => {
     setPdfUrl(prev => {
       if (prev) URL.revokeObjectURL(prev);
       return null;
     });
+    pdfLoadingRef.current = false;
   }, [invoice?.id]);
 
   useEffect(() => {
@@ -130,7 +132,8 @@ export function InvoicePreview({
   }, [invoice?.id]);
 
   const loadPdf = useCallback(async () => {
-    if (!invoice || !tenant || pdfLoading) return;
+    if (!invoice || !tenant || pdfLoadingRef.current) return;
+    pdfLoadingRef.current = true;
     setPdfLoading(true);
     try {
       const url = await generateInvoicePDFBlobUrl({
@@ -173,9 +176,16 @@ export function InvoicePreview({
     } catch (err) {
       console.error('PDF generation error:', err);
     } finally {
+      pdfLoadingRef.current = false;
       setPdfLoading(false);
     }
-  }, [invoice, tenant, spaces, contractType, company, pdfLoading]);
+  }, [invoice, tenant, spaces, contractType, company]);
+
+  useEffect(() => {
+    if (inline && invoice && tenant && !pdfUrl && !pdfLoadingRef.current) {
+      loadPdf();
+    }
+  }, [inline, invoice?.id, loadPdf]);
 
   if (!invoice || !tenant) {
     if (inline) {
@@ -544,20 +554,11 @@ export function InvoicePreview({
               title={`Factuur ${invoiceNumberDisplay}`}
             />
           ) : (
-            <div className="h-full flex flex-col items-center justify-center gap-6 px-6">
-              <div className="text-center space-y-1">
-                <p className="text-gray-100 font-semibold text-lg">{invoiceNumberDisplay}</p>
-                <p className="text-gray-400 text-sm">{tenant.company_name || tenant.name || tenant.contact_name}</p>
-                <p className="text-gray-500 text-sm">{formatDate(invoice.invoice_date)} - {formatDate(invoice.due_date)}</p>
-                <p className="text-gray-100 font-bold text-xl mt-2">{'\u20AC'} {invoice.amount.toFixed(2)}</p>
+            <div className="h-full flex items-center justify-center">
+              <div className="flex flex-col items-center gap-3">
+                <Loader2 size={28} className="text-gold-500 animate-spin" />
+                <span className="text-sm text-gray-400">PDF laden...</span>
               </div>
-              <button
-                onClick={loadPdf}
-                className="flex items-center gap-2 bg-gold-500 hover:bg-gold-400 text-white px-5 py-2.5 rounded-lg transition-colors font-medium"
-              >
-                <Eye size={18} />
-                PDF Bekijken
-              </button>
             </div>
           )}
         </div>
