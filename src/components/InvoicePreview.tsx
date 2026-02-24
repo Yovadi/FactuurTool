@@ -182,10 +182,10 @@ export function InvoicePreview({
   }, [invoice, tenant, spaces, contractType, company]);
 
   useEffect(() => {
-    if (inline && invoice && tenant && !pdfUrl && !pdfLoadingRef.current) {
+    if (invoice && tenant && !pdfUrl && !pdfLoadingRef.current) {
       loadPdf();
     }
-  }, [inline, invoice?.id, loadPdf]);
+  }, [invoice?.id, loadPdf]);
 
   if (!invoice || !tenant) {
     if (inline) {
@@ -567,13 +567,28 @@ export function InvoicePreview({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-      <div className="bg-dark-900 rounded-lg my-8 relative w-full max-w-5xl mx-4 max-h-[90vh] overflow-y-auto border border-dark-700">
-        <div className="sticky top-0 bg-dark-800 rounded-t-lg border-b border-dark-700 px-6 py-4 flex items-center justify-between">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-dark-900 rounded-lg my-8 relative w-full max-w-5xl mx-4 h-[90vh] flex flex-col border border-dark-700">
+        <div className="flex-shrink-0 bg-dark-800 rounded-t-lg border-b border-dark-700 px-6 py-4 flex items-center justify-between">
           <h2 className="text-2xl font-bold text-gray-100">Factuur <span className={invoiceTypeColor || 'text-gray-100'}>{invoiceNumberDisplay}</span></h2>
           {actionButtons}
         </div>
-        {htmlPreviewContent}
+        <div className="flex-1 overflow-hidden bg-gray-700 rounded-b-lg">
+          {pdfLoading || !pdfUrl ? (
+            <div className="h-full flex items-center justify-center">
+              <div className="flex flex-col items-center gap-3">
+                <Loader2 size={28} className="text-gold-500 animate-spin" />
+                <span className="text-sm text-gray-400">PDF genereren...</span>
+              </div>
+            </div>
+          ) : (
+            <iframe
+              src={pdfUrl}
+              className="w-full h-full border-0"
+              title={`Factuur ${invoiceNumberDisplay}`}
+            />
+          )}
+        </div>
       </div>
     </div>
   );
