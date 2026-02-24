@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { X, Download, Send, Edit, Receipt, FileText, ExternalLink } from 'lucide-react';
+import { X, Download, Send, Edit, Receipt, FileText, ExternalLink, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { generateInvoicePDFBlobUrl } from '../utils/pdfGenerator';
 
 interface InvoiceSpace {
   space_name: string;
@@ -92,6 +93,72 @@ export function InvoicePreview({
 }: InvoicePreviewProps) {
   const [creditApplications, setCreditApplications] = useState<CreditApplication[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+
+  useEffect(() => {
+    if (!inline || !invoice || !tenant) return;
+
+    let cancelled = false;
+    setPdfLoading(true);
+    setPdfUrl(null);
+
+    const buildPdf = async () => {
+      try {
+        const url = await generateInvoicePDFBlobUrl({
+          invoice_number: invoice.invoice_number,
+          tenant_name: tenant.name || tenant.contact_name || '',
+          tenant_company_name: tenant.company_name || '',
+          tenant_email: tenant.email || '',
+          tenant_phone: tenant.phone || undefined,
+          tenant_billing_address: tenant.billing_address || undefined,
+          tenant_street: tenant.street || undefined,
+          tenant_postal_code: tenant.postal_code || undefined,
+          tenant_city: tenant.city || undefined,
+          tenant_country: tenant.country || undefined,
+          invoice_month: invoice.invoice_month || undefined,
+          contract_type: contractType || undefined,
+          notes: invoice.notes || undefined,
+          spaces: spaces.map(s => ({
+            space_name: s.space_name,
+            monthly_rent: s.monthly_rent,
+            space_type: s.space_type,
+            square_footage: s.square_footage,
+            price_per_sqm: s.price_per_sqm,
+            hours: s.hours,
+            hourly_rate: s.hourly_rate,
+          })),
+          security_deposit: 0,
+          subtotal: invoice.subtotal,
+          amount: invoice.amount,
+          vat_amount: invoice.vat_amount,
+          vat_rate: invoice.vat_rate,
+          vat_inclusive: invoice.vat_inclusive,
+          due_date: invoice.due_date,
+          invoice_date: invoice.invoice_date,
+          company,
+        });
+        if (!cancelled) {
+          setPdfUrl(url);
+        } else {
+          URL.revokeObjectURL(url);
+        }
+      } catch (err) {
+        console.error('PDF generation error:', err);
+      } finally {
+        if (!cancelled) setPdfLoading(false);
+      }
+    };
+
+    buildPdf();
+    return () => {
+      cancelled = true;
+      setPdfUrl(prev => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
+    };
+  }, [inline, invoice?.id]);
 
   if (!invoice || !tenant) {
     if (inline) {
@@ -245,8 +312,25 @@ export function InvoicePreview({
           </div>
           {actionButtons}
         </div>
-        <div className="flex-1 overflow-y-auto">
-          {previewContent}
+        <div className="flex-1 overflow-hidden bg-gray-700">
+          {pdfLoading ? (
+            <div className="h-full flex items-center justify-center">
+              <div className="flex flex-col items-center gap-3">
+                <Loader2 size={28} className="text-gold-500 animate-spin" />
+                <span className="text-sm text-gray-400">PDF genereren...</span>
+              </div>
+            </div>
+          ) : pdfUrl ? (
+            <iframe
+              src={pdfUrl}
+              className="w-full h-full border-0"
+              title={`Factuur ${invoiceNumberDisplay}`}
+            />
+          ) : (
+            <div className="h-full flex items-center justify-center">
+              <span className="text-sm text-gray-400">PDF kon niet geladen worden</span>
+            </div>
+          )}
         </div>
       </div>
     );

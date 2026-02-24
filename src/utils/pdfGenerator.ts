@@ -89,6 +89,12 @@ async function generateInvoicePDFDocument(invoice: InvoiceData): Promise<jsPDF> 
   return pdf;
 }
 
+export async function generateInvoicePDFBlobUrl(invoice: InvoiceData): Promise<string> {
+  const pdf = await generateInvoicePDFDocument(invoice);
+  const pdfBlob = pdf.output('blob');
+  return URL.createObjectURL(pdfBlob);
+}
+
 export async function generateInvoicePDF(invoice: InvoiceData, preview: boolean = false, skipDownload: boolean = false) {
   const pdf = await generateInvoicePDFDocument(invoice);
 
