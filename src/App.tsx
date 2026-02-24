@@ -343,7 +343,7 @@ function App() {
             lg:transform-none
             p-4 lg:p-0
           `}>
-            <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2 flex flex-col flex-shrink-0 h-full overflow-y-auto">
+            <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2 flex flex-col flex-shrink-0 h-full overflow-hidden">
               <div className="px-4 py-3 mb-2 flex items-center justify-between">
                 <div>
                   <h2 className="text-xl font-bold text-gold-500">HAL5 Facturatie</h2>
@@ -448,7 +448,7 @@ function App() {
                   </button>
                 </div>
               </div>
-              <nav className="space-y-1 pb-2">
+              <nav className="flex-1 overflow-y-auto space-y-1 pb-2">
                 {navigation.map((item) => {
                   const Icon = item.icon;
                   const isActive = isActiveTab(item.id, item.children);
@@ -515,9 +515,9 @@ function App() {
                     </button>
                   );
                 })}
+              </nav>
 
-                <div className="my-2 border-t border-dark-700"></div>
-
+              <div className="flex-shrink-0 border-t border-dark-700 pt-2 pb-1">
                 {bottomNavigation.map((item) => {
                   const Icon = item.icon;
                   const isActive = activeTab === item.id;
@@ -540,7 +540,7 @@ function App() {
                     </button>
                   );
                 })}
-              </nav>
+              </div>
             </div>
           </aside>
 
