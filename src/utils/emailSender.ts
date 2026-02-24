@@ -23,6 +23,7 @@ type SendEmailParams = {
   toName?: string;
   subject: string;
   body: string;
+  html?: string;
   attachmentBase64?: string;
   attachmentName?: string;
   invoiceId?: string;
@@ -140,6 +141,7 @@ async function sendViaSMTP(
     to: params.to,
     subject: params.subject,
     text: params.body,
+    html: params.html,
   };
 
   if (params.attachmentBase64 && params.attachmentName) {
@@ -180,6 +182,7 @@ async function sendViaGraph(
     to: params.to,
     subject: params.subject,
     text: params.body,
+    html: params.html,
   };
 
   if (params.attachmentBase64 && params.attachmentName) {
@@ -218,6 +221,7 @@ async function sendViaResend(
     to: params.to,
     subject: params.subject,
     text: params.body,
+    html: params.html,
   };
 
   if (params.attachmentBase64 && params.attachmentName) {

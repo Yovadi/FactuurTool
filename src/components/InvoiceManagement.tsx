@@ -3,9 +3,9 @@ import { supabase, type Invoice, type Lease, type Tenant, type ExternalCustomer,
 import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, CreditCard as Edit, Search, CreditCard as Edit2, AlertCircle, AlertTriangle, CheckSquare, Square, Check, X, Home, Zap, RefreshCw, CheckCircle2, Loader2, Filter } from 'lucide-react';
 import { syncInvoiceToEBoekhouden, checkInvoicePaymentStatuses } from '../lib/eboekhoudenSync';
 import { generateInvoicePDF, generateInvoicePDFBase64 } from '../utils/pdfGenerator';
-import { isEmailConfigured } from '../utils/emailSender';
+import { isEmailConfigured, sendEmail, getActiveEmailMethodLabel } from '../utils/emailSender';
+import { buildInvoiceEmailHtml, buildInvoiceEmailText } from '../utils/emailTemplate';
 import { InvoicePreview } from './InvoicePreview';
-import { EmailCompose } from './EmailCompose';
 import { Toast } from './Toast';
 import { checkAndRunScheduledJobs } from '../utils/scheduledJobs';
 
@@ -141,6 +141,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     toName: string;
     subject: string;
     body: string;
+    html: string;
     invoiceId: string;
   } | null>(null);
   const [invoiceMonth, setInvoiceMonth] = useState<string>('');
@@ -160,6 +161,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   const [showDetailSelection, setShowDetailSelection] = useState(true);
   const [syncingInvoiceId, setSyncingInvoiceId] = useState<string | null>(null);
   const [markingPaidId, setMarkingPaidId] = useState<string | null>(null);
+  const [sendingEmailId, setSendingEmailId] = useState<string | null>(null);
   const [eBoekhoudenPaidWarning, setEBoekhoudenPaidWarning] = useState<{ invoiceId: string; invoiceNumber: string } | null>(null);
   const [eBoekhoudenBatchPaidWarning, setEBoekhoudenBatchPaidWarning] = useState<{ syncedCount: number; totalCount: number } | null>(null);
   const [toasts, setToasts] = useState<{ id: number; message: string; type: 'success' | 'error' | 'info' }[]>([]);
@@ -1358,54 +1360,74 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         }
       };
 
-      if (window.electronAPI) {
-        console.log('Using Electron API to send email');
-        console.log('Generating PDF...');
+      const tenantName = ('name' in tenant && tenant.name) ? tenant.name : ('contact_name' in tenant && tenant.contact_name) ? tenant.contact_name : tenant.company_name || '';
+      const invoiceNumber = invoice.invoice_number.replace(/^INV-/, '');
+      const formattedAmount = `\u20AC${invoice.amount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      const emailData = {
+        recipientName: tenantName,
+        invoiceNumber,
+        invoiceDate: new Date(invoice.invoice_date).toLocaleDateString('nl-NL'),
+        dueDate: new Date(invoice.due_date).toLocaleDateString('nl-NL'),
+        amount: formattedAmount,
+        companySettings,
+      };
+
+      if (isEmailConfigured(companySettings)) {
+        const pdfBase64 = await generateInvoicePDFBase64(invoiceData);
+        const htmlBody = buildInvoiceEmailHtml(emailData);
+        const textBody = buildInvoiceEmailText(emailData);
+
+        const emailResult = await sendEmail(companySettings, {
+          to: tenant.email,
+          toName: tenantName,
+          subject: `Factuur ${invoiceNumber} van ${companySettings.company_name}`,
+          body: textBody,
+          html: htmlBody,
+          attachmentBase64: pdfBase64,
+          attachmentName: `${invoice.invoice_number}.pdf`,
+          invoiceId: invoice.id,
+        });
+
+        if (!emailResult.success) {
+          throw new Error(emailResult.error || 'Fout bij verzenden van e-mail');
+        }
+
+        if (window.electronAPI && companySettings.root_folder_path && window.electronAPI.savePDF) {
+          try {
+            const pdf = await generateInvoicePDF(invoiceData, false, true);
+            const pdfBlob = pdf.output('arraybuffer');
+            const invoiceYear = new Date(invoice.invoice_date).getFullYear().toString();
+            const tenantFolderPath = `${companySettings.root_folder_path}/${tenant.company_name}/${invoiceYear}`;
+            await window.electronAPI.savePDF(pdfBlob, tenantFolderPath, `${invoice.invoice_number}.pdf`);
+          } catch (saveErr) {
+            console.error('Error saving PDF locally:', saveErr);
+          }
+        }
+      } else if (window.electronAPI) {
         const pdf = await generateInvoicePDF(invoiceData, false, true);
         const pdfBlob = pdf.output('arraybuffer');
-        console.log('PDF generated, size:', pdfBlob.byteLength);
 
         if (companySettings.root_folder_path && window.electronAPI.savePDF) {
           const invoiceYear = new Date(invoice.invoice_date).getFullYear().toString();
           const tenantFolderPath = `${companySettings.root_folder_path}/${tenant.company_name}/${invoiceYear}`;
-          const fileName = `${invoice.invoice_number}.pdf`;
-
-          const saveResult = await window.electronAPI.savePDF(
-            pdfBlob,
-            tenantFolderPath,
-            fileName
-          );
-
+          const saveResult = await window.electronAPI.savePDF(pdfBlob, tenantFolderPath, `${invoice.invoice_number}.pdf`);
           if (!saveResult.success) {
             console.error('Error saving PDF:', saveResult.error);
           }
         }
 
-        const tenantName = ('name' in tenant && tenant.name) ? tenant.name : ('contact_name' in tenant && tenant.contact_name) ? tenant.contact_name : tenant.company_name || '';
-        const emailBody = `Beste ${tenantName},
-
-Hierbij ontvangt u factuur ${invoice.invoice_number.replace(/^INV-/, '')} van ${companySettings.company_name}.
-
-Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companySettings.bank_account}.`;
-
-        console.log('Calling sendEmailWithPDF...');
+        const textBody = buildInvoiceEmailText(emailData);
         const result = await window.electronAPI.sendEmailWithPDF(
           pdfBlob,
           tenant.email,
-          `Factuur ${invoice.invoice_number.replace(/^INV-/, '')} van ${companySettings.company_name}`,
-          emailBody,
-          invoice.invoice_number.replace(/^INV-/, ''),
+          `Factuur ${invoiceNumber} van ${companySettings.company_name}`,
+          textBody,
+          invoiceNumber,
           null
         );
 
-        console.log('sendEmailWithPDF result:', result);
-
         if (!result.success) {
           throw new Error(result.error || 'Fout bij openen van Outlook');
-        }
-
-        if (result.warning) {
-          console.warn(result.warning);
         }
       }
 
@@ -2730,11 +2752,23 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
     if (companySettings && isEmailConfigured(companySettings) && tenant?.email) {
       const tenantName = ('name' in tenant && tenant.name) ? tenant.name : ('contact_name' in tenant && (tenant as any).contact_name) ? (tenant as any).contact_name : tenant.company_name || '';
       const invoiceNum = invoice.invoice_number.replace(/^INV-/, '');
+      const formattedAmount = `\u20AC${invoice.amount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      const emailData = {
+        recipientName: tenantName,
+        invoiceNumber: invoiceNum,
+        invoiceDate: new Date(invoice.invoice_date).toLocaleDateString('nl-NL'),
+        dueDate: new Date(invoice.due_date).toLocaleDateString('nl-NL'),
+        amount: formattedAmount,
+        companySettings,
+      };
+      const htmlBody = buildInvoiceEmailHtml(emailData);
+      const textBody = buildInvoiceEmailText(emailData);
       setEmailComposeData({
         to: tenant.email,
         toName: tenantName,
         subject: `Factuur ${invoiceNum} van ${companySettings.company_name}`,
-        body: `Beste ${tenantName},\n\nHierbij ontvangt u factuur ${invoiceNum} van ${companySettings.company_name}.\n\nGelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companySettings.bank_account}.`,
+        body: textBody,
+        html: htmlBody,
         invoiceId: invoice.id,
       });
       return;
@@ -4332,33 +4366,87 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
 
       {emailComposeData && companySettings && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60]">
-          <div className="bg-dark-900 rounded-xl border border-dark-700 p-6 w-full max-w-2xl mx-4 shadow-2xl">
-            <EmailCompose
-              companySettings={companySettings}
-              prefillTo={emailComposeData.to}
-              prefillToName={emailComposeData.toName}
-              prefillSubject={emailComposeData.subject}
-              prefillBody={emailComposeData.body}
-              prefillInvoiceId={emailComposeData.invoiceId}
-              onSent={async () => {
-                const invoiceId = emailComposeData.invoiceId;
-                setEmailComposeData(null);
-                setPreviewInvoice(null);
-
-                await supabase
-                  .from('invoices')
-                  .update({ status: 'sent', sent_at: new Date().toISOString() })
-                  .eq('id', invoiceId);
-
-                await loadData();
-              }}
-            />
-            <div className="flex justify-end mt-4 pt-4 border-t border-dark-700">
+          <div className="bg-dark-900 rounded-xl border border-dark-700 w-full max-w-3xl mx-4 shadow-2xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-dark-700 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                  <Send size={16} className="text-blue-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-100">E-mail Voorbeeld</h3>
+                  <p className="text-xs text-gray-500">
+                    Via {getActiveEmailMethodLabel(companySettings)}
+                  </p>
+                </div>
+              </div>
               <button
                 onClick={() => setEmailComposeData(null)}
-                className="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 bg-dark-800 border border-dark-700 rounded-lg hover:bg-dark-700 transition-colors"
+                className="text-gray-500 hover:text-gray-300 transition-colors p-1"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="px-6 py-4 border-b border-dark-700 flex-shrink-0 space-y-2">
+              <div className="flex items-center gap-3 text-sm">
+                <span className="text-gray-500 w-16 flex-shrink-0">Aan:</span>
+                <span className="text-gray-200">{emailComposeData.toName} &lt;{emailComposeData.to}&gt;</span>
+              </div>
+              <div className="flex items-center gap-3 text-sm">
+                <span className="text-gray-500 w-16 flex-shrink-0">Onderwerp:</span>
+                <span className="text-gray-200 font-medium">{emailComposeData.subject}</span>
+              </div>
+              <div className="flex items-center gap-3 text-sm">
+                <span className="text-gray-500 w-16 flex-shrink-0">Bijlage:</span>
+                <span className="flex items-center gap-1.5 text-gray-300">
+                  <FileText size={14} className="text-red-400" />
+                  {invoices.find(i => i.id === emailComposeData.invoiceId)?.invoice_number || 'factuur'}.pdf
+                </span>
+              </div>
+            </div>
+
+            <div className="flex-1 min-h-0 overflow-auto bg-gray-100">
+              <iframe
+                srcDoc={emailComposeData.html}
+                title="E-mail voorbeeld"
+                className="w-full h-full border-0"
+                style={{ minHeight: '400px' }}
+                sandbox="allow-same-origin"
+              />
+            </div>
+
+            <div className="flex items-center justify-between px-6 py-4 border-t border-dark-700 flex-shrink-0">
+              <button
+                onClick={() => setEmailComposeData(null)}
+                className="px-4 py-2.5 text-sm text-gray-400 hover:text-gray-200 bg-dark-800 border border-dark-700 rounded-lg hover:bg-dark-700 transition-colors"
               >
                 Annuleren
+              </button>
+              <button
+                onClick={async () => {
+                  const invoiceId = emailComposeData.invoiceId;
+                  setSendingEmailId(invoiceId);
+                  try {
+                    await sendInvoiceEmail(invoiceId);
+                    setEmailComposeData(null);
+                    setPreviewInvoice(null);
+                    showToast('Factuur succesvol verzonden per e-mail', 'success');
+                    await loadData();
+                  } catch (err) {
+                    showToast(err instanceof Error ? err.message : 'Fout bij verzenden', 'error');
+                  } finally {
+                    setSendingEmailId(null);
+                  }
+                }}
+                disabled={sendingEmailId === emailComposeData.invoiceId}
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+              >
+                {sendingEmailId === emailComposeData.invoiceId ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Send size={16} />
+                )}
+                {sendingEmailId === emailComposeData.invoiceId ? 'Verzenden...' : 'Versturen'}
               </button>
             </div>
           </div>
