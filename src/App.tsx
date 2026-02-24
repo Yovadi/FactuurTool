@@ -576,6 +576,7 @@ function App() {
                       electron.openPreviewWindow({ type: 'email', props: {} });
                     }
                   }}
+                  onNavigateToIntegrations={() => setActiveTab('settings')}
                 />
               )}
               {activeTab === 'settings' && <VerhuurderTabs />}
