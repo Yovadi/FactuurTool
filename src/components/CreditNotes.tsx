@@ -7,6 +7,7 @@ import { EmailCompose } from './EmailCompose';
 import { generateCreditNotePDF } from '../utils/pdfGenerator';
 import { syncCreditNoteToEBoekhouden } from '../lib/eboekhoudenSync';
 import { isEmailConfigured } from '../utils/emailSender';
+import { DefaultPanel, useDefaultPanel } from './DefaultPanel';
 
 type CreditNote = {
   id: string;
@@ -83,6 +84,7 @@ type CreditNotesProps = {
 };
 
 export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNotesProps = {}) {
+  const hasDefaultPanel = useDefaultPanel();
   const [creditNotes, setCreditNotes] = useState<CreditNote[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -653,7 +655,8 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
   }
 
   return (
-    <div className="h-full overflow-y-auto">
+    <div className="h-full flex overflow-hidden">
+    <div className={`flex-1 min-w-0 overflow-y-auto ${hasDefaultPanel ? 'w-1/2' : 'w-full'} transition-all duration-300`}>
       <div className="p-6">
       <div className="flex justify-between items-center mb-4 flex-wrap gap-3">
         <h2 className="text-2xl font-bold text-gray-100">Credit Nota's</h2>
@@ -1090,6 +1093,8 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
         </div>
       )}
       </div>
+    </div>
+    <DefaultPanel />
     </div>
   );
 }

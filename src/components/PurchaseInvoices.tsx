@@ -6,6 +6,7 @@ import { PurchaseInvoiceUpload } from './PurchaseInvoiceUpload';
 import { PurchaseInvoicePreview } from './PurchaseInvoicePreview';
 import { ConfirmModal } from './ConfirmModal';
 import { syncPurchaseInvoiceToEBoekhouden } from '../lib/eboekhoudenSync';
+import { DefaultPanel, useDefaultPanel } from './DefaultPanel';
 
 type LineItem = {
   id?: string;
@@ -107,6 +108,7 @@ const formatDate = (dateStr: string) =>
   new Date(dateStr).toLocaleDateString('nl-NL');
 
 export function PurchaseInvoices() {
+  const hasDefaultPanel = useDefaultPanel();
   const [invoices, setInvoices] = useState<PurchaseInvoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [showUpload, setShowUpload] = useState(false);
@@ -687,8 +689,9 @@ export function PurchaseInvoices() {
   }
 
   return (
+    <div className="h-full flex overflow-hidden">
     <div
-      className="h-full overflow-y-auto relative"
+      className={`flex-1 min-w-0 overflow-y-auto relative ${(previewInvoice || hasDefaultPanel) ? 'w-1/2' : 'w-full'} transition-all duration-300`}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
@@ -1233,6 +1236,8 @@ export function PurchaseInvoices() {
           onCancel={() => setDeleteConfirm(null)}
         />
       )}
+    </div>
+    {!previewInvoice && <DefaultPanel />}
     </div>
   );
 }
