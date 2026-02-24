@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, Download, Edit, Trash2, Link, Send, ExternalLink, Loader2 } from 'lucide-react';
 import { generateCreditNotePDFBlobUrl, CreditNoteData } from '../utils/pdfGenerator';
 
@@ -44,73 +44,75 @@ export function CreditNotePreview({ creditNote, companySettings, onClose, onDown
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const pdfLoadingRef = useRef(false);
+  const prevCreditNoteRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
-    setPdfUrl(prev => {
-      if (prev) URL.revokeObjectURL(prev);
-      return null;
-    });
-    pdfLoadingRef.current = false;
-  }, [creditNote.credit_note_number]);
+    if (!creditNote) return;
 
-  const loadPdf = useCallback(async () => {
-    if (!creditNote || pdfLoadingRef.current) return;
+    const noteChanged = prevCreditNoteRef.current !== creditNote.credit_note_number;
+    prevCreditNoteRef.current = creditNote.credit_note_number;
+
+    if (noteChanged) {
+      setPdfUrl(prev => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
+      pdfLoadingRef.current = false;
+    }
+
+    if (pdfLoadingRef.current) return;
+    if (!noteChanged && pdfUrl) return;
+
     pdfLoadingRef.current = true;
     setPdfLoading(true);
-    try {
-      const customerName = creditNote.tenant?.company_name || creditNote.external_customer?.company_name || 'Onbekend';
-      const customerAddress = creditNote.tenant
-        ? (creditNote.tenant.billing_address || `${creditNote.tenant.street || ''}\n${creditNote.tenant.postal_code || ''} ${creditNote.tenant.city || ''}`)
-        : `${creditNote.external_customer?.street || ''}\n${creditNote.external_customer?.postal_code || ''} ${creditNote.external_customer?.city || ''}`;
 
-      const pdfData: CreditNoteData = {
-        credit_note_number: creditNote.credit_note_number,
-        credit_date: creditNote.credit_date,
-        reason: creditNote.reason,
-        customer_name: customerName,
-        customer_address: customerAddress,
-        line_items: (creditNote.credit_note_line_items || []).map(item => ({
-          description: item.description,
-          quantity: item.quantity,
-          unit_price: item.unit_price,
-          amount: item.amount,
-        })),
-        subtotal: creditNote.subtotal,
-        vat_amount: creditNote.vat_amount,
-        vat_rate: creditNote.vat_rate,
-        total_amount: creditNote.total_amount,
-        notes: creditNote.notes,
-        company: companySettings ? {
-          name: companySettings.name,
-          address: companySettings.address,
-          postal_code: companySettings.postal_code,
-          city: companySettings.city,
-          kvk: companySettings.kvk_number,
-          btw: companySettings.btw_number,
-          iban: companySettings.bank_account,
-          email: companySettings.email,
-          phone: companySettings.phone,
-        } : undefined,
-      };
+    const customerName = creditNote.tenant?.company_name || creditNote.external_customer?.company_name || 'Onbekend';
+    const customerAddress = creditNote.tenant
+      ? (creditNote.tenant.billing_address || `${creditNote.tenant.street || ''}\n${creditNote.tenant.postal_code || ''} ${creditNote.tenant.city || ''}`)
+      : `${creditNote.external_customer?.street || ''}\n${creditNote.external_customer?.postal_code || ''} ${creditNote.external_customer?.city || ''}`;
 
-      const url = await generateCreditNotePDFBlobUrl(pdfData);
+    const pdfData: CreditNoteData = {
+      credit_note_number: creditNote.credit_note_number,
+      credit_date: creditNote.credit_date,
+      reason: creditNote.reason,
+      customer_name: customerName,
+      customer_address: customerAddress,
+      line_items: (creditNote.credit_note_line_items || []).map(item => ({
+        description: item.description,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        amount: item.amount,
+      })),
+      subtotal: creditNote.subtotal,
+      vat_amount: creditNote.vat_amount,
+      vat_rate: creditNote.vat_rate,
+      total_amount: creditNote.total_amount,
+      notes: creditNote.notes,
+      company: companySettings ? {
+        name: companySettings.name,
+        address: companySettings.address,
+        postal_code: companySettings.postal_code,
+        city: companySettings.city,
+        kvk: companySettings.kvk_number,
+        btw: companySettings.btw_number,
+        iban: companySettings.bank_account,
+        email: companySettings.email,
+        phone: companySettings.phone,
+      } : undefined,
+    };
+
+    generateCreditNotePDFBlobUrl(pdfData).then(url => {
       setPdfUrl(prev => {
         if (prev) URL.revokeObjectURL(prev);
         return url;
       });
-    } catch (err) {
+    }).catch(err => {
       console.error('Credit note PDF generation error:', err);
-    } finally {
+    }).finally(() => {
       pdfLoadingRef.current = false;
       setPdfLoading(false);
-    }
-  }, [creditNote, companySettings]);
-
-  useEffect(() => {
-    if (creditNote && !pdfUrl && !pdfLoadingRef.current) {
-      loadPdf();
-    }
-  }, [creditNote.credit_note_number, loadPdf]);
+    });
+  }, [creditNote.credit_note_number, creditNote, companySettings]);
 
   const creditNoteNumberDisplay = creditNote.credit_note_number?.replace(/^CN-/, '') || 'Onbekend';
 

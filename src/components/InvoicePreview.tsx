@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, Download, Send, Edit, Receipt, FileText, ExternalLink, Loader2, RotateCcw } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { generateInvoicePDFBlobUrl } from '../utils/pdfGenerator';
@@ -98,14 +98,7 @@ export function InvoicePreview({
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const pdfLoadingRef = useRef(false);
-
-  useEffect(() => {
-    setPdfUrl(prev => {
-      if (prev) URL.revokeObjectURL(prev);
-      return null;
-    });
-    pdfLoadingRef.current = false;
-  }, [invoice?.id]);
+  const prevInvoiceIdRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     if (invoice?.id && invoice?.applied_credit && invoice.applied_credit > 0) {
@@ -133,61 +126,70 @@ export function InvoicePreview({
     }
   }, [invoice?.id]);
 
-  const loadPdf = useCallback(async () => {
-    if (!invoice || !tenant || pdfLoadingRef.current) return;
+  useEffect(() => {
+    if (!invoice || !tenant) return;
+
+    const invoiceChanged = prevInvoiceIdRef.current !== invoice.id;
+    prevInvoiceIdRef.current = invoice.id;
+
+    if (invoiceChanged) {
+      setPdfUrl(prev => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
+      pdfLoadingRef.current = false;
+    }
+
+    if (pdfLoadingRef.current) return;
+    if (!invoiceChanged && pdfUrl) return;
+
     pdfLoadingRef.current = true;
     setPdfLoading(true);
-    try {
-      const url = await generateInvoicePDFBlobUrl({
-        invoice_number: invoice.invoice_number,
-        tenant_name: tenant.name || tenant.contact_name || '',
-        tenant_company_name: tenant.company_name || '',
-        tenant_email: tenant.email || '',
-        tenant_phone: tenant.phone || undefined,
-        tenant_billing_address: tenant.billing_address || undefined,
-        tenant_street: tenant.street || undefined,
-        tenant_postal_code: tenant.postal_code || undefined,
-        tenant_city: tenant.city || undefined,
-        tenant_country: tenant.country || undefined,
-        invoice_month: invoice.invoice_month || undefined,
-        contract_type: contractType || undefined,
-        notes: invoice.notes || undefined,
-        spaces: spaces.map(s => ({
-          space_name: s.space_name,
-          monthly_rent: s.monthly_rent,
-          space_type: s.space_type,
-          square_footage: s.square_footage,
-          price_per_sqm: s.price_per_sqm,
-          hours: s.hours,
-          hourly_rate: s.hourly_rate,
-        })),
-        security_deposit: 0,
-        subtotal: invoice.subtotal,
-        amount: invoice.amount,
-        vat_amount: invoice.vat_amount,
-        vat_rate: invoice.vat_rate,
-        vat_inclusive: invoice.vat_inclusive,
-        due_date: invoice.due_date,
-        invoice_date: invoice.invoice_date,
-        company,
-      });
+
+    generateInvoicePDFBlobUrl({
+      invoice_number: invoice.invoice_number,
+      tenant_name: tenant.name || tenant.contact_name || '',
+      tenant_company_name: tenant.company_name || '',
+      tenant_email: tenant.email || '',
+      tenant_phone: tenant.phone || undefined,
+      tenant_billing_address: tenant.billing_address || undefined,
+      tenant_street: tenant.street || undefined,
+      tenant_postal_code: tenant.postal_code || undefined,
+      tenant_city: tenant.city || undefined,
+      tenant_country: tenant.country || undefined,
+      invoice_month: invoice.invoice_month || undefined,
+      contract_type: contractType || undefined,
+      notes: invoice.notes || undefined,
+      spaces: spaces.map(s => ({
+        space_name: s.space_name,
+        monthly_rent: s.monthly_rent,
+        space_type: s.space_type,
+        square_footage: s.square_footage,
+        price_per_sqm: s.price_per_sqm,
+        hours: s.hours,
+        hourly_rate: s.hourly_rate,
+      })),
+      security_deposit: 0,
+      subtotal: invoice.subtotal,
+      amount: invoice.amount,
+      vat_amount: invoice.vat_amount,
+      vat_rate: invoice.vat_rate,
+      vat_inclusive: invoice.vat_inclusive,
+      due_date: invoice.due_date,
+      invoice_date: invoice.invoice_date,
+      company,
+    }).then(url => {
       setPdfUrl(prev => {
         if (prev) URL.revokeObjectURL(prev);
         return url;
       });
-    } catch (err) {
+    }).catch(err => {
       console.error('PDF generation error:', err);
-    } finally {
+    }).finally(() => {
       pdfLoadingRef.current = false;
       setPdfLoading(false);
-    }
-  }, [invoice, tenant, spaces, contractType, company]);
-
-  useEffect(() => {
-    if (invoice && tenant && !pdfUrl && !pdfLoadingRef.current) {
-      loadPdf();
-    }
-  }, [invoice?.id, loadPdf]);
+    });
+  }, [invoice?.id, invoice, tenant, spaces, contractType, company]);
 
   if (!invoice || !tenant) {
     if (inline) {
