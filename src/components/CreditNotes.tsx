@@ -3,8 +3,10 @@ import { supabase } from '../lib/supabase';
 import { Plus, Eye, Trash2, Download, Edit, Edit2, FileText, CheckCircle, RefreshCw, Loader2, Link2 } from 'lucide-react';
 import { CreditNotePreview } from './CreditNotePreview';
 import { CreditNoteApplications } from './CreditNoteApplications';
+import { EmailCompose } from './EmailCompose';
 import { generateCreditNotePDF } from '../utils/pdfGenerator';
 import { syncCreditNoteToEBoekhouden } from '../lib/eboekhoudenSync';
+import { isEmailConfigured } from '../utils/emailSender';
 
 type CreditNote = {
   id: string;
@@ -93,6 +95,13 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
   const [editingCreditNote, setEditingCreditNote] = useState<CreditNote | null>(null);
   const [applyingCreditNote, setApplyingCreditNote] = useState<CreditNote | null>(null);
   const [syncingIds, setSyncingIds] = useState<Set<string>>(new Set());
+  const [emailComposeData, setEmailComposeData] = useState<{
+    to: string;
+    toName: string;
+    subject: string;
+    body: string;
+    creditNoteId: string;
+  } | null>(null);
 
   const [formData, setFormData] = useState({
     original_invoice_id: '',
@@ -434,7 +443,28 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
       return;
     }
 
-    alert(`Credit nota verzenden naar ${customerEmail} is nog niet geïmplementeerd.\n\nDeze functionaliteit vereist e-mail integratie.`);
+    if (!companySettings || !isEmailConfigured(companySettings as any)) {
+      alert('Geen e-mail integratie geconfigureerd. Configureer SMTP, Microsoft Graph of Resend in Integraties.');
+      return;
+    }
+
+    const customerName = creditNote.tenant_id
+      ? (tenant?.company_name || '')
+      : (externalCustomer?.company_name || '');
+
+    const contactName = creditNote.tenant_id
+      ? (tenant?.name || customerName)
+      : (externalCustomer?.contact_name || customerName);
+
+    const creditNoteNum = creditNote.credit_note_number.replace(/^CN-/, '');
+
+    setEmailComposeData({
+      to: customerEmail,
+      toName: contactName,
+      subject: `Credit nota ${creditNoteNum} van ${companySettings.company_name}`,
+      body: `Beste ${contactName},\n\nHierbij ontvangt u credit nota ${creditNoteNum} van ${companySettings.company_name}.\n\nReden: ${creditNote.reason}\nBedrag: ${formatCurrency(creditNote.total_amount)}`,
+      creditNoteId: creditNote.id,
+    });
   };
 
   const handleDownloadPDF = async (creditNote: CreditNote) => {
@@ -997,6 +1027,33 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
             loadData();
           }}
         />
+      )}
+
+      {emailComposeData && companySettings && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60]">
+          <div className="bg-dark-900 rounded-xl border border-dark-700 p-6 w-full max-w-2xl mx-4 shadow-2xl">
+            <EmailCompose
+              companySettings={companySettings as any}
+              prefillTo={emailComposeData.to}
+              prefillToName={emailComposeData.toName}
+              prefillSubject={emailComposeData.subject}
+              prefillBody={emailComposeData.body}
+              onSent={async () => {
+                setEmailComposeData(null);
+                setPreviewCreditNote(null);
+                await loadData();
+              }}
+            />
+            <div className="flex justify-end mt-4 pt-4 border-t border-dark-700">
+              <button
+                onClick={() => setEmailComposeData(null)}
+                className="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 bg-dark-800 border border-dark-700 rounded-lg hover:bg-dark-700 transition-colors"
+              >
+                Annuleren
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       </div>
     </div>

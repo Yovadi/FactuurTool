@@ -3,7 +3,9 @@ import { supabase, type Invoice, type Lease, type Tenant, type ExternalCustomer,
 import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, CreditCard as Edit, Search, CreditCard as Edit2, AlertCircle, AlertTriangle, CheckSquare, Square, Check, X, Home, Zap, RefreshCw, CheckCircle2, Loader2, Filter } from 'lucide-react';
 import { syncInvoiceToEBoekhouden, checkInvoicePaymentStatuses } from '../lib/eboekhoudenSync';
 import { generateInvoicePDF, generateInvoicePDFBase64 } from '../utils/pdfGenerator';
+import { isEmailConfigured } from '../utils/emailSender';
 import { InvoicePreview } from './InvoicePreview';
+import { EmailCompose } from './EmailCompose';
 import { Toast } from './Toast';
 import { checkAndRunScheduledJobs } from '../utils/scheduledJobs';
 
@@ -134,6 +136,13 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     spaces: any[];
   } | null>(null);
   const [selectedInvoices, setSelectedInvoices] = useState<Set<string>>(new Set());
+  const [emailComposeData, setEmailComposeData] = useState<{
+    to: string;
+    toName: string;
+    subject: string;
+    body: string;
+    invoiceId: string;
+  } | null>(null);
   const [invoiceMonth, setInvoiceMonth] = useState<string>('');
   const [invoicedMonths, setInvoicedMonths] = useState<{
     leaseCount: Map<string, number>;
@@ -2715,6 +2724,22 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
   const handlePreviewSend = async () => {
     if (!previewInvoice) return;
 
+    const invoice = previewInvoice.invoice;
+    const tenant = getInvoiceTenant(invoice);
+
+    if (companySettings && isEmailConfigured(companySettings) && tenant?.email) {
+      const tenantName = ('name' in tenant && tenant.name) ? tenant.name : ('contact_name' in tenant && (tenant as any).contact_name) ? (tenant as any).contact_name : tenant.company_name || '';
+      const invoiceNum = invoice.invoice_number.replace(/^INV-/, '');
+      setEmailComposeData({
+        to: tenant.email,
+        toName: tenantName,
+        subject: `Factuur ${invoiceNum} van ${companySettings.company_name}`,
+        body: `Beste ${tenantName},\n\nHierbij ontvangt u factuur ${invoiceNum} van ${companySettings.company_name}.\n\nGelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companySettings.bank_account}.`,
+        invoiceId: invoice.id,
+      });
+      return;
+    }
+
     await sendInvoiceEmail(previewInvoice.invoice.id);
     setPreviewInvoice(null);
   };
@@ -4256,7 +4281,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
           } : undefined}
           onClose={() => setPreviewInvoice(null)}
           onDownload={handlePreviewDownload}
-          onSend={previewInvoice.invoice.status === 'draft' ? handlePreviewSend : undefined}
+          onSend={previewInvoice.invoice.status !== 'paid' ? handlePreviewSend : undefined}
           onEdit={() => {
             setPreviewInvoice(null);
             startEditInvoice(previewInvoice.invoice);
@@ -4302,6 +4327,41 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
             }
           }}
         />
+      )}
+
+      {emailComposeData && companySettings && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60]">
+          <div className="bg-dark-900 rounded-xl border border-dark-700 p-6 w-full max-w-2xl mx-4 shadow-2xl">
+            <EmailCompose
+              companySettings={companySettings}
+              prefillTo={emailComposeData.to}
+              prefillToName={emailComposeData.toName}
+              prefillSubject={emailComposeData.subject}
+              prefillBody={emailComposeData.body}
+              prefillInvoiceId={emailComposeData.invoiceId}
+              onSent={async () => {
+                const invoiceId = emailComposeData.invoiceId;
+                setEmailComposeData(null);
+                setPreviewInvoice(null);
+
+                await supabase
+                  .from('invoices')
+                  .update({ status: 'sent', sent_at: new Date().toISOString() })
+                  .eq('id', invoiceId);
+
+                await loadData();
+              }}
+            />
+            <div className="flex justify-end mt-4 pt-4 border-t border-dark-700">
+              <button
+                onClick={() => setEmailComposeData(null)}
+                className="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 bg-dark-800 border border-dark-700 rounded-lg hover:bg-dark-700 transition-colors"
+              >
+                Annuleren
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <div className="fixed top-4 right-4 z-[9999] space-y-2 max-w-md">
