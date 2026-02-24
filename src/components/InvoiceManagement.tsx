@@ -1459,14 +1459,13 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         }
 
         if (window.electronAPI && companySettings.root_folder_path && window.electronAPI.savePDF) {
-          try {
-            const pdf = await generateInvoicePDF(invoiceData, false, true);
-            const pdfBlob = pdf.output('arraybuffer');
-            const invoiceYear = new Date(invoice.invoice_date).getFullYear().toString();
-            const tenantFolderPath = `${companySettings.root_folder_path}/${tenant.company_name}/${invoiceYear}`;
-            await window.electronAPI.savePDF(pdfBlob, tenantFolderPath, `${invoice.invoice_number}.pdf`);
-          } catch (saveErr) {
-            console.error('Error saving PDF locally:', saveErr);
+          const pdf = await generateInvoicePDF(invoiceData, false, true);
+          const pdfBlob = pdf.output('arraybuffer');
+          const invoiceYear = new Date(invoice.invoice_date).getFullYear().toString();
+          const tenantFolderPath = `${companySettings.root_folder_path}/${tenant.company_name}/${invoiceYear}`;
+          const saveResult = await window.electronAPI.savePDF(pdfBlob, tenantFolderPath, `${invoice.invoice_number}.pdf`);
+          if (!saveResult.success) {
+            throw new Error(`E-mail verzonden, maar PDF opslaan mislukt: ${saveResult.error || 'Onbekende fout'}`);
           }
         }
       } else if (window.electronAPI) {
@@ -1478,7 +1477,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           const tenantFolderPath = `${companySettings.root_folder_path}/${tenant.company_name}/${invoiceYear}`;
           const saveResult = await window.electronAPI.savePDF(pdfBlob, tenantFolderPath, `${invoice.invoice_number}.pdf`);
           if (!saveResult.success) {
-            console.error('Error saving PDF:', saveResult.error);
+            throw new Error(`PDF opslaan mislukt: ${saveResult.error || 'Onbekende fout'}`);
           }
         }
 
@@ -1581,7 +1580,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       }
     } catch (error) {
       console.error('Error sending invoice:', error);
-      console.error('Error sending invoice:', error instanceof Error ? error.message : 'Unknown error');
+      showToast(error instanceof Error ? error.message : 'Fout bij verzenden van factuur', 'error');
     }
   };
 

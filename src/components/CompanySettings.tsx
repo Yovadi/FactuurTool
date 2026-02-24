@@ -62,6 +62,9 @@ export function CompanySettings() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    const oldRootPath = settings?.root_folder_path || '';
+    const newRootPath = formData.root_folder_path || '';
+
     if (settings) {
       const { data, error } = await supabase
         .from('company_settings')
@@ -95,6 +98,23 @@ export function CompanySettings() {
 
       if (data) {
         setSettings(data);
+      }
+    }
+
+    if (oldRootPath && newRootPath && oldRootPath !== newRootPath && window.electronAPI?.moveAllFolders) {
+      try {
+        const result = await window.electronAPI.moveAllFolders(oldRootPath, newRootPath);
+        if (result.success) {
+          const movedCount = result.moved?.length || 0;
+          const failedCount = result.failed?.length || 0;
+          if (failedCount > 0) {
+            console.warn(`Map verplaatsing: ${movedCount} verplaatst, ${failedCount} mislukt`, result.failed);
+          }
+        } else if (!result.notFound) {
+          console.error('Error moving folders:', result.error);
+        }
+      } catch (moveErr) {
+        console.error('Error moving folders:', moveErr);
       }
     }
 

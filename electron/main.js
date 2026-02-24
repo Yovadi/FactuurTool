@@ -248,6 +248,80 @@ ipcMain.handle('save-pdf', async (event, pdfBuffer, folderPath, fileName) => {
   }
 });
 
+ipcMain.handle('rename-folder', async (event, oldPath, newPath) => {
+  try {
+    const fs = require('fs');
+
+    if (!oldPath || !newPath) {
+      return { success: false, error: 'Oud en nieuw pad zijn verplicht' };
+    }
+
+    if (!fs.existsSync(oldPath)) {
+      return { success: false, error: 'Bronmap bestaat niet', notFound: true };
+    }
+
+    if (fs.existsSync(newPath)) {
+      return { success: false, error: 'Doelmap bestaat al' };
+    }
+
+    const targetParent = path.dirname(newPath);
+    if (!fs.existsSync(targetParent)) {
+      fs.mkdirSync(targetParent, { recursive: true });
+    }
+
+    fs.renameSync(oldPath, newPath);
+    return { success: true, path: newPath };
+  } catch (error) {
+    console.error('Error renaming folder:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('move-all-folders', async (event, oldRootPath, newRootPath) => {
+  try {
+    const fs = require('fs');
+
+    if (!oldRootPath || !newRootPath) {
+      return { success: false, error: 'Oud en nieuw rootpad zijn verplicht' };
+    }
+
+    if (!fs.existsSync(oldRootPath)) {
+      return { success: false, error: 'Oud rootpad bestaat niet', notFound: true };
+    }
+
+    if (!fs.existsSync(newRootPath)) {
+      fs.mkdirSync(newRootPath, { recursive: true });
+    }
+
+    const entries = fs.readdirSync(oldRootPath, { withFileTypes: true });
+    const moved = [];
+    const failed = [];
+
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const srcPath = path.join(oldRootPath, entry.name);
+        const destPath = path.join(newRootPath, entry.name);
+
+        try {
+          if (!fs.existsSync(destPath)) {
+            fs.renameSync(srcPath, destPath);
+            moved.push(entry.name);
+          } else {
+            failed.push({ name: entry.name, error: 'Doelmap bestaat al' });
+          }
+        } catch (moveErr) {
+          failed.push({ name: entry.name, error: moveErr.message });
+        }
+      }
+    }
+
+    return { success: true, moved, failed };
+  } catch (error) {
+    console.error('Error moving folders:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 ipcMain.handle('get-app-version', () => {
   return app.getVersion();
 });

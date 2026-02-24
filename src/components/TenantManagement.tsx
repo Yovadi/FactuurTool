@@ -116,6 +116,9 @@ export function TenantManagement() {
 
     if (activeTab === 'fulltime' || activeTab === 'inactive') {
       if (editingTenant) {
+        const oldCompanyName = editingTenant.company_name;
+        const newCompanyName = formData.company_name;
+
         const { data, error } = await supabase
           .from('tenants')
           .update(formData)
@@ -137,6 +140,16 @@ export function TenantManagement() {
 
         if (data) {
           setTenants(tenants.map(t => t.id === editingTenant.id ? data : t));
+        }
+
+        if (oldCompanyName !== newCompanyName && companySettings?.root_folder_path && window.electronAPI?.renameFolder) {
+          const sanitize = (n: string) => n.replace(/[<>:"/\\|?*]/g, '_');
+          const oldPath = `${companySettings.root_folder_path}/${sanitize(oldCompanyName)}`;
+          const newPath = `${companySettings.root_folder_path}/${sanitize(newCompanyName)}`;
+          const result = await window.electronAPI.renameFolder(oldPath, newPath);
+          if (!result.success && !result.notFound) {
+            console.error('Error renaming tenant folder:', result.error);
+          }
         }
       } else {
         const { data, error } = await supabase
@@ -188,6 +201,9 @@ export function TenantManagement() {
       };
 
       if (editingCustomer) {
+        const oldCompanyName = editingCustomer.company_name;
+        const newCompanyName = customerData.company_name;
+
         const { data, error } = await supabase
           .from('external_customers')
           .update(customerData)
@@ -202,6 +218,16 @@ export function TenantManagement() {
 
         if (data) {
           setExternalCustomers(externalCustomers.map(c => c.id === editingCustomer.id ? data : c));
+        }
+
+        if (oldCompanyName !== newCompanyName && companySettings?.root_folder_path && window.electronAPI?.renameFolder) {
+          const sanitize = (n: string) => n.replace(/[<>:"/\\|?*]/g, '_');
+          const oldPath = `${companySettings.root_folder_path}/${sanitize(oldCompanyName)}`;
+          const newPath = `${companySettings.root_folder_path}/${sanitize(newCompanyName)}`;
+          const result = await window.electronAPI.renameFolder(oldPath, newPath);
+          if (!result.success && !result.notFound) {
+            console.error('Error renaming customer folder:', result.error);
+          }
         }
       } else {
         const { data, error } = await supabase
