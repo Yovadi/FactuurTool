@@ -10,6 +10,7 @@ const LeaseManagement = lazy(() => import('./components/LeaseManagement').then(m
 const SpaceManagement = lazy(() => import('./components/SpaceManagement').then(m => ({ default: m.SpaceManagement })));
 const SpaceTypeRates = lazy(() => import('./components/SpaceTypeRates').then(m => ({ default: m.SpaceTypeRates })));
 const VerhuurderTabs = lazy(() => import('./components/VerhuurderTabs').then(m => ({ default: m.VerhuurderTabs })));
+const InstellingenTabs = lazy(() => import('./components/InstellingenTabs').then(m => ({ default: m.InstellingenTabs })));
 const MeetingRoomBookings = lazy(() => import('./components/MeetingRoomBookings').then(m => ({ default: m.MeetingRoomBookings })));
 const FlexWorkspaceBookings = lazy(() => import('./components/FlexWorkspaceBookings').then(m => ({ default: m.FlexWorkspaceBookings })));
 const DebiteurenTabs = lazy(() => import('./components/DebiteurenTabs').then(m => ({ default: m.DebiteurenTabs })));
@@ -17,7 +18,7 @@ const CrediteurenTabs = lazy(() => import('./components/CrediteurenTabs').then(m
 const EBoekhoudenDashboard = lazy(() => import('./components/EBoekhoudenDashboard').then(m => ({ default: m.EBoekhoudenDashboard })));
 const EmailTab = lazy(() => import('./components/EmailTab').then(m => ({ default: m.EmailTab })));
 
-type Tab = 'dashboard' | 'tenants' | 'spaces-spaces' | 'spaces-rates' | 'contracts' | 'bookings' | 'flex-bookings' | 'financial-debtors' | 'financial-creditors' | 'eboekhouden' | 'email' | 'settings';
+type Tab = 'dashboard' | 'tenants' | 'spaces-spaces' | 'spaces-rates' | 'contracts' | 'bookings' | 'flex-bookings' | 'financial-debtors' | 'financial-creditors' | 'eboekhouden' | 'email' | 'verhuurder' | 'settings';
 
 type MenuSection = {
   id: string;
@@ -256,10 +257,11 @@ function App() {
     },
     ...(eBoekhoudenEnabled ? [{ id: 'eboekhouden', label: 'e-Boekhouden', icon: Database }] : []),
     ...(emailEnabled ? [{ id: 'email', label: 'E-mail', icon: Mail }] : []),
+    { id: 'verhuurder', label: 'Verhuurder', icon: Building2 },
   ] as MenuSection[];
 
   const bottomNavigation: MenuSection[] = [
-    { id: 'settings', label: 'Verhuurder', icon: Settings },
+    { id: 'settings', label: 'Instellingen', icon: Settings },
   ];
 
   const isActiveTab = (itemId: string, children?: { id: Tab }[]) => {
@@ -579,7 +581,8 @@ function App() {
                   onNavigateToIntegrations={() => setActiveTab('settings')}
                 />
               )}
-              {activeTab === 'settings' && <VerhuurderTabs />}
+              {activeTab === 'verhuurder' && <VerhuurderTabs />}
+              {activeTab === 'settings' && <InstellingenTabs />}
             </Suspense>
           </main>
         </div>
