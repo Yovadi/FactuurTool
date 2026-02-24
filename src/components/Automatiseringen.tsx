@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import {
   Loader2, RefreshCw, CheckCircle2, Clock, FileText,
   Receipt, Link2, Users, Calendar, ChevronDown, ChevronUp, Play, DoorOpen, Armchair,
-  AlertTriangle, TrendingUp, CalendarCheck
+  AlertTriangle, TrendingUp, CalendarCheck, Monitor
 } from 'lucide-react';
 
 interface ScheduledJob {
@@ -297,6 +297,9 @@ export function Automatiseringen() {
   const [eboekhoudenEnabled, setEboekhoudenEnabled] = useState(false);
   const [indexationPercentage, setIndexationPercentage] = useState<number>(0);
   const [savingPercentage, setSavingPercentage] = useState(false);
+  const [splitscreenEnabled, setSplitscreenEnabled] = useState(() => {
+    return localStorage.getItem('hal5-splitscreen') === 'true';
+  });
 
   useEffect(() => {
     loadJobs();
@@ -417,6 +420,47 @@ export function Automatiseringen() {
           <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
           Vernieuwen
         </button>
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Monitor size={15} className="text-gray-500" />
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Snelkoppelingen</h3>
+        </div>
+        <div className="bg-dark-900 rounded-xl border border-dark-700 px-5 py-4">
+          <div className="flex items-start gap-4">
+            <div className="w-9 h-9 rounded-lg bg-gold-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <Monitor size={18} className="text-gold-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-semibold text-sm text-gray-100">Splitscreen Modus</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Factuur- en creditnota-previews worden automatisch in een apart venster geopend, ideaal voor twee schermen
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    const newValue = !splitscreenEnabled;
+                    setSplitscreenEnabled(newValue);
+                    localStorage.setItem('hal5-splitscreen', String(newValue));
+                    window.dispatchEvent(new CustomEvent('splitscreen-changed', { detail: { enabled: newValue } }));
+                  }}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ${
+                    splitscreenEnabled ? 'bg-gold-500' : 'bg-dark-600'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                      splitscreenEnabled ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="rounded-xl bg-dark-800/50 border border-dark-700 px-5 py-4 flex items-start gap-3">
