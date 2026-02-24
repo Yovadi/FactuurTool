@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { supabase, type Invoice, type Lease, type Tenant, type ExternalCustomer, type LeaseSpace, type OfficeSpace, type InvoiceLineItem } from '../lib/supabase';
-import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, CreditCard as Edit, Search, CreditCard as Edit2, AlertCircle, AlertTriangle, CheckSquare, Square, Check, X, Home, Zap, RefreshCw, CheckCircle2, Loader2, Filter } from 'lucide-react';
+import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, CreditCard as Edit, Search, CreditCard as Edit2, AlertCircle, AlertTriangle, CheckSquare, Square, Check, X, Home, Zap, RefreshCw, CheckCircle2, Loader2, Filter, RotateCcw } from 'lucide-react';
 import { syncInvoiceToEBoekhouden, checkInvoicePaymentStatuses } from '../lib/eboekhoudenSync';
 import { generateInvoicePDF, generateInvoicePDFBase64 } from '../utils/pdfGenerator';
 import { isEmailConfigured, sendEmail, getActiveEmailMethodLabel } from '../utils/emailSender';
@@ -1266,6 +1266,26 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   const confirmBatchMarkAsPaid = async () => {
     setEBoekhoudenBatchPaidWarning(null);
     await handleBatchStatusChange('paid', true);
+  };
+
+  const revertToDraft = async (invoiceId: string) => {
+    const { error } = await supabase
+      .from('invoices')
+      .update({ status: 'draft', sent_at: null })
+      .eq('id', invoiceId);
+
+    if (error) {
+      console.error('Error reverting invoice to draft:', error);
+      showToast('Fout bij terugzetten naar concept', 'error');
+      return;
+    }
+
+    setInvoices(prev => prev.map(inv =>
+      inv.id === invoiceId
+        ? { ...inv, status: 'draft' as const, sent_at: null }
+        : inv
+    ));
+    showToast('Factuur teruggezet naar concept', 'success');
   };
 
   const loadLogoAsBase64 = async (): Promise<string | null> => {
@@ -3473,6 +3493,17 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                 </td>
                 <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                   <div className="flex gap-1 justify-end">
+                    {invoice.status === 'sent' && (
+                      <button
+                        onClick={() => {
+                          revertToDraft(invoice.id);
+                        }}
+                        className="text-amber-500 hover:text-amber-400 transition-colors p-1.5 rounded hover:bg-dark-700"
+                        title="Terug naar concept"
+                      >
+                        <RotateCcw size={18} />
+                      </button>
+                    )}
                     {(invoice.status === 'sent' || invoice.status === 'overdue') && (
                       <button
                         onClick={() => handleMarkAsPaid(invoice.id)}
@@ -3492,17 +3523,19 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                         <CheckCircle2 size={18} />
                       </span>
                     )}
-                    <button
-                      onClick={() => {
-                        setShowDeleteConfirm(invoice.id);
-                        setDeleteError('');
-                        setDeletePassword('');
-                      }}
-                      className="text-red-500 hover:text-red-400 transition-colors p-1.5 rounded hover:bg-dark-700"
-                      title="Verwijderen"
-                    >
-                      <Trash2 size={18} />
-                    </button>
+                    {(invoice.status === 'draft' || invoice.status === 'overdue') && (
+                      <button
+                        onClick={() => {
+                          setShowDeleteConfirm(invoice.id);
+                          setDeleteError('');
+                          setDeletePassword('');
+                        }}
+                        className="text-red-500 hover:text-red-400 transition-colors p-1.5 rounded hover:bg-dark-700"
+                        title="Verwijderen"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -3741,21 +3774,25 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
             } : undefined}
             onClose={() => setPreviewInvoice(null)}
             onDownload={handlePreviewDownload}
-            onSend={previewInvoice.invoice.status !== 'paid' ? handlePreviewSend : undefined}
-            onEdit={() => {
+            onSend={previewInvoice.invoice.status === 'draft' ? handlePreviewSend : undefined}
+            onEdit={previewInvoice.invoice.status === 'draft' ? () => {
               setPreviewInvoice(null);
               startEditInvoice(previewInvoice.invoice);
-            }}
-            onMarkAsPaid={previewInvoice.invoice.status === 'sent' ? () => {
+            } : undefined}
+            onMarkAsPaid={(previewInvoice.invoice.status === 'sent' || previewInvoice.invoice.status === 'overdue') ? () => {
               markAsPaid(previewInvoice.invoice.id);
               setPreviewInvoice(null);
             } : undefined}
-            onCreateCreditNote={onCreateCreditNote ? () => {
+            onCreateCreditNote={(previewInvoice.invoice.status === 'draft' && onCreateCreditNote) ? () => {
               const tenant = getInvoiceTenant(previewInvoice.invoice);
               if (tenant && onCreateCreditNote) {
                 onCreateCreditNote(previewInvoice.invoice, tenant, previewInvoice.spaces);
                 setPreviewInvoice(null);
               }
+            } : undefined}
+            onRevertToDraft={previewInvoice.invoice.status === 'sent' ? () => {
+              revertToDraft(previewInvoice.invoice.id);
+              setPreviewInvoice(null);
             } : undefined}
             onPopOut={() => {
               const electron = (window as any).electron;

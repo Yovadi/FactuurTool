@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { X, Download, Send, Edit, Receipt, FileText, ExternalLink, Loader2 } from 'lucide-react';
+import { X, Download, Send, Edit, Receipt, FileText, ExternalLink, Loader2, RotateCcw } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { generateInvoicePDFBlobUrl } from '../utils/pdfGenerator';
 
@@ -71,6 +71,7 @@ interface InvoicePreviewProps {
   onEdit?: () => void;
   onMarkAsPaid?: () => void;
   onCreateCreditNote?: () => void;
+  onRevertToDraft?: () => void;
   onPopOut?: () => void;
   inline?: boolean;
 }
@@ -88,6 +89,7 @@ export function InvoicePreview({
   onEdit,
   onMarkAsPaid,
   onCreateCreditNote,
+  onRevertToDraft,
   onPopOut,
   inline = false,
 }: InvoicePreviewProps) {
@@ -271,6 +273,16 @@ export function InvoicePreview({
           title="Markeer als betaald"
         >
           <span className="text-sm font-medium">Betaald</span>
+        </button>
+      )}
+      {onRevertToDraft && (
+        <button
+          onClick={onRevertToDraft}
+          className="flex items-center gap-1.5 bg-amber-600 hover:bg-amber-500 text-white transition-colors px-3 py-1.5 rounded-lg"
+          title="Terug naar concept"
+        >
+          <RotateCcw size={16} />
+          <span className="text-sm font-medium">Naar concept</span>
         </button>
       )}
       {onPopOut && (
