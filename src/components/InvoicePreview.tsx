@@ -95,10 +95,8 @@ export function InvoicePreview({
   const [loading, setLoading] = useState(true);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
-  const [showPdf, setShowPdf] = useState(false);
 
   useEffect(() => {
-    setShowPdf(false);
     setPdfUrl(prev => {
       if (prev) URL.revokeObjectURL(prev);
       return null;
@@ -134,7 +132,6 @@ export function InvoicePreview({
   const loadPdf = useCallback(async () => {
     if (!invoice || !tenant || pdfLoading) return;
     setPdfLoading(true);
-    setShowPdf(true);
     try {
       const url = await generateInvoicePDFBlobUrl({
         invoice_number: invoice.invoice_number,
@@ -523,61 +520,47 @@ export function InvoicePreview({
         <div className="flex-shrink-0 bg-dark-800 border-b border-dark-700 px-4 py-3">
           <div className="flex items-center justify-between gap-2 mb-2">
             <h2 className="text-lg font-bold text-gray-100 truncate">Factuur <span className={invoiceTypeColor || 'text-gray-100'}>{invoiceNumberDisplay}</span></h2>
-            <div className="flex items-center gap-1 flex-shrink-0">
-              <button
-                onClick={() => {
-                  if (showPdf) {
-                    setShowPdf(false);
-                  } else {
-                    loadPdf();
-                  }
-                }}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm transition-colors ${
-                  showPdf
-                    ? 'bg-gold-500 text-white'
-                    : 'bg-dark-700 hover:bg-dark-600 text-gray-300 hover:text-white'
-                }`}
-                title={showPdf ? 'Terug naar overzicht' : 'PDF bekijken'}
-              >
-                <Eye size={14} />
-                <span className="font-medium">PDF</span>
-              </button>
-              <button
-                onClick={onClose}
-                className="text-gray-500 hover:text-gray-300 transition-colors p-1"
-              >
-                <X size={18} />
-              </button>
-            </div>
+            <button
+              onClick={onClose}
+              className="text-gray-500 hover:text-gray-300 transition-colors p-1 flex-shrink-0"
+            >
+              <X size={18} />
+            </button>
           </div>
           {actionButtons}
         </div>
-        {showPdf ? (
-          <div className="flex-1 overflow-hidden bg-gray-700">
-            {pdfLoading ? (
-              <div className="h-full flex items-center justify-center">
-                <div className="flex flex-col items-center gap-3">
-                  <Loader2 size={28} className="text-gold-500 animate-spin" />
-                  <span className="text-sm text-gray-400">PDF genereren...</span>
-                </div>
+        <div className="flex-1 overflow-hidden bg-gray-700">
+          {pdfLoading ? (
+            <div className="h-full flex items-center justify-center">
+              <div className="flex flex-col items-center gap-3">
+                <Loader2 size={28} className="text-gold-500 animate-spin" />
+                <span className="text-sm text-gray-400">PDF genereren...</span>
               </div>
-            ) : pdfUrl ? (
-              <iframe
-                src={pdfUrl}
-                className="w-full h-full border-0"
-                title={`Factuur ${invoiceNumberDisplay}`}
-              />
-            ) : (
-              <div className="h-full flex items-center justify-center">
-                <span className="text-sm text-gray-400">PDF kon niet geladen worden</span>
+            </div>
+          ) : pdfUrl ? (
+            <iframe
+              src={pdfUrl}
+              className="w-full h-full border-0"
+              title={`Factuur ${invoiceNumberDisplay}`}
+            />
+          ) : (
+            <div className="h-full flex flex-col items-center justify-center gap-6 px-6">
+              <div className="text-center space-y-1">
+                <p className="text-gray-100 font-semibold text-lg">{invoiceNumberDisplay}</p>
+                <p className="text-gray-400 text-sm">{tenant.company_name || tenant.name || tenant.contact_name}</p>
+                <p className="text-gray-500 text-sm">{formatDate(invoice.invoice_date)} - {formatDate(invoice.due_date)}</p>
+                <p className="text-gray-100 font-bold text-xl mt-2">{'\u20AC'} {invoice.amount.toFixed(2)}</p>
               </div>
-            )}
-          </div>
-        ) : (
-          <div className="flex-1 overflow-y-auto">
-            {htmlPreviewContent}
-          </div>
-        )}
+              <button
+                onClick={loadPdf}
+                className="flex items-center gap-2 bg-gold-500 hover:bg-gold-400 text-white px-5 py-2.5 rounded-lg transition-colors font-medium"
+              >
+                <Eye size={18} />
+                PDF Bekijken
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
