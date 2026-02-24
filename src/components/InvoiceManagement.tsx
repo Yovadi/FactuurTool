@@ -2661,35 +2661,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       const spaces = convertLineItemsToSpaces(items || []);
       console.log('Converted spaces:', spaces);
 
-      const splitscreen = localStorage.getItem('hal5-splitscreen') === 'true';
-      const electron = (window as any).electron;
-      if (splitscreen && electron?.openPreviewWindow) {
-        const tenant = getInvoiceTenant(invoice);
-        electron.openPreviewWindow({
-          type: 'invoice',
-          props: {
-            invoice: { ...invoice, line_items: items },
-            tenant: tenant || { name: '', company_name: '', email: '' },
-            spaces,
-            contractType: invoice.lease?.lease_type,
-            invoiceTypeColor: getInvoiceTypeColor(invoice),
-            company: companySettings ? {
-              name: companySettings.company_name,
-              address: companySettings.address,
-              postal_code: companySettings.postal_code,
-              city: companySettings.city,
-              kvk: companySettings.kvk_number,
-              btw: companySettings.vat_number,
-              iban: companySettings.bank_account,
-              email: companySettings.email,
-              phone: companySettings.phone,
-              website: companySettings.website
-            } : undefined
-          }
-        });
-      } else {
-        setPreviewInvoice({ invoice: { ...invoice, line_items: items } as any, spaces });
-      }
+      setPreviewInvoice({ invoice: { ...invoice, line_items: items } as any, spaces });
     } catch (error) {
       console.error('Error in showInvoicePreview:', error);
       showToast('Fout bij het tonen van de factuurpreview.', 'error');
@@ -2739,8 +2711,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         website: companySettings.website
       } : undefined
     }, false);
-
-    setPreviewInvoice(null);
   };
 
   const handlePreviewSend = async () => {
@@ -2851,7 +2821,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   }
 
   return (
-    <div className="h-full overflow-y-auto">
+    <div className="h-full flex overflow-hidden">
 
       {eBoekhoudenPaidWarning && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] p-4">
@@ -3336,6 +3306,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         </div>
       )}
 
+      <div className={`flex-1 min-w-0 overflow-y-auto ${previewInvoice ? 'w-1/2' : 'w-full'} transition-all duration-300`}>
       <div className="space-y-4">
         {(() => {
           const sortByTenantAndDate = (a: InvoiceWithDetails, b: InvoiceWithDetails) => {
@@ -3705,6 +3676,83 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           );
         })()}
       </div>
+      </div>
+
+      {previewInvoice && !loadingPreview && (
+        <div className="w-1/2 flex-shrink-0 border-l border-dark-700 bg-dark-900 overflow-hidden">
+          <InvoicePreview
+            inline
+            invoice={previewInvoice.invoice}
+            invoiceTypeColor={getInvoiceTypeColor(previewInvoice.invoice)}
+            tenant={getInvoiceTenant(previewInvoice.invoice) || {
+              name: '',
+              company_name: '',
+              email: ''
+            }}
+            spaces={previewInvoice.spaces}
+            contractType={previewInvoice.invoice.lease?.lease_type}
+            company={companySettings ? {
+              name: companySettings.company_name,
+              address: companySettings.address,
+              postal_code: companySettings.postal_code,
+              city: companySettings.city,
+              kvk: companySettings.kvk_number,
+              btw: companySettings.vat_number,
+              iban: companySettings.bank_account,
+              email: companySettings.email,
+              phone: companySettings.phone,
+              website: companySettings.website
+            } : undefined}
+            onClose={() => setPreviewInvoice(null)}
+            onDownload={handlePreviewDownload}
+            onSend={previewInvoice.invoice.status !== 'paid' ? handlePreviewSend : undefined}
+            onEdit={() => {
+              setPreviewInvoice(null);
+              startEditInvoice(previewInvoice.invoice);
+            }}
+            onMarkAsPaid={previewInvoice.invoice.status === 'sent' ? () => {
+              markAsPaid(previewInvoice.invoice.id);
+              setPreviewInvoice(null);
+            } : undefined}
+            onCreateCreditNote={onCreateCreditNote ? () => {
+              const tenant = getInvoiceTenant(previewInvoice.invoice);
+              if (tenant && onCreateCreditNote) {
+                onCreateCreditNote(previewInvoice.invoice, tenant, previewInvoice.spaces);
+                setPreviewInvoice(null);
+              }
+            } : undefined}
+            onPopOut={() => {
+              const electron = (window as any).electron;
+              if (electron?.openPreviewWindow) {
+                const tenant = getInvoiceTenant(previewInvoice.invoice);
+                electron.openPreviewWindow({
+                  type: 'invoice',
+                  props: {
+                    invoice: previewInvoice.invoice,
+                    tenant: tenant || { name: '', company_name: '', email: '' },
+                    spaces: previewInvoice.spaces,
+                    contractType: previewInvoice.invoice.lease?.lease_type,
+                    invoiceTypeColor: getInvoiceTypeColor(previewInvoice.invoice),
+                    company: companySettings ? {
+                      name: companySettings.company_name,
+                      address: companySettings.address,
+                      postal_code: companySettings.postal_code,
+                      city: companySettings.city,
+                      kvk: companySettings.kvk_number,
+                      btw: companySettings.vat_number,
+                      iban: companySettings.bank_account,
+                      email: companySettings.email,
+                      phone: companySettings.phone,
+                      website: companySettings.website
+                    } : undefined
+                  }
+                });
+                setPreviewInvoice(null);
+              }
+            }}
+          />
+        </div>
+      )}
 
       {/* Genereer Facturen Modal */}
       {showGenerateModal && (() => {
@@ -4291,78 +4339,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         </div>
       )}
 
-      {previewInvoice && !loadingPreview && (
-        <InvoicePreview
-          invoice={previewInvoice.invoice}
-          invoiceTypeColor={getInvoiceTypeColor(previewInvoice.invoice)}
-          tenant={getInvoiceTenant(previewInvoice.invoice) || {
-            name: '',
-            company_name: '',
-            email: ''
-          }}
-          spaces={previewInvoice.spaces}
-          contractType={previewInvoice.invoice.lease?.lease_type}
-          company={companySettings ? {
-            name: companySettings.company_name,
-            address: companySettings.address,
-            postal_code: companySettings.postal_code,
-            city: companySettings.city,
-            kvk: companySettings.kvk_number,
-            btw: companySettings.vat_number,
-            iban: companySettings.bank_account,
-            email: companySettings.email,
-            phone: companySettings.phone,
-            website: companySettings.website
-          } : undefined}
-          onClose={() => setPreviewInvoice(null)}
-          onDownload={handlePreviewDownload}
-          onSend={previewInvoice.invoice.status !== 'paid' ? handlePreviewSend : undefined}
-          onEdit={() => {
-            setPreviewInvoice(null);
-            startEditInvoice(previewInvoice.invoice);
-          }}
-          onMarkAsPaid={previewInvoice.invoice.status === 'sent' ? () => {
-            markAsPaid(previewInvoice.invoice.id);
-            setPreviewInvoice(null);
-          } : undefined}
-          onCreateCreditNote={onCreateCreditNote ? () => {
-            const tenant = getInvoiceTenant(previewInvoice.invoice);
-            if (tenant && onCreateCreditNote) {
-              onCreateCreditNote(previewInvoice.invoice, tenant, previewInvoice.spaces);
-              setPreviewInvoice(null);
-            }
-          } : undefined}
-          onPopOut={() => {
-            const electron = (window as any).electron;
-            if (electron?.openPreviewWindow) {
-              const tenant = getInvoiceTenant(previewInvoice.invoice);
-              electron.openPreviewWindow({
-                type: 'invoice',
-                props: {
-                  invoice: previewInvoice.invoice,
-                  tenant: tenant || { name: '', company_name: '', email: '' },
-                  spaces: previewInvoice.spaces,
-                  contractType: previewInvoice.invoice.lease?.lease_type,
-                  invoiceTypeColor: getInvoiceTypeColor(previewInvoice.invoice),
-                  company: companySettings ? {
-                    name: companySettings.company_name,
-                    address: companySettings.address,
-                    postal_code: companySettings.postal_code,
-                    city: companySettings.city,
-                    kvk: companySettings.kvk_number,
-                    btw: companySettings.vat_number,
-                    iban: companySettings.bank_account,
-                    email: companySettings.email,
-                    phone: companySettings.phone,
-                    website: companySettings.website
-                  } : undefined
-                }
-              });
-              setPreviewInvoice(null);
-            }
-          }}
-        />
-      )}
 
       {emailComposeData && companySettings && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60]">
