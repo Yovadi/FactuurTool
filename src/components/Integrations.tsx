@@ -69,9 +69,9 @@ export function Integrations() {
   }, []);
 
   const dispatchEmailChange = (updatedSettings: CompanySettings) => {
-    const hasEmail = (updatedSettings.smtp_enabled && updatedSettings.smtp_connected) ||
-      (updatedSettings.graph_enabled && updatedSettings.graph_connected) ||
-      (updatedSettings.resend_enabled && updatedSettings.resend_connected);
+    const hasEmail = updatedSettings.smtp_enabled ||
+      updatedSettings.graph_enabled ||
+      updatedSettings.resend_enabled;
     window.dispatchEvent(new CustomEvent('email-enabled-changed', { detail: { enabled: hasEmail } }));
   };
 

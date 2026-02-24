@@ -141,9 +141,9 @@ function App() {
       .maybeSingle()
       .then(({ data }) => {
         if (data?.eboekhouden_enabled) setEBoekhoudenEnabled(true);
-        const hasEmail = (data?.smtp_enabled && data?.smtp_connected) ||
-          (data?.graph_enabled && data?.graph_connected) ||
-          (data?.resend_enabled && data?.resend_connected);
+        const hasEmail = data?.smtp_enabled ||
+          data?.graph_enabled ||
+          data?.resend_enabled;
         if (hasEmail) setEmailEnabled(true);
       });
 
