@@ -3565,7 +3565,7 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                   </div>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full table-fixed min-w-[1000px]">
+                  <table className="w-full table-fixed min-w-[1100px]">
                     <thead>
                       <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
                         <th className="text-center px-4 py-3 font-semibold w-[4%]">
@@ -3576,25 +3576,26 @@ Gelieve het bedrag binnen de gestelde termijn over te maken naar IBAN ${companyS
                             {allDraftInvoices.every(inv => selectedInvoices.has(inv.id)) && allDraftInvoices.length > 0 ? <CheckSquare size={18} /> : <Square size={18} />}
                           </button>
                         </th>
-                        <th className="text-left px-4 py-3 font-semibold w-[17%]">Klant</th>
-                        <th className="text-left px-4 py-3 font-semibold w-[10%]">Factuur Nr.</th>
-                        <th className="text-center px-4 py-3 font-semibold w-[10%]">Type</th>
-                        <th className="text-left px-4 py-3 font-semibold w-[8%]">Maand</th>
-                        <th className="text-left px-4 py-3 font-semibold w-[10%]">Factuur Datum</th>
-                        <th className="text-right px-4 py-3 font-semibold w-[10%]">Bedrag</th>
-                        <th className="text-center px-4 py-3 font-semibold w-[10%]">Status</th>
-                        <th className="text-right px-4 py-3 font-semibold w-[13%]">Acties</th>
+                        <th className="text-left px-4 py-3 font-semibold w-[15%]">Klant</th>
+                        <th className="text-left px-4 py-3 font-semibold w-[9%]">Factuur Nr.</th>
+                        <th className="text-center px-4 py-3 font-semibold w-[9%]">Type</th>
+                        <th className="text-left px-4 py-3 font-semibold w-[7%]">Maand</th>
+                        <th className="text-left px-4 py-3 font-semibold w-[9%]">Factuur Datum</th>
+                        <th className="text-left px-4 py-3 font-semibold w-[9%]">Vervaldatum</th>
+                        <th className="text-right px-4 py-3 font-semibold w-[9%]">Bedrag</th>
+                        <th className="text-center px-4 py-3 font-semibold w-[9%]">Status</th>
+                        <th className="text-right px-4 py-3 font-semibold w-[12%]">Acties</th>
                       </tr>
                     </thead>
                     <tbody>
                       {allDraftInvoices.length === 0 ? (
                         <tr>
-                          <td colSpan={9} className="px-4 py-8 text-center text-gray-400">
+                          <td colSpan={10} className="px-4 py-8 text-center text-gray-400">
                             Geen concept facturen
                           </td>
                         </tr>
                       ) : (
-                        allDraftInvoices.map(inv => renderInvoiceRow(inv, false))
+                        allDraftInvoices.map(inv => renderInvoiceRow(inv, true))
                       )}
                     </tbody>
                   </table>
