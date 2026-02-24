@@ -531,6 +531,19 @@ function createPreviewWindow() {
   return previewWindow;
 }
 
+ipcMain.handle('preview-action', async (event, action, data) => {
+  try {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('preview-action', action, data);
+      return { success: true };
+    }
+    return { success: false, error: 'Main window not available' };
+  } catch (error) {
+    console.error('Error forwarding preview action:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 ipcMain.handle('open-preview-window', async (event, previewData) => {
   try {
     if (!previewWindow || previewWindow.isDestroyed()) {

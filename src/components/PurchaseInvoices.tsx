@@ -157,6 +157,22 @@ export function PurchaseInvoices() {
     loadData();
   }, []);
 
+  useEffect(() => {
+    const electron = (window as any).electron;
+    if (!electron?.onPreviewAction) return;
+
+    electron.onPreviewAction((action: string, data: any) => {
+      if (action === 'purchase-invoice-edit' && data?.invoiceId) {
+        const inv = invoices.find(i => i.id === data.invoiceId);
+        if (inv) startEdit(inv);
+      } else if (action === 'purchase-invoice-delete' && data?.invoiceId) {
+        setDeleteConfirm(data.invoiceId);
+      } else if (action === 'purchase-invoice-mark-paid' && data?.invoiceId) {
+        markAsPaid(data.invoiceId);
+      }
+    });
+  }, [invoices]);
+
   const loadData = async () => {
     setLoading(true);
     try {

@@ -42,9 +42,10 @@ type CreditNotePreviewProps = {
   onApply?: () => void;
   onSend?: () => void;
   onPopOut?: () => void;
+  inline?: boolean;
 };
 
-export function CreditNotePreview({ creditNote, companySettings, onClose, onDownload, onEdit, onDelete, onApply, onSend, onPopOut }: CreditNotePreviewProps) {
+export function CreditNotePreview({ creditNote, companySettings, onClose, onDownload, onEdit, onDelete, onApply, onSend, onPopOut, inline = false }: CreditNotePreviewProps) {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('nl-NL', {
       style: 'currency',
@@ -61,12 +62,11 @@ export function CreditNotePreview({ creditNote, companySettings, onClose, onDown
     ? (creditNote.tenant.billing_address || `${creditNote.tenant.street || ''}\n${creditNote.tenant.postal_code || ''} ${creditNote.tenant.city || ''}`)
     : `${creditNote.external_customer?.street}\n${creditNote.external_customer?.postal_code} ${creditNote.external_customer?.city}`;
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto p-4">
-      <div className="bg-dark-900 rounded-lg my-8 relative max-w-5xl w-full mx-auto border border-dark-700">
-        <div className="sticky top-0 bg-dark-800 border-b border-dark-700 px-6 py-4 flex justify-between items-center rounded-t-lg">
-          <h3 className="text-xl font-bold text-gray-100">Credit Nota Preview</h3>
-          <div className="flex items-center gap-2">
+  const content = (
+    <div className={inline ? "h-full flex flex-col overflow-hidden" : "bg-dark-900 rounded-lg my-8 relative max-w-5xl w-full mx-auto border border-dark-700"}>
+      <div className={`${inline ? '' : 'sticky top-0 rounded-t-lg'} bg-dark-800 border-b border-dark-700 px-6 py-4 flex justify-between items-center flex-shrink-0`}>
+        <h3 className="text-xl font-bold text-gray-100">Credit Nota Preview</h3>
+        <div className="flex items-center gap-2">
             {onApply && (
               <button
                 onClick={onApply}
@@ -135,7 +135,7 @@ export function CreditNotePreview({ creditNote, companySettings, onClose, onDown
           </div>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className={`${inline ? 'flex-1 overflow-y-auto' : ''} p-6 space-y-6`}>
           <div className="grid grid-cols-2 gap-6 pb-6 border-b border-dark-700">
             <div>
               <h3 className="text-sm font-semibold text-gray-200 mb-2">Klant</h3>
@@ -220,6 +220,15 @@ export function CreditNotePreview({ creditNote, companySettings, onClose, onDown
           </div>
         </div>
       </div>
+  );
+
+  if (inline) {
+    return content;
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto p-4">
+      {content}
     </div>
   );
 }

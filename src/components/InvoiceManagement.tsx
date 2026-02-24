@@ -1,4 +1,4 @@
-import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { supabase, type Invoice, type Lease, type Tenant, type ExternalCustomer, type LeaseSpace, type OfficeSpace, type InvoiceLineItem } from '../lib/supabase';
 import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, CreditCard as Edit, Search, CreditCard as Edit2, AlertCircle, AlertTriangle, CheckSquare, Square, Check, X, Home, Zap, RefreshCw, CheckCircle2, Loader2, Filter } from 'lucide-react';
 import { syncInvoiceToEBoekhouden, checkInvoicePaymentStatuses } from '../lib/eboekhoudenSync';
@@ -502,6 +502,42 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    const electron = (window as any).electron;
+    if (!electron?.onPreviewAction) return;
+
+    electron.onPreviewAction((action: string, data: any) => {
+      if (action === 'invoice-edit' && data?.invoiceId) {
+        const inv = invoices.find(i => i.id === data.invoiceId);
+        if (inv) {
+          setPreviewInvoice(null);
+          startEditInvoice(inv);
+        }
+      } else if (action === 'invoice-download' && data?.invoiceId) {
+        const inv = invoices.find(i => i.id === data.invoiceId);
+        if (inv && previewInvoice) {
+          handlePreviewDownload();
+        }
+      } else if (action === 'invoice-send' && data?.invoiceId) {
+        const inv = invoices.find(i => i.id === data.invoiceId);
+        if (inv && previewInvoice) {
+          handlePreviewSend();
+        }
+      } else if (action === 'invoice-mark-paid' && data?.invoiceId) {
+        markAsPaid(data.invoiceId);
+      } else if (action === 'invoice-create-credit-note' && data?.invoiceId) {
+        const inv = invoices.find(i => i.id === data.invoiceId);
+        if (inv && onCreateCreditNote) {
+          const tenant = getInvoiceTenant(inv);
+          if (tenant && previewInvoice) {
+            onCreateCreditNote(inv, tenant, previewInvoice.spaces);
+            setPreviewInvoice(null);
+          }
+        }
+      }
+    });
+  }, [invoices, previewInvoice]);
 
   useEffect(() => {
     updateInvoicedMonthsCounts();

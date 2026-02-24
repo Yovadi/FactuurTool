@@ -43,6 +43,7 @@ type PurchaseInvoicePreviewProps = {
   onDelete: () => void;
   onMarkAsPaid?: () => void;
   onPopOut?: () => void;
+  inline?: boolean;
 };
 
 const formatCurrency = (amount: number) =>
@@ -51,7 +52,7 @@ const formatCurrency = (amount: number) =>
 const formatDate = (dateStr: string) =>
   new Date(dateStr).toLocaleDateString('nl-NL', { day: '2-digit', month: 'long', year: 'numeric' });
 
-export function PurchaseInvoicePreview({ invoice, onClose, onEdit, onDelete, onMarkAsPaid, onPopOut }: PurchaseInvoicePreviewProps) {
+export function PurchaseInvoicePreview({ invoice, onClose, onEdit, onDelete, onMarkAsPaid, onPopOut, inline = false }: PurchaseInvoicePreviewProps) {
   const getStatusConfig = (status: string) => {
     switch (status) {
       case 'paid': return { color: 'text-green-400', bg: 'bg-green-900/30 border-green-800/40', label: 'Betaald', icon: CheckCircle };
@@ -65,10 +66,9 @@ export function PurchaseInvoicePreview({ invoice, onClose, onEdit, onDelete, onM
   const StatusIcon = statusConfig.icon;
   const lineItems = invoice.purchase_invoice_line_items || [];
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-      <div className="bg-dark-900 rounded-xl border border-dark-700 w-full max-w-3xl max-h-[90vh] overflow-hidden shadow-2xl animate-fade-in flex flex-col">
-        <div className="flex items-center justify-between p-6 border-b border-dark-700 flex-shrink-0">
+  const content = (
+    <div className={inline ? "h-full flex flex-col overflow-hidden bg-dark-900" : "bg-dark-900 rounded-xl border border-dark-700 w-full max-w-3xl max-h-[90vh] overflow-hidden shadow-2xl animate-fade-in flex flex-col"}>
+      <div className="flex items-center justify-between p-6 border-b border-dark-700 flex-shrink-0">
           <div>
             <h3 className="text-xl font-bold text-gray-100">Inkoopfactuur</h3>
             <p className="text-sm text-gray-400 mt-1">{invoice.invoice_number || 'Geen nummer'}</p>
@@ -255,6 +255,15 @@ export function PurchaseInvoicePreview({ invoice, onClose, onEdit, onDelete, onM
           </div>
         </div>
       </div>
+  );
+
+  if (inline) {
+    return content;
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+      {content}
     </div>
   );
 }

@@ -122,6 +122,35 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
   }, []);
 
   useEffect(() => {
+    const electron = (window as any).electron;
+    if (!electron?.onPreviewAction) return;
+
+    electron.onPreviewAction((action: string, data: any) => {
+      if (action === 'credit-note-edit' && data?.creditNoteId) {
+        const cn = creditNotes.find(c => c.id === data.creditNoteId);
+        if (cn) {
+          setPreviewCreditNote(null);
+          handleEdit(cn);
+        }
+      } else if (action === 'credit-note-download' && data?.creditNoteId) {
+        const cn = creditNotes.find(c => c.id === data.creditNoteId);
+        if (cn) handleDownloadPDF(cn);
+      } else if (action === 'credit-note-send' && data?.creditNoteId) {
+        const cn = creditNotes.find(c => c.id === data.creditNoteId);
+        if (cn) handleSendCreditNote(cn);
+      } else if (action === 'credit-note-apply' && data?.creditNoteId) {
+        const cn = creditNotes.find(c => c.id === data.creditNoteId);
+        if (cn) {
+          setPreviewCreditNote(null);
+          setApplyingCreditNote(cn);
+        }
+      } else if (action === 'credit-note-delete' && data?.creditNoteId) {
+        handleDelete(data.creditNoteId);
+      }
+    });
+  }, [creditNotes]);
+
+  useEffect(() => {
     if (prefilledInvoiceData) {
       handlePrefilledInvoice();
     }
