@@ -94,6 +94,7 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
   const [previewCreditNote, setPreviewCreditNote] = useState<CreditNote | null>(null);
   const [editingCreditNote, setEditingCreditNote] = useState<CreditNote | null>(null);
   const [applyingCreditNote, setApplyingCreditNote] = useState<CreditNote | null>(null);
+  const [previewAvailableCredit, setPreviewAvailableCredit] = useState<number | null>(null);
   const [syncingIds, setSyncingIds] = useState<Set<string>>(new Set());
   const [emailComposeData, setEmailComposeData] = useState<{
     to: string;
@@ -450,6 +451,9 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
         }
       });
     } else {
+      const { data: availableData } = await supabase
+        .rpc('get_available_credit', { credit_note_id_param: enrichedCreditNote.id });
+      setPreviewAvailableCredit(availableData || 0);
       setPreviewCreditNote(enrichedCreditNote);
     }
   };
@@ -1010,19 +1014,20 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
               : previewCreditNote.external_customers,
           }}
           companySettings={companySettings}
-          onClose={() => setPreviewCreditNote(null)}
+          onClose={() => { setPreviewCreditNote(null); setPreviewAvailableCredit(null); }}
           onDownload={() => handleDownloadPDF(previewCreditNote)}
           onEdit={() => {
             setPreviewCreditNote(null);
+            setPreviewAvailableCredit(null);
             handleEdit(previewCreditNote);
           }}
           onDelete={() => {
             handleDelete(previewCreditNote.id);
           }}
-          onApply={() => {
+          onApply={previewAvailableCredit && previewAvailableCredit > 0 ? () => {
             setPreviewCreditNote(null);
             setApplyingCreditNote(previewCreditNote);
-          }}
+          } : undefined}
           onSend={() => handleSendCreditNote(previewCreditNote)}
           onPopOut={() => {
             const electron = (window as any).electron;

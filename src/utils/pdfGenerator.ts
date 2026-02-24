@@ -491,7 +491,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
   }
 }
 
-interface CreditNoteData {
+export interface CreditNoteData {
   credit_note_number: string;
   credit_date: string;
   reason: string;
@@ -521,7 +521,7 @@ interface CreditNoteData {
   };
 }
 
-export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath?: string): Promise<void> {
+async function generateCreditNotePDFDocument(creditNote: CreditNoteData): Promise<jsPDF> {
   const pdf = new jsPDF('p', 'mm', 'a4');
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
@@ -776,6 +776,18 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
     }
   }
 
+  return pdf;
+}
+
+export async function generateCreditNotePDFBlobUrl(creditNote: CreditNoteData): Promise<string> {
+  const pdf = await generateCreditNotePDFDocument(creditNote);
+  const pdfBlob = pdf.output('blob');
+  return URL.createObjectURL(pdfBlob);
+}
+
+export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath?: string): Promise<string | null> {
+  const pdf = await generateCreditNotePDFDocument(creditNote);
+
   if (rootPath && window.electronAPI?.savePDF) {
     const pdfArrayBuffer = pdf.output('arraybuffer');
     const creditYear = new Date(creditNote.credit_date).getFullYear().toString();
@@ -791,9 +803,12 @@ export async function generateCreditNotePDF(creditNote: CreditNoteData, rootPath
     if (!result.success) {
       console.error('Failed to save credit note PDF:', result.error);
       pdf.save(`${creditNote.credit_note_number}.pdf`);
+      return null;
     }
+    return result.path || null;
   } else {
     pdf.save(`${creditNote.credit_note_number}.pdf`);
+    return null;
   }
 }
 

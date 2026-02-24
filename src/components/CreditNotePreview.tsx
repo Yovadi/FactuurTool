@@ -1,11 +1,6 @@
-import { X, Download, Edit, Trash2, Link, Send, ExternalLink } from 'lucide-react';
-
-type CreditNoteLineItem = {
-  description: string;
-  quantity: number;
-  unit_price: number;
-  amount: number;
-};
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { X, Download, Edit, Trash2, Link, Send, ExternalLink, Loader2 } from 'lucide-react';
+import { generateCreditNotePDFBlobUrl, CreditNoteData } from '../utils/pdfGenerator';
 
 type CreditNotePreviewProps = {
   creditNote: {
@@ -20,7 +15,7 @@ type CreditNotePreviewProps = {
     status?: string;
     tenant?: { name: string; company_name: string; email: string; billing_address?: string; street?: string; postal_code?: string; city?: string };
     external_customer?: { company_name: string; contact_name: string; email?: string; street: string; postal_code: string; city: string; country: string };
-    credit_note_line_items?: CreditNoteLineItem[];
+    credit_note_line_items?: { description: string; quantity: number; unit_price: number; amount: number }[];
   };
   companySettings: {
     name: string;
@@ -46,189 +41,206 @@ type CreditNotePreviewProps = {
 };
 
 export function CreditNotePreview({ creditNote, companySettings, onClose, onDownload, onEdit, onDelete, onApply, onSend, onPopOut, inline = false }: CreditNotePreviewProps) {
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('nl-NL', {
-      style: 'currency',
-      currency: 'EUR',
-    }).format(amount);
-  };
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const pdfLoadingRef = useRef(false);
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('nl-NL');
-  };
+  useEffect(() => {
+    setPdfUrl(prev => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    pdfLoadingRef.current = false;
+  }, [creditNote.credit_note_number]);
 
-  const customerName = creditNote.tenant?.company_name || creditNote.external_customer?.company_name || 'Onbekend';
-  const customerAddress = creditNote.tenant
-    ? (creditNote.tenant.billing_address || `${creditNote.tenant.street || ''}\n${creditNote.tenant.postal_code || ''} ${creditNote.tenant.city || ''}`)
-    : `${creditNote.external_customer?.street}\n${creditNote.external_customer?.postal_code} ${creditNote.external_customer?.city}`;
+  const loadPdf = useCallback(async () => {
+    if (!creditNote || pdfLoadingRef.current) return;
+    pdfLoadingRef.current = true;
+    setPdfLoading(true);
+    try {
+      const customerName = creditNote.tenant?.company_name || creditNote.external_customer?.company_name || 'Onbekend';
+      const customerAddress = creditNote.tenant
+        ? (creditNote.tenant.billing_address || `${creditNote.tenant.street || ''}\n${creditNote.tenant.postal_code || ''} ${creditNote.tenant.city || ''}`)
+        : `${creditNote.external_customer?.street || ''}\n${creditNote.external_customer?.postal_code || ''} ${creditNote.external_customer?.city || ''}`;
 
-  const content = (
-    <div className={inline ? "h-full flex flex-col overflow-hidden" : "bg-dark-900 rounded-lg my-8 relative max-w-5xl w-full mx-auto border border-dark-700"}>
-      <div className={`${inline ? '' : 'sticky top-0 rounded-t-lg'} bg-dark-800 border-b border-dark-700 px-6 py-4 flex justify-between items-center flex-shrink-0`}>
-        <h3 className="text-xl font-bold text-gray-100">Credit Nota Preview</h3>
-        <div className="flex items-center gap-2">
-            {onApply && (
-              <button
-                onClick={onApply}
-                className="flex items-center gap-1.5 bg-amber-600 hover:bg-amber-500 text-white transition-colors px-3 py-1.5 rounded-lg"
-                title="Toepassen"
-              >
-                <Link size={18} />
-                <span className="text-sm font-medium">Toepassen</span>
-              </button>
-            )}
-            {onEdit && (
-              <button
-                onClick={onEdit}
-                className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white transition-colors px-3 py-1.5 rounded-lg"
-                title="Bewerken"
-              >
-                <Edit size={18} />
-                <span className="text-sm font-medium">Bewerken</span>
-              </button>
-            )}
-            {onDownload && (
-              <button
-                onClick={onDownload}
-                className="flex items-center gap-1.5 bg-green-600 hover:bg-green-500 text-white transition-colors px-3 py-1.5 rounded-lg"
-                title="Download PDF"
-              >
-                <Download size={18} />
-                <span className="text-sm font-medium">Download</span>
-              </button>
-            )}
-            {onSend && (
-              <button
-                onClick={onSend}
-                className="flex items-center gap-1.5 bg-teal-600 hover:bg-teal-500 text-white transition-colors px-3 py-1.5 rounded-lg"
-                title="Versturen"
-              >
-                <Send size={18} />
-                <span className="text-sm font-medium">Versturen</span>
-              </button>
-            )}
-            {onDelete && (
-              <button
-                onClick={onDelete}
-                className="flex items-center gap-1.5 bg-red-600 hover:bg-red-500 text-white transition-colors px-3 py-1.5 rounded-lg"
-                title="Verwijderen"
-              >
-                <Trash2 size={18} />
-              </button>
-            )}
-            {onPopOut && (
-              <button
-                onClick={onPopOut}
-                className="flex items-center gap-1.5 bg-dark-700 hover:bg-dark-600 text-gray-300 hover:text-white transition-colors px-3 py-1.5 rounded-lg"
-                title="Open in apart venster"
-              >
-                <ExternalLink size={18} />
-                <span className="text-sm font-medium">Venster</span>
-              </button>
-            )}
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-dark-700 rounded-lg transition-colors"
-            >
-              <X size={20} className="text-gray-400 hover:text-gray-200" />
-            </button>
-          </div>
-        </div>
+      const pdfData: CreditNoteData = {
+        credit_note_number: creditNote.credit_note_number,
+        credit_date: creditNote.credit_date,
+        reason: creditNote.reason,
+        customer_name: customerName,
+        customer_address: customerAddress,
+        line_items: (creditNote.credit_note_line_items || []).map(item => ({
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          amount: item.amount,
+        })),
+        subtotal: creditNote.subtotal,
+        vat_amount: creditNote.vat_amount,
+        vat_rate: creditNote.vat_rate,
+        total_amount: creditNote.total_amount,
+        notes: creditNote.notes,
+        company: companySettings ? {
+          name: companySettings.name,
+          address: companySettings.address,
+          postal_code: companySettings.postal_code,
+          city: companySettings.city,
+          kvk: companySettings.kvk_number,
+          btw: companySettings.btw_number,
+          iban: companySettings.bank_account,
+          email: companySettings.email,
+          phone: companySettings.phone,
+        } : undefined,
+      };
 
-        <div className={`${inline ? 'flex-1 overflow-y-auto' : ''} p-6 space-y-6`}>
-          <div className="grid grid-cols-2 gap-6 pb-6 border-b border-dark-700">
-            <div>
-              <h3 className="text-sm font-semibold text-gray-200 mb-2">Klant</h3>
-              <p className="text-gray-100 font-medium">{customerName}</p>
-              <div className="mt-2 text-sm text-gray-400">
-                <p className="whitespace-pre-line">{customerAddress}</p>
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="space-y-1 text-sm">
-                <div>
-                  <span className="text-gray-400">Credit Nota Nummer: </span>
-                  <span className="font-semibold text-red-400">{creditNote.credit_note_number.replace(/^CN-/, '')}</span>
-                </div>
-                <div>
-                  <span className="text-gray-400">Creditdatum: </span>
-                  <span className="text-gray-100">{formatDate(creditNote.credit_date)}</span>
-                </div>
-                <div className="mt-3 inline-block">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    creditNote.status === 'draft' ? 'bg-gray-700 text-gray-300' :
-                    creditNote.status === 'issued' ? 'bg-blue-900 text-blue-300' :
-                    'bg-green-900 text-green-300'
-                  }`}>
-                    {creditNote.status === 'draft' ? 'Concept' :
-                     creditNote.status === 'issued' ? 'Uitgegeven' : 'Toegepast'}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
+      const url = await generateCreditNotePDFBlobUrl(pdfData);
+      setPdfUrl(prev => {
+        if (prev) URL.revokeObjectURL(prev);
+        return url;
+      });
+    } catch (err) {
+      console.error('Credit note PDF generation error:', err);
+    } finally {
+      pdfLoadingRef.current = false;
+      setPdfLoading(false);
+    }
+  }, [creditNote, companySettings]);
 
-          <div className="bg-red-900 bg-opacity-20 border border-red-700 rounded-lg p-4">
-            <p className="text-sm font-semibold text-red-300 mb-1">Credit Nota - {creditNote.reason}</p>
-            <p className="text-xs text-gray-400">Deze creditfactuur corrigeert een eerder verzonden factuur.</p>
-          </div>
+  useEffect(() => {
+    if (creditNote && !pdfUrl && !pdfLoadingRef.current) {
+      loadPdf();
+    }
+  }, [creditNote.credit_note_number, loadPdf]);
 
-          <div>
-            <h4 className="text-sm font-semibold text-gray-200 mb-3">Regels</h4>
-            <table className="w-full border border-dark-700">
-              <thead>
-                <tr className="bg-dark-800 border-b border-dark-700">
-                  <th className="text-left py-2 px-3 text-xs font-semibold text-gray-200">Omschrijving</th>
-                  <th className="text-right py-2 px-3 text-xs font-semibold text-gray-200">Aantal</th>
-                  <th className="text-right py-2 px-3 text-xs font-semibold text-gray-200">Prijs</th>
-                  <th className="text-right py-2 px-3 text-xs font-semibold text-gray-200">Bedrag</th>
-                </tr>
-              </thead>
-              <tbody>
-                {creditNote.credit_note_line_items?.map((item, index) => (
-                  <tr key={index} className="border-b border-dark-700">
-                    <td className="py-2 px-3 text-sm text-gray-100">{item.description}</td>
-                    <td className="py-2 px-3 text-sm text-right text-gray-300">{item.quantity}</td>
-                    <td className="py-2 px-3 text-sm text-right text-gray-300">{formatCurrency(item.unit_price)}</td>
-                    <td className="py-2 px-3 text-sm text-right font-medium text-red-400">{formatCurrency(-item.amount)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+  const creditNoteNumberDisplay = creditNote.credit_note_number?.replace(/^CN-/, '') || 'Onbekend';
 
-          {creditNote.notes && (
-            <div className="bg-dark-800 border border-dark-700 rounded-lg p-4">
-              <p className="text-sm font-semibold text-gray-200 mb-2">Opmerkingen</p>
-              <p className="text-sm text-gray-400">{creditNote.notes}</p>
-            </div>
-          )}
+  const actionButtons = (
+    <div className="flex items-center gap-2 flex-wrap">
+      {onApply && (
+        <button
+          onClick={onApply}
+          className="flex items-center gap-1.5 bg-amber-600 hover:bg-amber-500 text-white transition-colors px-3 py-1.5 rounded-lg"
+          title="Toepassen"
+        >
+          <Link size={16} />
+          <span className="text-sm font-medium">Toepassen</span>
+        </button>
+      )}
+      {onEdit && (
+        <button
+          onClick={onEdit}
+          className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white transition-colors px-3 py-1.5 rounded-lg"
+          title="Bewerken"
+        >
+          <Edit size={16} />
+          <span className="text-sm font-medium">Bewerken</span>
+        </button>
+      )}
+      {onDownload && (
+        <button
+          onClick={onDownload}
+          className="flex items-center gap-1.5 bg-green-600 hover:bg-green-500 text-white transition-colors px-3 py-1.5 rounded-lg"
+          title="Download PDF"
+        >
+          <Download size={16} />
+          <span className="text-sm font-medium">Download</span>
+        </button>
+      )}
+      {onSend && (
+        <button
+          onClick={onSend}
+          className="flex items-center gap-1.5 bg-teal-600 hover:bg-teal-500 text-white transition-colors px-3 py-1.5 rounded-lg"
+          title="Versturen"
+        >
+          <Send size={16} />
+          <span className="text-sm font-medium">Versturen</span>
+        </button>
+      )}
+      {onDelete && (
+        <button
+          onClick={onDelete}
+          className="flex items-center gap-1.5 bg-red-600 hover:bg-red-500 text-white transition-colors px-3 py-1.5 rounded-lg"
+          title="Verwijderen"
+        >
+          <Trash2 size={16} />
+        </button>
+      )}
+      {onPopOut && (
+        <button
+          onClick={onPopOut}
+          className="flex items-center gap-1.5 bg-dark-700 hover:bg-dark-600 text-gray-300 hover:text-white transition-colors px-3 py-1.5 rounded-lg"
+          title="Open in apart venster"
+        >
+          <ExternalLink size={16} />
+          <span className="text-sm font-medium">Venster</span>
+        </button>
+      )}
+      {!inline && (
+        <button
+          onClick={onClose}
+          className="bg-red-600 hover:bg-red-500 text-white transition-colors p-1.5 rounded-lg"
+        >
+          <X size={20} />
+        </button>
+      )}
+    </div>
+  );
 
-          <div className="mt-6 pt-4 border-t-2 border-dark-700 space-y-2">
-            <div className="flex justify-between text-gray-300">
-              <span>Subtotaal (excl. BTW):</span>
-              <span className="text-red-400">{formatCurrency(-creditNote.subtotal)}</span>
-            </div>
-            <div className="flex justify-between text-gray-300">
-              <span>BTW ({creditNote.vat_rate.toFixed(0)}%):</span>
-              <span className="text-red-400">{formatCurrency(-creditNote.vat_amount)}</span>
-            </div>
-            <div className="flex justify-between text-lg font-bold text-gray-100 pt-2 border-t border-dark-600">
-              <span>Totaal Credit:</span>
-              <span className="text-red-400">{formatCurrency(-creditNote.total_amount)}</span>
-            </div>
-          </div>
-        </div>
+  const pdfContent = pdfLoading ? (
+    <div className="h-full flex items-center justify-center">
+      <div className="flex flex-col items-center gap-3">
+        <Loader2 size={28} className="text-gold-500 animate-spin" />
+        <span className="text-sm text-gray-400">PDF genereren...</span>
       </div>
+    </div>
+  ) : pdfUrl ? (
+    <iframe
+      src={pdfUrl}
+      className="w-full h-full border-0"
+      title={`Credit Nota ${creditNoteNumberDisplay}`}
+    />
+  ) : (
+    <div className="h-full flex items-center justify-center">
+      <div className="flex flex-col items-center gap-3">
+        <Loader2 size={28} className="text-gold-500 animate-spin" />
+        <span className="text-sm text-gray-400">PDF laden...</span>
+      </div>
+    </div>
   );
 
   if (inline) {
-    return content;
+    return (
+      <div className="h-full flex flex-col overflow-hidden">
+        <div className="flex-shrink-0 bg-dark-800 border-b border-dark-700 px-4 py-3">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <h2 className="text-lg font-bold text-red-400 truncate">Credit Nota {creditNoteNumberDisplay}</h2>
+            <button
+              onClick={onClose}
+              className="text-gray-500 hover:text-gray-300 transition-colors p-1 flex-shrink-0"
+            >
+              <X size={18} />
+            </button>
+          </div>
+          {actionButtons}
+        </div>
+        <div className="flex-1 overflow-hidden bg-gray-700">
+          {pdfContent}
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto p-4">
-      {content}
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-dark-900 rounded-lg my-8 relative w-full max-w-5xl mx-4 h-[90vh] flex flex-col border border-dark-700">
+        <div className="flex-shrink-0 bg-dark-800 rounded-t-lg border-b border-dark-700 px-6 py-4 flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-red-400">Credit Nota {creditNoteNumberDisplay}</h2>
+          {actionButtons}
+        </div>
+        <div className="flex-1 overflow-hidden bg-gray-700 rounded-b-lg">
+          {pdfContent}
+        </div>
+      </div>
     </div>
   );
 }
