@@ -3620,25 +3620,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                     Reset
                   </button>
                 )}
-                <div className="hidden sm:flex items-center gap-3 ml-4 border-l border-dark-600 pl-4">
-                  <span className="text-xs text-gray-500">Legenda:</span>
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-green-500" />
-                    <span className="text-xs text-gray-400">Huur</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-blue-500" />
-                    <span className="text-xs text-gray-400">Vergaderruimte</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-teal-500" />
-                    <span className="text-xs text-gray-400">Flex</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-amber-500" />
-                    <span className="text-xs text-gray-400">Handmatig</span>
-                  </div>
-                </div>
                 <button
                   onClick={() => setShowForm(true)}
                   className="ml-auto flex items-center gap-2 px-3 py-1.5 bg-gold-500 text-white text-sm font-medium rounded-lg hover:bg-gold-400 transition-colors"
