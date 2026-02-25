@@ -932,6 +932,34 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
 
       if (error) throw error;
 
+      const booking = linkDialogBooking;
+      const spaceName = booking.office_spaces?.space_number || 'Vergaderruimte';
+      const dateStr = new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const timeStr = `${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)}`;
+      const description = `${spaceName} - ${dateStr} ${timeStr}`;
+
+      const { data: existingItems } = await supabase
+        .from('invoice_line_items')
+        .select('id')
+        .eq('invoice_id', selectedInvoiceId)
+        .eq('booking_id', booking.id)
+        .maybeSingle();
+
+      if (!existingItems) {
+        await supabase
+          .from('invoice_line_items')
+          .insert({
+            invoice_id: selectedInvoiceId,
+            booking_id: booking.id,
+            description,
+            quantity: booking.total_hours,
+            unit_price: booking.hourly_rate,
+            amount: booking.total_amount,
+            calculation_type: 'quantity_price',
+            local_category: 'vergaderruimte'
+          });
+      }
+
       showNotification('Boeking succesvol gekoppeld aan factuur', 'success');
       setLinkDialogBooking(null);
       await loadData();
