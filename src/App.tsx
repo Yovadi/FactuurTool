@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { UpdateDialog } from './components/UpdateDialog';
-import { LayoutDashboard, Users, Building, Settings, CalendarClock, Calendar, FileText, Building2, Calculator, Euro, UserCheck, UserMinus, Loader2, Menu, X, Database, Bell, AlertTriangle, TrendingUp, CalendarCheck, DoorOpen, Mail } from 'lucide-react';
+import { LayoutDashboard, Users, Building, Settings, CalendarClock, Calendar, FileText, Building2, Calculator, Euro, UserCheck, UserMinus, Loader2, Menu, X, Database, Bell, AlertTriangle, TrendingUp, CalendarCheck, DoorOpen, Mail, CheckCircle, RefreshCw } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { markAllNotificationsRead, deleteReadNotifications, deleteNotification } from './utils/notificationHelper';
+import { syncInvoicePDFs } from './utils/invoicePdfSync';
 
 const OverzichtTabs = lazy(() => import('./components/OverzichtTabs').then(m => ({ default: m.OverzichtTabs })));
 const TenantManagement = lazy(() => import('./components/TenantManagement').then(m => ({ default: m.TenantManagement })));
@@ -60,6 +61,13 @@ function App() {
   const notifRef = useRef<HTMLDivElement>(null);
   const notifBtnRef = useRef<HTMLButtonElement>(null);
   const [notifPos, setNotifPos] = useState({ top: 0, left: 0 });
+  const [syncStatus, setSyncStatus] = useState<{
+    active: boolean;
+    current: number;
+    total: number;
+    invoiceNumber: string;
+    result?: { synced: number; failed: number; errors: string[] } | null;
+  }>({ active: false, current: 0, total: 0, invoiceNumber: '' });
 
   useEffect(() => {
     const isElectronApp = !!(window as any).electronAPI;
@@ -126,7 +134,7 @@ function App() {
 
     if (isElectronApp) {
       timers.push(setTimeout(() => {
-        syncFolders();
+        syncFolders().then(() => syncInvoicePDFsOnStartup());
       }, 1000));
     }
 
@@ -231,6 +239,34 @@ function App() {
     }
   };
 
+  const syncInvoicePDFsOnStartup = async () => {
+    try {
+      setSyncStatus({ active: true, current: 0, total: 0, invoiceNumber: '' });
+      const result = await syncInvoicePDFs((current, total, invoiceNumber) => {
+        setSyncStatus({ active: true, current, total, invoiceNumber });
+      });
+
+      if (!result || result.synced === 0) {
+        setSyncStatus(prev => ({ ...prev, active: false }));
+        return;
+      }
+
+      setSyncStatus({
+        active: false,
+        current: result.synced,
+        total: result.synced + result.failed,
+        invoiceNumber: '',
+        result: { synced: result.synced, failed: result.failed, errors: result.errors },
+      });
+
+      setTimeout(() => {
+        setSyncStatus(prev => prev.result ? { ...prev, result: null } : prev);
+      }, 8000);
+    } catch {
+      setSyncStatus(prev => ({ ...prev, active: false }));
+    }
+  };
+
   const navigation: MenuSection[] = [
     { id: 'dashboard', label: 'Overzicht', icon: LayoutDashboard },
     { id: 'tenants', label: 'Huurders', icon: Users },
@@ -307,6 +343,53 @@ function App() {
 
   return (
     <div className="h-screen bg-dark-950 flex flex-col">
+      {(syncStatus.active || syncStatus.result) && (
+        <div className="fixed bottom-4 right-4 z-[100] max-w-sm">
+          {syncStatus.active && (
+            <div className="bg-dark-800 border border-dark-600 rounded-xl shadow-2xl px-4 py-3">
+              <div className="flex items-center gap-3">
+                <RefreshCw size={18} className="text-gold-500 animate-spin flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-100">PDF's synchroniseren...</p>
+                  {syncStatus.total > 0 && (
+                    <>
+                      <p className="text-xs text-gray-400 mt-0.5 truncate">{syncStatus.invoiceNumber} ({syncStatus.current}/{syncStatus.total})</p>
+                      <div className="w-full bg-dark-700 rounded-full h-1.5 mt-2">
+                        <div
+                          className="bg-gold-500 h-1.5 rounded-full transition-all duration-300"
+                          style={{ width: `${(syncStatus.current / syncStatus.total) * 100}%` }}
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+          {syncStatus.result && (
+            <div className={`bg-dark-800 border rounded-xl shadow-2xl px-4 py-3 ${syncStatus.result.failed > 0 ? 'border-amber-600/50' : 'border-green-600/50'}`}>
+              <div className="flex items-start gap-3">
+                <CheckCircle size={18} className={`flex-shrink-0 mt-0.5 ${syncStatus.result.failed > 0 ? 'text-amber-400' : 'text-green-400'}`} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-100">
+                    {syncStatus.result.synced} factuur-PDF{syncStatus.result.synced !== 1 ? "'s" : ''} gesynchroniseerd
+                  </p>
+                  {syncStatus.result.failed > 0 && (
+                    <p className="text-xs text-amber-400 mt-0.5">{syncStatus.result.failed} mislukt</p>
+                  )}
+                </div>
+                <button
+                  onClick={() => setSyncStatus(prev => ({ ...prev, result: null }))}
+                  className="text-gray-500 hover:text-gray-300 transition-colors flex-shrink-0"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {updateDialog.show && (
         <UpdateDialog
           type={updateDialog.type}

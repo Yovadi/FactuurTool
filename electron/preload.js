@@ -19,6 +19,9 @@ contextBridge.exposeInMainWorld('electron', {
   moveAllFolders: (oldRootPath, newRootPath) => {
     return ipcRenderer.invoke('move-all-folders', oldRootPath, newRootPath);
   },
+  listInvoicesOnDisk: (rootPath) => {
+    return ipcRenderer.invoke('list-invoices-on-disk', rootPath);
+  },
   getAppVersion: () => {
     return ipcRenderer.invoke('get-app-version');
   },
@@ -81,6 +84,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   moveAllFolders: (oldRootPath, newRootPath) => {
     return ipcRenderer.invoke('move-all-folders', oldRootPath, newRootPath);
+  },
+  listInvoicesOnDisk: (rootPath) => {
+    return ipcRenderer.invoke('list-invoices-on-disk', rootPath);
   },
   getAppVersion: () => {
     return ipcRenderer.invoke('get-app-version');

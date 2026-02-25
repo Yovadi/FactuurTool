@@ -322,6 +322,48 @@ ipcMain.handle('move-all-folders', async (event, oldRootPath, newRootPath) => {
   }
 });
 
+ipcMain.handle('list-invoices-on-disk', async (event, rootPath) => {
+  try {
+    const fs = require('fs');
+
+    if (!rootPath) {
+      return { success: false, error: 'Root path is verplicht' };
+    }
+
+    if (!fs.existsSync(rootPath)) {
+      return { success: true, files: [] };
+    }
+
+    const files = [];
+    const tenantDirs = fs.readdirSync(rootPath, { withFileTypes: true });
+
+    for (const tenantDir of tenantDirs) {
+      if (!tenantDir.isDirectory()) continue;
+      const tenantPath = path.join(rootPath, tenantDir.name);
+      const yearDirs = fs.readdirSync(tenantPath, { withFileTypes: true });
+
+      for (const yearDir of yearDirs) {
+        if (!yearDir.isDirectory()) continue;
+        const yearPath = path.join(tenantPath, yearDir.name);
+        const pdfFiles = fs.readdirSync(yearPath).filter(f => f.toLowerCase().endsWith('.pdf'));
+
+        for (const pdfFile of pdfFiles) {
+          files.push({
+            tenantFolder: tenantDir.name,
+            year: yearDir.name,
+            fileName: pdfFile
+          });
+        }
+      }
+    }
+
+    return { success: true, files };
+  } catch (error) {
+    console.error('Error listing invoices on disk:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 ipcMain.handle('get-app-version', () => {
   return app.getVersion();
 });
