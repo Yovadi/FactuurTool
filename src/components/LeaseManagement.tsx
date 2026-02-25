@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
-import { supabase, type Lease, type Tenant, type OfficeSpace, type LeaseSpace, type SpaceTypeRate } from '../lib/supabase';
-import { Plus, CreditCard as Edit2, Trash2, Calendar, Euro, X, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { supabase, type Lease, type Tenant, type OfficeSpace, type LeaseSpace, type SpaceTypeRate, type CompanySettings } from '../lib/supabase';
+import { Plus, CreditCard as Edit2, Trash2, Calendar, Euro, X, CheckCircle, XCircle, AlertCircle, FileText } from 'lucide-react';
+import { LeaseContractPreview } from './LeaseContractPreview';
+import type { LeaseContractData } from '../utils/leaseContractPdf';
 
 type LeaseWithDetails = Lease & {
   tenant: Tenant;
@@ -49,6 +51,9 @@ export function LeaseManagement() {
     thursday: false,
     friday: false
   });
+
+  const [previewLease, setPreviewLease] = useState<LeaseWithDetails | null>(null);
+  const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
 
   useEffect(() => {
     loadData();
@@ -103,10 +108,16 @@ export function LeaseManagement() {
       .from('space_type_rates')
       .select('*');
 
+    const { data: settingsData } = await supabase
+      .from('company_settings')
+      .select('*')
+      .maybeSingle();
+
     setLeases(leasesData as LeaseWithDetails[] || []);
     setTenants(tenantsData || []);
     setSpaces(spacesData || []);
     setSpaceTypeRates(ratesData || []);
+    if (settingsData) setCompanySettings(settingsData as CompanySettings);
     setLoading(false);
   };
 
@@ -589,6 +600,61 @@ export function LeaseManagement() {
 
     const securityDeposit = parseFloat(formData.security_deposit) || 0;
     return spacesTotal + securityDeposit;
+  };
+
+  const buildLeaseContractData = (lease: LeaseWithDetails): LeaseContractData => {
+    const company = companySettings
+      ? {
+          name: companySettings.company_name,
+          address: companySettings.address,
+          postal_code: companySettings.postal_code,
+          city: companySettings.city,
+          kvk: companySettings.kvk_number,
+          btw: companySettings.vat_number,
+          iban: companySettings.bank_account,
+          email: companySettings.email || undefined,
+          phone: companySettings.phone || undefined,
+          website: undefined,
+        }
+      : undefined;
+
+    const contractData: LeaseContractData = {
+      tenant_name: lease.tenant.name,
+      tenant_company_name: lease.tenant.company_name,
+      tenant_street: lease.tenant.street || undefined,
+      tenant_postal_code: lease.tenant.postal_code || undefined,
+      tenant_city: lease.tenant.city || undefined,
+      tenant_country: lease.tenant.country || undefined,
+      tenant_email: lease.tenant.email || undefined,
+      tenant_phone: lease.tenant.phone || undefined,
+      lease_type: lease.lease_type,
+      start_date: lease.start_date,
+      end_date: lease.end_date,
+      vat_rate: lease.vat_rate,
+      vat_inclusive: lease.vat_inclusive,
+      security_deposit: lease.security_deposit,
+      spaces: lease.lease_spaces.map((ls) => ({
+        space_number: ls.space.space_number,
+        space_type: ls.space.space_type,
+        square_footage: ls.space.square_footage,
+        price_per_sqm: ls.price_per_sqm,
+        monthly_rent: ls.monthly_rent,
+      })),
+      company,
+    };
+
+    if (lease.lease_type === 'flex') {
+      const flexLease = lease as any;
+      const flexSpace = lease.lease_spaces.length > 0 ? lease.lease_spaces[0].space : null;
+      contractData.flex = {
+        credits_per_week: flexLease.credits_per_week || 0,
+        flex_credit_rate: flexLease.flex_credit_rate || 0,
+        flex_day_type: flexLease.flex_day_type || 'full_day',
+        space_number: flexSpace?.space_number,
+      };
+    }
+
+    return contractData;
   };
 
   const resetForm = () => {
@@ -1249,6 +1315,13 @@ export function LeaseManagement() {
                         <td className="px-4 py-3">
                           <div className="flex gap-1 justify-end">
                             <button
+                              onClick={() => setPreviewLease(lease)}
+                              className="text-blue-400 hover:text-blue-300 transition-colors p-1.5 rounded hover:bg-dark-700"
+                              title="Contract PDF bekijken"
+                            >
+                              <FileText size={18} />
+                            </button>
+                            <button
                               onClick={() => handleEdit(lease)}
                               className="text-gold-500 hover:text-gold-400 transition-colors p-1.5 rounded hover:bg-dark-700"
                               title="Bewerken"
@@ -1364,6 +1437,13 @@ export function LeaseManagement() {
                         <td className="px-4 py-3">
                           <div className="flex gap-1 justify-end">
                             <button
+                              onClick={() => setPreviewLease(lease)}
+                              className="text-blue-400 hover:text-blue-300 transition-colors p-1.5 rounded hover:bg-dark-700"
+                              title="Contract PDF bekijken"
+                            >
+                              <FileText size={18} />
+                            </button>
+                            <button
                               onClick={() => handleEdit(lease)}
                               className="text-gold-500 hover:text-gold-400 transition-colors p-1.5 rounded hover:bg-dark-700"
                               title="Bewerken"
@@ -1410,6 +1490,14 @@ export function LeaseManagement() {
           </div>
         )}
       </div>
+
+      {previewLease && (
+        <LeaseContractPreview
+          leaseData={buildLeaseContractData(previewLease)}
+          tenantCompanyName={previewLease.tenant.company_name}
+          onClose={() => setPreviewLease(null)}
+        />
+      )}
     </div>
   );
 }
