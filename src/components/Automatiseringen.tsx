@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import {
   Loader2, RefreshCw, CheckCircle2, Clock, FileText,
   Receipt, Link2, Users, Calendar, ChevronDown, ChevronUp, Play, DoorOpen, Armchair,
-  AlertTriangle, TrendingUp, CalendarCheck, Monitor
+  AlertTriangle, TrendingUp, CalendarCheck, Monitor, LayoutPanelLeft
 } from 'lucide-react';
 
 interface ScheduledJob {
@@ -300,6 +300,9 @@ export function Automatiseringen() {
   const [splitscreenEnabled, setSplitscreenEnabled] = useState(() => {
     return localStorage.getItem('hal5-splitscreen') === 'true';
   });
+  const [splitscreenIdleView, setSplitscreenIdleView] = useState(() => {
+    return localStorage.getItem('hal5-splitscreen-idle') || 'summary';
+  });
   useEffect(() => {
     loadJobs();
   }, []);
@@ -460,6 +463,39 @@ export function Automatiseringen() {
             </div>
           </div>
         </div>
+
+        {splitscreenEnabled && (
+          <div className="bg-dark-900 rounded-xl border border-dark-700 px-5 py-4">
+            <div className="flex items-start gap-4">
+              <div className="w-9 h-9 rounded-lg bg-gold-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <LayoutPanelLeft size={18} className="text-gold-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-sm text-gray-100">Standaard Weergave 2e Scherm</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Kies wat er wordt getoond op het 2e scherm wanneer er geen factuur of creditnota geselecteerd is
+                    </p>
+                  </div>
+                  <select
+                    value={splitscreenIdleView}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSplitscreenIdleView(val);
+                      localStorage.setItem('hal5-splitscreen-idle', val);
+                      window.dispatchEvent(new CustomEvent('splitscreen-idle-changed', { detail: { view: val } }));
+                    }}
+                    className="bg-dark-800 border border-dark-600 text-gray-200 text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-gold-500 flex-shrink-0"
+                  >
+                    <option value="summary">Snelle samenvatting</option>
+                    <option value="activity">Activiteitenlogboek</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
 

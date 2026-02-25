@@ -193,7 +193,21 @@ function DetachedPurchaseInvoicePreview(props: any) {
 }
 
 function IdlePanel() {
-  const [view, setView] = useState<'summary' | 'activity'>('summary');
+  const [view, setView] = useState<'summary' | 'activity'>(() => {
+    const saved = localStorage.getItem('hal5-splitscreen-idle');
+    return saved === 'activity' ? 'activity' : 'summary';
+  });
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.view === 'summary' || detail?.view === 'activity') {
+        setView(detail.view);
+      }
+    };
+    window.addEventListener('splitscreen-idle-changed', handler);
+    return () => window.removeEventListener('splitscreen-idle-changed', handler);
+  }, []);
 
   return (
     <div className="h-screen bg-dark-950 flex flex-col overflow-hidden">
