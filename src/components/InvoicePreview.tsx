@@ -309,14 +309,14 @@ export function InvoicePreview({
           <span className="text-sm font-medium">Venster</span>
         </button>
       )}
-      {!inline && (
-        <button
-          onClick={onClose}
-          className="bg-red-600 hover:bg-red-500 text-white transition-colors p-1.5 rounded-lg"
-        >
-          <X size={20} />
-        </button>
-      )}
+      <button
+        onClick={onClose}
+        className="flex items-center gap-1.5 bg-dark-700 hover:bg-dark-600 text-gray-300 hover:text-white transition-colors px-3 py-1.5 rounded-lg"
+        title="Sluiten"
+      >
+        <X size={16} />
+        <span className="text-sm font-medium">Sluiten</span>
+      </button>
     </div>
   );
 
@@ -554,14 +554,8 @@ export function InvoicePreview({
     return (
       <div className="h-full flex flex-col overflow-hidden">
         <div className="flex-shrink-0 bg-dark-800 border-b border-dark-700 px-4 py-3">
-          <div className="flex items-center justify-between gap-2 mb-2">
+          <div className="mb-2">
             <h2 className="text-lg font-bold text-gray-100 truncate">Factuur <span className={invoiceTypeColor || 'text-gray-100'}>{invoiceNumberDisplay}</span></h2>
-            <button
-              onClick={onClose}
-              className="text-gray-500 hover:text-gray-300 transition-colors p-1 flex-shrink-0"
-            >
-              <X size={18} />
-            </button>
           </div>
           {actionButtons}
         </div>
