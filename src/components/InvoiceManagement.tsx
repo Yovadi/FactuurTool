@@ -8,7 +8,6 @@ import { buildInvoiceEmailHtml, buildInvoiceEmailText } from '../utils/emailTemp
 import { InvoicePreview } from './InvoicePreview';
 import { Toast } from './Toast';
 import { checkAndRunScheduledJobs } from '../utils/scheduledJobs';
-import { DefaultPanel } from './DefaultPanel';
 
 type LeaseWithDetails = Lease & {
   tenant: Tenant;
@@ -3404,7 +3403,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         </div>
       )}
 
-      <div className="flex-1 min-w-0 overflow-y-auto w-1/2 transition-all duration-300">
+      <div className={`flex-1 min-w-0 overflow-y-auto ${previewInvoice ? 'w-1/2' : 'w-full'} transition-all duration-300`}>
       <div className="space-y-4">
         {(() => {
           const sortByTenantAndDate = (a: InvoiceWithDetails, b: InvoiceWithDetails) => {
@@ -3849,8 +3848,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           />
         </div>
       )}
-
-      {!previewInvoice && <DefaultPanel />}
 
       {/* Genereer Facturen Modal */}
       {showGenerateModal && (() => {

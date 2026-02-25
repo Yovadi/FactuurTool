@@ -7,7 +7,6 @@ import { EmailCompose } from './EmailCompose';
 import { generateCreditNotePDF } from '../utils/pdfGenerator';
 import { syncCreditNoteToEBoekhouden } from '../lib/eboekhoudenSync';
 import { isEmailConfigured } from '../utils/emailSender';
-import { DefaultPanel } from './DefaultPanel';
 
 type CreditNote = {
   id: string;
@@ -655,7 +654,7 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
 
   return (
     <div className="h-full flex overflow-hidden">
-    <div className="flex-1 min-w-0 overflow-y-auto w-1/2 transition-all duration-300">
+    <div className="flex-1 min-w-0 overflow-y-auto transition-all duration-300">
       <div className="p-6">
       <div className="flex justify-between items-center mb-4 flex-wrap gap-3">
         <h2 className="text-2xl font-bold text-gray-100">Credit Nota's</h2>
@@ -1093,7 +1092,6 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
       )}
       </div>
     </div>
-    <DefaultPanel />
     </div>
   );
 }

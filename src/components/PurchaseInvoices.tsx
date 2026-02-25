@@ -6,7 +6,6 @@ import { PurchaseInvoiceUpload } from './PurchaseInvoiceUpload';
 import { PurchaseInvoicePreview } from './PurchaseInvoicePreview';
 import { ConfirmModal } from './ConfirmModal';
 import { syncPurchaseInvoiceToEBoekhouden } from '../lib/eboekhoudenSync';
-import { DefaultPanel } from './DefaultPanel';
 
 type LineItem = {
   id?: string;
@@ -690,7 +689,7 @@ export function PurchaseInvoices() {
   return (
     <div className="h-full flex overflow-hidden">
     <div
-      className="flex-1 min-w-0 overflow-y-auto relative w-1/2 transition-all duration-300"
+      className={`flex-1 min-w-0 overflow-y-auto relative ${previewInvoice ? 'w-1/2' : 'w-full'} transition-all duration-300`}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
@@ -1236,7 +1235,6 @@ export function PurchaseInvoices() {
         />
       )}
     </div>
-    {!previewInvoice && <DefaultPanel />}
     </div>
   );
 }

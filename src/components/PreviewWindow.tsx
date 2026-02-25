@@ -2,7 +2,9 @@ import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { InvoicePreview } from './InvoicePreview';
 import { CreditNotePreview } from './CreditNotePreview';
 import { PurchaseInvoicePreview } from './PurchaseInvoicePreview';
-import { Loader2 } from 'lucide-react';
+import { QuickSummaryPanel } from './QuickSummaryPanel';
+import { ActivityLogPanel } from './ActivityLogPanel';
+import { Loader2, BarChart3, ScrollText } from 'lucide-react';
 
 const LazyEmailTab = lazy(() => import('./EmailTab').then(m => ({ default: m.EmailTab })));
 
@@ -31,14 +33,7 @@ export function PreviewWindow() {
   }, []);
 
   if (!previewData) {
-    return (
-      <div className="h-screen bg-dark-950 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="text-gold-500 animate-spin" size={48} />
-          <p className="text-gray-400">Wachten op preview...</p>
-        </div>
-      </div>
-    );
+    return <IdlePanel />;
   }
 
   if (previewData.type === 'invoice') {
@@ -194,5 +189,44 @@ function DetachedPurchaseInvoicePreview(props: any) {
       onDelete={handleDelete}
       onMarkAsPaid={props.invoice?.status !== 'paid' ? handleMarkAsPaid : undefined}
     />
+  );
+}
+
+function IdlePanel() {
+  const [view, setView] = useState<'summary' | 'activity'>('summary');
+
+  return (
+    <div className="h-screen bg-dark-950 flex flex-col overflow-hidden">
+      <div className="flex-shrink-0 px-4 pt-4 pb-2">
+        <div className="flex gap-1 bg-dark-900 rounded-lg p-1 border border-dark-700">
+          <button
+            onClick={() => setView('summary')}
+            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
+              view === 'summary'
+                ? 'bg-gold-500 text-white'
+                : 'text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            <BarChart3 size={15} />
+            Snelle Samenvatting
+          </button>
+          <button
+            onClick={() => setView('activity')}
+            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
+              view === 'activity'
+                ? 'bg-gold-500 text-white'
+                : 'text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            <ScrollText size={15} />
+            Activiteitenlogboek
+          </button>
+        </div>
+      </div>
+      <div className="flex-1 min-h-0 overflow-auto">
+        {view === 'summary' && <QuickSummaryPanel />}
+        {view === 'activity' && <ActivityLogPanel />}
+      </div>
+    </div>
   );
 }
