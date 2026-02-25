@@ -84,17 +84,10 @@ export function PreviewWindow() {
 
 function DetachedInvoicePreview(props: any) {
   const noop = useCallback(() => {}, []);
-
-  const handleEdit = useCallback(() => {
-    sendAction('invoice-edit', { invoiceId: props.invoice?.id });
-  }, [props.invoice?.id]);
+  const status = props.invoice?.status;
 
   const handleDownload = useCallback(() => {
     sendAction('invoice-download', { invoiceId: props.invoice?.id });
-  }, [props.invoice?.id]);
-
-  const handleSend = useCallback(() => {
-    sendAction('invoice-send', { invoiceId: props.invoice?.id });
   }, [props.invoice?.id]);
 
   const handleMarkAsPaid = useCallback(() => {
@@ -105,8 +98,16 @@ function DetachedInvoicePreview(props: any) {
     sendAction('invoice-create-credit-note', { invoiceId: props.invoice?.id });
   }, [props.invoice?.id]);
 
-  const showSend = props.invoice?.status !== 'paid';
-  const showMarkAsPaid = props.invoice?.status === 'sent';
+  const handleRevertToDraft = useCallback(() => {
+    sendAction('invoice-revert-draft', { invoiceId: props.invoice?.id });
+  }, [props.invoice?.id]);
+
+  const handleDelete = useCallback(() => {
+    sendAction('invoice-delete', { invoiceId: props.invoice?.id });
+  }, [props.invoice?.id]);
+
+  const showMarkAsPaid = status === 'sent' || status === 'overdue';
+  const showRevertToDraft = status === 'sent';
 
   return (
     <div className="h-full">
@@ -119,11 +120,11 @@ function DetachedInvoicePreview(props: any) {
         company={props.company}
         invoiceTypeColor={props.invoiceTypeColor}
         onClose={noop}
-        onEdit={handleEdit}
         onDownload={handleDownload}
-        onSend={showSend ? handleSend : undefined}
         onMarkAsPaid={showMarkAsPaid ? handleMarkAsPaid : undefined}
         onCreateCreditNote={handleCreateCreditNote}
+        onRevertToDraft={showRevertToDraft ? handleRevertToDraft : undefined}
+        onDelete={handleDelete}
       />
     </div>
   );

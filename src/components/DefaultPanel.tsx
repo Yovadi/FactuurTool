@@ -1,53 +1,45 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { QuickSummaryPanel } from './QuickSummaryPanel';
 import { ActivityLogPanel } from './ActivityLogPanel';
+import { BarChart3, ScrollText } from 'lucide-react';
 
-export type DefaultPanelType = 'none' | 'summary' | 'activity';
-
-export function getDefaultPanelSetting(): DefaultPanelType {
-  const val = localStorage.getItem('hal5-default-panel');
-  if (val === 'summary' || val === 'activity' || val === 'none') return val;
-  return 'none';
-}
-
-export function setDefaultPanelSetting(value: DefaultPanelType) {
-  localStorage.setItem('hal5-default-panel', value);
-  window.dispatchEvent(new CustomEvent('default-panel-changed', { detail: { panel: value } }));
-}
+type PanelView = 'summary' | 'activity';
 
 export function DefaultPanel() {
-  const [panelType, setPanelType] = useState<DefaultPanelType>(getDefaultPanelSetting);
-
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      setPanelType(detail.panel);
-    };
-    window.addEventListener('default-panel-changed', handler);
-    return () => window.removeEventListener('default-panel-changed', handler);
-  }, []);
-
-  if (panelType === 'none') return null;
+  const [view, setView] = useState<PanelView>('summary');
 
   return (
-    <div className="w-1/2 flex-shrink-0 border-l border-dark-700 bg-dark-900 overflow-hidden">
-      {panelType === 'summary' && <QuickSummaryPanel />}
-      {panelType === 'activity' && <ActivityLogPanel />}
+    <div className="w-1/2 flex-shrink-0 border-l border-dark-700 bg-dark-900 overflow-hidden flex flex-col">
+      <div className="flex-shrink-0 px-4 pt-4 pb-2">
+        <div className="flex gap-1 bg-dark-800 rounded-lg p-1">
+          <button
+            onClick={() => setView('summary')}
+            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+              view === 'summary'
+                ? 'bg-gold-500 text-white'
+                : 'text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            <BarChart3 size={15} />
+            Snelle Samenvatting
+          </button>
+          <button
+            onClick={() => setView('activity')}
+            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+              view === 'activity'
+                ? 'bg-gold-500 text-white'
+                : 'text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            <ScrollText size={15} />
+            Activiteitenlogboek
+          </button>
+        </div>
+      </div>
+      <div className="flex-1 min-h-0 overflow-auto">
+        {view === 'summary' && <QuickSummaryPanel />}
+        {view === 'activity' && <ActivityLogPanel />}
+      </div>
     </div>
   );
-}
-
-export function useDefaultPanel() {
-  const [panelType, setPanelType] = useState<DefaultPanelType>(getDefaultPanelSetting);
-
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      setPanelType(detail.panel);
-    };
-    window.addEventListener('default-panel-changed', handler);
-    return () => window.removeEventListener('default-panel-changed', handler);
-  }, []);
-
-  return panelType !== 'none';
 }

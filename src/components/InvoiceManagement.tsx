@@ -8,7 +8,7 @@ import { buildInvoiceEmailHtml, buildInvoiceEmailText } from '../utils/emailTemp
 import { InvoicePreview } from './InvoicePreview';
 import { Toast } from './Toast';
 import { checkAndRunScheduledJobs } from '../utils/scheduledJobs';
-import { DefaultPanel, useDefaultPanel } from './DefaultPanel';
+import { DefaultPanel } from './DefaultPanel';
 
 type LeaseWithDetails = Lease & {
   tenant: Tenant;
@@ -118,7 +118,6 @@ type InvoiceManagementProps = {
 };
 
 export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCreateCreditNote, invoiceTypeFilter = 'all' }, ref) => {
-  const hasDefaultPanel = useDefaultPanel();
   const [invoices, setInvoices] = useState<InvoiceWithDetails[]>([]);
   const [leases, setLeases] = useState<LeaseWithDetails[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -537,6 +536,10 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
             setPreviewInvoice(null);
           }
         }
+      } else if (action === 'invoice-revert-draft' && data?.invoiceId) {
+        revertToDraft(data.invoiceId);
+      } else if (action === 'invoice-delete' && data?.invoiceId) {
+        deleteInvoice(data.invoiceId);
       }
     });
   }, [invoices, previewInvoice]);
@@ -3401,7 +3404,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         </div>
       )}
 
-      <div className={`flex-1 min-w-0 overflow-y-auto ${(previewInvoice || hasDefaultPanel) ? 'w-1/2' : 'w-full'} transition-all duration-300`}>
+      <div className="flex-1 min-w-0 overflow-y-auto w-1/2 transition-all duration-300">
       <div className="space-y-4">
         {(() => {
           const sortByTenantAndDate = (a: InvoiceWithDetails, b: InvoiceWithDetails) => {
