@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { getLocalRootFolderPath } from '../utils/localSettings';
 import { Plus, Eye, Trash2, Download, Edit, Edit2, FileText, CheckCircle, RefreshCw, Loader2, Link2 } from 'lucide-react';
 import { CreditNotePreview } from './CreditNotePreview';
 import { CreditNoteApplications } from './CreditNoteApplications';
@@ -231,7 +232,12 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
       setInvoices(invoicesRes.data || []);
       setTenants(tenantsRes.data || []);
       setExternalCustomers(externalCustomersRes.data || []);
-      setCompanySettings(settingsRes.data || null);
+      const csData = settingsRes.data || null;
+      if (csData) {
+        const localPath = await getLocalRootFolderPath();
+        if (localPath) csData.root_folder_path = localPath;
+      }
+      setCompanySettings(csData);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {

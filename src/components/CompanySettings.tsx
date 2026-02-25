@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase, type CompanySettings } from '../lib/supabase';
 import { Building2, Edit2, Mail, Phone, MapPin, CreditCard, Lock, FolderOpen, RefreshCw, Wifi, Network, Zap, FileText, Loader2 } from 'lucide-react';
 import { EBoekhoudenDashboard } from './EBoekhoudenDashboard';
+import { getLocalRootFolderPath, setLocalRootFolderPath } from '../utils/localSettings';
 
 export function CompanySettings() {
   const [settings, setSettings] = useState<CompanySettings | null>(null);
@@ -10,6 +11,7 @@ export function CompanySettings() {
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [updateMessage, setUpdateMessage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'company' | 'building' | 'eboekhouden'>('company');
+  const [localRootPath, setLocalRootPath] = useState<string | null>(null);
 
   const isElectron = !!(window as any).electronAPI;
 
@@ -44,32 +46,38 @@ export function CompanySettings() {
 
   const loadSettings = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('company_settings')
-      .select('*')
-      .order('updated_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const [{ data, error }, localPath] = await Promise.all([
+      supabase
+        .from('company_settings')
+        .select('*')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      getLocalRootFolderPath(),
+    ]);
 
     if (error) {
       console.error('Error loading settings:', error);
     } else {
       setSettings(data);
     }
+    if (localPath) setLocalRootPath(localPath);
     setLoading(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const oldRootPath = settings?.root_folder_path || '';
+    const oldRootPath = localRootPath || settings?.root_folder_path || '';
     const newRootPath = formData.root_folder_path || '';
+
+    const { root_folder_path: _localOnly, ...dbFormData } = formData;
 
     if (settings) {
       const { data, error } = await supabase
         .from('company_settings')
         .update({
-          ...formData,
+          ...dbFormData,
           updated_at: new Date().toISOString()
         })
         .eq('id', settings.id)
@@ -87,7 +95,7 @@ export function CompanySettings() {
     } else {
       const { data, error } = await supabase
         .from('company_settings')
-        .insert([formData])
+        .insert([dbFormData])
         .select()
         .single();
 
@@ -99,6 +107,11 @@ export function CompanySettings() {
       if (data) {
         setSettings(data);
       }
+    }
+
+    if (newRootPath) {
+      await setLocalRootFolderPath(newRootPath);
+      setLocalRootPath(newRootPath);
     }
 
     if (oldRootPath && newRootPath && oldRootPath !== newRootPath && window.electronAPI?.moveAllFolders) {
@@ -136,7 +149,7 @@ export function CompanySettings() {
         kvk_number: settings.kvk_number || '',
         bank_account: settings.bank_account || '',
         delete_code: settings.delete_code || '1234',
-        root_folder_path: settings.root_folder_path || '',
+        root_folder_path: localRootPath || settings.root_folder_path || '',
         test_mode: settings.test_mode || false,
         test_date: settings.test_date || '',
         wifi_network_name: settings.wifi_network_name || '',
@@ -702,15 +715,15 @@ export function CompanySettings() {
                   </div>
                 </div>
 
-                {settings.root_folder_path && (
+                {(localRootPath || settings.root_folder_path) && (
                   <div>
                     <h4 className="text-sm font-semibold text-gray-400 uppercase mb-2">Opslag Locatie</h4>
                     <div className="space-y-2 text-gray-200">
                       <div className="flex items-start gap-2">
                         <FolderOpen size={16} className="mt-0.5 text-gray-500" />
                         <div>
-                          <p className="text-xs text-gray-400">Root folder</p>
-                          <p className="break-all">{settings.root_folder_path}</p>
+                          <p className="text-xs text-gray-400">Root folder (deze PC)</p>
+                          <p className="break-all">{localRootPath || settings.root_folder_path}</p>
                         </div>
                       </div>
                     </div>

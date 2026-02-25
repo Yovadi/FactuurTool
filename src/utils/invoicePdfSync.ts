@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { generateInvoicePDF } from './pdfGenerator';
+import { getEffectiveRootFolderPath } from './localSettings';
 
 interface DiskFile {
   tenantFolder: string;
@@ -28,9 +29,10 @@ export async function syncInvoicePDFs(onProgress?: ProgressCallback): Promise<Sy
     .limit(1)
     .maybeSingle();
 
-  if (!settings?.root_folder_path) return null;
+  const rootPath = await getEffectiveRootFolderPath(settings?.root_folder_path);
+  if (!rootPath) return null;
 
-  const diskResult = await electronAPI.listInvoicesOnDisk(settings.root_folder_path);
+  const diskResult = await electronAPI.listInvoicesOnDisk(rootPath);
   if (!diskResult.success) return null;
 
   const existingFiles = new Set(
@@ -164,7 +166,7 @@ export async function syncInvoicePDFs(onProgress?: ProgressCallback): Promise<Sy
       const pdf = await generateInvoicePDF(invoiceData, false, true);
       const pdfBuffer = pdf.output('arraybuffer');
       const invoiceYear = new Date(invoice.invoice_date).getFullYear().toString();
-      const tenantFolderPath = `${settings.root_folder_path}/${tenant.company_name}/${invoiceYear}`;
+      const tenantFolderPath = `${rootPath}/${tenant.company_name}/${invoiceYear}`;
       const saveResult = await electronAPI.savePDF(pdfBuffer, tenantFolderPath, `${invoice.invoice_number}.pdf`);
 
       if (saveResult.success) {

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase, type CompanySettings } from '../lib/supabase';
 import { Settings, Edit2, FolderOpen, RefreshCw, Info, Package } from 'lucide-react';
+import { getLocalRootFolderPath, setLocalRootFolderPath } from '../utils/localSettings';
 
 export function AppInfo() {
   const [settings, setSettings] = useState<CompanySettings | null>(null);
@@ -9,6 +10,7 @@ export function AppInfo() {
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [updateMessage, setUpdateMessage] = useState<string | null>(null);
   const [appVersion, setAppVersion] = useState<string>('');
+  const [localRootPath, setLocalRootPath] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     root_folder_path: '',
@@ -23,13 +25,14 @@ export function AppInfo() {
 
   const fetchSettings = async () => {
     try {
-      const { data, error } = await supabase
-        .from('company_settings')
-        .select('*')
-        .maybeSingle();
+      const [{ data, error }, localPath] = await Promise.all([
+        supabase.from('company_settings').select('*').maybeSingle(),
+        getLocalRootFolderPath(),
+      ]);
 
       if (error) throw error;
       setSettings(data);
+      if (localPath) setLocalRootPath(localPath);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching settings:', error);
@@ -56,7 +59,7 @@ export function AppInfo() {
   const handleEdit = () => {
     if (settings) {
       setFormData({
-        root_folder_path: settings.root_folder_path || '',
+        root_folder_path: localRootPath || settings.root_folder_path || '',
         test_mode: settings.test_mode || false,
         test_date: settings.test_date || '',
       });
@@ -68,17 +71,24 @@ export function AppInfo() {
     e.preventDefault();
 
     try {
+      const { root_folder_path: localPath, ...dbFormData } = formData;
+
+      if (localPath) {
+        await setLocalRootFolderPath(localPath);
+        setLocalRootPath(localPath);
+      }
+
       if (settings) {
         const { error } = await supabase
           .from('company_settings')
-          .update(formData)
+          .update(dbFormData)
           .eq('id', settings.id);
 
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from('company_settings')
-          .insert([formData]);
+          .insert([dbFormData]);
 
         if (error) throw error;
       }
@@ -264,15 +274,15 @@ export function AppInfo() {
             </div>
           </div>
 
-          {settings?.root_folder_path && (
+          {(localRootPath || settings?.root_folder_path) && (
             <div>
               <h4 className="text-sm font-semibold text-gray-400 uppercase mb-3">Opslag Locatie</h4>
               <div className="bg-dark-800 rounded-lg p-4 border border-dark-700">
                 <div className="flex items-start gap-3">
                   <FolderOpen size={20} className="text-gold-500 mt-0.5" />
                   <div className="flex-1">
-                    <p className="text-xs text-gray-400 mb-1">Root folder voor PDF opslag</p>
-                    <p className="text-sm text-gray-200 break-all font-mono">{settings.root_folder_path}</p>
+                    <p className="text-xs text-gray-400 mb-1">Root folder voor PDF opslag (deze PC)</p>
+                    <p className="text-sm text-gray-200 break-all font-mono">{localRootPath || settings?.root_folder_path}</p>
                   </div>
                 </div>
               </div>
@@ -306,7 +316,7 @@ export function AppInfo() {
             </div>
           )}
 
-          {!settings?.root_folder_path && !settings?.test_mode && (
+          {!localRootPath && !settings?.root_folder_path && !settings?.test_mode && (
             <div className="text-center py-8">
               <Settings size={48} className="mx-auto mb-3 text-gray-600" />
               <p className="text-sm text-gray-400 mb-2">Geen aanvullende instellingen geconfigureerd</p>

@@ -8,6 +8,7 @@ import { buildInvoiceEmailHtml, buildInvoiceEmailText } from '../utils/emailTemp
 import { InvoicePreview } from './InvoicePreview';
 import { Toast } from './Toast';
 import { checkAndRunScheduledJobs } from '../utils/scheduledJobs';
+import { getLocalRootFolderPath } from '../utils/localSettings';
 
 type LeaseWithDetails = Lease & {
   tenant: Tenant;
@@ -560,11 +561,14 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   const loadData = async () => {
     setLoading(true);
 
-    const { data: companyData } = await supabase
-      .from('company_settings')
-      .select('*')
-      .maybeSingle();
+    const [{ data: companyData }, localPath] = await Promise.all([
+      supabase.from('company_settings').select('*').maybeSingle(),
+      getLocalRootFolderPath(),
+    ]);
 
+    if (companyData && localPath) {
+      companyData.root_folder_path = localPath;
+    }
     setCompanySettings(companyData);
 
     const { data: tenantsData } = await supabase

@@ -7,6 +7,7 @@ import {
   type LeaseContractData,
 } from '../utils/leaseContractPdf';
 import { supabase, type CompanySettings } from '../lib/supabase';
+import { getLocalRootFolderPath } from '../utils/localSettings';
 
 interface LeaseContractPreviewProps {
   leaseData: LeaseContractData;
@@ -61,10 +62,10 @@ export function LeaseContractPreview({
     setSaveMessage(null);
 
     try {
-      const { data: settings } = await supabase
-        .from('company_settings')
-        .select('*')
-        .maybeSingle();
+      const [{ data: settings }, localPath] = await Promise.all([
+        supabase.from('company_settings').select('*').maybeSingle(),
+        getLocalRootFolderPath(),
+      ]);
 
       if (!settings) {
         setSaveMessage('Bedrijfsinstellingen niet gevonden');
@@ -73,6 +74,7 @@ export function LeaseContractPreview({
       }
 
       const companySettings = settings as CompanySettings;
+      if (localPath) companySettings.root_folder_path = localPath;
       const sanitizedName = tenantCompanyName.replace(/[<>:"/\\|?*]/g, '_').trim();
       const fileName = `Huurcontract_${sanitizedName}.pdf`;
       let savedLocal = false;

@@ -2,9 +2,36 @@ const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 
+const fs = require('fs');
+
 let mainWindow;
 let previewWindow = null;
 let isManualUpdateCheck = false;
+
+function getLocalSettingsPath() {
+  return path.join(app.getPath('userData'), 'local-settings.json');
+}
+
+function readLocalSettings() {
+  try {
+    const filePath = getLocalSettingsPath();
+    if (fs.existsSync(filePath)) {
+      return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    }
+  } catch (err) {
+    console.error('Error reading local settings:', err);
+  }
+  return {};
+}
+
+function writeLocalSettings(settings) {
+  try {
+    const filePath = getLocalSettingsPath();
+    fs.writeFileSync(filePath, JSON.stringify(settings, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Error writing local settings:', err);
+  }
+}
 
 autoUpdater.autoDownload = false;
 autoUpdater.autoInstallOnAppQuit = true;
@@ -318,6 +345,26 @@ ipcMain.handle('move-all-folders', async (event, oldRootPath, newRootPath) => {
     return { success: true, moved, failed };
   } catch (error) {
     console.error('Error moving folders:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('get-local-setting', async (event, key) => {
+  try {
+    const settings = readLocalSettings();
+    return { success: true, value: settings[key] ?? null };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('set-local-setting', async (event, key, value) => {
+  try {
+    const settings = readLocalSettings();
+    settings[key] = value;
+    writeLocalSettings(settings);
+    return { success: true };
+  } catch (error) {
     return { success: false, error: error.message };
   }
 });

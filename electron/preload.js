@@ -1,6 +1,12 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electron', {
+  getLocalSetting: (key) => {
+    return ipcRenderer.invoke('get-local-setting', key);
+  },
+  setLocalSetting: (key, value) => {
+    return ipcRenderer.invoke('set-local-setting', key, value);
+  },
   sendEmailWithPDF: (pdfBuffer, to, subject, body, fileName, logoPath) => {
     return ipcRenderer.invoke('send-email-with-pdf', pdfBuffer, to, subject, body, fileName, logoPath);
   },
@@ -67,6 +73,12 @@ contextBridge.exposeInMainWorld('electron', {
 });
 
 contextBridge.exposeInMainWorld('electronAPI', {
+  getLocalSetting: (key) => {
+    return ipcRenderer.invoke('get-local-setting', key);
+  },
+  setLocalSetting: (key, value) => {
+    return ipcRenderer.invoke('set-local-setting', key, value);
+  },
   sendEmailWithPDF: (pdfBuffer, to, subject, body, fileName, logoPath) => {
     return ipcRenderer.invoke('send-email-with-pdf', pdfBuffer, to, subject, body, fileName, logoPath);
   },

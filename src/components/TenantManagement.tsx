@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase, type Tenant, type CompanySettings } from '../lib/supabase';
 import { Plus, Edit2, Trash2, Mail, Phone, MapPin, Key, Users, Building2, AlertCircle, CheckCircle, Calendar } from 'lucide-react';
 import { BookingOverview } from './BookingOverview';
+import { getLocalRootFolderPath } from '../utils/localSettings';
 
 type TenantWithLeases = Tenant & {
   leases?: Array<{
@@ -99,14 +100,18 @@ export function TenantManagement() {
   };
 
   const loadCompanySettings = async () => {
-    const { data } = await supabase
-      .from('company_settings')
-      .select('*')
-      .order('updated_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const [{ data }, localPath] = await Promise.all([
+      supabase
+        .from('company_settings')
+        .select('*')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      getLocalRootFolderPath(),
+    ]);
 
     if (data) {
+      if (localPath) data.root_folder_path = localPath;
       setCompanySettings(data);
     }
   };

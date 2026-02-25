@@ -4,6 +4,7 @@ import { LayoutDashboard, Users, Building, Settings, CalendarClock, Calendar, Fi
 import { supabase } from './lib/supabase';
 import { markAllNotificationsRead, deleteReadNotifications, deleteNotification } from './utils/notificationHelper';
 import { syncInvoicePDFs } from './utils/invoicePdfSync';
+import { getEffectiveRootFolderPath } from './utils/localSettings';
 
 const OverzichtTabs = lazy(() => import('./components/OverzichtTabs').then(m => ({ default: m.OverzichtTabs })));
 const TenantManagement = lazy(() => import('./components/TenantManagement').then(m => ({ default: m.TenantManagement })));
@@ -217,7 +218,8 @@ function App() {
         .limit(1)
         .maybeSingle();
 
-      if (!settings?.root_folder_path) return;
+      const rootPath = await getEffectiveRootFolderPath(settings?.root_folder_path);
+      if (!rootPath) return;
       if (!(window as any).electronAPI?.createTenantFolder) return;
 
       const [{ data: tenants }, { data: externalCustomers }] = await Promise.all([
@@ -232,7 +234,7 @@ function App() {
 
       await Promise.all(
         allCustomers.map(companyName =>
-          (window as any).electronAPI.createTenantFolder(settings.root_folder_path, companyName)
+          (window as any).electronAPI.createTenantFolder(rootPath, companyName)
         )
       );
     } catch {
