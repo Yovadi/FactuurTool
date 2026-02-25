@@ -399,14 +399,13 @@ export function FlexWorkspaceBookings() {
       filtered = filtered.filter(b => b.external_customer_id === selectedCustomerFilter);
     }
 
-    switch (selectedFilter) {
-      case 'upcoming':
-        const today = toLocalDateStr(new Date());
-        filtered = filtered.filter(b => b.booking_date >= today);
-        break;
-      case 'invoiced':
-        filtered = filtered.filter(b => b.invoice_id !== null);
-        break;
+    if (selectedFilter === 'all') {
+      filtered = filtered.filter(b => !b.invoice_id);
+    } else if (selectedFilter === 'upcoming') {
+      const today = toLocalDateStr(new Date());
+      filtered = filtered.filter(b => b.booking_date >= today && !b.invoice_id);
+    } else if (selectedFilter === 'invoiced') {
+      filtered = filtered.filter(b => b.invoice_id !== null);
     }
 
     setBookings(filtered);
@@ -1859,7 +1858,7 @@ export function FlexWorkspaceBookings() {
                         </div>
                         <div className="text-xs text-gray-400 mt-0.5">
                           {booking.start_time && booking.end_time
-                            ? `\u20AC${booking.hourly_rate}/uur`
+                            ? 'Uurtarief'
                             : booking.is_half_day ? 'Dagdeeltarief' : 'Hele dag tarief'
                           }
                         </div>
