@@ -90,6 +90,9 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [vatDialogBooking, setVatDialogBooking] = useState<Booking | null>(null);
   const [selectedVatRate, setSelectedVatRate] = useState<number>(21);
+  const [linkDialogBooking, setLinkDialogBooking] = useState<Booking | null>(null);
+  const [existingInvoices, setExistingInvoices] = useState<any[]>([]);
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<string>('');
   const [meetingRoomRates, setMeetingRoomRates] = useState<MeetingRoomRates>({
     hourly_rate: 0,
     half_day_rate: null,
@@ -897,6 +900,47 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     }
   };
 
+  const handleLinkToInvoice = async (booking: Booking) => {
+    const customerId = booking.booking_type === 'tenant' ? booking.tenant_id : booking.external_customer_id;
+    if (!customerId) return;
+
+    let query = supabase
+      .from('invoices')
+      .select('id, invoice_number, invoice_date, amount, status, invoice_month')
+      .order('invoice_date', { ascending: false });
+
+    if (booking.booking_type === 'tenant') {
+      query = query.eq('tenant_id', customerId);
+    } else {
+      query = query.eq('external_customer_id', customerId);
+    }
+
+    const { data } = await query;
+    setExistingInvoices(data || []);
+    setSelectedInvoiceId('');
+    setLinkDialogBooking(booking);
+  };
+
+  const handleConfirmLink = async () => {
+    if (!linkDialogBooking || !selectedInvoiceId) return;
+
+    try {
+      const { error } = await supabase
+        .from('meeting_room_bookings')
+        .update({ invoice_id: selectedInvoiceId })
+        .eq('id', linkDialogBooking.id);
+
+      if (error) throw error;
+
+      showNotification('Boeking succesvol gekoppeld aan factuur', 'success');
+      setLinkDialogBooking(null);
+      await loadData();
+    } catch (error) {
+      console.error('Error linking booking:', error);
+      showNotification('Fout bij het koppelen aan factuur', 'error');
+    }
+  };
+
   const handleSpaceChange = (spaceId: string) => {
     setFormData({
       ...formData,
@@ -1542,13 +1586,29 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                           </button>
                         )}
                         {!loggedInTenantId && booking.status === 'completed' && !booking.invoice_id && (
-                          <button
-                            onClick={() => handleStatusChange(booking.id, 'confirmed')}
-                            className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                            title="Zet terug naar bevestigd"
-                          >
-                            <RotateCcw size={20} />
-                          </button>
+                          <>
+                            <button
+                              onClick={() => handleGenerateInvoice(booking)}
+                              className="p-2 bg-gold-500 hover:bg-gold-600 text-white rounded-lg transition-colors"
+                              title="Factuur genereren"
+                            >
+                              <FileText size={20} />
+                            </button>
+                            <button
+                              onClick={() => handleLinkToInvoice(booking)}
+                              className="p-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors"
+                              title="Koppel aan bestaande factuur"
+                            >
+                              <CheckCircle size={20} />
+                            </button>
+                            <button
+                              onClick={() => handleStatusChange(booking.id, 'confirmed')}
+                              className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                              title="Zet terug naar bevestigd"
+                            >
+                              <RotateCcw size={20} />
+                            </button>
+                          </>
                         )}
                         {(booking.status === 'pending' || booking.status === 'confirmed') && (
                           <button
@@ -1635,6 +1695,53 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                 className="px-4 py-2 bg-gold-500 hover:bg-gold-600 text-white rounded-lg transition-colors"
               >
                 Factuur genereren
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {linkDialogBooking && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
+          <div className="bg-dark-900 rounded-lg p-6 w-full max-w-md my-8 mx-4 border border-dark-700">
+            <h3 className="text-xl font-bold text-gray-100 mb-4">Koppel aan bestaande factuur</h3>
+            <p className="text-gray-300 mb-4">
+              Selecteer de factuur waaraan deze boeking gekoppeld moet worden:
+            </p>
+            {existingInvoices.length > 0 ? (
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-200 mb-2">
+                  Factuur
+                </label>
+                <select
+                  value={selectedInvoiceId}
+                  onChange={(e) => setSelectedInvoiceId(e.target.value)}
+                  className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                >
+                  <option value="">Selecteer een factuur...</option>
+                  {existingInvoices.map(inv => (
+                    <option key={inv.id} value={inv.id}>
+                      {inv.invoice_number} - {inv.invoice_month} - {new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(inv.amount)} ({inv.status === 'draft' ? 'Concept' : inv.status === 'sent' ? 'Verzonden' : inv.status === 'paid' ? 'Betaald' : inv.status})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <p className="text-gray-400 mb-6">Geen facturen gevonden voor deze klant.</p>
+            )}
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setLinkDialogBooking(null)}
+                className="px-4 py-2 bg-dark-700 text-gray-200 rounded-lg hover:bg-dark-600 transition-colors"
+              >
+                Annuleren
+              </button>
+              <button
+                onClick={handleConfirmLink}
+                disabled={!selectedInvoiceId}
+                className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Koppelen
               </button>
             </div>
           </div>

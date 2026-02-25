@@ -2390,20 +2390,18 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         const isExternal = externalCustomers.some(ec => ec.id === customerId);
         console.log('Is external:', isExternal);
 
-        const existingInvoice = invoices.find(inv => {
+        const existingBookingInvoice = invoices.find(inv => {
           const matchesCustomer = isExternal
             ? inv.external_customer_id === customerId
             : inv.tenant_id === customerId;
-          return matchesCustomer && inv.invoice_month === targetMonth && !inv.lease_id;
+          if (!matchesCustomer || inv.invoice_month !== targetMonth || inv.lease_id) return false;
+          const hasLinkedBookings = meetingRoomBookings.some(b => b.invoice_id === inv.id) ||
+            flexDayBookings.some(b => b.invoice_id === inv.id);
+          return hasLinkedBookings;
         });
 
-        if (existingInvoice) {
-          console.log(`⚠️ DUPLICATE FOUND:`);
-          console.log('  Invoice ID:', existingInvoice.id);
-          console.log('  Invoice Number:', existingInvoice.invoice_number);
-          console.log('  Status:', existingInvoice.status);
-          console.log('  Total:', existingInvoice.total_amount);
-          console.log(`⚠️ Skipping duplicate meeting room invoice for customer ${customer.company_name || customer.name} for month ${targetMonth}`);
+        if (existingBookingInvoice) {
+          console.log(`⚠️ Skipping: booking invoice already exists for customer ${customer.company_name || customer.name} for month ${targetMonth}`);
           meetingFail++;
           continue;
         }
@@ -3919,17 +3917,17 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
         const customersWithMeetingBookings = targetMonth ? allCustomers.filter(customer => {
           const { meeting } = getCustomerBookings(customer);
-          return meeting.length > 0 && hasNoExistingInvoice(customer);
+          return meeting.length > 0;
         }) : [];
 
         const customersWithFlexBookings = targetMonth ? allCustomers.filter(customer => {
           const { flex } = getCustomerBookings(customer);
-          return flex.length > 0 && hasNoExistingInvoice(customer);
+          return flex.length > 0;
         }) : [];
 
         const customersWithBookings = targetMonth ? allCustomers.filter(customer => {
           const { meeting, flex } = getCustomerBookings(customer);
-          return (meeting.length > 0 || flex.length > 0) && hasNoExistingInvoice(customer);
+          return meeting.length > 0 || flex.length > 0;
         }) : [];
 
         return (
