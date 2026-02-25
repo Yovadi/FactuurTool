@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Calendar, Plus, X, Check, AlertCircle, Trash2, CalendarDays, CheckCircle, XCircle, Info, Filter, Building2, ChevronLeft, ChevronRight, Grid3x3, User, RefreshCw, FileText } from 'lucide-react';
+import { Calendar, Plus, X, Check, AlertCircle, Trash2, CalendarDays, CheckCircle, XCircle, Info, Filter, Building2, ChevronLeft, ChevronRight, Grid3x3, User, RefreshCw, FileText, RotateCcw } from 'lucide-react';
 import { createAdminNotification } from '../utils/notificationHelper';
 
 type NotificationType = 'success' | 'error' | 'info';
@@ -168,6 +168,7 @@ export function FlexWorkspaceBookings() {
   const [linkDialogBooking, setLinkDialogBooking] = useState<FlexBooking | null>(null);
   const [existingInvoices, setExistingInvoices] = useState<any[]>([]);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string>('');
+  const [selectedCustomerFilter, setSelectedCustomerFilter] = useState<string>('all');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [calendarDays, setCalendarDays] = useState<CalendarDay[]>([]);
   const [showQuickBooking, setShowQuickBooking] = useState(false);
@@ -199,7 +200,7 @@ export function FlexWorkspaceBookings() {
 
   useEffect(() => {
     applyFilters();
-  }, [selectedFilter, allBookings]);
+  }, [selectedFilter, selectedCustomerFilter, allBookings]);
 
   useEffect(() => {
     if (selectedView === 'calendar') {
@@ -393,6 +394,10 @@ export function FlexWorkspaceBookings() {
 
   const applyFilters = () => {
     let filtered = [...allBookings];
+
+    if (selectedCustomerFilter !== 'all') {
+      filtered = filtered.filter(b => b.external_customer_id === selectedCustomerFilter);
+    }
 
     switch (selectedFilter) {
       case 'upcoming':
@@ -1237,6 +1242,14 @@ export function FlexWorkspaceBookings() {
     }).format(date);
   };
 
+  const getWeekNumber = (date: Date): number => {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  };
+
   const selectedSpace = flexSpaces.find(s => s.id === selectedResourceSpace);
   const selectedDateStr = toLocalDateStr(currentDate);
   const todayStr = toLocalDateStr(new Date());
@@ -1736,9 +1749,24 @@ export function FlexWorkspaceBookings() {
         </div>
       ) : selectedView === 'list' ? (
         <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 overflow-hidden">
-          <div className="flex-shrink-0 flex justify-between items-center px-4 py-3 bg-dark-800 border-b border-teal-500">
+          <div className="flex-shrink-0 flex justify-between items-center px-4 py-3 bg-dark-800 border-b border-amber-500">
             <h2 className="text-lg font-bold text-gray-100">Flexplek Boekingen</h2>
             <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Filter size={16} className="text-gray-400" />
+                <select
+                  value={selectedCustomerFilter}
+                  onChange={(e) => setSelectedCustomerFilter(e.target.value)}
+                  className="px-3 py-1.5 bg-dark-700 border border-dark-600 text-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                >
+                  <option value="all">Alle klanten</option>
+                  {externalCustomers.map((customer) => (
+                    <option key={customer.id} value={customer.id}>
+                      {customer.company_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div className="flex gap-2">
                 {[
                   { value: 'all', label: 'Alle' },
@@ -1771,39 +1799,22 @@ export function FlexWorkspaceBookings() {
             </div>
           )}
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-dark-800 border-b border-dark-700">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Datum
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Ruimte
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Plek
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Klant
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Periode
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Bedrag
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Acties
-                  </th>
+            <table className="w-full table-fixed min-w-[1000px]">
+              <thead className="sticky top-0 z-10">
+                <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
+                  <th className="text-left px-4 py-3 font-semibold w-[14%]">Datum & Tijd</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[9%]">Ruimte</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[15%]">Klant</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[10%]">Duur</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[9%]">Status</th>
+                  <th className="text-center px-4 py-3 font-semibold w-[10%]">Factuur</th>
+                  <th className="text-center px-4 py-3 font-semibold w-[24%]">Acties</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-dark-700">
                 {bookings.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-6 py-8 text-center text-gray-400">
+                    <td colSpan={7} className="px-4 py-8 text-center text-gray-400">
                       Geen boekingen gevonden
                     </td>
                   </tr>
@@ -1811,131 +1822,145 @@ export function FlexWorkspaceBookings() {
                   bookings.map((booking) => (
                     <tr
                       key={booking.id}
-                      className={`hover:bg-dark-800 transition-colors ${
-                        booking.status === 'pending' ? 'bg-orange-900/10 border-l-4 border-orange-600' : ''
+                      className={`hover:bg-dark-800/50 transition-colors ${
+                        booking.status === 'cancelled' ? 'opacity-50 bg-red-900/10' : ''
                       }`}
                     >
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-300">{formatDate(booking.booking_date)}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-100">
-                          {booking.office_spaces?.space_number || '-'}
+                      <td className="px-4 py-3 w-[14%]">
+                        <div className="text-sm text-gray-200 font-medium">
+                          Week {getWeekNumber(new Date(booking.booking_date + 'T00:00:00'))} - {new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: 'short', year: 'numeric' })}
                         </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-300">
-                          {booking.slot_number ? `Plek ${booking.slot_number}` : '-'}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm font-medium text-gray-100">
-                          {booking.external_customers?.company_name || '-'}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-300">
+                        <div className="text-xs text-gray-400 mt-0.5">
                           {booking.start_time && booking.end_time
-                            ? `${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)} (${booking.total_hours.toFixed(1)}u)`
+                            ? `${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)}`
                             : booking.is_half_day
-                            ? `Halve dag (${booking.half_day_period === 'morning' ? 'Ochtend' : 'Middag'})`
+                            ? (booking.half_day_period === 'morning' ? 'Ochtend' : 'Middag')
                             : 'Hele dag'
                           }
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right">
-                        {booking.start_time && booking.end_time ? (
-                          <div className="text-sm font-medium text-gray-100">
-                            €{booking.total_amount.toFixed(2)}
-                          </div>
-                        ) : (
-                          <div className="text-sm text-gray-400">-</div>
+                      <td className="px-4 py-3 w-[9%]">
+                        <div className="text-sm text-gray-200">
+                          {booking.office_spaces?.space_number || '-'}
+                        </div>
+                        {booking.slot_number && (
+                          <div className="text-xs text-gray-400 mt-0.5">Plek {booking.slot_number}</div>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 py-3 w-[15%]">
+                        <div className="text-sm text-gray-200">{booking.external_customers?.contact_name || '-'}</div>
+                        {booking.external_customers?.company_name && (
+                          <div className="text-xs text-gray-400 mt-0.5">{booking.external_customers.company_name}</div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 w-[10%]">
+                        <div className="text-sm text-gray-200">
+                          {booking.total_hours.toFixed(1)} uur
+                        </div>
+                        <div className="text-xs text-gray-400 mt-0.5">
+                          {booking.start_time && booking.end_time
+                            ? `\u20AC${booking.hourly_rate}/uur`
+                            : booking.is_half_day ? 'Dagdeeltarief' : 'Hele dag tarief'
+                          }
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 w-[9%]">
                         <span
-                          className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                          className={`inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full ${
                             booking.status === 'pending'
-                              ? 'bg-orange-900/50 text-orange-300 border border-orange-700'
+                              ? 'bg-yellow-900/50 text-yellow-300 border border-yellow-700/50'
                               : booking.status === 'confirmed'
-                              ? 'bg-blue-900/50 text-blue-300 border border-blue-700'
-                              : booking.status === 'completed' || booking.invoice_id
-                              ? 'bg-green-900/50 text-green-300 border border-green-700'
-                              : 'bg-red-900/50 text-red-300 border border-red-700'
+                              ? 'bg-blue-900/50 text-blue-300 border border-blue-700/50'
+                              : booking.status === 'completed'
+                              ? 'bg-green-900/50 text-green-300 border border-green-700/50'
+                              : 'bg-red-900/50 text-red-300 border border-red-700/50'
                           }`}
                         >
-                          {booking.status === 'pending' ? (
-                            <>
-                              <AlertCircle size={12} />
-                              In afwachting
-                            </>
-                          ) : booking.status === 'confirmed' ? (
-                            <>
-                              <Check size={12} />
-                              Bevestigd
-                            </>
-                          ) : booking.status === 'completed' || booking.invoice_id ? (
-                            <>
-                              <CheckCircle size={12} />
-                              {booking.invoice_id ? 'Gefactureerd' : 'Voltooid'}
-                            </>
-                          ) : (
-                            <>
-                              <XCircle size={12} />
-                              Geannuleerd
-                            </>
-                          )}
+                          {booking.status === 'pending'
+                            ? 'In afwachting'
+                            : booking.status === 'confirmed'
+                            ? 'Bevestigd'
+                            : booking.status === 'completed'
+                            ? 'Voltooid'
+                            : 'Geannuleerd'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <div className="flex items-center justify-end gap-2">
+                      <td className="px-4 py-3 w-[10%]">
+                        <div className="flex items-center justify-center">
+                          {booking.invoice_id ? (
+                            <span className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full bg-green-900/50 text-green-300 border border-green-700/50">
+                              <Check size={14} className="mr-1" />
+                              Ja
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full bg-gray-800/50 text-gray-400 border border-gray-700/50">
+                              <X size={14} className="mr-1" />
+                              Nee
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 w-[24%]">
+                        <div className="flex items-center justify-center gap-3">
                           {booking.status === 'pending' && (
-                            <>
-                              <button
-                                onClick={() => handleStatusChange(booking.id, 'confirmed')}
-                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors"
-                                title="Accepteren"
-                              >
-                                <Check size={16} />
-                                Accepteren
-                              </button>
-                              <button
-                                onClick={() => handleStatusChange(booking.id, 'cancelled')}
-                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors"
-                                title="Weigeren"
-                              >
-                                <X size={16} />
-                                Weigeren
-                              </button>
-                            </>
+                            <button
+                              onClick={() => handleStatusChange(booking.id, 'confirmed')}
+                              className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                              title="Bevestig boeking"
+                            >
+                              <CheckCircle size={20} />
+                            </button>
+                          )}
+                          {booking.status === 'confirmed' && (
+                            <button
+                              onClick={() => handleStatusChange(booking.id, 'completed')}
+                              className="p-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+                              title="Markeer als voltooid"
+                            >
+                              <Check size={20} />
+                            </button>
                           )}
                           {booking.status === 'completed' && !booking.invoice_id && (
                             <>
                               <button
                                 onClick={() => handleGenerateInvoice(booking)}
-                                className="p-1.5 text-gray-400 hover:text-gold-400 hover:bg-gold-900/20 rounded transition-colors"
+                                className="p-2 bg-gold-500 hover:bg-gold-600 text-white rounded-lg transition-colors"
                                 title="Factuur genereren"
                               >
-                                <FileText size={18} />
+                                <FileText size={20} />
                               </button>
                               <button
                                 onClick={() => handleLinkToInvoice(booking)}
-                                className="p-1.5 text-gray-400 hover:text-teal-400 hover:bg-teal-900/20 rounded transition-colors"
+                                className="p-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors"
                                 title="Koppel aan bestaande factuur"
                               >
-                                <CheckCircle size={18} />
+                                <CheckCircle size={20} />
+                              </button>
+                              <button
+                                onClick={() => handleStatusChange(booking.id, 'confirmed')}
+                                className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                                title="Zet terug naar bevestigd"
+                              >
+                                <RotateCcw size={20} />
                               </button>
                             </>
                           )}
-                          {!booking.invoice_id && booking.status !== 'pending' && (
+                          {(booking.status === 'pending' || booking.status === 'confirmed') && (
                             <button
-                              onClick={() => setDeleteConfirmId(booking.id)}
-                              className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-900/20 rounded transition-colors"
-                              title="Verwijder boeking"
+                              onClick={() => handleStatusChange(booking.id, 'cancelled')}
+                              className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                              title="Annuleer boeking"
                             >
-                              <Trash2 size={18} />
+                              <AlertCircle size={20} />
                             </button>
                           )}
+                          <button
+                            onClick={() => setDeleteConfirmId(booking.id)}
+                            className="p-2 bg-gray-700 hover:bg-red-600 text-gray-300 hover:text-white rounded-lg transition-colors"
+                            title="Verwijder boeking"
+                          >
+                            <Trash2 size={20} />
+                          </button>
                         </div>
                       </td>
                     </tr>
