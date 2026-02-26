@@ -9,6 +9,7 @@ import { InvoicePreview } from './InvoicePreview';
 import { Toast } from './Toast';
 import { checkAndRunScheduledJobs } from '../utils/scheduledJobs';
 import { getLocalRootFolderPath } from '../utils/localSettings';
+import { syncInvoicePDFs } from '../utils/invoicePdfSync';
 
 type LeaseWithDetails = Lease & {
   tenant: Tenant;
@@ -168,6 +169,13 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   const [toasts, setToasts] = useState<{ id: number; message: string; type: 'success' | 'error' | 'info' }[]>([]);
   const [filterType, setFilterType] = useState<InvoiceTypeFilter>('all');
   const [filterCustomer, setFilterCustomer] = useState<string>('all');
+  const [pdfSyncStatus, setPdfSyncStatus] = useState<{
+    active: boolean;
+    current: number;
+    total: number;
+    invoiceNumber: string;
+    result?: { synced: number; failed: number } | null;
+  }>({ active: false, current: 0, total: 0, invoiceNumber: '' });
 
   const showToast = (message: string, type: 'success' | 'error' | 'info') => {
     const id = Date.now();
@@ -496,6 +504,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     initializeForm();
     loadData();
     checkAndRunScheduledJobs();
+    localStorage.setItem('hal5-invoices-last-seen', new Date().toISOString());
+    window.dispatchEvent(new CustomEvent('invoices-seen'));
 
     const interval = setInterval(() => {
       checkAndRunScheduledJobs();
@@ -728,6 +738,42 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     setGrootboekMappings(mappingsData || []);
 
     setLoading(false);
+
+    triggerPdfSync();
+  };
+
+  const triggerPdfSync = async () => {
+    const electronAPI = (window as any).electronAPI;
+    if (!electronAPI?.listInvoicesOnDisk || !electronAPI?.savePDF) return;
+    if (pdfSyncStatus.active) return;
+
+    try {
+      setPdfSyncStatus({ active: true, current: 0, total: 0, invoiceNumber: '' });
+      const result = await syncInvoicePDFs((current, total, invoiceNumber) => {
+        setPdfSyncStatus({ active: true, current, total, invoiceNumber });
+      });
+
+      if (!result || result.synced === 0) {
+        setPdfSyncStatus(prev => ({ ...prev, active: false }));
+        return;
+      }
+
+      setPdfSyncStatus({
+        active: false,
+        current: result.synced,
+        total: result.synced + result.failed,
+        invoiceNumber: '',
+        result: { synced: result.synced, failed: result.failed },
+      });
+
+      showToast(`${result.synced} ontbrekende PDF${result.synced !== 1 ? "'s" : ''} gesynchroniseerd`, 'success');
+
+      setTimeout(() => {
+        setPdfSyncStatus(prev => prev.result ? { ...prev, result: null } : prev);
+      }, 6000);
+    } catch {
+      setPdfSyncStatus(prev => ({ ...prev, active: false }));
+    }
   };
 
   const refreshInvoices = async () => {
@@ -4521,6 +4567,30 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                 )}
                 {sendingEmailId === emailComposeData.invoiceId ? 'Verzenden...' : 'Versturen'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pdfSyncStatus.active && (
+        <div className="fixed bottom-4 right-4 z-[100] max-w-sm">
+          <div className="bg-dark-800 border border-dark-600 rounded-xl shadow-2xl px-4 py-3">
+            <div className="flex items-center gap-3">
+              <RefreshCw size={18} className="text-gold-500 animate-spin flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-100">PDF's synchroniseren...</p>
+                {pdfSyncStatus.total > 0 && (
+                  <>
+                    <p className="text-xs text-gray-400 mt-0.5 truncate">{pdfSyncStatus.invoiceNumber} ({pdfSyncStatus.current}/{pdfSyncStatus.total})</p>
+                    <div className="w-full bg-dark-700 rounded-full h-1.5 mt-2">
+                      <div
+                        className="bg-gold-500 h-1.5 rounded-full transition-all duration-300"
+                        style={{ width: `${(pdfSyncStatus.current / pdfSyncStatus.total) * 100}%` }}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>

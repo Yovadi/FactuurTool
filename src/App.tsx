@@ -69,6 +69,7 @@ function App() {
     invoiceNumber: string;
     result?: { synced: number; failed: number; errors: string[] } | null;
   }>({ active: false, current: 0, total: 0, invoiceNumber: '' });
+  const [newInvoiceCount, setNewInvoiceCount] = useState(0);
 
   useEffect(() => {
     const isElectronApp = !!(window as any).electronAPI;
@@ -172,7 +173,11 @@ function App() {
     window.addEventListener('email-enabled-changed', handleEmailChange);
 
     loadNotifications();
+    checkNewInvoices();
     const notifInterval = setInterval(loadNotifications, 60000);
+    const invoiceCheckInterval = setInterval(checkNewInvoices, 30000);
+    const handleInvoicesSeen = () => setNewInvoiceCount(0);
+    window.addEventListener('invoices-seen', handleInvoicesSeen);
 
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as Node;
@@ -189,6 +194,8 @@ function App() {
       window.removeEventListener('eboekhouden-enabled-changed', handleEboekhoudenChange);
       window.removeEventListener('email-enabled-changed', handleEmailChange);
       clearInterval(notifInterval);
+      clearInterval(invoiceCheckInterval);
+      window.removeEventListener('invoices-seen', handleInvoicesSeen);
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
@@ -200,6 +207,20 @@ function App() {
       .order('created_at', { ascending: false })
       .limit(20);
     if (data) setNotifications(data);
+  };
+
+  const checkNewInvoices = async () => {
+    const lastSeen = localStorage.getItem('hal5-invoices-last-seen');
+    if (!lastSeen) {
+      localStorage.setItem('hal5-invoices-last-seen', new Date().toISOString());
+      setNewInvoiceCount(0);
+      return;
+    }
+    const { count } = await supabase
+      .from('invoices')
+      .select('*', { count: 'exact', head: true })
+      .gt('created_at', lastSeen);
+    setNewInvoiceCount(count ?? 0);
   };
 
   const handleMarkAllRead = async () => {
@@ -541,6 +562,7 @@ function App() {
                   const isActive = isActiveTab(item.id, item.children);
 
                   if (item.children) {
+                    const showInvoiceBadge = item.id === 'financial' && newInvoiceCount > 0;
                     return (
                       <div key={item.id}>
                         <button
@@ -554,11 +576,17 @@ function App() {
                           }`}>
                           <Icon size={20} />
                           {item.label}
+                          {showInvoiceBadge && (
+                            <span className="ml-auto bg-blue-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                              {newInvoiceCount > 99 ? '99+' : newInvoiceCount}
+                            </span>
+                          )}
                         </button>
                         <div className="ml-4 mt-1 space-y-1">
                           {item.children.map((child) => {
                             const ChildIcon = child.icon;
                             const isChildActive = activeTab === child.id;
+                            const showChildBadge = child.id === 'financial-debtors' && newInvoiceCount > 0;
                             return (
                               <button
                                 key={child.id}
@@ -575,6 +603,13 @@ function App() {
                               >
                                 <ChildIcon size={18} />
                                 {child.label}
+                                {showChildBadge && (
+                                  <span className={`ml-auto text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 ${
+                                    isChildActive ? 'bg-dark-950 text-gold-500' : 'bg-blue-500 text-white'
+                                  }`}>
+                                    {newInvoiceCount > 99 ? '99+' : newInvoiceCount}
+                                  </span>
+                                )}
                               </button>
                             );
                           })}
