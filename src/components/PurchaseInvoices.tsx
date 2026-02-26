@@ -688,8 +688,31 @@ export function PurchaseInvoices() {
 
   return (
     <div className="h-full flex overflow-hidden">
+    {previewInvoice && (
+      <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+        <PurchaseInvoicePreview
+          inline
+          invoice={previewInvoice}
+          onClose={() => setPreviewInvoice(null)}
+          onEdit={() => startEdit(previewInvoice)}
+          onDelete={() => setDeleteConfirm(previewInvoice.id)}
+          onMarkAsPaid={previewInvoice.status !== 'paid' ? () => markAsPaid(previewInvoice.id) : undefined}
+          onPopOut={() => {
+            const electron = (window as any).electron;
+            if (electron?.openPreviewWindow) {
+              electron.openPreviewWindow({
+                type: 'purchase-invoice',
+                props: { invoice: previewInvoice }
+              });
+              setPreviewInvoice(null);
+            }
+          }}
+        />
+      </div>
+    )}
+
     <div
-      className={`flex-1 min-w-0 overflow-y-auto relative ${previewInvoice ? 'w-1/2' : 'w-full'} transition-all duration-300`}
+      className={`flex-1 min-w-0 overflow-y-auto relative w-full transition-all duration-300 ${previewInvoice ? 'hidden' : ''}`}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
@@ -1203,25 +1226,6 @@ export function PurchaseInvoices() {
         </div>
       )}
 
-      {previewInvoice && (
-        <PurchaseInvoicePreview
-          invoice={previewInvoice}
-          onClose={() => setPreviewInvoice(null)}
-          onEdit={() => startEdit(previewInvoice)}
-          onDelete={() => setDeleteConfirm(previewInvoice.id)}
-          onMarkAsPaid={previewInvoice.status !== 'paid' ? () => markAsPaid(previewInvoice.id) : undefined}
-          onPopOut={() => {
-            const electron = (window as any).electron;
-            if (electron?.openPreviewWindow) {
-              electron.openPreviewWindow({
-                type: 'purchase-invoice',
-                props: { invoice: previewInvoice }
-              });
-              setPreviewInvoice(null);
-            }
-          }}
-        />
-      )}
 
       {deleteConfirm && (
         <ConfirmModal

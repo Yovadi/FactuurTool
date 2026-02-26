@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Download, Send, Edit, Receipt, FileText, ExternalLink, Loader2, RotateCcw, Trash2 } from 'lucide-react';
+import { X, Download, Send, Edit, Receipt, FileText, ExternalLink, Loader2, RotateCcw, Trash2, ArrowLeft } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { generateInvoicePDFBlobUrl } from '../utils/pdfGenerator';
 
@@ -554,8 +554,18 @@ export function InvoicePreview({
     return (
       <div className="h-full flex flex-col overflow-hidden">
         <div className="flex-shrink-0 bg-dark-800 border-b border-dark-700 px-4 py-3">
-          <div className="mb-2">
-            <h2 className="text-lg font-bold text-gray-100 truncate">Factuur <span className={invoiceTypeColor || 'text-gray-100'}>{invoiceNumberDisplay}</span></h2>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={onClose}
+                className="flex items-center gap-1.5 text-gray-400 hover:text-gray-100 transition-colors"
+              >
+                <ArrowLeft size={18} />
+                <span className="text-sm font-medium">Terug naar lijst</span>
+              </button>
+              <span className="text-dark-600">|</span>
+              <h2 className="text-lg font-bold text-gray-100 truncate">Factuur <span className={invoiceTypeColor || 'text-gray-100'}>{invoiceNumberDisplay}</span></h2>
+            </div>
           </div>
           {actionButtons}
         </div>

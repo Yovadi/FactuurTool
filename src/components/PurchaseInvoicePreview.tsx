@@ -1,4 +1,4 @@
-import { X, Download, Edit2, Trash2, CheckCircle, Clock, AlertCircle, Sparkles, ExternalLink } from 'lucide-react';
+import { X, Download, Edit2, Trash2, CheckCircle, Clock, AlertCircle, Sparkles, ExternalLink, ArrowLeft } from 'lucide-react';
 
 type LineItem = {
   id?: string;
@@ -69,9 +69,23 @@ export function PurchaseInvoicePreview({ invoice, onClose, onEdit, onDelete, onM
   const content = (
     <div className={inline ? "h-full flex flex-col overflow-hidden bg-dark-900" : "bg-dark-900 rounded-xl border border-dark-700 w-full max-w-3xl max-h-[90vh] overflow-hidden shadow-2xl animate-fade-in flex flex-col"}>
       <div className="flex items-center justify-between p-6 border-b border-dark-700 flex-shrink-0">
-          <div>
-            <h3 className="text-xl font-bold text-gray-100">Inkoopfactuur</h3>
-            <p className="text-sm text-gray-400 mt-1">{invoice.invoice_number || 'Geen nummer'}</p>
+          <div className="flex items-center gap-3">
+            {inline && (
+              <>
+                <button
+                  onClick={onClose}
+                  className="flex items-center gap-1.5 text-gray-400 hover:text-gray-100 transition-colors"
+                >
+                  <ArrowLeft size={18} />
+                  <span className="text-sm font-medium">Terug naar lijst</span>
+                </button>
+                <span className="text-dark-600">|</span>
+              </>
+            )}
+            <div>
+              <h3 className="text-xl font-bold text-gray-100">Inkoopfactuur</h3>
+              <p className="text-sm text-gray-400 mt-1">{invoice.invoice_number || 'Geen nummer'}</p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             {invoice.ai_extracted && (
@@ -94,9 +108,11 @@ export function PurchaseInvoicePreview({ invoice, onClose, onEdit, onDelete, onM
                 <span className="text-xs font-medium">Venster</span>
               </button>
             )}
-            <button onClick={onClose} className="p-2 hover:bg-dark-800 rounded-lg transition-colors">
-              <X size={20} className="text-gray-400" />
-            </button>
+            {!inline && (
+              <button onClick={onClose} className="p-2 hover:bg-dark-800 rounded-lg transition-colors">
+                <X size={20} className="text-gray-400" />
+              </button>
+            )}
           </div>
         </div>
 
