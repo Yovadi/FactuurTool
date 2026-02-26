@@ -20,10 +20,6 @@ export function CrediteurenTabs({ prefilledInvoiceData, onClearPrefilled }: Cred
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <div className="flex-shrink-0 mb-6">
-        <h2 className="text-2xl font-bold text-gray-100 mb-4">Crediteuren</h2>
-      </div>
-
       <div className="flex-shrink-0 mb-4">
         <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2">
           <div className="flex gap-2 flex-wrap">

@@ -662,8 +662,7 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
     <div className="h-full flex overflow-hidden">
     <div className="flex-1 min-w-0 overflow-y-auto">
       <div className="p-6">
-      <div className="flex justify-between items-center mb-4 flex-wrap gap-3">
-        <h2 className="text-2xl font-bold text-gray-100">Credit Nota's</h2>
+      <div className="flex justify-end items-center mb-4 flex-wrap gap-3">
         <div className="flex items-center gap-2 flex-wrap">
           {ebConnected && creditNotes.some(n => !n.eboekhouden_id) && (
             <button

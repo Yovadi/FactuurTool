@@ -402,11 +402,6 @@ export function Dashboard() {
         </div>
       )}
 
-      <div className="mb-6 sm:mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-100 mb-2">Overzicht</h1>
-        <p className="text-sm sm:text-base text-gray-300">Overzicht van je kantoorgebouw beheer</p>
-      </div>
-
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
         <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4 sm:p-6">
           <div className="flex items-center justify-between mb-3 sm:mb-4">

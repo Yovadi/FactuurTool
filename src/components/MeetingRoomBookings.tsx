@@ -1010,8 +1010,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       </div>
 
       <div className="flex-shrink-0 mb-4">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-bold text-gray-100">Vergaderruimte Boekingen</h1>
+        <div className="flex items-center justify-end mb-4">
           <button
             onClick={loadData}
             className="flex items-center gap-2 px-4 py-2 bg-dark-700 text-gray-300 rounded-lg hover:bg-dark-600 transition-colors font-medium"

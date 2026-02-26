@@ -140,10 +140,6 @@ export function CreditOverview() {
   return (
     <div className="h-full overflow-y-auto">
       <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-100">Credit Overzicht</h2>
-      </div>
-
       <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2 mb-6">
         <div className="flex gap-2">
           <button

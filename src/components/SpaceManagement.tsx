@@ -359,8 +359,7 @@ export function SpaceManagement() {
 
   return (
     <div className="h-full bg-dark-950 overflow-y-auto p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-100">Ruimtes</h2>
+      <div className="flex justify-end items-center mb-6">
         <button
           onClick={() => {
             setShowForm(true);

@@ -528,11 +528,7 @@ export function BuildingInfo() {
     <div className="h-full overflow-auto">
       <div className="space-y-6">
         <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-100">Pand Informatie</h2>
-              <p className="text-sm text-gray-400 mt-1">Beheer WiFi netwerken, patch poorten en meterkast groepen</p>
-            </div>
+          <div className="flex justify-end items-center">
             <button
               onClick={handleExportPDF}
               className="flex items-center gap-2 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors"

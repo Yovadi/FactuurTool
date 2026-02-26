@@ -18,7 +18,6 @@ export function InstellingenTabs() {
   return (
     <div className="h-full flex flex-col overflow-hidden">
       <div className="flex-shrink-0 sticky top-0 z-10 bg-dark-950 pb-4">
-        <h2 className="text-2xl font-bold text-gray-100 mb-4">Instellingen</h2>
         <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2">
           <div className="flex gap-2 flex-wrap">
             {tabs.map((tab) => (

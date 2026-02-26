@@ -223,8 +223,7 @@ export function EmailTab({ onOpenInSplitscreen, onNavigateToIntegrations }: Prop
   return (
     <div className="h-full flex flex-col overflow-hidden">
       <div className="flex-shrink-0 sticky top-0 z-10 bg-dark-950 pb-4">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-gray-100">E-mail</h2>
+        <div className="flex items-center justify-end mb-4">
           <div className="flex items-center gap-2">
             {configured && (
               <span className="flex items-center gap-1.5 text-xs text-green-400 bg-green-500/10 border border-green-500/20 px-3 py-1.5 rounded-full">

@@ -195,8 +195,7 @@ export function SpaceTypeRates() {
 
   return (
     <div className="h-full bg-dark-950 overflow-y-auto p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-100">Ruimte Tarieven</h2>
+      <div className="flex justify-end items-center mb-6">
         <button
           onClick={() => setShowForm(true)}
           className="flex items-center gap-2 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors font-medium"
