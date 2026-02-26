@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { CompanyInfo } from './CompanyInfo';
 import { BuildingInfo } from './BuildingInfo';
-import { Building2, Home } from 'lucide-react';
+import { EmailTemplateSettings } from './EmailTemplateSettings';
+import { Building2, Home, Mail } from 'lucide-react';
 
-type Tab = 'company' | 'building';
+type Tab = 'company' | 'building' | 'email';
 
 export function VerhuurderTabs() {
   const [activeTab, setActiveTab] = useState<Tab>('company');
@@ -11,6 +12,7 @@ export function VerhuurderTabs() {
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: 'company', label: 'Bedrijfsgegevens', icon: <Building2 size={20} /> },
     { id: 'building', label: 'Pand Informatie', icon: <Home size={20} /> },
+    { id: 'email', label: 'E-mail Template', icon: <Mail size={20} /> },
   ];
 
   return (
@@ -39,6 +41,7 @@ export function VerhuurderTabs() {
       <div className="flex-1 min-h-0 overflow-auto pr-1">
         {activeTab === 'company' && <CompanyInfo />}
         {activeTab === 'building' && <BuildingInfo />}
+        {activeTab === 'email' && <EmailTemplateSettings />}
       </div>
     </div>
   );

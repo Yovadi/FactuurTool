@@ -4,7 +4,7 @@ import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, Cre
 import { syncInvoiceToEBoekhouden, checkInvoicePaymentStatuses } from '../lib/eboekhoudenSync';
 import { generateInvoicePDF, generateInvoicePDFBase64 } from '../utils/pdfGenerator';
 import { isEmailConfigured, sendEmail, getActiveEmailMethodLabel } from '../utils/emailSender';
-import { buildInvoiceEmailHtml, buildInvoiceEmailText } from '../utils/emailTemplate';
+import { buildInvoiceEmailHtml, buildInvoiceEmailText, buildInvoiceEmailSubject } from '../utils/emailTemplate';
 import { InvoicePreview } from './InvoicePreview';
 import { Toast } from './Toast';
 import { checkAndRunScheduledJobs } from '../utils/scheduledJobs';
@@ -1500,7 +1500,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         const emailResult = await sendEmail(companySettings, {
           to: tenant.email,
           toName: tenantName,
-          subject: `Factuur ${invoiceNumber} van ${companySettings.company_name}`,
+          subject: buildInvoiceEmailSubject(emailData),
           body: textBody,
           html: htmlBody,
           attachmentBase64: pdfBase64,
@@ -1539,7 +1539,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         const result = await window.electronAPI.sendEmailWithPDF(
           pdfBlob,
           tenant.email,
-          `Factuur ${invoiceNumber} van ${companySettings.company_name}`,
+          buildInvoiceEmailSubject(emailData),
           textBody,
           invoiceNumber,
           null
@@ -2881,7 +2881,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       setEmailComposeData({
         to: tenant.email,
         toName: tenantName,
-        subject: `Factuur ${invoiceNum} van ${companySettings.company_name}`,
+        subject: buildInvoiceEmailSubject(emailData),
         body: textBody,
         html: htmlBody,
         invoiceId: invoice.id,

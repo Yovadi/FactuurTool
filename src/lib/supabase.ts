@@ -178,6 +178,12 @@ export type CompanySettings = {
   onedrive_enabled: boolean;
   onedrive_folder_path: string | null;
   onedrive_user_email: string | null;
+  email_subject_template: string | null;
+  email_greeting_template: string | null;
+  email_body_template: string | null;
+  email_payment_text: string | null;
+  email_closing_template: string | null;
+  email_signature_template: string | null;
   created_at: string;
   updated_at: string;
 };
