@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase, type CompanySettings } from '../lib/supabase';
-import { Save, Loader2, RotateCcw, Eye, EyeOff, Info, Copy, Check } from 'lucide-react';
+import { Save, Loader2, RotateCcw, Eye, EyeOff, Info, Copy, Check, Upload, Trash2, Image } from 'lucide-react';
 
 const PLACEHOLDERS = [
   { code: '{naam}', description: 'Naam van de ontvanger' },
@@ -44,6 +44,9 @@ export function EmailTemplateSettings() {
   const [saved, setSaved] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [signatureImage, setSignatureImage] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     subject: '',
@@ -76,6 +79,7 @@ export function EmailTemplateSettings() {
           closing: data.email_closing_template || '',
           signature: data.email_signature_template || '',
         });
+        setSignatureImage(data.email_signature_image || null);
       }
       setLoading(false);
     } catch (error) {
@@ -99,6 +103,7 @@ export function EmailTemplateSettings() {
           email_payment_text: formData.payment || null,
           email_closing_template: formData.closing || null,
           email_signature_template: formData.signature || null,
+          email_signature_image: signatureImage,
         })
         .eq('id', settings.id);
 
@@ -127,6 +132,32 @@ export function EmailTemplateSettings() {
     navigator.clipboard.writeText(code);
     setCopiedCode(code);
     setTimeout(() => setCopiedCode(null), 1500);
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) return;
+    if (file.size > 500 * 1024) {
+      alert('Afbeelding mag maximaal 500KB zijn.');
+      return;
+    }
+
+    setUploadingImage(true);
+    const reader = new FileReader();
+    reader.onload = () => {
+      setSignatureImage(reader.result as string);
+      setUploadingImage(false);
+    };
+    reader.onerror = () => setUploadingImage(false);
+    reader.readAsDataURL(file);
+
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const removeSignatureImage = () => {
+    setSignatureImage(null);
   };
 
   const resolveTemplate = (template: string, defaultVal: string): string => {
@@ -228,6 +259,68 @@ export function EmailTemplateSettings() {
           </div>
         ))}
 
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-1.5">
+            Handtekening afbeelding
+          </label>
+          <p className="text-xs text-gray-500 mb-3">
+            Upload een logo of afbeelding die onder uw ondertekening in de e-mail wordt geplaatst. (max 500KB)
+          </p>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/gif,image/webp"
+            onChange={handleImageUpload}
+            className="hidden"
+          />
+
+          {signatureImage ? (
+            <div className="space-y-3">
+              <div className="bg-dark-800 border border-dark-600 rounded-lg p-4 inline-block">
+                <img
+                  src={signatureImage}
+                  alt="Handtekening afbeelding"
+                  className="max-h-32 max-w-xs object-contain"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingImage}
+                  className="flex items-center gap-2 px-3 py-2 bg-dark-800 border border-dark-600 text-gray-300 rounded-lg hover:bg-dark-700 transition-colors text-sm"
+                >
+                  <Upload size={14} />
+                  Vervangen
+                </button>
+                <button
+                  type="button"
+                  onClick={removeSignatureImage}
+                  className="flex items-center gap-2 px-3 py-2 bg-dark-800 border border-red-900/50 text-red-400 rounded-lg hover:bg-red-900/20 transition-colors text-sm"
+                >
+                  <Trash2 size={14} />
+                  Verwijderen
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingImage}
+              className="flex items-center gap-3 px-5 py-4 bg-dark-800 border-2 border-dashed border-dark-600 text-gray-400 rounded-lg hover:border-blue-500/50 hover:text-gray-300 transition-colors text-sm w-full justify-center"
+            >
+              {uploadingImage ? (
+                <Loader2 size={18} className="animate-spin" />
+              ) : (
+                <Image size={18} />
+              )}
+              {uploadingImage ? 'Uploaden...' : 'Klik om een afbeelding te uploaden'}
+            </button>
+          )}
+        </div>
+
         <div className="flex items-center gap-3 pt-2">
           <button
             onClick={handleSave}
@@ -319,6 +412,12 @@ export function EmailTemplateSettings() {
               <div className="text-[15px] text-gray-800 whitespace-pre-line leading-relaxed">
                 {resolveTemplate(formData.signature, DEFAULTS.signature)}
               </div>
+
+              {signatureImage && (
+                <div className="mt-4">
+                  <img src={signatureImage} alt="Handtekening" style={{ maxHeight: 100, maxWidth: 200 }} className="object-contain" />
+                </div>
+              )}
             </div>
 
             <div className="px-8 pb-8">

@@ -74,6 +74,10 @@ export function buildInvoiceEmailHtml(data: InvoiceEmailData): string {
     return `<p style="margin:4px 0 0;font-size:15px;color:#1a1a2e;font-weight:600;">${escapeHtml(line)}</p>`;
   }).join('\n  ');
 
+  const signatureImageHtml = companySettings.email_signature_image
+    ? `<p style="margin:16px 0 0;"><img src="${companySettings.email_signature_image}" alt="${escapeHtml(companyName)}" style="max-height:100px;max-width:200px;height:auto;width:auto;" /></p>`
+    : '';
+
   return `<!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -149,6 +153,7 @@ export function buildInvoiceEmailHtml(data: InvoiceEmailData): string {
   <p style="margin:0;font-size:15px;line-height:1.6;color:#333333;">${escapeHtml(closing)}</p>
 
   ${signatureHtml}
+  ${signatureImageHtml}
 </td>
 </tr>
 

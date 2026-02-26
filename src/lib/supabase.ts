@@ -184,6 +184,7 @@ export type CompanySettings = {
   email_payment_text: string | null;
   email_closing_template: string | null;
   email_signature_template: string | null;
+  email_signature_image: string | null;
   created_at: string;
   updated_at: string;
 };
