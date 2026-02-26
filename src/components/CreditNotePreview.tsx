@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Download, Edit, Trash2, Link, Send, ExternalLink, Loader2 } from 'lucide-react';
+import { X, Download, Edit, Trash2, Link, Send, Loader2 } from 'lucide-react';
 import { generateCreditNotePDFBlobUrl, CreditNoteData } from '../utils/pdfGenerator';
 
 type CreditNotePreviewProps = {
@@ -36,11 +36,10 @@ type CreditNotePreviewProps = {
   onDelete?: () => void;
   onApply?: () => void;
   onSend?: () => void;
-  onPopOut?: () => void;
   inline?: boolean;
 };
 
-export function CreditNotePreview({ creditNote, companySettings, onClose, onDownload, onEdit, onDelete, onApply, onSend, onPopOut, inline = false }: CreditNotePreviewProps) {
+export function CreditNotePreview({ creditNote, companySettings, onClose, onDownload, onEdit, onDelete, onApply, onSend, inline = false }: CreditNotePreviewProps) {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const pdfLoadingRef = useRef(false);
@@ -165,16 +164,6 @@ export function CreditNotePreview({ creditNote, companySettings, onClose, onDown
           title="Verwijderen"
         >
           <Trash2 size={16} />
-        </button>
-      )}
-      {onPopOut && (
-        <button
-          onClick={onPopOut}
-          className="flex items-center gap-1.5 bg-dark-700 hover:bg-dark-600 text-gray-300 hover:text-white transition-colors px-3 py-1.5 rounded-lg"
-          title="Open in apart venster"
-        >
-          <ExternalLink size={16} />
-          <span className="text-sm font-medium">Venster</span>
         </button>
       )}
       {!inline && (

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Download, Send, Edit, Receipt, FileText, ExternalLink, Loader2, RotateCcw, Trash2 } from 'lucide-react';
+import { X, Download, Send, Edit, Receipt, FileText, Loader2, RotateCcw, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { generateInvoicePDFBlobUrl } from '../utils/pdfGenerator';
 
@@ -73,7 +73,6 @@ interface InvoicePreviewProps {
   onCreateCreditNote?: () => void;
   onRevertToDraft?: () => void;
   onDelete?: () => void;
-  onPopOut?: () => void;
   inline?: boolean;
 }
 
@@ -92,7 +91,6 @@ export function InvoicePreview({
   onCreateCreditNote,
   onRevertToDraft,
   onDelete,
-  onPopOut,
   inline = false,
 }: InvoicePreviewProps) {
   const [creditApplications, setCreditApplications] = useState<CreditApplication[]>([]);
@@ -296,16 +294,6 @@ export function InvoicePreview({
           title="Verwijderen"
         >
           <Trash2 size={16} />
-        </button>
-      )}
-      {onPopOut && (
-        <button
-          onClick={onPopOut}
-          className="flex items-center gap-1.5 bg-dark-700 hover:bg-dark-600 text-gray-300 hover:text-white transition-colors px-3 py-1.5 rounded-lg"
-          title="Open in apart venster"
-        >
-          <ExternalLink size={16} />
-          <span className="text-sm font-medium">Venster</span>
         </button>
       )}
       {!inline && (

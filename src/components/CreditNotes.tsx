@@ -660,7 +660,7 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
 
   return (
     <div className="h-full flex overflow-hidden">
-    <div className="flex-1 min-w-0 overflow-y-auto transition-all duration-300">
+    <div className="flex-1 min-w-0 overflow-y-auto">
       <div className="p-6">
       <div className="flex justify-between items-center mb-4 flex-wrap gap-3">
         <h2 className="text-2xl font-bold text-gray-100">Credit Nota's</h2>
@@ -1036,27 +1036,6 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
             setApplyingCreditNote(previewCreditNote);
           } : undefined}
           onSend={() => handleSendCreditNote(previewCreditNote)}
-          onPopOut={() => {
-            const electron = (window as any).electron;
-            if (electron?.openPreviewWindow) {
-              electron.openPreviewWindow({
-                type: 'credit-note',
-                props: {
-                  creditNote: {
-                    ...previewCreditNote,
-                    tenant: Array.isArray(previewCreditNote.tenants)
-                      ? previewCreditNote.tenants[0]
-                      : previewCreditNote.tenants,
-                    external_customer: Array.isArray(previewCreditNote.external_customers)
-                      ? previewCreditNote.external_customers[0]
-                      : previewCreditNote.external_customers,
-                  },
-                  companySettings
-                }
-              });
-              setPreviewCreditNote(null);
-            }
-          }}
         />
       )}
 

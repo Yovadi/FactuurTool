@@ -3496,35 +3496,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
               revertToDraft(previewInvoice.invoice.id);
               setPreviewInvoice(null);
             } : undefined}
-            onPopOut={() => {
-              const electron = (window as any).electron;
-              if (electron?.openPreviewWindow) {
-                const tenant = getInvoiceTenant(previewInvoice.invoice);
-                electron.openPreviewWindow({
-                  type: 'invoice',
-                  props: {
-                    invoice: previewInvoice.invoice,
-                    tenant: tenant || { name: '', company_name: '', email: '' },
-                    spaces: previewInvoice.spaces,
-                    contractType: previewInvoice.invoice.lease?.lease_type,
-                    invoiceTypeColor: getInvoiceTypeColor(previewInvoice.invoice),
-                    company: companySettings ? {
-                      name: companySettings.company_name,
-                      address: companySettings.address,
-                      postal_code: companySettings.postal_code,
-                      city: companySettings.city,
-                      kvk: companySettings.kvk_number,
-                      btw: companySettings.vat_number,
-                      iban: companySettings.bank_account,
-                      email: companySettings.email,
-                      phone: companySettings.phone,
-                      website: companySettings.website
-                    } : undefined
-                  }
-                });
-                setPreviewInvoice(null);
-              }
-            }}
           />
       )}
 
