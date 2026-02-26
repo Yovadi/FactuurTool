@@ -528,12 +528,15 @@ export async function generateLeaseContractPDFBlobUrl(
 }
 
 export async function generateLeaseContractPDF(
-  data: LeaseContractData
+  data: LeaseContractData,
+  skipDownload: boolean = false
 ): Promise<jsPDF> {
   const pdf = await generateLeaseContractPDFDocument(data);
-  const tenantLabel = (
-    data.tenant_company_name || data.tenant_name
-  ).replace(/[<>:"/\\|?*]/g, '_');
-  pdf.save(`Huurcontract_${tenantLabel}.pdf`);
+  if (!skipDownload) {
+    const tenantLabel = (
+      data.tenant_company_name || data.tenant_name
+    ).replace(/[<>:"/\\|?*]/g, '_');
+    pdf.save(`Huurcontract_${tenantLabel}.pdf`);
+  }
   return pdf;
 }

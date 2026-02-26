@@ -84,7 +84,7 @@ export function LeaseContractPreview({
         window.electronAPI?.savePDF &&
         companySettings.root_folder_path
       ) {
-        const pdf = await generateLeaseContractPDF(leaseData);
+        const pdf = await generateLeaseContractPDF(leaseData, true);
         const pdfBuffer = pdf.output('arraybuffer');
         const folderPath = `${companySettings.root_folder_path}/${sanitizedName}/Huurcontract`;
         const result = await window.electronAPI.savePDF(

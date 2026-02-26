@@ -20,7 +20,10 @@ type ProgressCallback = (current: number, total: number, invoiceNumber: string) 
 
 export async function syncInvoicePDFs(onProgress?: ProgressCallback): Promise<SyncResult | null> {
   const electronAPI = (window as any).electronAPI;
-  if (!electronAPI?.listInvoicesOnDisk || !electronAPI?.savePDF) return null;
+  if (!electronAPI?.listInvoicesOnDisk || !electronAPI?.savePDF) {
+    console.log('[PDF Sync] electronAPI not available, skipping');
+    return null;
+  }
 
   const { data: settings } = await supabase
     .from('company_settings')
@@ -30,10 +33,18 @@ export async function syncInvoicePDFs(onProgress?: ProgressCallback): Promise<Sy
     .maybeSingle();
 
   const rootPath = await getEffectiveRootFolderPath(settings?.root_folder_path);
-  if (!rootPath) return null;
+  if (!rootPath) {
+    console.log('[PDF Sync] No root folder path configured, skipping');
+    return null;
+  }
+  console.log('[PDF Sync] Root path:', rootPath);
 
   const diskResult = await electronAPI.listInvoicesOnDisk(rootPath);
-  if (!diskResult.success) return null;
+  if (!diskResult.success) {
+    console.error('[PDF Sync] Failed to list invoices on disk:', diskResult.error);
+    return null;
+  }
+  console.log('[PDF Sync] Found', diskResult.files?.length || 0, 'existing PDF files on disk');
 
   const existingFiles = new Set(
     (diskResult.files as DiskFile[]).map(f => f.fileName.toLowerCase())
@@ -48,12 +59,18 @@ export async function syncInvoicePDFs(onProgress?: ProgressCallback): Promise<Sy
     `)
     .in('status', ['sent', 'paid']);
 
-  if (!invoices || invoices.length === 0) return { total: 0, synced: 0, skipped: 0, failed: 0, errors: [] };
+  if (!invoices || invoices.length === 0) {
+    console.log('[PDF Sync] No sent/paid invoices found');
+    return { total: 0, synced: 0, skipped: 0, failed: 0, errors: [] };
+  }
+  console.log('[PDF Sync] Found', invoices.length, 'sent/paid invoices in database');
 
   const missingInvoices = invoices.filter(inv => {
     const pdfName = `${inv.invoice_number}.pdf`.toLowerCase();
     return !existingFiles.has(pdfName);
   });
+
+  console.log('[PDF Sync] Missing', missingInvoices.length, 'PDF files');
 
   if (missingInvoices.length === 0) {
     return { total: invoices.length, synced: 0, skipped: invoices.length, failed: 0, errors: [] };

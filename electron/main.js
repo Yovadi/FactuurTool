@@ -259,6 +259,17 @@ ipcMain.handle('save-pdf', async (event, pdfBuffer, folderPath, fileName) => {
       return { success: false, error: 'Folder path en bestandsnaam zijn verplicht' };
     }
 
+    if (!pdfBuffer) {
+      return { success: false, error: 'PDF buffer is leeg' };
+    }
+
+    const buffer = Buffer.from(pdfBuffer);
+    if (buffer.length === 0) {
+      return { success: false, error: 'PDF buffer is 0 bytes' };
+    }
+
+    console.log(`[save-pdf] Saving ${fileName} (${buffer.length} bytes) to ${folderPath}`);
+
     if (!fs.existsSync(folderPath)) {
       fs.mkdirSync(folderPath, { recursive: true });
     }
@@ -266,11 +277,12 @@ ipcMain.handle('save-pdf', async (event, pdfBuffer, folderPath, fileName) => {
     const sanitizedFileName = fileName.replace(/[<>:"/\\|?*]/g, '_');
     const filePath = path.join(folderPath, sanitizedFileName);
 
-    fs.writeFileSync(filePath, Buffer.from(pdfBuffer));
+    fs.writeFileSync(filePath, buffer);
 
+    console.log(`[save-pdf] Successfully saved: ${filePath}`);
     return { success: true, path: filePath };
   } catch (error) {
-    console.error('Error saving PDF:', error);
+    console.error('[save-pdf] Error saving PDF:', error);
     return { success: false, error: error.message };
   }
 });
