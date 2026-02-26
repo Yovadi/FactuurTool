@@ -666,7 +666,8 @@ function createPreviewWindow() {
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js'),
       enableRemoteModule: false,
-      sandbox: false
+      sandbox: false,
+      plugins: true
     },
     icon: path.join(__dirname, '../public/Logo.png'),
     title: 'HAL5 - Preview',

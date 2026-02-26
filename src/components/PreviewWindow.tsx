@@ -22,23 +22,47 @@ function sendAction(action: string, data?: any) {
 
 export function PreviewWindow() {
   const [previewData, setPreviewData] = useState<PreviewData | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const electron = (window as any).electron;
     if (electron?.onPreviewData) {
       electron.onPreviewData((data: PreviewData) => {
-        setPreviewData(data);
+        setError(null);
+        try {
+          setPreviewData(data);
+        } catch (e: any) {
+          setError(e?.message || 'Onbekende fout bij het laden van preview data');
+        }
       });
     }
   }, []);
 
+  const handleReturnToIdle = useCallback(() => {
+    setPreviewData(null);
+    setError(null);
+  }, []);
+
+  if (error) {
+    return (
+      <div className="h-screen bg-dark-950 flex items-center justify-center p-8">
+        <div className="bg-dark-900 rounded-lg border border-dark-700 p-6 max-w-md">
+          <p className="text-red-400 font-medium mb-2">Fout bij het laden van preview</p>
+          <p className="text-gray-400 text-sm mb-4">{error}</p>
+          <button
+            onClick={handleReturnToIdle}
+            className="bg-gold-500 hover:bg-gold-400 text-white px-4 py-2 rounded-lg text-sm"
+          >
+            Terug
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (!previewData) {
     return <IdlePanel />;
   }
-
-  const handleReturnToIdle = useCallback(() => {
-    setPreviewData(null);
-  }, []);
 
   if (previewData.type === 'invoice') {
     return (

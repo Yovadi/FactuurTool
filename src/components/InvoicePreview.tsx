@@ -97,6 +97,7 @@ export function InvoicePreview({
   const [loading, setLoading] = useState(true);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
   const pdfLoadingRef = useRef(false);
   const prevInvoiceIdRef = useRef<string | undefined>(undefined);
 
@@ -137,6 +138,7 @@ export function InvoicePreview({
         if (prev) URL.revokeObjectURL(prev);
         return null;
       });
+      setPdfError(null);
       pdfLoadingRef.current = false;
     }
 
@@ -145,6 +147,7 @@ export function InvoicePreview({
 
     pdfLoadingRef.current = true;
     setPdfLoading(true);
+    setPdfError(null);
 
     generateInvoicePDFBlobUrl({
       invoice_number: invoice.invoice_number,
@@ -185,6 +188,7 @@ export function InvoicePreview({
       });
     }).catch(err => {
       console.error('PDF generation error:', err);
+      setPdfError(err?.message || 'Onbekende fout bij PDF generatie');
     }).finally(() => {
       pdfLoadingRef.current = false;
       setPdfLoading(false);
@@ -560,6 +564,13 @@ export function InvoicePreview({
                 <span className="text-sm text-gray-400">PDF genereren...</span>
               </div>
             </div>
+          ) : pdfError ? (
+            <div className="h-full flex items-center justify-center p-6">
+              <div className="bg-dark-900 rounded-lg border border-dark-700 p-6 max-w-md text-center">
+                <p className="text-red-400 font-medium mb-2">PDF kon niet worden gegenereerd</p>
+                <p className="text-gray-500 text-sm">{pdfError}</p>
+              </div>
+            </div>
           ) : pdfUrl ? (
             <iframe
               src={pdfUrl}
@@ -587,19 +598,33 @@ export function InvoicePreview({
           {actionButtons}
         </div>
         <div className="flex-1 overflow-hidden bg-gray-700 rounded-b-lg">
-          {pdfLoading || !pdfUrl ? (
+          {pdfLoading ? (
             <div className="h-full flex items-center justify-center">
               <div className="flex flex-col items-center gap-3">
                 <Loader2 size={28} className="text-gold-500 animate-spin" />
                 <span className="text-sm text-gray-400">PDF genereren...</span>
               </div>
             </div>
-          ) : (
+          ) : pdfError ? (
+            <div className="h-full flex items-center justify-center p-6">
+              <div className="bg-dark-900 rounded-lg border border-dark-700 p-6 max-w-md text-center">
+                <p className="text-red-400 font-medium mb-2">PDF kon niet worden gegenereerd</p>
+                <p className="text-gray-500 text-sm">{pdfError}</p>
+              </div>
+            </div>
+          ) : pdfUrl ? (
             <iframe
               src={pdfUrl}
               className="w-full h-full border-0"
               title={`Factuur ${invoiceNumberDisplay}`}
             />
+          ) : (
+            <div className="h-full flex items-center justify-center">
+              <div className="flex flex-col items-center gap-3">
+                <Loader2 size={28} className="text-gold-500 animate-spin" />
+                <span className="text-sm text-gray-400">PDF laden...</span>
+              </div>
+            </div>
           )}
         </div>
       </div>
