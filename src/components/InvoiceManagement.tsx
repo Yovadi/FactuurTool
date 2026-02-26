@@ -3496,6 +3496,10 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
               revertToDraft(previewInvoice.invoice.id);
               setPreviewInvoice(null);
             } : undefined}
+            onDelete={() => {
+              setPreviewInvoice(null);
+              setShowDeleteConfirm(previewInvoice.invoice.id);
+            }}
           />
       )}
 
