@@ -112,6 +112,14 @@ function DetachedInvoicePreview(props: any) {
     sendAction('invoice-download', { invoiceId: props.invoice?.id });
   }, [props.invoice?.id]);
 
+  const handleSend = useCallback(() => {
+    sendAction('invoice-send', { invoiceId: props.invoice?.id });
+  }, [props.invoice?.id]);
+
+  const handleEdit = useCallback(() => {
+    sendAction('invoice-edit', { invoiceId: props.invoice?.id });
+  }, [props.invoice?.id]);
+
   const handleMarkAsPaid = useCallback(() => {
     sendAction('invoice-mark-paid', { invoiceId: props.invoice?.id });
   }, [props.invoice?.id]);
@@ -143,6 +151,8 @@ function DetachedInvoicePreview(props: any) {
         invoiceTypeColor={props.invoiceTypeColor}
         onClose={props.onReturnToIdle}
         onDownload={handleDownload}
+        onSend={status === 'draft' ? handleSend : undefined}
+        onEdit={status === 'draft' ? handleEdit : undefined}
         onMarkAsPaid={showMarkAsPaid ? handleMarkAsPaid : undefined}
         onCreateCreditNote={handleCreateCreditNote}
         onRevertToDraft={showRevertToDraft ? handleRevertToDraft : undefined}
