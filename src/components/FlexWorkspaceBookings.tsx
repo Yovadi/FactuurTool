@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Calendar, Plus, X, Check, AlertCircle, Trash2, CalendarDays, CheckCircle, XCircle, Info, Filter, Building2, ChevronLeft, ChevronRight, Grid3x3, User, RefreshCw, FileText, RotateCcw } from 'lucide-react';
+import { Calendar, Plus, X, Check, AlertCircle, Trash2, CalendarDays, CheckCircle, XCircle, Info, Filter, Building2, ChevronLeft, ChevronRight, Grid3x3, User, RefreshCw, RotateCcw, Link2 } from 'lucide-react';
 import { createAdminNotification } from '../utils/notificationHelper';
 
 type NotificationType = 'success' | 'error' | 'info';
@@ -163,8 +163,6 @@ export function FlexWorkspaceBookings() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationId, setNotificationId] = useState(0);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [vatDialogBooking, setVatDialogBooking] = useState<FlexBooking | null>(null);
-  const [selectedVatRate, setSelectedVatRate] = useState<number>(21);
   const [linkDialogBooking, setLinkDialogBooking] = useState<FlexBooking | null>(null);
   const [existingInvoices, setExistingInvoices] = useState<any[]>([]);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string>('');
@@ -587,99 +585,6 @@ export function FlexWorkspaceBookings() {
       showNotification('Fout bij verwijderen boeking', 'error');
     } finally {
       setDeleteConfirmId(null);
-    }
-  };
-
-  const handleGenerateInvoice = (booking: FlexBooking) => {
-    if (booking.invoice_id) return;
-    setVatDialogBooking(booking);
-    setSelectedVatRate(21);
-  };
-
-  const handleConfirmInvoiceGeneration = async () => {
-    if (!vatDialogBooking) return;
-    try {
-      const booking = vatDialogBooking;
-      const bookingDate = new Date(booking.booking_date + 'T00:00:00');
-      const invoiceMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
-      const vatRate = selectedVatRate;
-
-      const { data: rates } = await supabase
-        .from('space_type_rates')
-        .select('vat_inclusive')
-        .eq('space_type', 'flexplek')
-        .maybeSingle();
-      const vatInclusive = rates?.vat_inclusive ?? false;
-
-      let subtotal: number;
-      if (vatInclusive) {
-        subtotal = booking.total_amount / (1 + vatRate / 100);
-      } else {
-        subtotal = booking.total_amount;
-      }
-      const vatAmount = subtotal * (vatRate / 100);
-      const totalAmount = subtotal + vatAmount;
-
-      const { data: invoiceNumber } = await supabase.rpc('generate_invoice_number');
-      const invoiceDate = new Date().toISOString().split('T')[0];
-      const dueDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-
-      const spaceName = booking.office_spaces?.space_number || 'Flexplek';
-      const dateStr = bookingDate.toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' });
-      const timeStr = booking.start_time && booking.end_time
-        ? `${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)}`
-        : booking.is_half_day ? (booking.half_day_period === 'morning' ? 'Ochtend' : 'Middag') : 'Hele dag';
-
-      const notes = `Flex werkplek boekingen:\n- ${spaceName} ${dateStr} ${timeStr} = \u20AC${booking.total_amount.toFixed(2)}`;
-
-      const insertData: Record<string, unknown> = {
-        invoice_number: invoiceNumber,
-        invoice_date: invoiceDate,
-        due_date: dueDate,
-        invoice_month: invoiceMonth,
-        status: 'draft',
-        subtotal,
-        vat_amount: vatAmount,
-        vat_rate: vatRate,
-        vat_inclusive: vatInclusive,
-        amount: totalAmount,
-        notes,
-        external_customer_id: booking.external_customer_id,
-      };
-
-      const { data: invoiceData, error: invoiceError } = await supabase
-        .from('invoices')
-        .insert(insertData)
-        .select('id')
-        .single();
-
-      if (invoiceError || !invoiceData) throw invoiceError;
-
-      await supabase
-        .from('invoice_line_items')
-        .insert({
-          invoice_id: invoiceData.id,
-          booking_id: booking.id,
-          description: `${spaceName} - ${dateStr} ${timeStr}`,
-          quantity: booking.total_hours,
-          unit_price: booking.hourly_rate,
-          amount: booking.total_amount,
-          calculation_type: 'quantity_price',
-          local_category: 'flexplek'
-        });
-
-      await supabase
-        .from('flex_day_bookings')
-        .update({ invoice_id: invoiceData.id })
-        .eq('id', booking.id);
-
-      showNotification('Factuur succesvol aangemaakt', 'success');
-      setVatDialogBooking(null);
-      await loadData();
-    } catch (error) {
-      console.error('Error generating invoice:', error);
-      showNotification('Fout bij het genereren van de factuur', 'error');
-      setVatDialogBooking(null);
     }
   };
 
@@ -1921,18 +1826,11 @@ export function FlexWorkspaceBookings() {
                           {booking.status === 'completed' && !booking.invoice_id && (
                             <>
                               <button
-                                onClick={() => handleGenerateInvoice(booking)}
-                                className="p-2 bg-gold-500 hover:bg-gold-600 text-white rounded-lg transition-colors"
-                                title="Factuur genereren"
-                              >
-                                <FileText size={20} />
-                              </button>
-                              <button
                                 onClick={() => handleLinkToInvoice(booking)}
-                                className="p-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors"
+                                className="p-1.5 bg-dark-700 hover:bg-teal-600 text-gray-400 hover:text-white rounded-lg transition-colors"
                                 title="Koppel aan bestaande factuur"
                               >
-                                <CheckCircle size={20} />
+                                <Link2 size={16} />
                               </button>
                               <button
                                 onClick={() => handleStatusChange(booking.id, 'confirmed')}
@@ -2424,43 +2322,6 @@ export function FlexWorkspaceBookings() {
                 <div className="w-2.5 h-2.5 rounded bg-emerald-600/50 border border-dashed border-emerald-600"></div>
                 <span>Beschikbaar</span>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {vatDialogBooking && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-          <div className="bg-dark-900 rounded-lg p-6 w-full max-w-md my-8 mx-4 border border-dark-700">
-            <h3 className="text-xl font-bold text-gray-100 mb-4">BTW percentage selecteren</h3>
-            <p className="text-gray-300 mb-4">
-              Selecteer het BTW percentage voor deze factuur:
-            </p>
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-200 mb-2">BTW percentage</label>
-              <select
-                value={selectedVatRate}
-                onChange={(e) => setSelectedVatRate(Number(e.target.value))}
-                className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-              >
-                <option value={21}>21% BTW</option>
-                <option value={9}>9% BTW</option>
-                <option value={0}>0% BTW (niet van toepassing)</option>
-              </select>
-            </div>
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setVatDialogBooking(null)}
-                className="px-4 py-2 bg-dark-700 text-gray-200 rounded-lg hover:bg-dark-600 transition-colors"
-              >
-                Annuleren
-              </button>
-              <button
-                onClick={handleConfirmInvoiceGeneration}
-                className="px-4 py-2 bg-gold-500 hover:bg-gold-600 text-white rounded-lg transition-colors"
-              >
-                Factuur genereren
-              </button>
             </div>
           </div>
         </div>

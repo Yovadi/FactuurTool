@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Calendar, Clock, Plus, X, Check, AlertCircle, Trash2, CalendarDays, FileText, CheckCircle, XCircle, Info, RotateCcw, Filter, RefreshCw } from 'lucide-react';
+import { Calendar, Clock, Plus, X, Check, AlertCircle, Trash2, CalendarDays, CheckCircle, XCircle, Info, RotateCcw, Filter, RefreshCw, Link2 } from 'lucide-react';
 import { BookingCalendar } from './BookingCalendar';
 import { InlineDatePicker } from './InlineDatePicker';
 import { createAdminNotification } from '../utils/notificationHelper';
@@ -88,8 +88,6 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationId, setNotificationId] = useState(0);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [vatDialogBooking, setVatDialogBooking] = useState<Booking | null>(null);
-  const [selectedVatRate, setSelectedVatRate] = useState<number>(21);
   const [linkDialogBooking, setLinkDialogBooking] = useState<Booking | null>(null);
   const [existingInvoices, setExistingInvoices] = useState<any[]>([]);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string>('');
@@ -694,210 +692,6 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     }
 
     showNotification('Factuur is bijgewerkt.', 'info');
-  };
-
-  const createOrUpdateInvoiceForBooking = async (booking: Booking, vatRate: number) => {
-    const bookingDate = new Date(booking.booking_date + 'T00:00:00');
-    const invoiceMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
-
-    const vatInclusive = meetingRoomRates.vat_inclusive;
-
-    let existingInvoiceQuery = supabase
-      .from('invoices')
-      .select('id, subtotal, vat_amount, amount, notes')
-      .eq('invoice_month', invoiceMonth)
-      .eq('status', 'draft');
-
-    if (booking.booking_type === 'tenant') {
-      existingInvoiceQuery = existingInvoiceQuery.eq('tenant_id', booking.tenant_id);
-    } else {
-      existingInvoiceQuery = existingInvoiceQuery.eq('external_customer_id', booking.external_customer_id);
-    }
-
-    const { data: existingInvoice, error: queryError } = await existingInvoiceQuery.maybeSingle();
-
-    if (queryError) {
-      console.error('Error querying invoice:', queryError);
-      throw new Error('Fout bij het zoeken naar bestaande factuur');
-    }
-
-    let rateDescription = '';
-    if (booking.rate_type === 'half_day') {
-      rateDescription = `dagdeel tarief €${(booking.applied_rate || 0).toFixed(2)}`;
-    } else if (booking.rate_type === 'full_day') {
-      rateDescription = `hele dag tarief €${(booking.applied_rate || 0).toFixed(2)}`;
-    } else {
-      const hourlyRate = booking.applied_rate || (booking.hourly_rate || 0);
-      rateDescription = `${booking.total_hours}u × €${hourlyRate.toFixed(2)}`;
-    }
-
-    // Calculate original amount (before discount)
-    const originalAmount = booking.total_amount + (booking.discount_amount || 0);
-
-    // Create booking line without discount note (show original amount)
-    const bookingLine = `- ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)} (${rateDescription}) = €${originalAmount.toFixed(2)}`;
-
-    // Create discount line if applicable
-    const hasDiscount = booking.discount_percentage && booking.discount_percentage > 0 && booking.discount_amount && booking.discount_amount > 0;
-    const discountLine = hasDiscount
-      ? `- Korting ${booking.discount_percentage}% huurderkorting = €${booking.discount_amount.toFixed(2)}`
-      : '';
-
-    if (existingInvoice) {
-      let bookingSubtotal: number;
-      if (vatInclusive) {
-        bookingSubtotal = booking.total_amount / (1 + vatRate / 100);
-      } else {
-        bookingSubtotal = booking.total_amount;
-      }
-      const newSubtotal = parseFloat(existingInvoice.subtotal) + bookingSubtotal;
-      const newVatAmount = newSubtotal * (vatRate / 100);
-      const newTotal = newSubtotal + newVatAmount;
-
-      let updatedNotes = existingInvoice.notes ? `${existingInvoice.notes}\n${bookingLine}` : `Vergaderruimte boekingen:\n${bookingLine}`;
-      if (hasDiscount) {
-        updatedNotes += `\n${discountLine}`;
-      }
-
-      const { error: updateError } = await supabase
-        .from('invoices')
-        .update({
-          subtotal: newSubtotal,
-          vat_amount: newVatAmount,
-          amount: newTotal,
-          notes: updatedNotes
-        })
-        .eq('id', existingInvoice.id);
-
-      if (updateError) {
-        console.error('Error updating invoice:', updateError);
-        throw new Error('Fout bij het bijwerken van de factuur');
-      }
-
-      const { error: linkError } = await supabase
-        .from('meeting_room_bookings')
-        .update({ invoice_id: existingInvoice.id })
-        .eq('id', booking.id);
-
-      if (linkError) {
-        console.error('Error linking booking to invoice:', linkError);
-        throw new Error('Fout bij het koppelen van boeking aan factuur');
-      }
-
-      showNotification('Factuur succesvol bijgewerkt', 'success');
-    } else {
-      const invoiceDate = new Date().toISOString().split('T')[0];
-      const dueDate = new Date();
-      dueDate.setDate(dueDate.getDate() + 14);
-      const dueDateStr = dueDate.toISOString().split('T')[0];
-
-      let subtotal: number;
-      if (vatInclusive) {
-        subtotal = booking.total_amount / (1 + vatRate / 100);
-      } else {
-        subtotal = booking.total_amount;
-      }
-      const vatAmount = subtotal * (vatRate / 100);
-      const totalAmount = subtotal + vatAmount;
-
-      const { data: invoiceNumberResult, error: rpcError } = await supabase
-        .rpc('generate_invoice_number');
-
-      if (rpcError) {
-        console.error('Error generating invoice number:', rpcError);
-        throw new Error('Fout bij het genereren van factuurnummer');
-      }
-
-      const invoiceNumber = invoiceNumberResult || 'INV-ERROR';
-
-      let notes = `Vergaderruimte boekingen:\n${bookingLine}`;
-      if (hasDiscount) {
-        notes += `\n${discountLine}`;
-      }
-
-      const invoiceInsertData: any = {
-        invoice_number: invoiceNumber,
-        invoice_date: invoiceDate,
-        due_date: dueDateStr,
-        invoice_month: invoiceMonth,
-        status: 'draft',
-        subtotal: subtotal,
-        vat_amount: vatAmount,
-        vat_rate: vatRate,
-        vat_inclusive: vatInclusive,
-        amount: totalAmount,
-        notes: notes
-      };
-
-      if (booking.booking_type === 'tenant') {
-        invoiceInsertData.tenant_id = booking.tenant_id;
-      } else {
-        invoiceInsertData.external_customer_id = booking.external_customer_id;
-      }
-
-      const { data: invoiceData, error: invoiceError } = await supabase
-        .from('invoices')
-        .insert(invoiceInsertData)
-        .select()
-        .single();
-
-      if (invoiceError || !invoiceData) {
-        console.error('Error creating invoice:', invoiceError);
-        throw new Error('Fout bij het aanmaken van de factuur');
-      }
-
-      const { error: linkError } = await supabase
-        .from('meeting_room_bookings')
-        .update({ invoice_id: invoiceData.id })
-        .eq('id', booking.id);
-
-      if (linkError) {
-        console.error('Error linking booking to invoice:', linkError);
-        throw new Error('Fout bij het koppelen van boeking aan factuur');
-      }
-
-      showNotification('Factuur succesvol aangemaakt', 'success');
-    }
-  };
-
-  const handleGenerateInvoice = async (booking: Booking) => {
-    if (booking.invoice_id) {
-      return;
-    }
-
-    setVatDialogBooking(booking);
-    setSelectedVatRate(21);
-  };
-
-  const handleConfirmInvoiceGeneration = async () => {
-    if (!vatDialogBooking) return;
-
-    try {
-      await createOrUpdateInvoiceForBooking(vatDialogBooking, selectedVatRate);
-
-      const { data: updatedBooking } = await supabase
-        .from('meeting_room_bookings')
-        .select(`
-          *,
-          tenants(name, company_name),
-          external_customers(company_name, contact_name, email, phone, street, postal_code, city, country),
-          office_spaces(space_number)
-        `)
-        .eq('id', vatDialogBooking.id)
-        .single();
-
-      if (updatedBooking) {
-        setBookings(prev => prev.map(b => b.id === vatDialogBooking.id ? updatedBooking : b));
-        setAllBookings(prev => prev.map(b => b.id === vatDialogBooking.id ? updatedBooking : b));
-      }
-
-      setVatDialogBooking(null);
-      await loadData();
-    } catch (error) {
-      console.error('Error generating invoice:', error);
-      showNotification('Fout bij het genereren van de factuur', 'error');
-      setVatDialogBooking(null);
-    }
   };
 
   const handleLinkToInvoice = async (booking: Booking) => {
@@ -1615,18 +1409,11 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                         {!loggedInTenantId && booking.status === 'completed' && !booking.invoice_id && (
                           <>
                             <button
-                              onClick={() => handleGenerateInvoice(booking)}
-                              className="p-2 bg-gold-500 hover:bg-gold-600 text-white rounded-lg transition-colors"
-                              title="Factuur genereren"
-                            >
-                              <FileText size={20} />
-                            </button>
-                            <button
                               onClick={() => handleLinkToInvoice(booking)}
-                              className="p-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors"
+                              className="p-1.5 bg-dark-700 hover:bg-teal-600 text-gray-400 hover:text-white rounded-lg transition-colors"
                               title="Koppel aan bestaande factuur"
                             >
-                              <CheckCircle size={20} />
+                              <Link2 size={16} />
                             </button>
                             <button
                               onClick={() => handleStatusChange(booking.id, 'confirmed')}
@@ -1683,45 +1470,6 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                 className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
               >
                 Verwijderen
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {vatDialogBooking && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-          <div className="bg-dark-900 rounded-lg p-6 w-full max-w-md my-8 mx-4 border border-dark-700">
-            <h3 className="text-xl font-bold text-gray-100 mb-4">BTW percentage selecteren</h3>
-            <p className="text-gray-300 mb-4">
-              Selecteer het BTW percentage voor deze factuur:
-            </p>
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-200 mb-2">
-                BTW percentage
-              </label>
-              <select
-                value={selectedVatRate}
-                onChange={(e) => setSelectedVatRate(Number(e.target.value))}
-                className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-              >
-                <option value={21}>21% BTW</option>
-                <option value={9}>9% BTW</option>
-                <option value={0}>0% BTW (niet van toepassing)</option>
-              </select>
-            </div>
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setVatDialogBooking(null)}
-                className="px-4 py-2 bg-dark-700 text-gray-200 rounded-lg hover:bg-dark-600 transition-colors"
-              >
-                Annuleren
-              </button>
-              <button
-                onClick={handleConfirmInvoiceGeneration}
-                className="px-4 py-2 bg-gold-500 hover:bg-gold-600 text-white rounded-lg transition-colors"
-              >
-                Factuur genereren
               </button>
             </div>
           </div>
