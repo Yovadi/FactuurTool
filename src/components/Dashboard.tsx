@@ -493,92 +493,70 @@ export function Dashboard() {
         </div>
 
         {pendingBookings.length > 0 ? (
-          <div className="bg-dark-800 rounded-lg border border-dark-700 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
-                    <th className="text-left px-4 py-3 font-semibold">Type</th>
-                    <th className="text-left px-4 py-3 font-semibold">Klant</th>
-                    <th className="text-left px-4 py-3 font-semibold">Datum</th>
-                    <th className="text-left px-4 py-3 font-semibold">Tijd</th>
-                    <th className="text-left px-4 py-3 font-semibold">Ruimte</th>
-                    <th className="text-center px-4 py-3 font-semibold">Acties</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pendingBookings.map((booking) => (
-                    <tr
-                      key={booking.id}
-                      className="border-b border-dark-700 hover:bg-dark-700 transition-colors"
+          <div className="space-y-3">
+            {pendingBookings.map((booking) => (
+              <div
+                key={booking.id}
+                className="bg-dark-800 rounded-lg border border-dark-700 p-4 hover:border-dark-600 transition-colors"
+              >
+                <div className="flex items-center justify-between gap-4 flex-wrap">
+                  <div className="flex items-center gap-4 min-w-0 flex-1">
+                    <span className={`shrink-0 px-2.5 py-1 rounded text-xs font-semibold ${
+                      booking.booking_type === 'meeting_room' ? 'bg-blue-900/60 text-blue-400' : 'bg-teal-900/60 text-teal-400'
+                    }`}>
+                      {booking.booking_type === 'meeting_room' ? 'Vergader' : 'Flex'}
+                    </span>
+                    <span className="text-gray-100 font-semibold truncate">
+                      {booking.booking_type === 'meeting_room'
+                        ? (booking.tenant_id ? booking.tenants?.company_name : booking.external_customers?.company_name)
+                        : booking.external_customers?.company_name}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => handleStatusChange(booking, 'confirmed')}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors"
+                      title="Accepteren"
                     >
-                      <td className="px-4 py-3">
-                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                          booking.booking_type === 'meeting_room' ? 'bg-blue-900 text-blue-400' : 'bg-teal-900 text-teal-400'
-                        }`}>
-                          {booking.booking_type === 'meeting_room' ? 'Vergader' : 'Flex'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-gray-100 font-medium">
-                          {booking.booking_type === 'meeting_room'
-                            ? (booking.tenant_id ? booking.tenants?.company_name : booking.external_customers?.company_name)
-                            : booking.external_customers?.company_name}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2 text-gray-300">
-                          <Calendar size={16} className="text-gold-500" />
-                          {new Date(booking.booking_date).toLocaleDateString('nl-NL', {
-                            weekday: 'short',
-                            day: 'numeric',
-                            month: 'short',
-                            year: 'numeric'
-                          })}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2 text-gray-300">
-                          <Clock size={16} className="text-gold-500" />
-                          {booking.booking_type === 'meeting_room'
-                            ? `${booking.start_time.substring(0, 5)} - ${booking.end_time?.substring(0, 5)}`
-                            : booking.start_time && booking.end_time
-                            ? `${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)}`
-                            : booking.is_half_day
-                            ? (booking.half_day_period === 'morning' ? 'Ochtend' : 'Middag')
-                            : 'Hele dag'}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-gray-100 font-medium">
-                          {booking.space.space_number}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <button
-                            onClick={() => handleStatusChange(booking, 'confirmed')}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg transition-colors"
-                            title="Accepteren"
-                          >
-                            <Check size={14} />
-                            Accepteren
-                          </button>
-                          <button
-                            onClick={() => handleStatusChange(booking, 'cancelled')}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-lg transition-colors"
-                            title="Weigeren"
-                          >
-                            <XCircle size={14} />
-                            Weigeren
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                      <Check size={14} />
+                      Accepteren
+                    </button>
+                    <button
+                      onClick={() => handleStatusChange(booking, 'cancelled')}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors"
+                      title="Weigeren"
+                    >
+                      <XCircle size={14} />
+                      Weigeren
+                    </button>
+                  </div>
+                </div>
+                <div className="flex items-center gap-5 mt-3 text-sm text-gray-400">
+                  <div className="flex items-center gap-1.5">
+                    <Calendar size={14} className="text-gold-500" />
+                    {new Date(booking.booking_date).toLocaleDateString('nl-NL', {
+                      weekday: 'short',
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric'
+                    })}
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Clock size={14} className="text-gold-500" />
+                    {booking.booking_type === 'meeting_room'
+                      ? `${booking.start_time.substring(0, 5)} - ${booking.end_time?.substring(0, 5)}`
+                      : booking.start_time && booking.end_time
+                      ? `${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)}`
+                      : booking.is_half_day
+                      ? (booking.half_day_period === 'morning' ? 'Ochtend' : 'Middag')
+                      : 'Hele dag'}
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-gray-300 font-medium">{booking.space.space_number}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         ) : (
           <div className="bg-dark-800 rounded-lg p-8 text-center">
