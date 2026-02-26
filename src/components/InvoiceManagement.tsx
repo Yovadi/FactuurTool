@@ -3452,9 +3452,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       )}
 
       {previewInvoice && !loadingPreview && (
-        <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
           <InvoicePreview
-            inline
             invoice={previewInvoice.invoice}
             invoiceTypeColor={getInvoiceTypeColor(previewInvoice.invoice)}
             tenant={getInvoiceTenant(previewInvoice.invoice) || {
@@ -3528,10 +3526,9 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
               }
             }}
           />
-        </div>
       )}
 
-      <div className={`flex-1 min-w-0 overflow-y-auto w-full transition-all duration-300 ${previewInvoice ? 'hidden' : ''}`}>
+      <div className="flex-1 min-w-0 overflow-y-auto w-full transition-all duration-300">
       <div className="space-y-4">
         {(() => {
           const sortByTenantAndDate = (a: InvoiceWithDetails, b: InvoiceWithDetails) => {
