@@ -1,4 +1,4 @@
-import { X, Download, Edit2, Trash2, CheckCircle, Clock, AlertCircle, Sparkles, ExternalLink, ArrowLeft } from 'lucide-react';
+import { X, Download, Edit2, Trash2, CheckCircle, Clock, AlertCircle, Sparkles } from 'lucide-react';
 
 type LineItem = {
   id?: string;
@@ -42,7 +42,6 @@ type PurchaseInvoicePreviewProps = {
   onEdit: () => void;
   onDelete: () => void;
   onMarkAsPaid?: () => void;
-  onPopOut?: () => void;
   inline?: boolean;
 };
 
@@ -52,7 +51,7 @@ const formatCurrency = (amount: number) =>
 const formatDate = (dateStr: string) =>
   new Date(dateStr).toLocaleDateString('nl-NL', { day: '2-digit', month: 'long', year: 'numeric' });
 
-export function PurchaseInvoicePreview({ invoice, onClose, onEdit, onDelete, onMarkAsPaid, onPopOut, inline = false }: PurchaseInvoicePreviewProps) {
+export function PurchaseInvoicePreview({ invoice, onClose, onEdit, onDelete, onMarkAsPaid, inline = false }: PurchaseInvoicePreviewProps) {
   const getStatusConfig = (status: string) => {
     switch (status) {
       case 'paid': return { color: 'text-green-400', bg: 'bg-green-900/30 border-green-800/40', label: 'Betaald', icon: CheckCircle };
@@ -74,10 +73,9 @@ export function PurchaseInvoicePreview({ invoice, onClose, onEdit, onDelete, onM
               <>
                 <button
                   onClick={onClose}
-                  className="flex items-center gap-1.5 text-gray-400 hover:text-gray-100 transition-colors"
+                  className="text-gray-500 hover:text-gray-300 transition-colors p-1"
                 >
-                  <ArrowLeft size={18} />
-                  <span className="text-sm font-medium">Terug naar lijst</span>
+                  <X size={18} />
                 </button>
                 <span className="text-dark-600">|</span>
               </>
@@ -98,16 +96,6 @@ export function PurchaseInvoicePreview({ invoice, onClose, onEdit, onDelete, onM
               <StatusIcon size={14} className={statusConfig.color} />
               <span className={`text-xs font-medium ${statusConfig.color}`}>{statusConfig.label}</span>
             </div>
-            {onPopOut && (
-              <button
-                onClick={onPopOut}
-                className="flex items-center gap-1.5 bg-dark-700 hover:bg-dark-600 text-gray-300 hover:text-white transition-colors px-3 py-1.5 rounded-lg"
-                title="Open in apart venster"
-              >
-                <ExternalLink size={16} />
-                <span className="text-xs font-medium">Venster</span>
-              </button>
-            )}
             {!inline && (
               <button onClick={onClose} className="p-2 hover:bg-dark-800 rounded-lg transition-colors">
                 <X size={20} className="text-gray-400" />

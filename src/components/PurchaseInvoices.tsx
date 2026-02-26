@@ -697,16 +697,6 @@ export function PurchaseInvoices() {
           onEdit={() => startEdit(previewInvoice)}
           onDelete={() => setDeleteConfirm(previewInvoice.id)}
           onMarkAsPaid={previewInvoice.status !== 'paid' ? () => markAsPaid(previewInvoice.id) : undefined}
-          onPopOut={() => {
-            const electron = (window as any).electron;
-            if (electron?.openPreviewWindow) {
-              electron.openPreviewWindow({
-                type: 'purchase-invoice',
-                props: { invoice: previewInvoice }
-              });
-              setPreviewInvoice(null);
-            }
-          }}
         />
       </div>
     )}

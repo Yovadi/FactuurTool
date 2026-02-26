@@ -36,10 +36,14 @@ export function PreviewWindow() {
     return <IdlePanel />;
   }
 
+  const handleReturnToIdle = useCallback(() => {
+    setPreviewData(null);
+  }, []);
+
   if (previewData.type === 'invoice') {
     return (
       <div className="h-screen bg-dark-950">
-        <DetachedInvoicePreview {...previewData.props} />
+        <DetachedInvoicePreview {...previewData.props} onReturnToIdle={handleReturnToIdle} />
       </div>
     );
   }
@@ -47,7 +51,7 @@ export function PreviewWindow() {
   if (previewData.type === 'credit-note') {
     return (
       <div className="h-screen bg-dark-950">
-        <DetachedCreditNotePreview {...previewData.props} />
+        <DetachedCreditNotePreview {...previewData.props} onReturnToIdle={handleReturnToIdle} />
       </div>
     );
   }
@@ -55,7 +59,7 @@ export function PreviewWindow() {
   if (previewData.type === 'purchase-invoice') {
     return (
       <div className="h-screen bg-dark-950">
-        <DetachedPurchaseInvoicePreview {...previewData.props} />
+        <DetachedPurchaseInvoicePreview {...previewData.props} onReturnToIdle={handleReturnToIdle} />
       </div>
     );
   }
@@ -78,7 +82,6 @@ export function PreviewWindow() {
 }
 
 function DetachedInvoicePreview(props: any) {
-  const noop = useCallback(() => {}, []);
   const status = props.invoice?.status;
 
   const handleDownload = useCallback(() => {
@@ -114,7 +117,7 @@ function DetachedInvoicePreview(props: any) {
         contractType={props.contractType}
         company={props.company}
         invoiceTypeColor={props.invoiceTypeColor}
-        onClose={noop}
+        onClose={props.onReturnToIdle}
         onDownload={handleDownload}
         onMarkAsPaid={showMarkAsPaid ? handleMarkAsPaid : undefined}
         onCreateCreditNote={handleCreateCreditNote}
@@ -126,8 +129,6 @@ function DetachedInvoicePreview(props: any) {
 }
 
 function DetachedCreditNotePreview(props: any) {
-  const noop = useCallback(() => {}, []);
-
   const handleEdit = useCallback(() => {
     sendAction('credit-note-edit', { creditNoteId: props.creditNote?.id });
   }, [props.creditNote?.id]);
@@ -155,7 +156,7 @@ function DetachedCreditNotePreview(props: any) {
       inline
       creditNote={props.creditNote}
       companySettings={props.companySettings}
-      onClose={noop}
+      onClose={props.onReturnToIdle}
       onEdit={isDraft ? handleEdit : undefined}
       onDownload={handleDownload}
       onSend={isDraft ? handleSend : undefined}
@@ -166,8 +167,6 @@ function DetachedCreditNotePreview(props: any) {
 }
 
 function DetachedPurchaseInvoicePreview(props: any) {
-  const noop = useCallback(() => {}, []);
-
   const handleEdit = useCallback(() => {
     sendAction('purchase-invoice-edit', { invoiceId: props.invoice?.id });
   }, [props.invoice?.id]);
@@ -184,7 +183,7 @@ function DetachedPurchaseInvoicePreview(props: any) {
     <PurchaseInvoicePreview
       inline
       invoice={props.invoice}
-      onClose={noop}
+      onClose={props.onReturnToIdle}
       onEdit={handleEdit}
       onDelete={handleDelete}
       onMarkAsPaid={props.invoice?.status !== 'paid' ? handleMarkAsPaid : undefined}
