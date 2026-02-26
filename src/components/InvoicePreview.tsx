@@ -299,7 +299,7 @@ export function InvoicePreview({
           <span className="text-sm font-medium">Verwijderen</span>
         </button>
       )}
-      {onPopOut && (
+      {!inline && onPopOut && (
         <button
           onClick={onPopOut}
           className="flex items-center gap-1.5 bg-dark-700 hover:bg-dark-600 text-gray-300 hover:text-white transition-colors px-3 py-1.5 rounded-lg"
@@ -309,14 +309,16 @@ export function InvoicePreview({
           <span className="text-sm font-medium">Venster</span>
         </button>
       )}
-      <button
-        onClick={onClose}
-        className="flex items-center gap-1.5 bg-dark-700 hover:bg-dark-600 text-gray-300 hover:text-white transition-colors px-3 py-1.5 rounded-lg"
-        title="Sluiten"
-      >
-        <X size={16} />
-        <span className="text-sm font-medium">Sluiten</span>
-      </button>
+      {!inline && (
+        <button
+          onClick={onClose}
+          className="flex items-center gap-1.5 bg-dark-700 hover:bg-dark-600 text-gray-300 hover:text-white transition-colors px-3 py-1.5 rounded-lg"
+          title="Sluiten"
+        >
+          <X size={16} />
+          <span className="text-sm font-medium">Sluiten</span>
+        </button>
+      )}
     </div>
   );
 
