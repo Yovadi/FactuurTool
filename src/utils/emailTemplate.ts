@@ -107,7 +107,7 @@ function escapeHtml(str: string): string {
     .replace(/'/g, '&#39;');
 }
 
-function wrapInEmailHtml(companySettings: CompanySettings, bodyText: string, signatureImage?: string | null): string {
+export function wrapInEmailHtml(companySettings: CompanySettings, bodyText: string, signatureImage?: string | null): string {
   const companyName = companySettings.company_name || '';
   const companyAddress = companySettings.address || '';
   const companyPostal = companySettings.postal_code || '';
