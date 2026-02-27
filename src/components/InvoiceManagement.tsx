@@ -1376,21 +1376,18 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       console.log('Starting sendInvoiceEmail for:', invoiceId);
       const invoice = invoices.find(inv => inv.id === invoiceId);
       if (!invoice) {
-        console.error('Invoice not found');
-        return;
+        throw new Error('Factuur niet gevonden');
       }
       console.log('Invoice found:', invoice);
 
       const tenant = getInvoiceTenant(invoice);
       console.log('Tenant:', tenant);
       if (!tenant || !tenant.email) {
-        console.error('No email address found for tenant');
-        return;
+        throw new Error('Geen e-mailadres gevonden voor deze huurder');
       }
 
       if (!companySettings) {
-        console.error('Company settings not found');
-        return;
+        throw new Error('Bedrijfsinstellingen niet gevonden');
       }
       console.log('Company settings:', companySettings);
 
@@ -1604,8 +1601,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         .eq('id', invoiceId);
 
       if (error) {
-        console.error('Error updating invoice status:', error);
-        return;
+        throw new Error('E-mail verzonden maar status kon niet worden bijgewerkt');
       }
 
       setInvoices(prev => prev.map(inv =>
@@ -2889,8 +2885,14 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       return;
     }
 
-    await sendInvoiceEmail(previewInvoice.invoice.id);
-    setPreviewInvoice(null);
+    try {
+      await sendInvoiceEmail(previewInvoice.invoice.id);
+      setPreviewInvoice(null);
+      showToast('Factuur succesvol verzonden per e-mail', 'success');
+      await loadData();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Fout bij verzenden', 'error');
+    }
   };
 
   const toggleSelectInvoice = (invoiceId: string) => {
