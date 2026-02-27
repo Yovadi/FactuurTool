@@ -532,8 +532,41 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         }
       } else if (action === 'invoice-send' && data?.invoiceId) {
         const inv = invoices.find(i => i.id === data.invoiceId);
-        if (inv && previewInvoice) {
-          handlePreviewSend();
+        if (inv) {
+          (async () => {
+            try {
+              if (companySettings && isEmailConfigured(companySettings)) {
+                const tenant = getInvoiceTenant(inv);
+                if (tenant?.email) {
+                  const tenantName = ('name' in tenant && tenant.name) ? tenant.name : ('contact_name' in tenant && (tenant as any).contact_name) ? (tenant as any).contact_name : tenant.company_name || '';
+                  const invoiceNum = inv.invoice_number.replace(/^INV-/, '');
+                  const formattedAmount = `\u20AC${inv.amount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                  const emailData = {
+                    recipientName: tenantName,
+                    invoiceNumber: invoiceNum,
+                    invoiceDate: new Date(inv.invoice_date).toLocaleDateString('nl-NL'),
+                    dueDate: new Date(inv.due_date).toLocaleDateString('nl-NL'),
+                    amount: formattedAmount,
+                    companySettings,
+                  };
+                  setEmailComposeData({
+                    to: tenant.email,
+                    toName: tenantName,
+                    subject: buildInvoiceEmailSubject(emailData),
+                    body: buildInvoiceEmailText(emailData),
+                    html: buildInvoiceEmailHtml(emailData),
+                    invoiceId: inv.id,
+                  });
+                  return;
+                }
+              }
+              await sendInvoiceEmail(inv.id);
+              showToast('Factuur succesvol verzonden per e-mail', 'success');
+              await loadData();
+            } catch (err) {
+              showToast(err instanceof Error ? err.message : 'Fout bij verzenden', 'error');
+            }
+          })();
         }
       } else if (action === 'invoice-mark-paid' && data?.invoiceId) {
         markAsPaid(data.invoiceId);
@@ -552,7 +585,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         deleteInvoice(data.invoiceId);
       }
     });
-  }, [invoices, previewInvoice]);
+  }, [invoices, previewInvoice, companySettings]);
 
   useEffect(() => {
     updateInvoicedMonthsCounts();
