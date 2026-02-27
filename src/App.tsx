@@ -284,16 +284,11 @@ function App() {
         supabase.from('external_customers').select('company_name'),
       ]);
 
-      const allCustomers = [
-        ...(tenants || []).map(t => t.company_name),
-        ...(externalCustomers || []).map(c => c.company_name)
-      ];
-
-      await Promise.all(
-        allCustomers.map(companyName =>
-          (window as any).electronAPI.createTenantFolder(rootPath, companyName)
-        )
-      );
+      const createFolder = (window as any).electronAPI.createTenantFolder;
+      await Promise.all([
+        ...(tenants || []).map(t => createFolder(rootPath, t.company_name, 'Huurders')),
+        ...(externalCustomers || []).map(c => createFolder(rootPath, c.company_name, 'Externe huurders')),
+      ]);
     } catch {
     }
   };

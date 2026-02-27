@@ -149,8 +149,8 @@ export function TenantManagement() {
 
         if (oldCompanyName !== newCompanyName && companySettings?.root_folder_path && window.electronAPI?.renameFolder) {
           const sanitize = (n: string) => n.replace(/[<>:"/\\|?*]/g, '_');
-          const oldPath = `${companySettings.root_folder_path}/${sanitize(oldCompanyName)}`;
-          const newPath = `${companySettings.root_folder_path}/${sanitize(newCompanyName)}`;
+          const oldPath = `${companySettings.root_folder_path}/Huurders/${sanitize(oldCompanyName)}`;
+          const newPath = `${companySettings.root_folder_path}/Huurders/${sanitize(newCompanyName)}`;
           const result = await window.electronAPI.renameFolder(oldPath, newPath);
           if (!result.success && !result.notFound) {
             console.error('Error renaming tenant folder:', result.error);
@@ -227,8 +227,8 @@ export function TenantManagement() {
 
         if (oldCompanyName !== newCompanyName && companySettings?.root_folder_path && window.electronAPI?.renameFolder) {
           const sanitize = (n: string) => n.replace(/[<>:"/\\|?*]/g, '_');
-          const oldPath = `${companySettings.root_folder_path}/${sanitize(oldCompanyName)}`;
-          const newPath = `${companySettings.root_folder_path}/${sanitize(newCompanyName)}`;
+          const oldPath = `${companySettings.root_folder_path}/Externe huurders/${sanitize(oldCompanyName)}`;
+          const newPath = `${companySettings.root_folder_path}/Externe huurders/${sanitize(newCompanyName)}`;
           const result = await window.electronAPI.renameFolder(oldPath, newPath);
           if (!result.success && !result.notFound) {
             console.error('Error renaming customer folder:', result.error);

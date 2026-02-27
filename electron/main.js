@@ -229,7 +229,7 @@ ipcMain.handle('select-folder', async () => {
   }
 });
 
-ipcMain.handle('create-tenant-folder', async (event, rootPath, tenantName) => {
+ipcMain.handle('create-tenant-folder', async (event, rootPath, tenantName, category) => {
   try {
     const fs = require('fs');
 
@@ -238,10 +238,15 @@ ipcMain.handle('create-tenant-folder', async (event, rootPath, tenantName) => {
     }
 
     const sanitizedName = tenantName.replace(/[<>:"/\\|?*]/g, '_');
-    const tenantFolderPath = path.join(rootPath, sanitizedName);
+    const categoryFolder = category || 'Huurders';
+    const tenantFolderPath = path.join(rootPath, categoryFolder, sanitizedName);
 
-    if (!fs.existsSync(tenantFolderPath)) {
-      fs.mkdirSync(tenantFolderPath, { recursive: true });
+    const subFolders = ['1. Huurcontract', '2. Facturen', '3. Credit facturen', '4. Overige'];
+    for (const sub of subFolders) {
+      const subPath = path.join(tenantFolderPath, sub);
+      if (!fs.existsSync(subPath)) {
+        fs.mkdirSync(subPath, { recursive: true });
+      }
     }
 
     return { success: true, path: tenantFolderPath };
@@ -396,23 +401,27 @@ ipcMain.handle('list-invoices-on-disk', async (event, rootPath) => {
     const files = [];
 
     const scanDirectory = (dirPath, depth, context) => {
-      if (depth > 4) return;
-      const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+      if (depth > 5) return;
+      let entries;
+      try {
+        entries = fs.readdirSync(dirPath, { withFileTypes: true });
+      } catch {
+        return;
+      }
 
       for (const entry of entries) {
         const fullPath = path.join(dirPath, entry.name);
 
         if (entry.isDirectory()) {
-          scanDirectory(fullPath, depth + 1, {
-            category: context.category || (depth === 0 ? entry.name : undefined),
-            tenantFolder: context.tenantFolder || (depth === 1 ? entry.name : undefined),
-            subFolder: context.subFolder || (depth >= 2 ? entry.name : undefined),
-          });
+          const newContext = { ...context };
+          if (depth === 0) newContext.category = entry.name;
+          else if (depth === 1) newContext.tenantFolder = entry.name;
+          else if (depth === 2) newContext.subFolder = entry.name;
+          scanDirectory(fullPath, depth + 1, newContext);
         } else if (entry.name.toLowerCase().endsWith('.pdf')) {
           files.push({
             category: context.category || '',
             tenantFolder: context.tenantFolder || '',
-            year: context.subFolder || '',
             subFolder: context.subFolder || '',
             fileName: entry.name,
           });

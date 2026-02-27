@@ -1547,9 +1547,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         if (window.electronAPI && companySettings.root_folder_path && window.electronAPI.savePDF) {
           const pdf = await generateInvoicePDF(invoiceData, false, true);
           const pdfBlob = pdf.output('arraybuffer');
-          const invoiceYear = new Date(invoice.invoice_date).getFullYear().toString();
           const isExternal = !!invoice.external_customer_id;
-          const tenantFolderPath = buildInvoiceFolderPath(companySettings.root_folder_path, isExternal, tenant.company_name || '', invoiceYear);
+          const tenantFolderPath = buildInvoiceFolderPath(companySettings.root_folder_path, isExternal, tenant.company_name || '');
           const saveResult = await window.electronAPI.savePDF(pdfBlob, tenantFolderPath, `${invoice.invoice_number}.pdf`);
           if (!saveResult.success) {
             throw new Error(`E-mail verzonden, maar PDF opslaan mislukt: ${saveResult.error || 'Onbekende fout'}`);
@@ -1560,9 +1559,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         const pdfBlob = pdf.output('arraybuffer');
 
         if (companySettings.root_folder_path && window.electronAPI.savePDF) {
-          const invoiceYear = new Date(invoice.invoice_date).getFullYear().toString();
           const isExternal = !!invoice.external_customer_id;
-          const tenantFolderPath = buildInvoiceFolderPath(companySettings.root_folder_path, isExternal, tenant.company_name || '', invoiceYear);
+          const tenantFolderPath = buildInvoiceFolderPath(companySettings.root_folder_path, isExternal, tenant.company_name || '');
           const saveResult = await window.electronAPI.savePDF(pdfBlob, tenantFolderPath, `${invoice.invoice_number}.pdf`);
           if (!saveResult.success) {
             throw new Error(`PDF opslaan mislukt: ${saveResult.error || 'Onbekende fout'}`);
@@ -1588,13 +1586,11 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           companySettings.graph_tenant_id && companySettings.graph_client_id && companySettings.graph_client_secret) {
         try {
           const pdfBase64 = await generateInvoicePDFBase64(invoiceData);
-          const invoiceDate = new Date(invoice.invoice_date);
-          const year = invoiceDate.getFullYear().toString();
           const basePath = companySettings.onedrive_folder_path || 'Facturen';
           const isExternalOneDrive = !!invoice.external_customer_id;
-          const category = isExternalOneDrive ? 'Externe huur' : 'Huur';
+          const category = isExternalOneDrive ? 'Externe huurders' : 'Huurders';
           const customerName = (tenant.company_name || '').replace(/[<>:"/\\|?*]/g, '_').trim();
-          const folderPath = `${basePath}/${category}/${customerName}/${year}`;
+          const folderPath = `${basePath}/${category}/${customerName}/2. Facturen`;
           const fileName = customerName
             ? `${invoice.invoice_number}_${customerName}.pdf`
             : `${invoice.invoice_number}.pdf`;
