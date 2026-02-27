@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { generateInvoicePDF } from './pdfGenerator';
+import { generateLeaseContractPDF, type LeaseContractData } from './leaseContractPdf';
 import { getEffectiveRootFolderPath } from './localSettings';
 
 interface DiskFile {
@@ -8,7 +9,7 @@ interface DiskFile {
   fileName: string;
 }
 
-interface SyncResult {
+export interface SyncResult {
   total: number;
   synced: number;
   skipped: number;
@@ -16,12 +17,11 @@ interface SyncResult {
   errors: string[];
 }
 
-type ProgressCallback = (current: number, total: number, invoiceNumber: string) => void;
+type ProgressCallback = (current: number, total: number, label: string) => void;
 
 export async function syncInvoicePDFs(onProgress?: ProgressCallback): Promise<SyncResult | null> {
   const electronAPI = (window as any).electronAPI;
   if (!electronAPI?.listInvoicesOnDisk || !electronAPI?.savePDF) {
-    console.log('[PDF Sync] electronAPI not available, skipping');
     return null;
   }
 
@@ -33,18 +33,10 @@ export async function syncInvoicePDFs(onProgress?: ProgressCallback): Promise<Sy
     .maybeSingle();
 
   const rootPath = await getEffectiveRootFolderPath(settings?.root_folder_path);
-  if (!rootPath) {
-    console.log('[PDF Sync] No root folder path configured, skipping');
-    return null;
-  }
-  console.log('[PDF Sync] Root path:', rootPath);
+  if (!rootPath) return null;
 
   const diskResult = await electronAPI.listInvoicesOnDisk(rootPath);
-  if (!diskResult.success) {
-    console.error('[PDF Sync] Failed to list invoices on disk:', diskResult.error);
-    return null;
-  }
-  console.log('[PDF Sync] Found', diskResult.files?.length || 0, 'existing PDF files on disk');
+  if (!diskResult.success) return null;
 
   const existingFiles = new Set(
     (diskResult.files as DiskFile[]).map(f => f.fileName.toLowerCase())
@@ -60,17 +52,13 @@ export async function syncInvoicePDFs(onProgress?: ProgressCallback): Promise<Sy
     .in('status', ['sent', 'paid']);
 
   if (!invoices || invoices.length === 0) {
-    console.log('[PDF Sync] No sent/paid invoices found');
     return { total: 0, synced: 0, skipped: 0, failed: 0, errors: [] };
   }
-  console.log('[PDF Sync] Found', invoices.length, 'sent/paid invoices in database');
 
   const missingInvoices = invoices.filter(inv => {
     const pdfName = `${inv.invoice_number}.pdf`.toLowerCase();
     return !existingFiles.has(pdfName);
   });
-
-  console.log('[PDF Sync] Missing', missingInvoices.length, 'PDF files');
 
   if (missingInvoices.length === 0) {
     return { total: invoices.length, synced: 0, skipped: invoices.length, failed: 0, errors: [] };
@@ -199,4 +187,182 @@ export async function syncInvoicePDFs(onProgress?: ProgressCallback): Promise<Sy
   }
 
   return result;
+}
+
+export async function syncLeaseContractPDFs(onProgress?: ProgressCallback): Promise<SyncResult | null> {
+  const electronAPI = (window as any).electronAPI;
+  if (!electronAPI?.savePDF || !electronAPI?.listInvoicesOnDisk) {
+    return null;
+  }
+
+  const { data: settings } = await supabase
+    .from('company_settings')
+    .select('root_folder_path, company_name, address, postal_code, city, kvk_number, vat_number, bank_account, email, phone')
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const rootPath = await getEffectiveRootFolderPath(settings?.root_folder_path);
+  if (!rootPath) return null;
+
+  const { data: leases } = await supabase
+    .from('leases')
+    .select(`
+      id, start_date, end_date, vat_rate, vat_inclusive, security_deposit, lease_type,
+      credits_per_week, flex_credit_rate, flex_day_type,
+      tenant:tenants(id, name, company_name, email, phone, street, postal_code, city, country),
+      lease_spaces:lease_spaces(
+        id, price_per_sqm, monthly_rent,
+        space:office_spaces(space_number, space_type, square_footage)
+      )
+    `)
+    .in('status', ['active', 'expired']);
+
+  if (!leases || leases.length === 0) {
+    return { total: 0, synced: 0, skipped: 0, failed: 0, errors: [] };
+  }
+
+  const diskResult = await electronAPI.listInvoicesOnDisk(rootPath);
+  const existingFiles = new Set<string>();
+  if (diskResult.success && diskResult.files) {
+    for (const f of diskResult.files as DiskFile[]) {
+      existingFiles.add(f.fileName.toLowerCase());
+    }
+  }
+
+  const missingLeases = leases.filter(lease => {
+    const tenant = Array.isArray(lease.tenant) ? lease.tenant[0] : lease.tenant;
+    if (!tenant) return false;
+    const sanitizedName = (tenant.company_name || '').replace(/[<>:"/\\|?*]/g, '_').trim();
+    const fileName = `Huurcontract_${sanitizedName}.pdf`.toLowerCase();
+    return !existingFiles.has(fileName);
+  });
+
+  if (missingLeases.length === 0) {
+    return { total: leases.length, synced: 0, skipped: leases.length, failed: 0, errors: [] };
+  }
+
+  const result: SyncResult = { total: leases.length, synced: 0, skipped: leases.length - missingLeases.length, failed: 0, errors: [] };
+
+  for (let i = 0; i < missingLeases.length; i++) {
+    const lease = missingLeases[i] as any;
+    const tenant = Array.isArray(lease.tenant) ? lease.tenant[0] : lease.tenant;
+    if (!tenant) {
+      result.failed++;
+      continue;
+    }
+
+    const sanitizedName = (tenant.company_name || '').replace(/[<>:"/\\|?*]/g, '_').trim();
+    onProgress?.(i + 1, missingLeases.length, `Huurcontract ${sanitizedName}`);
+
+    try {
+      const leaseSpaces = (lease.lease_spaces || []).map((ls: any) => {
+        const space = Array.isArray(ls.space) ? ls.space[0] : ls.space;
+        return {
+          space_number: space?.space_number || '',
+          space_type: space?.space_type || '',
+          square_footage: space?.square_footage || 0,
+          price_per_sqm: ls.price_per_sqm || 0,
+          monthly_rent: ls.monthly_rent || 0,
+        };
+      });
+
+      const contractData: LeaseContractData = {
+        tenant_name: tenant.name || tenant.company_name,
+        tenant_company_name: tenant.company_name,
+        tenant_street: tenant.street || undefined,
+        tenant_postal_code: tenant.postal_code || undefined,
+        tenant_city: tenant.city || undefined,
+        tenant_country: tenant.country || undefined,
+        tenant_email: tenant.email || undefined,
+        tenant_phone: tenant.phone || undefined,
+        lease_type: lease.lease_type || 'full_time',
+        start_date: lease.start_date,
+        end_date: lease.end_date,
+        vat_rate: lease.vat_rate,
+        vat_inclusive: lease.vat_inclusive,
+        security_deposit: lease.security_deposit,
+        spaces: leaseSpaces,
+        company: settings ? {
+          name: settings.company_name,
+          address: settings.address,
+          postal_code: settings.postal_code,
+          city: settings.city,
+          kvk: settings.kvk_number,
+          btw: settings.vat_number,
+          iban: settings.bank_account,
+          email: settings.email || undefined,
+          phone: settings.phone || undefined,
+        } : undefined,
+      };
+
+      if (lease.lease_type === 'flex') {
+        const flexSpace = leaseSpaces.length > 0 ? leaseSpaces[0] : null;
+        contractData.flex = {
+          credits_per_week: lease.credits_per_week || 0,
+          flex_credit_rate: lease.flex_credit_rate || 0,
+          flex_day_type: lease.flex_day_type || 'full_day',
+          space_number: flexSpace?.space_number,
+        };
+      }
+
+      const pdf = await generateLeaseContractPDF(contractData, true);
+      const pdfBuffer = pdf.output('arraybuffer');
+      const folderPath = `${rootPath}/${sanitizedName}/Huurcontract`;
+      const fileName = `Huurcontract_${sanitizedName}.pdf`;
+      const saveResult = await electronAPI.savePDF(pdfBuffer, folderPath, fileName);
+
+      if (saveResult.success) {
+        result.synced++;
+      } else {
+        result.failed++;
+        result.errors.push(`${fileName}: ${saveResult.error}`);
+      }
+    } catch (err) {
+      result.failed++;
+      result.errors.push(`Huurcontract ${sanitizedName}: ${err instanceof Error ? err.message : 'Onbekende fout'}`);
+    }
+  }
+
+  return result;
+}
+
+let periodicSyncTimer: ReturnType<typeof setInterval> | null = null;
+
+export function startPeriodicSync(
+  onSyncStart?: () => void,
+  onInvoiceProgress?: ProgressCallback,
+  onLeaseProgress?: ProgressCallback,
+  onSyncComplete?: (invoiceResult: SyncResult | null, leaseResult: SyncResult | null) => void,
+  intervalMs: number = 5 * 60 * 1000
+): () => void {
+  if (periodicSyncTimer) {
+    clearInterval(periodicSyncTimer);
+  }
+
+  const runSync = async () => {
+    const electronAPI = (window as any).electronAPI;
+    if (!electronAPI?.savePDF) return;
+
+    const invoiceResult = await syncInvoicePDFs(onInvoiceProgress);
+    const leaseResult = await syncLeaseContractPDFs(onLeaseProgress);
+
+    const hasChanges =
+      (invoiceResult && invoiceResult.synced > 0) ||
+      (leaseResult && leaseResult.synced > 0);
+
+    if (hasChanges) {
+      onSyncStart?.();
+      onSyncComplete?.(invoiceResult, leaseResult);
+    }
+  };
+
+  periodicSyncTimer = setInterval(runSync, intervalMs);
+
+  return () => {
+    if (periodicSyncTimer) {
+      clearInterval(periodicSyncTimer);
+      periodicSyncTimer = null;
+    }
+  };
 }

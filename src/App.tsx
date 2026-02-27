@@ -3,7 +3,7 @@ import { UpdateDialog } from './components/UpdateDialog';
 import { LayoutDashboard, Users, Building, Settings, CalendarClock, Calendar, FileText, Building2, Calculator, Euro, UserCheck, UserMinus, Loader2, Menu, X, Database, Bell, AlertTriangle, TrendingUp, CalendarCheck, DoorOpen, Mail, CheckCircle, RefreshCw } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { markAllNotificationsRead, deleteReadNotifications, deleteNotification } from './utils/notificationHelper';
-import { syncInvoicePDFs } from './utils/invoicePdfSync';
+import { syncInvoicePDFs, syncLeaseContractPDFs, startPeriodicSync, type SyncResult } from './utils/invoicePdfSync';
 import { getEffectiveRootFolderPath } from './utils/localSettings';
 
 const OverzichtTabs = lazy(() => import('./components/OverzichtTabs').then(m => ({ default: m.OverzichtTabs })));
@@ -67,7 +67,8 @@ function App() {
     current: number;
     total: number;
     invoiceNumber: string;
-    result?: { synced: number; failed: number; errors: string[] } | null;
+    phase?: 'invoices' | 'leases';
+    result?: { synced: number; failed: number; errors: string[]; leaseSynced?: number; leaseFailed?: number } | null;
   }>({ active: false, current: 0, total: 0, invoiceNumber: '' });
   const [newInvoiceCount, setNewInvoiceCount] = useState(0);
 
@@ -134,10 +135,44 @@ function App() {
 
     const timers: ReturnType<typeof setTimeout>[] = [];
 
+    let stopPeriodicSync: (() => void) | null = null;
+
     if (isElectronApp) {
       timers.push(setTimeout(() => {
-        syncFolders().then(() => syncInvoicePDFsOnStartup());
+        syncFolders().then(() => runFullSync());
       }, 1000));
+
+      stopPeriodicSync = startPeriodicSync(
+        undefined,
+        (current, total, label) => {
+          setSyncStatus({ active: true, current, total, invoiceNumber: label, phase: 'invoices' });
+        },
+        (current, total, label) => {
+          setSyncStatus({ active: true, current, total, invoiceNumber: label, phase: 'leases' });
+        },
+        (invoiceResult, leaseResult) => {
+          const totalSynced = (invoiceResult?.synced || 0) + (leaseResult?.synced || 0);
+          const totalFailed = (invoiceResult?.failed || 0) + (leaseResult?.failed || 0);
+          const allErrors = [...(invoiceResult?.errors || []), ...(leaseResult?.errors || [])];
+          setSyncStatus({
+            active: false,
+            current: totalSynced,
+            total: totalSynced + totalFailed,
+            invoiceNumber: '',
+            result: {
+              synced: invoiceResult?.synced || 0,
+              failed: invoiceResult?.failed || 0,
+              errors: allErrors,
+              leaseSynced: leaseResult?.synced || 0,
+              leaseFailed: leaseResult?.failed || 0,
+            },
+          });
+          setTimeout(() => {
+            setSyncStatus(prev => prev.result ? { ...prev, result: null } : prev);
+          }, 8000);
+        },
+        5 * 60 * 1000
+      );
     }
 
     timers.push(setTimeout(() => {
@@ -191,6 +226,7 @@ function App() {
 
     return () => {
       timers.forEach(clearTimeout);
+      stopPeriodicSync?.();
       window.removeEventListener('eboekhouden-enabled-changed', handleEboekhoudenChange);
       window.removeEventListener('email-enabled-changed', handleEmailChange);
       clearInterval(notifInterval);
@@ -262,24 +298,45 @@ function App() {
     }
   };
 
-  const syncInvoicePDFsOnStartup = async () => {
+  const runFullSync = async () => {
     try {
-      setSyncStatus({ active: true, current: 0, total: 0, invoiceNumber: '' });
-      const result = await syncInvoicePDFs((current, total, invoiceNumber) => {
-        setSyncStatus({ active: true, current, total, invoiceNumber });
+      setSyncStatus({ active: true, current: 0, total: 0, invoiceNumber: '', phase: 'invoices' });
+
+      const invoiceResult = await syncInvoicePDFs((current, total, label) => {
+        setSyncStatus({ active: true, current, total, invoiceNumber: label, phase: 'invoices' });
       });
 
-      if (!result || result.synced === 0) {
+      setSyncStatus(prev => ({ ...prev, phase: 'leases', current: 0, total: 0, invoiceNumber: '' }));
+
+      const leaseResult = await syncLeaseContractPDFs((current, total, label) => {
+        setSyncStatus({ active: true, current, total, invoiceNumber: label, phase: 'leases' });
+      });
+
+      const totalSynced = (invoiceResult?.synced || 0) + (leaseResult?.synced || 0);
+      const totalFailed = (invoiceResult?.failed || 0) + (leaseResult?.failed || 0);
+
+      if (totalSynced === 0 && totalFailed === 0) {
         setSyncStatus(prev => ({ ...prev, active: false }));
         return;
       }
 
+      const allErrors = [
+        ...(invoiceResult?.errors || []),
+        ...(leaseResult?.errors || []),
+      ];
+
       setSyncStatus({
         active: false,
-        current: result.synced,
-        total: result.synced + result.failed,
+        current: totalSynced,
+        total: totalSynced + totalFailed,
         invoiceNumber: '',
-        result: { synced: result.synced, failed: result.failed, errors: result.errors },
+        result: {
+          synced: invoiceResult?.synced || 0,
+          failed: invoiceResult?.failed || 0,
+          errors: allErrors,
+          leaseSynced: leaseResult?.synced || 0,
+          leaseFailed: leaseResult?.failed || 0,
+        },
       });
 
       setTimeout(() => {
@@ -373,7 +430,9 @@ function App() {
               <div className="flex items-center gap-3">
                 <RefreshCw size={18} className="text-gold-500 animate-spin flex-shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-100">PDF's synchroniseren...</p>
+                  <p className="text-sm font-medium text-gray-100">
+                    {syncStatus.phase === 'leases' ? 'Huurcontracten synchroniseren...' : 'Factuur-PDF\'s synchroniseren...'}
+                  </p>
                   {syncStatus.total > 0 && (
                     <>
                       <p className="text-xs text-gray-400 mt-0.5 truncate">{syncStatus.invoiceNumber} ({syncStatus.current}/{syncStatus.total})</p>
@@ -390,15 +449,22 @@ function App() {
             </div>
           )}
           {syncStatus.result && (
-            <div className={`bg-dark-800 border rounded-xl shadow-2xl px-4 py-3 ${syncStatus.result.failed > 0 ? 'border-amber-600/50' : 'border-green-600/50'}`}>
+            <div className={`bg-dark-800 border rounded-xl shadow-2xl px-4 py-3 ${(syncStatus.result.failed > 0 || (syncStatus.result.leaseFailed || 0) > 0) ? 'border-amber-600/50' : 'border-green-600/50'}`}>
               <div className="flex items-start gap-3">
-                <CheckCircle size={18} className={`flex-shrink-0 mt-0.5 ${syncStatus.result.failed > 0 ? 'text-amber-400' : 'text-green-400'}`} />
+                <CheckCircle size={18} className={`flex-shrink-0 mt-0.5 ${(syncStatus.result.failed > 0 || (syncStatus.result.leaseFailed || 0) > 0) ? 'text-amber-400' : 'text-green-400'}`} />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-100">
-                    {syncStatus.result.synced} factuur-PDF{syncStatus.result.synced !== 1 ? "'s" : ''} gesynchroniseerd
-                  </p>
-                  {syncStatus.result.failed > 0 && (
-                    <p className="text-xs text-amber-400 mt-0.5">{syncStatus.result.failed} mislukt</p>
+                  {syncStatus.result.synced > 0 && (
+                    <p className="text-sm font-medium text-gray-100">
+                      {syncStatus.result.synced} factuur-PDF{syncStatus.result.synced !== 1 ? "'s" : ''} gesynchroniseerd
+                    </p>
+                  )}
+                  {(syncStatus.result.leaseSynced || 0) > 0 && (
+                    <p className="text-sm font-medium text-gray-100">
+                      {syncStatus.result.leaseSynced} huurcontract{syncStatus.result.leaseSynced !== 1 ? 'en' : ''} gesynchroniseerd
+                    </p>
+                  )}
+                  {(syncStatus.result.failed > 0 || (syncStatus.result.leaseFailed || 0) > 0) && (
+                    <p className="text-xs text-amber-400 mt-0.5">{syncStatus.result.failed + (syncStatus.result.leaseFailed || 0)} mislukt</p>
                   )}
                 </div>
                 <button
@@ -461,6 +527,20 @@ function App() {
                   )}
                 </div>
                 <div className="flex items-center gap-2">
+                  {isElectron && (
+                    <button
+                      onClick={() => {
+                        if (!syncStatus.active) {
+                          syncFolders().then(() => runFullSync());
+                        }
+                      }}
+                      disabled={syncStatus.active}
+                      className="p-1.5 text-gray-400 hover:text-gray-200 transition-colors rounded-lg hover:bg-dark-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="PDF's synchroniseren"
+                    >
+                      <RefreshCw size={18} className={syncStatus.active ? 'animate-spin text-gold-500' : ''} />
+                    </button>
+                  )}
                   <div className="relative">
                     <button
                       ref={notifBtnRef}
