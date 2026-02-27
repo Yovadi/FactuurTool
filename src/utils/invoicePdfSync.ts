@@ -58,14 +58,22 @@ export async function syncInvoicePDFs(onProgress?: ProgressCallback): Promise<Sy
     .maybeSingle();
 
   const rootPath = await getEffectiveRootFolderPath(settings?.root_folder_path);
-  if (!rootPath) return null;
+  if (!rootPath) {
+    console.log('[syncInvoicePDFs] Geen root folder pad geconfigureerd');
+    return null;
+  }
+
+  console.log('[syncInvoicePDFs] Root path:', rootPath);
 
   const diskResult = await electronAPI.listInvoicesOnDisk(rootPath);
-  if (!diskResult.success) return null;
+  const existingFiles = new Set<string>();
+  if (diskResult.success && diskResult.files) {
+    for (const f of diskResult.files as DiskFile[]) {
+      existingFiles.add(f.fileName.toLowerCase());
+    }
+  }
 
-  const existingFiles = new Set(
-    (diskResult.files as DiskFile[]).map(f => f.fileName.toLowerCase())
-  );
+  console.log('[syncInvoicePDFs] Bestaande bestanden op schijf:', existingFiles.size);
 
   const { data: invoices } = await supabase
     .from('invoices')
@@ -77,13 +85,18 @@ export async function syncInvoicePDFs(onProgress?: ProgressCallback): Promise<Sy
     .in('status', ['sent', 'paid']);
 
   if (!invoices || invoices.length === 0) {
+    console.log('[syncInvoicePDFs] Geen facturen met status sent/paid gevonden');
     return { total: 0, synced: 0, skipped: 0, failed: 0, errors: [] };
   }
+
+  console.log('[syncInvoicePDFs] Facturen in database:', invoices.length);
 
   const missingInvoices = invoices.filter(inv => {
     const pdfName = `${inv.invoice_number}.pdf`.toLowerCase();
     return !existingFiles.has(pdfName);
   });
+
+  console.log('[syncInvoicePDFs] Ontbrekende facturen:', missingInvoices.length);
 
   if (missingInvoices.length === 0) {
     return { total: invoices.length, synced: 0, skipped: invoices.length, failed: 0, errors: [] };

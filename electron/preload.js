@@ -13,8 +13,8 @@ contextBridge.exposeInMainWorld('electron', {
   selectFolder: () => {
     return ipcRenderer.invoke('select-folder');
   },
-  createTenantFolder: (rootPath, tenantName) => {
-    return ipcRenderer.invoke('create-tenant-folder', rootPath, tenantName);
+  createTenantFolder: (rootPath, tenantName, category) => {
+    return ipcRenderer.invoke('create-tenant-folder', rootPath, tenantName, category);
   },
   savePDF: (pdfBuffer, folderPath, fileName) => {
     return ipcRenderer.invoke('save-pdf', pdfBuffer, folderPath, fileName);
@@ -90,8 +90,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   selectFolder: () => {
     return ipcRenderer.invoke('select-folder');
   },
-  createTenantFolder: (rootPath, tenantName) => {
-    return ipcRenderer.invoke('create-tenant-folder', rootPath, tenantName);
+  createTenantFolder: (rootPath, tenantName, category) => {
+    return ipcRenderer.invoke('create-tenant-folder', rootPath, tenantName, category);
   },
   savePDF: (pdfBuffer, folderPath, fileName) => {
     return ipcRenderer.invoke('save-pdf', pdfBuffer, folderPath, fileName);
