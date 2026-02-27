@@ -8,6 +8,7 @@ import { EmailCompose } from './EmailCompose';
 import { generateCreditNotePDF } from '../utils/pdfGenerator';
 import { syncCreditNoteToEBoekhouden } from '../lib/eboekhoudenSync';
 import { isEmailConfigured } from '../utils/emailSender';
+import { buildCreditNoteEmailSubject, buildCreditNoteEmailText, buildCreditNoteEmailHtml } from '../utils/emailTemplate';
 
 type CreditNote = {
   id: string;
@@ -102,6 +103,7 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
     toName: string;
     subject: string;
     body: string;
+    html?: string;
     creditNoteId: string;
   } | null>(null);
 
@@ -496,12 +498,22 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
       : (externalCustomer?.contact_name || customerName);
 
     const creditNoteNum = creditNote.credit_note_number.replace(/^CN-/, '');
+    const formattedAmount = `\u20AC${creditNote.total_amount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+    const emailData = {
+      recipientName: contactName,
+      creditNoteNumber: creditNoteNum,
+      amount: formattedAmount,
+      reason: creditNote.reason,
+      companySettings: companySettings as any,
+    };
 
     setEmailComposeData({
       to: customerEmail,
       toName: contactName,
-      subject: `Credit nota ${creditNoteNum} van ${companySettings.company_name}`,
-      body: `Beste ${contactName},\n\nHierbij ontvangt u credit nota ${creditNoteNum} van ${companySettings.company_name}.\n\nReden: ${creditNote.reason}\nBedrag: ${formatCurrency(creditNote.total_amount)}`,
+      subject: buildCreditNoteEmailSubject(emailData),
+      body: buildCreditNoteEmailText(emailData),
+      html: buildCreditNoteEmailHtml(emailData),
       creditNoteId: creditNote.id,
     });
   };

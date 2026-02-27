@@ -9,73 +9,124 @@ type InvoiceEmailData = {
   companySettings: CompanySettings;
 };
 
-function resolvePlaceholders(template: string, data: InvoiceEmailData): string {
-  const { recipientName, invoiceNumber, invoiceDate, dueDate, amount, companySettings } = data;
+type CreditNoteEmailData = {
+  recipientName: string;
+  creditNoteNumber: string;
+  amount: string;
+  reason: string;
+  companySettings: CompanySettings;
+};
+
+const DEFAULT_INVOICE_SUBJECT = 'Factuur {factuurnummer} van {bedrijfsnaam}';
+const DEFAULT_INVOICE_BODY = `Beste {naam},
+
+Hierbij ontvangt u factuur {factuurnummer} van {bedrijfsnaam}. De factuur is als PDF bijlage aan deze e-mail toegevoegd.
+
+Factuurnummer: {factuurnummer}
+Bedrag: {bedrag}
+Factuurdatum: {factuurdatum}
+Vervaldatum: {vervaldatum}
+
+Gelieve het bedrag voor de vervaldatum over te maken naar:
+IBAN: {iban}
+t.n.v.: {bedrijfsnaam}
+Kenmerk: {factuurnummer}
+
+Mocht u vragen hebben over deze factuur, neem dan gerust contact met ons op.
+
+Met vriendelijke groet,
+{bedrijfsnaam}`;
+
+const DEFAULT_REMINDER_SUBJECT = 'Betalingsherinnering factuur {factuurnummer}';
+const DEFAULT_REMINDER_BODY = `Beste {naam},
+
+Uit onze administratie blijkt dat wij nog geen betaling hebben ontvangen voor onderstaande factuur:
+
+Factuurnummer: {factuurnummer}
+Bedrag: {bedrag}
+Factuurdatum: {factuurdatum}
+Vervaldatum: {vervaldatum}
+
+Wij verzoeken u vriendelijk het openstaande bedrag zo spoedig mogelijk over te maken naar:
+IBAN: {iban}
+t.n.v.: {bedrijfsnaam}
+Kenmerk: {factuurnummer}
+
+Mocht u de betaling reeds hebben verricht, dan kunt u dit bericht als niet verstuurd beschouwen.
+
+Met vriendelijke groet,
+{bedrijfsnaam}`;
+
+const DEFAULT_CREDIT_NOTE_SUBJECT = 'Credit nota {creditnotanummer} van {bedrijfsnaam}';
+const DEFAULT_CREDIT_NOTE_BODY = `Beste {naam},
+
+Hierbij ontvangt u credit nota {creditnotanummer} van {bedrijfsnaam}. De credit nota is als PDF bijlage aan deze e-mail toegevoegd.
+
+Credit nota nummer: {creditnotanummer}
+Bedrag: {bedrag}
+Reden: {reden}
+
+Het creditbedrag wordt verrekend met toekomstige facturen, of op verzoek teruggestort.
+
+Mocht u vragen hebben, neem dan gerust contact met ons op.
+
+Met vriendelijke groet,
+{bedrijfsnaam}`;
+
+function resolveInvoicePlaceholders(template: string, data: InvoiceEmailData): string {
   return template
-    .replace(/{naam}/g, recipientName)
-    .replace(/{factuurnummer}/g, invoiceNumber)
-    .replace(/{bedrijfsnaam}/g, companySettings.company_name || '')
-    .replace(/{bedrag}/g, amount)
-    .replace(/{factuurdatum}/g, invoiceDate)
-    .replace(/{vervaldatum}/g, dueDate)
-    .replace(/{iban}/g, companySettings.bank_account || '');
+    .replace(/{naam}/g, data.recipientName)
+    .replace(/{factuurnummer}/g, data.invoiceNumber)
+    .replace(/{bedrijfsnaam}/g, data.companySettings.company_name || '')
+    .replace(/{bedrag}/g, data.amount)
+    .replace(/{factuurdatum}/g, data.invoiceDate)
+    .replace(/{vervaldatum}/g, data.dueDate)
+    .replace(/{iban}/g, data.companySettings.bank_account || '');
+}
+
+function resolveCreditNotePlaceholders(template: string, data: CreditNoteEmailData): string {
+  return template
+    .replace(/{naam}/g, data.recipientName)
+    .replace(/{creditnotanummer}/g, data.creditNoteNumber)
+    .replace(/{bedrijfsnaam}/g, data.companySettings.company_name || '')
+    .replace(/{bedrag}/g, data.amount)
+    .replace(/{reden}/g, data.reason)
+    .replace(/{iban}/g, data.companySettings.bank_account || '');
 }
 
 function getTemplate(custom: string | null | undefined, fallback: string): string {
   return custom && custom.trim() ? custom : fallback;
 }
 
-export function buildInvoiceEmailSubject(data: InvoiceEmailData): string {
-  const template = getTemplate(
-    data.companySettings.email_subject_template,
-    'Factuur {factuurnummer} van {bedrijfsnaam}'
-  );
-  return resolvePlaceholders(template, data);
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
-export function buildInvoiceEmailHtml(data: InvoiceEmailData): string {
-  const { invoiceNumber, invoiceDate, dueDate, amount, companySettings } = data;
+function wrapInEmailHtml(companySettings: CompanySettings, bodyText: string, signatureImage?: string | null): string {
   const companyName = companySettings.company_name || '';
   const companyAddress = companySettings.address || '';
   const companyPostal = companySettings.postal_code || '';
   const companyCity = companySettings.city || '';
   const companyPhone = companySettings.phone || '';
   const companyEmail = companySettings.email || '';
-  const companyIban = companySettings.bank_account || '';
   const companyKvk = companySettings.kvk_number || '';
   const companyBtw = companySettings.vat_number || '';
 
-  const greeting = resolvePlaceholders(
-    getTemplate(companySettings.email_greeting_template, 'Beste {naam},'),
-    data
-  );
-  const body = resolvePlaceholders(
-    getTemplate(companySettings.email_body_template, 'Hierbij ontvangt u factuur {factuurnummer} van {bedrijfsnaam}. De factuur is als PDF bijlage aan deze e-mail toegevoegd.'),
-    data
-  );
-  const paymentText = resolvePlaceholders(
-    getTemplate(companySettings.email_payment_text, 'Gelieve het bedrag voor de vervaldatum over te maken naar:'),
-    data
-  );
-  const closing = resolvePlaceholders(
-    getTemplate(companySettings.email_closing_template, 'Mocht u vragen hebben over deze factuur, neem dan gerust contact met ons op.'),
-    data
-  );
-  const signature = resolvePlaceholders(
-    getTemplate(companySettings.email_signature_template, 'Met vriendelijke groet,\n{bedrijfsnaam}'),
-    data
-  );
-
-  const signatureLines = signature.split('\n');
-  const signatureHtml = signatureLines.map((line, i) => {
-    if (i === 0) {
-      return `<p style="margin:24px 0 0;font-size:15px;line-height:1.6;color:#333333;">${escapeHtml(line)}</p>`;
+  const bodyLines = bodyText.split('\n');
+  const bodyHtml = bodyLines.map(line => {
+    if (line.trim() === '') {
+      return '<p style="margin:0;font-size:15px;line-height:1.6;color:#333333;">&nbsp;</p>';
     }
-    return `<p style="margin:4px 0 0;font-size:15px;color:#1a1a2e;font-weight:600;">${escapeHtml(line)}</p>`;
+    return `<p style="margin:0;font-size:15px;line-height:1.6;color:#333333;">${escapeHtml(line)}</p>`;
   }).join('\n  ');
 
-  const signatureImageHtml = companySettings.email_signature_image
-    ? `<p style="margin:16px 0 0;"><img src="${companySettings.email_signature_image}" alt="${escapeHtml(companyName)}" style="max-height:100px;max-width:200px;height:auto;width:auto;" /></p>`
+  const signatureImageHtml = signatureImage
+    ? `<p style="margin:16px 0 0;"><img src="${signatureImage}" alt="${escapeHtml(companyName)}" style="max-height:100px;max-width:200px;height:auto;width:auto;" /></p>`
     : '';
 
   return `<!DOCTYPE html>
@@ -99,65 +150,12 @@ export function buildInvoiceEmailHtml(data: InvoiceEmailData): string {
 <!-- Body -->
 <tr>
 <td style="padding:40px;">
-  <p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#333333;">${escapeHtml(greeting)}</p>
-
-  <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#333333;">${escapeHtml(body)}</p>
-
-  <!-- Invoice summary card -->
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f8f9fb;border-radius:8px;border:1px solid #e8eaed;margin-bottom:28px;">
-  <tr>
-  <td style="padding:24px;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-    <tr>
-      <td style="padding:0 0 12px;border-bottom:1px solid #e8eaed;">
-        <span style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#888;font-weight:600;">Factuurnummer</span><br>
-        <span style="font-size:15px;color:#1a1a2e;font-weight:600;">${escapeHtml(invoiceNumber)}</span>
-      </td>
-      <td style="padding:0 0 12px;border-bottom:1px solid #e8eaed;text-align:right;">
-        <span style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#888;font-weight:600;">Totaalbedrag</span><br>
-        <span style="font-size:20px;color:#1a1a2e;font-weight:700;">${escapeHtml(amount)}</span>
-      </td>
-    </tr>
-    <tr>
-      <td style="padding:12px 0 0;">
-        <span style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#888;font-weight:600;">Factuurdatum</span><br>
-        <span style="font-size:14px;color:#444;">${escapeHtml(invoiceDate)}</span>
-      </td>
-      <td style="padding:12px 0 0;text-align:right;">
-        <span style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#888;font-weight:600;">Vervaldatum</span><br>
-        <span style="font-size:14px;color:#444;">${escapeHtml(dueDate)}</span>
-      </td>
-    </tr>
-    </table>
-  </td>
-  </tr>
-  </table>
-
-  <p style="margin:0 0 8px;font-size:15px;line-height:1.6;color:#333333;">${escapeHtml(paymentText)}</p>
-
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
-  <tr>
-    <td style="padding:4px 0;font-size:14px;color:#666;width:80px;">IBAN</td>
-    <td style="padding:4px 0;font-size:14px;color:#1a1a2e;font-weight:600;">${escapeHtml(companyIban)}</td>
-  </tr>
-  <tr>
-    <td style="padding:4px 0;font-size:14px;color:#666;">t.n.v.</td>
-    <td style="padding:4px 0;font-size:14px;color:#1a1a2e;font-weight:600;">${escapeHtml(companyName)}</td>
-  </tr>
-  <tr>
-    <td style="padding:4px 0;font-size:14px;color:#666;">Kenmerk</td>
-    <td style="padding:4px 0;font-size:14px;color:#1a1a2e;font-weight:600;">${escapeHtml(invoiceNumber)}</td>
-  </tr>
-  </table>
-
-  <p style="margin:0;font-size:15px;line-height:1.6;color:#333333;">${escapeHtml(closing)}</p>
-
-  ${signatureHtml}
+  ${bodyHtml}
   ${signatureImageHtml}
 </td>
 </tr>
 
-<!-- Footer / Signature -->
+<!-- Footer -->
 <tr>
 <td style="padding:0 40px 40px;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #e8eaed;padding-top:24px;">
@@ -181,57 +179,50 @@ export function buildInvoiceEmailHtml(data: InvoiceEmailData): string {
 </html>`;
 }
 
-export function buildInvoiceEmailText(data: InvoiceEmailData): string {
-  const { invoiceNumber, invoiceDate, dueDate, amount, companySettings } = data;
-
-  const greeting = resolvePlaceholders(
-    getTemplate(companySettings.email_greeting_template, 'Beste {naam},'),
-    data
-  );
-  const body = resolvePlaceholders(
-    getTemplate(companySettings.email_body_template, 'Hierbij ontvangt u factuur {factuurnummer} van {bedrijfsnaam}. De factuur is als PDF bijlage aan deze e-mail toegevoegd.'),
-    data
-  );
-  const paymentText = resolvePlaceholders(
-    getTemplate(companySettings.email_payment_text, 'Gelieve het bedrag voor de vervaldatum over te maken naar:'),
-    data
-  );
-  const closing = resolvePlaceholders(
-    getTemplate(companySettings.email_closing_template, 'Mocht u vragen hebben over deze factuur, neem dan gerust contact met ons op.'),
-    data
-  );
-  const signature = resolvePlaceholders(
-    getTemplate(companySettings.email_signature_template, 'Met vriendelijke groet,\n{bedrijfsnaam}'),
-    data
-  );
-
-  return `${greeting}
-
-${body}
-
-Factuurnummer: ${invoiceNumber}
-Factuurdatum: ${invoiceDate}
-Vervaldatum: ${dueDate}
-Totaalbedrag: ${amount}
-
-${paymentText}
-IBAN: ${companySettings.bank_account}
-t.n.v.: ${companySettings.company_name}
-Kenmerk: ${invoiceNumber}
-
-${closing}
-
-${signature}
-${companySettings.address}${companySettings.postal_code || companySettings.city ? `, ${companySettings.postal_code} ${companySettings.city}` : ''}
-${companySettings.phone ? `Tel: ${companySettings.phone}` : ''}
-${companySettings.email ? `E-mail: ${companySettings.email}` : ''}`;
+export function buildInvoiceEmailSubject(data: InvoiceEmailData): string {
+  const template = getTemplate(data.companySettings.email_subject_template, DEFAULT_INVOICE_SUBJECT);
+  return resolveInvoicePlaceholders(template, data);
 }
 
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+export function buildInvoiceEmailHtml(data: InvoiceEmailData): string {
+  const bodyTemplate = getTemplate(data.companySettings.email_template_invoice, DEFAULT_INVOICE_BODY);
+  const bodyText = resolveInvoicePlaceholders(bodyTemplate, data);
+  return wrapInEmailHtml(data.companySettings, bodyText, data.companySettings.email_signature_image);
+}
+
+export function buildInvoiceEmailText(data: InvoiceEmailData): string {
+  const bodyTemplate = getTemplate(data.companySettings.email_template_invoice, DEFAULT_INVOICE_BODY);
+  return resolveInvoicePlaceholders(bodyTemplate, data);
+}
+
+export function buildReminderEmailSubject(data: InvoiceEmailData): string {
+  const template = getTemplate(data.companySettings.email_subject_reminder, DEFAULT_REMINDER_SUBJECT);
+  return resolveInvoicePlaceholders(template, data);
+}
+
+export function buildReminderEmailHtml(data: InvoiceEmailData): string {
+  const bodyTemplate = getTemplate(data.companySettings.email_template_reminder, DEFAULT_REMINDER_BODY);
+  const bodyText = resolveInvoicePlaceholders(bodyTemplate, data);
+  return wrapInEmailHtml(data.companySettings, bodyText, data.companySettings.email_signature_image);
+}
+
+export function buildReminderEmailText(data: InvoiceEmailData): string {
+  const bodyTemplate = getTemplate(data.companySettings.email_template_reminder, DEFAULT_REMINDER_BODY);
+  return resolveInvoicePlaceholders(bodyTemplate, data);
+}
+
+export function buildCreditNoteEmailSubject(data: CreditNoteEmailData): string {
+  const template = getTemplate(data.companySettings.email_subject_credit_note, DEFAULT_CREDIT_NOTE_SUBJECT);
+  return resolveCreditNotePlaceholders(template, data);
+}
+
+export function buildCreditNoteEmailHtml(data: CreditNoteEmailData): string {
+  const bodyTemplate = getTemplate(data.companySettings.email_template_credit_note, DEFAULT_CREDIT_NOTE_BODY);
+  const bodyText = resolveCreditNotePlaceholders(bodyTemplate, data);
+  return wrapInEmailHtml(data.companySettings, bodyText, data.companySettings.email_signature_image);
+}
+
+export function buildCreditNoteEmailText(data: CreditNoteEmailData): string {
+  const bodyTemplate = getTemplate(data.companySettings.email_template_credit_note, DEFAULT_CREDIT_NOTE_BODY);
+  return resolveCreditNotePlaceholders(bodyTemplate, data);
 }

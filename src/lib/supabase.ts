@@ -185,6 +185,11 @@ export type CompanySettings = {
   email_closing_template: string | null;
   email_signature_template: string | null;
   email_signature_image: string | null;
+  email_template_invoice: string | null;
+  email_template_reminder: string | null;
+  email_template_credit_note: string | null;
+  email_subject_reminder: string | null;
+  email_subject_credit_note: string | null;
   created_at: string;
   updated_at: string;
 };
