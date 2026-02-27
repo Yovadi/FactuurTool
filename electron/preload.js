@@ -69,6 +69,11 @@ contextBridge.exposeInMainWorld('electron', {
   },
   sendPreviewAction: (action, data) => {
     return ipcRenderer.invoke('preview-action', action, data);
+  },
+  onPreviewAction: (callback) => {
+    const handler = (_, action, data) => callback(action, data);
+    ipcRenderer.on('preview-action', handler);
+    return () => ipcRenderer.removeListener('preview-action', handler);
   }
 });
 
@@ -143,6 +148,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return ipcRenderer.invoke('preview-action', action, data);
   },
   onPreviewAction: (callback) => {
-    ipcRenderer.on('preview-action', (_, action, data) => callback(action, data));
+    const handler = (_, action, data) => callback(action, data);
+    ipcRenderer.on('preview-action', handler);
+    return () => ipcRenderer.removeListener('preview-action', handler);
   }
 });

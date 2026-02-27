@@ -518,7 +518,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     const electron = (window as any).electron;
     if (!electron?.onPreviewAction) return;
 
-    electron.onPreviewAction((action: string, data: any) => {
+    const cleanup = electron.onPreviewAction((action: string, data: any) => {
       if (action === 'invoice-edit' && data?.invoiceId) {
         const inv = invoices.find(i => i.id === data.invoiceId);
         if (inv) {
@@ -585,6 +585,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         deleteInvoice(data.invoiceId);
       }
     });
+
+    return cleanup;
   }, [invoices, previewInvoice, companySettings]);
 
   useEffect(() => {
