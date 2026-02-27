@@ -339,9 +339,10 @@ function App() {
         },
       });
 
+      const hasErrors = (invoiceResult?.failed || 0) + (leaseResult?.failed || 0) > 0;
       setTimeout(() => {
         setSyncStatus(prev => prev.result ? { ...prev, result: null } : prev);
-      }, 8000);
+      }, hasErrors ? 15000 : 8000);
     } catch {
       setSyncStatus(prev => ({ ...prev, active: false }));
     }
@@ -464,7 +465,19 @@ function App() {
                     </p>
                   )}
                   {(syncStatus.result.failed > 0 || (syncStatus.result.leaseFailed || 0) > 0) && (
-                    <p className="text-xs text-amber-400 mt-0.5">{syncStatus.result.failed + (syncStatus.result.leaseFailed || 0)} mislukt</p>
+                    <>
+                      <p className="text-xs text-amber-400 mt-0.5">{syncStatus.result.failed + (syncStatus.result.leaseFailed || 0)} mislukt</p>
+                      {syncStatus.result.errors && syncStatus.result.errors.length > 0 && (
+                        <div className="mt-1 max-h-20 overflow-y-auto">
+                          {syncStatus.result.errors.slice(0, 3).map((err, idx) => (
+                            <p key={idx} className="text-xs text-gray-400 truncate">{err}</p>
+                          ))}
+                          {syncStatus.result.errors.length > 3 && (
+                            <p className="text-xs text-gray-500">en {syncStatus.result.errors.length - 3} meer...</p>
+                          )}
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
                 <button

@@ -80,17 +80,20 @@ export async function syncInvoicePDFs(onProgress?: ProgressCallback): Promise<Sy
   const tenantIds = [...new Set(missingInvoices.filter(i => i.tenant_id).map(i => i.tenant_id))];
   const externalIds = [...new Set(missingInvoices.filter(i => i.external_customer_id).map(i => i.external_customer_id))];
 
-  const [{ data: tenants }, { data: externals }] = await Promise.all([
+  const [tenantResult, externalResult] = await Promise.all([
     tenantIds.length > 0
-      ? supabase.from('tenants').select('id, name, contact_name, company_name, email, phone, billing_address, street, postal_code, city, country').in('id', tenantIds)
-      : Promise.resolve({ data: [] }),
+      ? supabase.from('tenants').select('id, name, company_name, email, phone, billing_address, street, postal_code, city, country').in('id', tenantIds)
+      : Promise.resolve({ data: [] as any[], error: null }),
     externalIds.length > 0
       ? supabase.from('external_customers').select('id, company_name, contact_name, email, phone, street, postal_code, city, country').in('id', externalIds)
-      : Promise.resolve({ data: [] }),
+      : Promise.resolve({ data: [] as any[], error: null }),
   ]);
 
-  const tenantMap = new Map((tenants || []).map(t => [t.id, t]));
-  const externalMap = new Map((externals || []).map(e => [e.id, e]));
+  const tenants = tenantResult.data || [];
+  const externals = externalResult.data || [];
+
+  const tenantMap = new Map(tenants.map(t => [t.id, t]));
+  const externalMap = new Map(externals.map(e => [e.id, e]));
 
   const invoiceIds = missingInvoices.map(i => i.id);
   const { data: allLineItems } = await supabase
