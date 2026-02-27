@@ -105,6 +105,8 @@ export async function syncInvoicePDFs(onProgress?: ProgressCallback): Promise<Sy
   const tenantIds = [...new Set(missingInvoices.filter(i => i.tenant_id).map(i => i.tenant_id))];
   const externalIds = [...new Set(missingInvoices.filter(i => i.external_customer_id).map(i => i.external_customer_id))];
 
+  console.log('[syncInvoicePDFs] Ophalen klantgegevens...', { tenantIds: tenantIds.length, externalIds: externalIds.length });
+
   const [tenantResult, externalResult] = await Promise.all([
     tenantIds.length > 0
       ? supabase.from('tenants').select('id, name, company_name, email, phone, billing_address, street, postal_code, city, country').in('id', tenantIds)
@@ -114,17 +116,25 @@ export async function syncInvoicePDFs(onProgress?: ProgressCallback): Promise<Sy
       : Promise.resolve({ data: [] as any[], error: null }),
   ]);
 
+  if (tenantResult.error) console.error('[syncInvoicePDFs] Fout bij ophalen huurders:', tenantResult.error);
+  if (externalResult.error) console.error('[syncInvoicePDFs] Fout bij ophalen externe klanten:', externalResult.error);
+
   const tenants = tenantResult.data || [];
   const externals = externalResult.data || [];
+
+  console.log('[syncInvoicePDFs] Klanten geladen:', { tenants: tenants.length, externals: externals.length });
 
   const tenantMap = new Map(tenants.map(t => [t.id, t]));
   const externalMap = new Map(externals.map(e => [e.id, e]));
 
   const invoiceIds = missingInvoices.map(i => i.id);
-  const { data: allLineItems } = await supabase
+  const { data: allLineItems, error: lineItemsError } = await supabase
     .from('invoice_line_items')
     .select('*')
     .in('invoice_id', invoiceIds);
+
+  if (lineItemsError) console.error('[syncInvoicePDFs] Fout bij ophalen regels:', lineItemsError);
+  console.log('[syncInvoicePDFs] Factuurregels geladen:', allLineItems?.length ?? 0);
 
   const lineItemsByInvoice = new Map<string, any[]>();
   for (const item of (allLineItems || [])) {
@@ -134,6 +144,8 @@ export async function syncInvoicePDFs(onProgress?: ProgressCallback): Promise<Sy
   }
 
   const result: SyncResult = { total: invoices.length, synced: 0, skipped: invoices.length - missingInvoices.length, failed: 0, errors: [] };
+
+  console.log('[syncInvoicePDFs] Start opslaan van', missingInvoices.length, 'facturen...');
 
   for (let i = 0; i < missingInvoices.length; i++) {
     const invoice = missingInvoices[i];
@@ -213,20 +225,24 @@ export async function syncInvoicePDFs(onProgress?: ProgressCallback): Promise<Sy
       const pdf = await generateInvoicePDF(invoiceData, false, true);
       const pdfBuffer = pdf.output('arraybuffer');
       const folderPath = buildInvoiceFolderPath(rootPath, isExternal, tenant.company_name || '');
+      console.log(`[syncInvoicePDFs] Opslaan ${invoice.invoice_number} naar ${folderPath}`);
       const saveResult = await electronAPI.savePDF(pdfBuffer, folderPath, `${invoice.invoice_number}.pdf`);
 
       if (saveResult.success) {
         result.synced++;
       } else {
+        console.error(`[syncInvoicePDFs] Fout bij opslaan ${invoice.invoice_number}:`, saveResult.error);
         result.failed++;
         result.errors.push(`${invoice.invoice_number}: ${saveResult.error}`);
       }
     } catch (err) {
+      console.error(`[syncInvoicePDFs] Exception bij ${invoice.invoice_number}:`, err);
       result.failed++;
       result.errors.push(`${invoice.invoice_number}: ${err instanceof Error ? err.message : 'Onbekende fout'}`);
     }
   }
 
+  console.log('[syncInvoicePDFs] Resultaat:', { synced: result.synced, failed: result.failed, errors: result.errors });
   return result;
 }
 
