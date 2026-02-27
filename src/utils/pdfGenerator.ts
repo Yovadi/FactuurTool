@@ -521,7 +521,7 @@ export interface CreditNoteData {
   };
 }
 
-async function generateCreditNotePDFDocument(creditNote: CreditNoteData): Promise<jsPDF> {
+export async function generateCreditNotePDFDocument(creditNote: CreditNoteData): Promise<jsPDF> {
   const pdf = new jsPDF('p', 'mm', 'a4');
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();

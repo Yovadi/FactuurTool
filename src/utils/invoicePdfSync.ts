@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { generateInvoicePDF } from './pdfGenerator';
+import { generateInvoicePDF, generateCreditNotePDFDocument, type CreditNoteData } from './pdfGenerator';
 import { generateLeaseContractPDF, type LeaseContractData } from './leaseContractPdf';
 import { getEffectiveRootFolderPath } from './localSettings';
 
@@ -388,6 +388,156 @@ export async function syncLeaseContractPDFs(onProgress?: ProgressCallback): Prom
   return result;
 }
 
+export async function syncCreditNotePDFs(onProgress?: ProgressCallback): Promise<SyncResult | null> {
+  const electronAPI = (window as any).electronAPI;
+  if (!electronAPI?.listInvoicesOnDisk || !electronAPI?.savePDF) {
+    return null;
+  }
+
+  const { data: settings } = await supabase
+    .from('company_settings')
+    .select('root_folder_path, company_name, address, postal_code, city, kvk_number, vat_number, bank_account, email, phone')
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!settings) {
+    console.error('[syncCreditNotePDFs] Bedrijfsinstellingen niet gevonden');
+    return null;
+  }
+
+  const rootPath = await getEffectiveRootFolderPath(settings.root_folder_path);
+  if (!rootPath) return null;
+
+  const diskResult = await electronAPI.listInvoicesOnDisk(rootPath);
+  const existingFiles = new Set<string>();
+  if (diskResult.success && diskResult.files) {
+    for (const f of diskResult.files as DiskFile[]) {
+      existingFiles.add(f.fileName.toLowerCase());
+    }
+  }
+
+  const { data: creditNotes } = await supabase
+    .from('credit_notes')
+    .select('id, credit_note_number, credit_date, reason, subtotal, vat_amount, vat_rate, total_amount, notes, status, tenant_id, external_customer_id')
+    .in('status', ['sent', 'paid']);
+
+  if (!creditNotes || creditNotes.length === 0) {
+    return { total: 0, synced: 0, skipped: 0, failed: 0, errors: [] };
+  }
+
+  const missingNotes = creditNotes.filter(cn => {
+    const pdfName = `${cn.credit_note_number}.pdf`.toLowerCase();
+    return !existingFiles.has(pdfName);
+  });
+
+  if (missingNotes.length === 0) {
+    return { total: creditNotes.length, synced: 0, skipped: creditNotes.length, failed: 0, errors: [] };
+  }
+
+  const tenantIds = [...new Set(missingNotes.filter(cn => cn.tenant_id).map(cn => cn.tenant_id))];
+  const externalIds = [...new Set(missingNotes.filter(cn => cn.external_customer_id).map(cn => cn.external_customer_id))];
+
+  const [tenantResult, externalResult] = await Promise.all([
+    tenantIds.length > 0
+      ? supabase.from('tenants').select('id, name, company_name, email, phone, billing_address, street, postal_code, city, country').in('id', tenantIds)
+      : Promise.resolve({ data: [] as any[], error: null }),
+    externalIds.length > 0
+      ? supabase.from('external_customers').select('id, company_name, contact_name, email, phone, street, postal_code, city, country').in('id', externalIds)
+      : Promise.resolve({ data: [] as any[], error: null }),
+  ]);
+
+  const tenantMap = new Map((tenantResult.data || []).map(t => [t.id, t]));
+  const externalMap = new Map((externalResult.data || []).map(e => [e.id, e]));
+
+  const noteIds = missingNotes.map(cn => cn.id);
+  const { data: allLineItems } = await supabase
+    .from('credit_note_line_items')
+    .select('*')
+    .in('credit_note_id', noteIds);
+
+  const lineItemsByNote = new Map<string, any[]>();
+  for (const item of (allLineItems || [])) {
+    const existing = lineItemsByNote.get(item.credit_note_id) || [];
+    existing.push(item);
+    lineItemsByNote.set(item.credit_note_id, existing);
+  }
+
+  const result: SyncResult = { total: creditNotes.length, synced: 0, skipped: creditNotes.length - missingNotes.length, failed: 0, errors: [] };
+
+  for (let i = 0; i < missingNotes.length; i++) {
+    const cn = missingNotes[i];
+    onProgress?.(i + 1, missingNotes.length, cn.credit_note_number);
+
+    try {
+      const isExternal = !!cn.external_customer_id;
+      const customer = isExternal
+        ? externalMap.get(cn.external_customer_id)
+        : tenantMap.get(cn.tenant_id);
+
+      if (!customer) {
+        result.failed++;
+        result.errors.push(`${cn.credit_note_number}: klant niet gevonden`);
+        continue;
+      }
+
+      const customerName = customer.company_name || 'Onbekend';
+      const customerAddress = cn.tenant_id
+        ? (customer.billing_address || `${customer.street || ''}\n${customer.postal_code || ''} ${customer.city || ''}`)
+        : `${customer.street || ''}\n${customer.postal_code || ''} ${customer.city || ''}`;
+
+      const items = lineItemsByNote.get(cn.id) || [];
+
+      const pdfData: CreditNoteData = {
+        credit_note_number: cn.credit_note_number,
+        credit_date: cn.credit_date,
+        reason: cn.reason,
+        customer_name: customerName,
+        customer_address: customerAddress,
+        line_items: items.map(item => ({
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          amount: item.amount,
+        })),
+        subtotal: cn.subtotal,
+        vat_amount: cn.vat_amount,
+        vat_rate: cn.vat_rate,
+        total_amount: cn.total_amount,
+        notes: cn.notes,
+        company: {
+          name: settings.company_name,
+          address: settings.address,
+          postal_code: settings.postal_code,
+          city: settings.city,
+          kvk: settings.kvk_number,
+          btw: settings.vat_number,
+          iban: settings.bank_account,
+          email: settings.email,
+          phone: settings.phone,
+        },
+      };
+
+      const pdf = await generateCreditNotePDFDocument(pdfData);
+      const pdfBuffer = pdf.output('arraybuffer');
+      const folderPath = buildCreditNoteFolderPath(rootPath, isExternal, customerName);
+      const saveResult = await electronAPI.savePDF(pdfBuffer, folderPath, `${cn.credit_note_number}.pdf`);
+
+      if (saveResult.success) {
+        result.synced++;
+      } else {
+        result.failed++;
+        result.errors.push(`${cn.credit_note_number}: ${saveResult.error}`);
+      }
+    } catch (err) {
+      result.failed++;
+      result.errors.push(`${cn.credit_note_number}: ${err instanceof Error ? err.message : 'Onbekende fout'}`);
+    }
+  }
+
+  return result;
+}
+
 export { buildInvoiceFolderPath, buildCreditNoteFolderPath, buildLeaseContractFolderPath };
 
 let periodicSyncTimer: ReturnType<typeof setInterval> | null = null;
@@ -408,10 +558,12 @@ export function startPeriodicSync(
     if (!electronAPI?.savePDF) return;
 
     const invoiceResult = await syncInvoicePDFs(onInvoiceProgress);
+    const creditNoteResult = await syncCreditNotePDFs();
     const leaseResult = await syncLeaseContractPDFs(onLeaseProgress);
 
     const hasChanges =
       (invoiceResult && invoiceResult.synced > 0) ||
+      (creditNoteResult && creditNoteResult.synced > 0) ||
       (leaseResult && leaseResult.synced > 0);
 
     if (hasChanges) {

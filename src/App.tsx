@@ -3,7 +3,7 @@ import { UpdateDialog } from './components/UpdateDialog';
 import { LayoutDashboard, Users, Building, Settings, CalendarClock, Calendar, FileText, Building2, Calculator, Euro, UserCheck, UserMinus, Loader2, Menu, X, Database, Bell, AlertTriangle, TrendingUp, CalendarCheck, DoorOpen, Mail, CheckCircle, RefreshCw } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { markAllNotificationsRead, deleteReadNotifications, deleteNotification } from './utils/notificationHelper';
-import { syncInvoicePDFs, syncLeaseContractPDFs, startPeriodicSync, type SyncResult } from './utils/invoicePdfSync';
+import { syncInvoicePDFs, syncLeaseContractPDFs, syncCreditNotePDFs, startPeriodicSync, type SyncResult } from './utils/invoicePdfSync';
 import { getEffectiveRootFolderPath } from './utils/localSettings';
 
 const OverzichtTabs = lazy(() => import('./components/OverzichtTabs').then(m => ({ default: m.OverzichtTabs })));
@@ -67,7 +67,7 @@ function App() {
     current: number;
     total: number;
     invoiceNumber: string;
-    phase?: 'invoices' | 'leases';
+    phase?: 'invoices' | 'credit_notes' | 'leases';
     result?: { synced: number; failed: number; errors: string[]; leaseSynced?: number; leaseFailed?: number } | null;
   }>({ active: false, current: 0, total: 0, invoiceNumber: '' });
   const [newInvoiceCount, setNewInvoiceCount] = useState(0);
@@ -301,14 +301,20 @@ function App() {
         setSyncStatus({ active: true, current, total, invoiceNumber: label, phase: 'invoices' });
       });
 
+      setSyncStatus(prev => ({ ...prev, phase: 'credit_notes', current: 0, total: 0, invoiceNumber: '' }));
+
+      const creditNoteResult = await syncCreditNotePDFs((current, total, label) => {
+        setSyncStatus({ active: true, current, total, invoiceNumber: label, phase: 'credit_notes' });
+      });
+
       setSyncStatus(prev => ({ ...prev, phase: 'leases', current: 0, total: 0, invoiceNumber: '' }));
 
       const leaseResult = await syncLeaseContractPDFs((current, total, label) => {
         setSyncStatus({ active: true, current, total, invoiceNumber: label, phase: 'leases' });
       });
 
-      const totalSynced = (invoiceResult?.synced || 0) + (leaseResult?.synced || 0);
-      const totalFailed = (invoiceResult?.failed || 0) + (leaseResult?.failed || 0);
+      const totalSynced = (invoiceResult?.synced || 0) + (creditNoteResult?.synced || 0) + (leaseResult?.synced || 0);
+      const totalFailed = (invoiceResult?.failed || 0) + (creditNoteResult?.failed || 0) + (leaseResult?.failed || 0);
 
       if (totalSynced === 0 && totalFailed === 0) {
         setSyncStatus(prev => ({ ...prev, active: false }));
@@ -317,6 +323,7 @@ function App() {
 
       const allErrors = [
         ...(invoiceResult?.errors || []),
+        ...(creditNoteResult?.errors || []),
         ...(leaseResult?.errors || []),
       ];
 
@@ -326,15 +333,15 @@ function App() {
         total: totalSynced + totalFailed,
         invoiceNumber: '',
         result: {
-          synced: invoiceResult?.synced || 0,
-          failed: invoiceResult?.failed || 0,
+          synced: (invoiceResult?.synced || 0) + (creditNoteResult?.synced || 0),
+          failed: (invoiceResult?.failed || 0) + (creditNoteResult?.failed || 0),
           errors: allErrors,
           leaseSynced: leaseResult?.synced || 0,
           leaseFailed: leaseResult?.failed || 0,
         },
       });
 
-      const hasErrors = (invoiceResult?.failed || 0) + (leaseResult?.failed || 0) > 0;
+      const hasErrors = totalFailed > 0;
       setTimeout(() => {
         setSyncStatus(prev => prev.result ? { ...prev, result: null } : prev);
       }, hasErrors ? 15000 : 8000);
@@ -427,7 +434,7 @@ function App() {
                 <RefreshCw size={18} className="text-gold-500 animate-spin flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-100">
-                    {syncStatus.phase === 'leases' ? 'Huurcontracten synchroniseren...' : 'Factuur-PDF\'s synchroniseren...'}
+                    {syncStatus.phase === 'leases' ? 'Huurcontracten synchroniseren...' : syncStatus.phase === 'credit_notes' ? 'Credit facturen synchroniseren...' : 'Factuur-PDF\'s synchroniseren...'}
                   </p>
                   {syncStatus.total > 0 && (
                     <>
