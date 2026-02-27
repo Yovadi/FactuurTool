@@ -1590,7 +1590,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           const isExternalOneDrive = !!invoice.external_customer_id;
           const category = isExternalOneDrive ? 'Externe huurders' : 'Huurders';
           const customerName = (tenant.company_name || '').replace(/[<>:"/\\|?*]/g, '_').trim();
-          const folderPath = `${basePath}/${category}/${customerName}/2. Facturen`;
+          const subFolder = isExternalOneDrive ? '1. Facturen' : '2. Facturen';
+          const folderPath = `${basePath}/${category}/${customerName}/${subFolder}`;
           const fileName = customerName
             ? `${invoice.invoice_number}_${customerName}.pdf`
             : `${invoice.invoice_number}.pdf`;

@@ -28,19 +28,20 @@ function sanitizeFolderName(name: string): string {
 function buildInvoiceFolderPath(rootPath: string, isExternal: boolean, companyName: string): string {
   const category = isExternal ? 'Externe huurders' : 'Huurders';
   const sanitized = sanitizeFolderName(companyName);
-  return `${rootPath}/${category}/${sanitized}/2. Facturen`;
+  const subFolder = isExternal ? '1. Facturen' : '2. Facturen';
+  return `${rootPath}/${category}/${sanitized}/${subFolder}`;
 }
 
 function buildCreditNoteFolderPath(rootPath: string, isExternal: boolean, companyName: string): string {
   const category = isExternal ? 'Externe huurders' : 'Huurders';
   const sanitized = sanitizeFolderName(companyName);
-  return `${rootPath}/${category}/${sanitized}/3. Credit facturen`;
+  const subFolder = isExternal ? '2. Credit facturen' : '3. Credit facturen';
+  return `${rootPath}/${category}/${sanitized}/${subFolder}`;
 }
 
-function buildLeaseContractFolderPath(rootPath: string, isExternal: boolean, companyName: string): string {
-  const category = isExternal ? 'Externe huurders' : 'Huurders';
+function buildLeaseContractFolderPath(rootPath: string, companyName: string): string {
   const sanitized = sanitizeFolderName(companyName);
-  return `${rootPath}/${category}/${sanitized}/1. Huurcontract`;
+  return `${rootPath}/Huurders/${sanitized}/1. Huurcontract`;
 }
 
 export async function syncInvoicePDFs(onProgress?: ProgressCallback): Promise<SyncResult | null> {
@@ -335,7 +336,7 @@ export async function syncLeaseContractPDFs(onProgress?: ProgressCallback): Prom
 
       const pdf = await generateLeaseContractPDF(contractData, true);
       const pdfBuffer = pdf.output('arraybuffer');
-      const folderPath = buildLeaseContractFolderPath(rootPath, false, tenant.company_name || '');
+      const folderPath = buildLeaseContractFolderPath(rootPath, tenant.company_name || '');
       const fileName = `Huurcontract_${sanitizedName}.pdf`;
       const saveResult = await electronAPI.savePDF(pdfBuffer, folderPath, fileName);
 

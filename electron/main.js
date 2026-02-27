@@ -241,7 +241,9 @@ ipcMain.handle('create-tenant-folder', async (event, rootPath, tenantName, categ
     const categoryFolder = category || 'Huurders';
     const tenantFolderPath = path.join(rootPath, categoryFolder, sanitizedName);
 
-    const subFolders = ['1. Huurcontract', '2. Facturen', '3. Credit facturen', '4. Overige'];
+    const subFolders = categoryFolder === 'Externe huurders'
+      ? ['1. Facturen', '2. Credit facturen', '3. Overige']
+      : ['1. Huurcontract', '2. Facturen', '3. Credit facturen', '4. Overige'];
     for (const sub of subFolders) {
       const subPath = path.join(tenantFolderPath, sub);
       if (!fs.existsSync(subPath)) {
