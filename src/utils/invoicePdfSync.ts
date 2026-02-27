@@ -52,12 +52,17 @@ export async function syncInvoicePDFs(onProgress?: ProgressCallback): Promise<Sy
 
   const { data: settings } = await supabase
     .from('company_settings')
-    .select('root_folder_path, company_name, address, postal_code, city, kvk_number, vat_number, bank_account, email, phone, website')
+    .select('root_folder_path, company_name, address, postal_code, city, kvk_number, vat_number, bank_account, email, phone')
     .order('updated_at', { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  const rootPath = await getEffectiveRootFolderPath(settings?.root_folder_path);
+  if (!settings) {
+    console.error('[syncInvoicePDFs] Bedrijfsinstellingen niet gevonden');
+    return null;
+  }
+
+  const rootPath = await getEffectiveRootFolderPath(settings.root_folder_path);
   if (!rootPath) {
     console.log('[syncInvoicePDFs] Geen root folder pad geconfigureerd');
     return null;
@@ -218,7 +223,6 @@ export async function syncInvoicePDFs(onProgress?: ProgressCallback): Promise<Sy
           iban: settings.bank_account,
           email: settings.email,
           phone: settings.phone,
-          website: settings.website,
         },
       };
 
