@@ -7,6 +7,8 @@ interface DiskFile {
   tenantFolder: string;
   year: string;
   fileName: string;
+  category?: string;
+  subFolder?: string;
 }
 
 export interface SyncResult {
@@ -18,6 +20,17 @@ export interface SyncResult {
 }
 
 type ProgressCallback = (current: number, total: number, label: string) => void;
+
+function buildInvoiceFolderPath(rootPath: string, isExternal: boolean, companyName: string, invoiceYear: string): string {
+  const category = isExternal ? 'Externe huur' : 'Huur';
+  const sanitized = companyName.replace(/[<>:"/\\|?*]/g, '_').trim();
+  return `${rootPath}/${category}/${sanitized}/${invoiceYear}`;
+}
+
+function buildLeaseContractFolderPath(rootPath: string, companyName: string): string {
+  const sanitized = companyName.replace(/[<>:"/\\|?*]/g, '_').trim();
+  return `${rootPath}/Huur/${sanitized}/Huurcontract`;
+}
 
 export async function syncInvoicePDFs(onProgress?: ProgressCallback): Promise<SyncResult | null> {
   const electronAPI = (window as any).electronAPI;
@@ -99,7 +112,8 @@ export async function syncInvoicePDFs(onProgress?: ProgressCallback): Promise<Sy
     onProgress?.(i + 1, missingInvoices.length, invoice.invoice_number);
 
     try {
-      const tenant = invoice.external_customer_id
+      const isExternal = !!invoice.external_customer_id;
+      const tenant = isExternal
         ? externalMap.get(invoice.external_customer_id)
         : tenantMap.get(invoice.tenant_id);
 
@@ -171,8 +185,8 @@ export async function syncInvoicePDFs(onProgress?: ProgressCallback): Promise<Sy
       const pdf = await generateInvoicePDF(invoiceData, false, true);
       const pdfBuffer = pdf.output('arraybuffer');
       const invoiceYear = new Date(invoice.invoice_date).getFullYear().toString();
-      const tenantFolderPath = `${rootPath}/${tenant.company_name}/${invoiceYear}`;
-      const saveResult = await electronAPI.savePDF(pdfBuffer, tenantFolderPath, `${invoice.invoice_number}.pdf`);
+      const folderPath = buildInvoiceFolderPath(rootPath, isExternal, tenant.company_name || '', invoiceYear);
+      const saveResult = await electronAPI.savePDF(pdfBuffer, folderPath, `${invoice.invoice_number}.pdf`);
 
       if (saveResult.success) {
         result.synced++;
@@ -308,7 +322,7 @@ export async function syncLeaseContractPDFs(onProgress?: ProgressCallback): Prom
 
       const pdf = await generateLeaseContractPDF(contractData, true);
       const pdfBuffer = pdf.output('arraybuffer');
-      const folderPath = `${rootPath}/${sanitizedName}/Huurcontract`;
+      const folderPath = buildLeaseContractFolderPath(rootPath, tenant.company_name || '');
       const fileName = `Huurcontract_${sanitizedName}.pdf`;
       const saveResult = await electronAPI.savePDF(pdfBuffer, folderPath, fileName);
 
@@ -326,6 +340,8 @@ export async function syncLeaseContractPDFs(onProgress?: ProgressCallback): Prom
 
   return result;
 }
+
+export { buildInvoiceFolderPath, buildLeaseContractFolderPath };
 
 let periodicSyncTimer: ReturnType<typeof setInterval> | null = null;
 

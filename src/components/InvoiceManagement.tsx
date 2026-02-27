@@ -9,7 +9,7 @@ import { InvoicePreview } from './InvoicePreview';
 import { Toast } from './Toast';
 import { checkAndRunScheduledJobs } from '../utils/scheduledJobs';
 import { getLocalRootFolderPath } from '../utils/localSettings';
-import { syncInvoicePDFs } from '../utils/invoicePdfSync';
+import { syncInvoicePDFs, buildInvoiceFolderPath } from '../utils/invoicePdfSync';
 
 type LeaseWithDetails = Lease & {
   tenant: Tenant;
@@ -1546,7 +1546,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           const pdf = await generateInvoicePDF(invoiceData, false, true);
           const pdfBlob = pdf.output('arraybuffer');
           const invoiceYear = new Date(invoice.invoice_date).getFullYear().toString();
-          const tenantFolderPath = `${companySettings.root_folder_path}/${tenant.company_name}/${invoiceYear}`;
+          const isExternal = !!invoice.external_customer_id;
+          const tenantFolderPath = buildInvoiceFolderPath(companySettings.root_folder_path, isExternal, tenant.company_name || '', invoiceYear);
           const saveResult = await window.electronAPI.savePDF(pdfBlob, tenantFolderPath, `${invoice.invoice_number}.pdf`);
           if (!saveResult.success) {
             throw new Error(`E-mail verzonden, maar PDF opslaan mislukt: ${saveResult.error || 'Onbekende fout'}`);
@@ -1558,7 +1559,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
         if (companySettings.root_folder_path && window.electronAPI.savePDF) {
           const invoiceYear = new Date(invoice.invoice_date).getFullYear().toString();
-          const tenantFolderPath = `${companySettings.root_folder_path}/${tenant.company_name}/${invoiceYear}`;
+          const isExternal = !!invoice.external_customer_id;
+          const tenantFolderPath = buildInvoiceFolderPath(companySettings.root_folder_path, isExternal, tenant.company_name || '', invoiceYear);
           const saveResult = await window.electronAPI.savePDF(pdfBlob, tenantFolderPath, `${invoice.invoice_number}.pdf`);
           if (!saveResult.success) {
             throw new Error(`PDF opslaan mislukt: ${saveResult.error || 'Onbekende fout'}`);
@@ -1586,10 +1588,11 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           const pdfBase64 = await generateInvoicePDFBase64(invoiceData);
           const invoiceDate = new Date(invoice.invoice_date);
           const year = invoiceDate.getFullYear().toString();
-          const month = String(invoiceDate.getMonth() + 1).padStart(2, '0');
           const basePath = companySettings.onedrive_folder_path || 'Facturen';
-          const folderPath = `${basePath}/${year}/${month}`;
+          const isExternalOneDrive = !!invoice.external_customer_id;
+          const category = isExternalOneDrive ? 'Externe huur' : 'Huur';
           const customerName = (tenant.company_name || '').replace(/[<>:"/\\|?*]/g, '_').trim();
+          const folderPath = `${basePath}/${category}/${customerName}/${year}`;
           const fileName = customerName
             ? `${invoice.invoice_number}_${customerName}.pdf`
             : `${invoice.invoice_number}.pdf`;

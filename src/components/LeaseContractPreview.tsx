@@ -86,7 +86,7 @@ export function LeaseContractPreview({
       ) {
         const pdf = await generateLeaseContractPDF(leaseData, true);
         const pdfBuffer = pdf.output('arraybuffer');
-        const folderPath = `${companySettings.root_folder_path}/${sanitizedName}/Huurcontract`;
+        const folderPath = `${companySettings.root_folder_path}/Huur/${sanitizedName}/Huurcontract`;
         const result = await window.electronAPI.savePDF(
           pdfBuffer,
           folderPath,
@@ -108,7 +108,7 @@ export function LeaseContractPreview({
       ) {
         const pdfBase64 = await generateLeaseContractPDFBase64(leaseData);
         const basePath = companySettings.onedrive_folder_path || 'Facturen';
-        const folderPath = `${basePath}/${sanitizedName}/Huurcontract`;
+        const folderPath = `${basePath}/Huur/${sanitizedName}/Huurcontract`;
 
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;

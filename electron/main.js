@@ -394,27 +394,33 @@ ipcMain.handle('list-invoices-on-disk', async (event, rootPath) => {
     }
 
     const files = [];
-    const tenantDirs = fs.readdirSync(rootPath, { withFileTypes: true });
 
-    for (const tenantDir of tenantDirs) {
-      if (!tenantDir.isDirectory()) continue;
-      const tenantPath = path.join(rootPath, tenantDir.name);
-      const yearDirs = fs.readdirSync(tenantPath, { withFileTypes: true });
+    const scanDirectory = (dirPath, depth, context) => {
+      if (depth > 4) return;
+      const entries = fs.readdirSync(dirPath, { withFileTypes: true });
 
-      for (const yearDir of yearDirs) {
-        if (!yearDir.isDirectory()) continue;
-        const yearPath = path.join(tenantPath, yearDir.name);
-        const pdfFiles = fs.readdirSync(yearPath).filter(f => f.toLowerCase().endsWith('.pdf'));
+      for (const entry of entries) {
+        const fullPath = path.join(dirPath, entry.name);
 
-        for (const pdfFile of pdfFiles) {
+        if (entry.isDirectory()) {
+          scanDirectory(fullPath, depth + 1, {
+            category: context.category || (depth === 0 ? entry.name : undefined),
+            tenantFolder: context.tenantFolder || (depth === 1 ? entry.name : undefined),
+            subFolder: context.subFolder || (depth >= 2 ? entry.name : undefined),
+          });
+        } else if (entry.name.toLowerCase().endsWith('.pdf')) {
           files.push({
-            tenantFolder: tenantDir.name,
-            year: yearDir.name,
-            fileName: pdfFile
+            category: context.category || '',
+            tenantFolder: context.tenantFolder || '',
+            year: context.subFolder || '',
+            subFolder: context.subFolder || '',
+            fileName: entry.name,
           });
         }
       }
-    }
+    };
+
+    scanDirectory(rootPath, 0, {});
 
     return { success: true, files };
   } catch (error) {
