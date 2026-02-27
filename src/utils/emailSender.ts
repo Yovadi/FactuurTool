@@ -30,6 +30,26 @@ type SendEmailParams = {
   creditNoteId?: string;
 };
 
+function parseDataUrl(dataUrl: string): { contentType: string; base64: string } | null {
+  const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  if (!match) return null;
+  return { contentType: match[1], base64: match[2] };
+}
+
+function getSignatureAttachment(settings: CompanySettings): { filename: string; content: string; encoding: string; contentType: string; cid: string } | null {
+  if (!settings.email_signature_image) return null;
+  const parsed = parseDataUrl(settings.email_signature_image);
+  if (!parsed) return null;
+  const ext = parsed.contentType.split('/')[1] || 'png';
+  return {
+    filename: `signature.${ext}`,
+    content: parsed.base64,
+    encoding: 'base64',
+    contentType: parsed.contentType,
+    cid: 'signature-image',
+  };
+}
+
 function getActiveMethod(settings: CompanySettings): EmailMethod | null {
   if (settings.smtp_enabled && settings.smtp_connected) return 'smtp';
   if (settings.graph_enabled && settings.graph_connected) return 'graph';
@@ -144,12 +164,20 @@ async function sendViaSMTP(
     html: params.html,
   };
 
+  const attachments: any[] = [];
   if (params.attachmentBase64 && params.attachmentName) {
-    body.attachments = [{
+    attachments.push({
       filename: params.attachmentName,
       content: params.attachmentBase64,
       encoding: 'base64',
-    }];
+    });
+  }
+  const sigAttachment = getSignatureAttachment(settings);
+  if (sigAttachment && params.html) {
+    attachments.push(sigAttachment);
+  }
+  if (attachments.length > 0) {
+    body.attachments = attachments;
   }
 
   const response = await fetch(`${supabaseUrl}/functions/v1/smtp-send`, {
@@ -185,12 +213,20 @@ async function sendViaGraph(
     html: params.html,
   };
 
+  const attachments: any[] = [];
   if (params.attachmentBase64 && params.attachmentName) {
-    body.attachments = [{
+    attachments.push({
       filename: params.attachmentName,
       content: params.attachmentBase64,
       encoding: 'base64',
-    }];
+    });
+  }
+  const sigAttachment = getSignatureAttachment(settings);
+  if (sigAttachment && params.html) {
+    attachments.push(sigAttachment);
+  }
+  if (attachments.length > 0) {
+    body.attachments = attachments;
   }
 
   const response = await fetch(`${supabaseUrl}/functions/v1/graph-send`, {
@@ -224,12 +260,20 @@ async function sendViaResend(
     html: params.html,
   };
 
+  const attachments: any[] = [];
   if (params.attachmentBase64 && params.attachmentName) {
-    body.attachments = [{
+    attachments.push({
       filename: params.attachmentName,
       content: params.attachmentBase64,
       encoding: 'base64',
-    }];
+    });
+  }
+  const sigAttachment = getSignatureAttachment(settings);
+  if (sigAttachment && params.html) {
+    attachments.push(sigAttachment);
+  }
+  if (attachments.length > 0) {
+    body.attachments = attachments;
   }
 
   const response = await fetch(`${supabaseUrl}/functions/v1/resend-send`, {

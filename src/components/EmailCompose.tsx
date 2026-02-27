@@ -74,6 +74,7 @@ export function EmailCompose({ companySettings, prefillTo, prefillToName, prefil
       toName,
       subject,
       body,
+      html: previewHtml,
       invoiceId: prefillInvoiceId,
     });
 

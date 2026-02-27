@@ -12,6 +12,14 @@ interface ResendConfig {
   from_name?: string;
 }
 
+interface EmailAttachment {
+  filename: string;
+  content: string;
+  contentType?: string;
+  encoding?: string;
+  cid?: string;
+}
+
 interface SendEmailPayload {
   action: "send" | "test";
   resend: ResendConfig;
@@ -19,11 +27,7 @@ interface SendEmailPayload {
   subject?: string;
   html?: string;
   text?: string;
-  attachments?: Array<{
-    filename: string;
-    content: string;
-    contentType?: string;
-  }>;
+  attachments?: EmailAttachment[];
 }
 
 Deno.serve(async (req: Request) => {
@@ -102,11 +106,22 @@ Deno.serve(async (req: Request) => {
       };
 
       if (payload.attachments && payload.attachments.length > 0) {
-        body.attachments = payload.attachments.map((att) => ({
-          filename: att.filename,
-          content: att.content,
-          content_type: att.contentType || "application/pdf",
-        }));
+        const regularAttachments: EmailAttachment[] = [];
+        for (const att of payload.attachments) {
+          if (att.cid && payload.html) {
+            const dataUrl = `data:${att.contentType || "image/png"};base64,${att.content}`;
+            body.html = (body.html as string).replace(`cid:${att.cid}`, dataUrl);
+          } else {
+            regularAttachments.push(att);
+          }
+        }
+        if (regularAttachments.length > 0) {
+          body.attachments = regularAttachments.map((att) => ({
+            filename: att.filename,
+            content: att.content,
+            content_type: att.contentType || "application/pdf",
+          }));
+        }
       }
 
       const response = await fetch("https://api.resend.com/emails", {
