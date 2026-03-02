@@ -16,6 +16,14 @@ interface SmtpConfig {
   from_email: string;
 }
 
+interface EmailAttachment {
+  filename: string;
+  content: string;
+  encoding: string;
+  contentType?: string;
+  cid?: string;
+}
+
 interface SendEmailPayload {
   action: "send" | "test";
   smtp: SmtpConfig;
@@ -23,12 +31,7 @@ interface SendEmailPayload {
   subject?: string;
   html?: string;
   text?: string;
-  attachments?: Array<{
-    filename: string;
-    content: string;
-    encoding: string;
-    contentType: string;
-  }>;
+  attachments?: EmailAttachment[];
 }
 
 Deno.serve(async (req: Request) => {
@@ -105,12 +108,18 @@ Deno.serve(async (req: Request) => {
       };
 
       if (payload.attachments && payload.attachments.length > 0) {
-        mailOptions.attachments = payload.attachments.map((att) => ({
-          filename: att.filename,
-          content: att.content,
-          encoding: att.encoding || "base64",
-          contentType: att.contentType || "application/pdf",
-        }));
+        mailOptions.attachments = payload.attachments.map((att) => {
+          const item: Record<string, unknown> = {
+            filename: att.filename,
+            content: att.content,
+            encoding: att.encoding || "base64",
+            contentType: att.contentType || "application/pdf",
+          };
+          if (att.cid) {
+            item.cid = att.cid;
+          }
+          return item;
+        });
       }
 
       const info = await transporter.sendMail(mailOptions);

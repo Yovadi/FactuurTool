@@ -126,7 +126,7 @@ export function wrapInEmailHtml(companySettings: CompanySettings, bodyText: stri
   }).join('\n  ');
 
   const signatureImageHtml = signatureImage
-    ? `<p style="margin:16px 0 0;"><img src="${signatureImage}" alt="${escapeHtml(companyName)}" style="max-height:100px;max-width:200px;height:auto;width:auto;" /></p>`
+    ? `<p style="margin:16px 0 0;"><img src="cid:signature-image" alt="${escapeHtml(companyName)}" style="max-height:100px;max-width:200px;height:auto;width:auto;" /></p>`
     : '';
 
   return `<!DOCTYPE html>

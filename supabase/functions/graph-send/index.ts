@@ -18,7 +18,8 @@ interface Attachment {
   filename: string;
   content: string;
   encoding: string;
-  contentType: string;
+  contentType?: string;
+  cid?: string;
 }
 
 interface SendEmailPayload {
@@ -89,12 +90,19 @@ async function sendMail(
   };
 
   if (attachments && attachments.length > 0) {
-    (mailBody.message as Record<string, unknown>).attachments = attachments.map((att) => ({
-      "@odata.type": "#microsoft.graph.fileAttachment",
-      name: att.filename,
-      contentType: att.contentType || "application/pdf",
-      contentBytes: att.content,
-    }));
+    (mailBody.message as Record<string, unknown>).attachments = attachments.map((att) => {
+      const item: Record<string, unknown> = {
+        "@odata.type": "#microsoft.graph.fileAttachment",
+        name: att.filename,
+        contentType: att.contentType || "application/pdf",
+        contentBytes: att.content,
+      };
+      if (att.cid) {
+        item.contentId = att.cid;
+        item.isInline = true;
+      }
+      return item;
+    });
   }
 
   const response = await fetch(
