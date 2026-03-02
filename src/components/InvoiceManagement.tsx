@@ -582,7 +582,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       } else if (action === 'invoice-revert-draft' && data?.invoiceId) {
         revertToDraft(data.invoiceId);
       } else if (action === 'invoice-delete' && data?.invoiceId) {
-        deleteInvoice(data.invoiceId);
+        setShowDeleteConfirm(data.invoiceId);
       }
     });
 
@@ -1707,6 +1707,13 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       setShowDeleteConfirm(null);
       setDeletePassword('');
       setDeleteError('');
+      setPreviewInvoice(null);
+
+      const electron = (window as any).electron;
+      if (electron?.openPreviewWindow) {
+        electron.openPreviewWindow(null);
+      }
+
       setInvoices(prev => prev.filter(inv => !selectedInvoices.has(inv.id)));
       setSelectedInvoices(new Set());
     } else {
@@ -1734,8 +1741,13 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       setShowDeleteConfirm(null);
       setDeletePassword('');
       setDeleteError('');
+      setPreviewInvoice(null);
 
-      // Update local state without full reload
+      const electron = (window as any).electron;
+      if (electron?.openPreviewWindow) {
+        electron.openPreviewWindow(null);
+      }
+
       setInvoices(prev => prev.filter(inv => inv.id !== invoiceId));
     }
   };
