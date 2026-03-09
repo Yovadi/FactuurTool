@@ -74,13 +74,12 @@ export function DebiteurenTabs({ onCreateCreditNote }: DebiteurenTabsProps) {
           </div>
         )}
         {activeTab === 'outstanding' && (
-          <div className="h-full flex flex-col gap-6 overflow-y-auto">
+          <div className="h-full overflow-y-auto">
             <InvoiceManagement
               onCreateCreditNote={onCreateCreditNote}
               invoiceTypeFilter="all"
               onlyOpenInvoices
             />
-            <DebtorsOverview initialTab="open" />
           </div>
         )}
         {activeTab === 'log' && <DebtorsOverview initialTab="log" />}
