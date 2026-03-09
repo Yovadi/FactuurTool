@@ -189,81 +189,24 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
       const { data: invoices, error } = await supabase
         .from('invoices')
         .select(`
-          id,
-          invoice_number,
-          invoice_date,
-          due_date,
-          amount,
-          subtotal,
-          vat_amount,
-          vat_rate,
-          vat_inclusive,
-          status,
-          invoice_month,
-          notes,
-          lease_id,
-          tenant_id,
-          external_customer_id,
-          applied_credit,
+          id, invoice_number, invoice_date, due_date, amount, subtotal,
+          vat_amount, vat_rate, vat_inclusive, status, invoice_month, notes,
+          lease_id, tenant_id, external_customer_id, applied_credit,
           lease:leases(lease_type),
-          invoice_line_items (
-            id,
-            description,
-            quantity,
-            unit_price,
-            amount,
-            booking_id
-          )
+          tenants(id, name, company_name, email),
+          external_customers(id, company_name, contact_name, email),
+          invoice_line_items(id, description, quantity, unit_price, amount, booking_id)
         `)
         .in('status', ['paid', 'credited'])
         .order('invoice_date', { ascending: false });
 
-      if (error) {
-        console.error('Error loading paid invoices:', error);
-        throw error;
-      }
+      if (error) throw error;
 
-      console.log('Loaded paid invoices:', invoices?.length || 0);
+      const invoicesWithCustomers = (invoices || []).map(invoice => ({
+        ...invoice,
+        line_items: invoice.invoice_line_items || []
+      }));
 
-      const invoicesWithCustomers = await Promise.all(
-        (invoices || []).map(async (invoice) => {
-          let customerData = null;
-
-          if (invoice.tenant_id) {
-            const { data: tenant, error: tenantError } = await supabase
-              .from('tenants')
-              .select('id, name, company_name, email')
-              .eq('id', invoice.tenant_id)
-              .maybeSingle();
-
-            if (tenantError) {
-              console.error('Error loading tenant:', tenantError);
-            }
-
-            customerData = tenant ? { tenants: tenant } : null;
-          } else if (invoice.external_customer_id) {
-            const { data: extCustomer, error: customerError } = await supabase
-              .from('external_customers')
-              .select('id, company_name, contact_name, email')
-              .eq('id', invoice.external_customer_id)
-              .maybeSingle();
-
-            if (customerError) {
-              console.error('Error loading external customer:', customerError);
-            }
-
-            customerData = extCustomer ? { external_customers: extCustomer } : null;
-          }
-
-          return {
-            ...invoice,
-            ...customerData,
-            line_items: invoice.invoice_line_items || []
-          };
-        })
-      );
-
-      console.log('Invoices with customers:', invoicesWithCustomers.length);
       setPaidInvoices(invoicesWithCustomers);
     } catch (error) {
       console.error('Error loading paid invoices:', error);

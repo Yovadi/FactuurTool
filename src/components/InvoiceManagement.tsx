@@ -287,32 +287,15 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     if (!invoiceMonth) return [];
 
     const [year, month] = invoiceMonth.split('-').map(Number);
-
-    // Format dates without timezone conversion
     const startDateStr = `${year}-${String(month).padStart(2, '0')}-01`;
     const lastDay = new Date(year, month, 0).getDate();
     const endDateStr = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 
-    console.log('Fetching bookings for customer:', customerId, 'type:', customerType);
-    console.log('Date range:', startDateStr, 'to', endDateStr);
-
-    // Fetch meeting room bookings
     let meetingQuery = supabase
       .from('meeting_room_bookings')
       .select(`
-        id,
-        booking_date,
-        start_time,
-        end_time,
-        total_hours,
-        total_amount,
-        hourly_rate,
-        discount_percentage,
-        discount_amount,
-        rate_type,
-        applied_rate,
-        status,
-        invoice_id,
+        id, booking_date, start_time, end_time, total_hours, total_amount, hourly_rate,
+        discount_percentage, discount_amount, rate_type, applied_rate, status, invoice_id,
         office_spaces(space_number)
       `)
       .gte('booking_date', startDateStr)
@@ -326,30 +309,12 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       meetingQuery = meetingQuery.eq('external_customer_id', customerId);
     }
 
-    const { data: meetingBookings, error: meetingError } = await meetingQuery;
-
-    if (meetingError) {
-      console.error('Error fetching meeting room bookings:', meetingError);
-    }
-
     let flexQuery = supabase
       .from('flex_day_bookings')
       .select(`
-        id,
-        booking_date,
-        start_time,
-        end_time,
-        total_hours,
-        total_amount,
-        hourly_rate,
-        is_half_day,
-        half_day_period,
-        status,
-        invoice_id,
-        lease_id,
-        external_customer_id,
-        leases(tenant_id),
-        office_spaces(space_number)
+        id, booking_date, start_time, end_time, total_hours, total_amount, hourly_rate,
+        is_half_day, half_day_period, status, invoice_id, lease_id, external_customer_id,
+        leases(tenant_id), office_spaces(space_number)
       `)
       .gte('booking_date', startDateStr)
       .lte('booking_date', endDateStr)
@@ -362,19 +327,13 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       flexQuery = flexQuery.not('external_customer_id', 'is', null).eq('external_customer_id', customerId);
     }
 
-    const { data: flexBookings, error: flexError } = await flexQuery;
+    const [{ data: meetingBookings }, { data: flexBookings }] = await Promise.all([meetingQuery, flexQuery]);
 
-    if (flexError) {
-      console.error('Error fetching flex day bookings:', flexError);
-    }
-
-    // Filter flex bookings for tenant type
     const filteredFlexBookings = customerType === 'tenant'
       ? (flexBookings || []).filter(booking => booking.leases?.tenant_id === customerId)
       : flexBookings || [];
 
-    // Combine all bookings
-    const allBookings = [
+    return [
       ...(meetingBookings || []).map(booking => ({
         ...booking,
         space: booking.office_spaces,
@@ -387,10 +346,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         booking_type: 'flex'
       }))
     ];
-
-    console.log('Total bookings found:', allBookings.length, '(meeting:', meetingBookings?.length || 0, 'flex:', flexBookings?.length || 0, ')');
-
-    return allBookings;
   };
 
   const fetchFlexDayBookings = async (customerId: string, customerType: 'tenant' | 'external', year: number, month: number) => {
@@ -609,64 +564,76 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   const loadData = async () => {
     setLoading(true);
 
-    const [{ data: companyData }, localPath] = await Promise.all([
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    const [
+      { data: companyData },
+      localPath,
+      { data: tenantsData },
+      { data: externalCustomersData },
+      { data: leasesData },
+      { data: invoicesData },
+      { data: pastConfirmedMeetings },
+      { data: pastConfirmedFlex },
+      { data: bookingsData },
+      { data: flexBookingsData },
+      { data: mappingsData },
+    ] = await Promise.all([
       supabase.from('company_settings').select('*').maybeSingle(),
       getLocalRootFolderPath(),
+      supabase.from('tenants').select('*').order('company_name'),
+      supabase.from('external_customers').select('*').order('company_name'),
+      supabase.from('leases').select(`
+        *, tenant:tenants(*), lease_spaces:lease_spaces(*, space:office_spaces(*))
+      `).eq('status', 'active').order('created_at', { ascending: false }),
+      supabase.from('invoices').select(`
+        *, lease:leases(*, tenant:tenants(*), lease_spaces:lease_spaces(*, space:office_spaces(*))),
+        tenant:tenants(*), external_customer:external_customers(*), line_items:invoice_line_items(*)
+      `).order('created_at', { ascending: false }),
+      supabase.from('meeting_room_bookings').select('id').eq('status', 'confirmed').lt('booking_date', todayStr),
+      supabase.from('flex_day_bookings').select('id').eq('status', 'confirmed').lt('booking_date', todayStr),
+      supabase.from('meeting_room_bookings').select(`
+        id, booking_date, start_time, end_time, total_hours, total_amount, status, invoice_id,
+        tenant_id, external_customer_id, space:office_spaces(space_number)
+      `).in('status', ['pending', 'confirmed', 'completed']).order('booking_date', { ascending: false }),
+      supabase.from('flex_day_bookings').select(`
+        id, booking_date, start_time, end_time, total_hours, total_amount, status, invoice_id,
+        external_customer_id, lease_id, leases(tenant_id), space:office_spaces(space_number)
+      `).in('status', ['pending', 'confirmed', 'completed']).order('booking_date', { ascending: false }),
+      supabase.from('eboekhouden_grootboek_mapping').select('*').order('local_category'),
     ]);
 
     if (companyData && localPath) {
       companyData.root_folder_path = localPath;
     }
     setCompanySettings(companyData);
-
-    const { data: tenantsData } = await supabase
-      .from('tenants')
-      .select('*')
-      .order('company_name');
-
     setTenants(tenantsData || []);
-
-    const { data: externalCustomersData } = await supabase
-      .from('external_customers')
-      .select('*')
-      .order('company_name');
-
     setExternalCustomers(externalCustomersData || []);
-
-    const { data: leasesData } = await supabase
-      .from('leases')
-      .select(`
-        *,
-        tenant:tenants(*),
-        lease_spaces:lease_spaces(
-          *,
-          space:office_spaces(*)
-        )
-      `)
-      .eq('status', 'active')
-      .order('created_at', { ascending: false });
-
     setLeases(leasesData as LeaseWithDetails[] || []);
-
-    const { data: invoicesData } = await supabase
-      .from('invoices')
-      .select(`
-        *,
-        lease:leases(
-          *,
-          tenant:tenants(*),
-          lease_spaces:lease_spaces(
-            *,
-            space:office_spaces(*)
-          )
-        ),
-        tenant:tenants(*),
-        external_customer:external_customers(*),
-        line_items:invoice_line_items(*)
-      `)
-      .order('created_at', { ascending: false });
-
     setInvoices(invoicesData as InvoiceWithDetails[] || []);
+    setMeetingRoomBookings(bookingsData || []);
+    setGrootboekMappings(mappingsData || []);
+
+    const flexWithTenantId = (flexBookingsData || []).map((b: any) => ({
+      ...b,
+      tenant_id: b.leases?.tenant_id || null
+    }));
+    setFlexDayBookings(flexWithTenantId);
+
+    const updatePromises: Promise<any>[] = [];
+    if (pastConfirmedMeetings && pastConfirmedMeetings.length > 0) {
+      updatePromises.push(
+        supabase.from('meeting_room_bookings').update({ status: 'completed' }).in('id', pastConfirmedMeetings.map(b => b.id))
+      );
+    }
+    if (pastConfirmedFlex && pastConfirmedFlex.length > 0) {
+      updatePromises.push(
+        supabase.from('flex_day_bookings').update({ status: 'completed' }).in('id', pastConfirmedFlex.map(b => b.id))
+      );
+    }
+    if (updatePromises.length > 0) {
+      Promise.all(updatePromises).catch(() => {});
+    }
 
     if (companyData?.eboekhouden_api_token && companyData?.eboekhouden_connected) {
       checkInvoicePaymentStatuses(companyData.eboekhouden_api_token).then(result => {
@@ -674,18 +641,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           supabase
             .from('invoices')
             .select(`
-              *,
-              lease:leases(
-                *,
-                tenant:tenants(*),
-                lease_spaces:lease_spaces(
-                  *,
-                  space:office_spaces(*)
-                )
-              ),
-              tenant:tenants(*),
-              external_customer:external_customers(*),
-              line_items:invoice_line_items(*)
+              *, lease:leases(*, tenant:tenants(*), lease_spaces:lease_spaces(*, space:office_spaces(*))),
+              tenant:tenants(*), external_customer:external_customers(*), line_items:invoice_line_items(*)
             `)
             .order('created_at', { ascending: false })
             .then(({ data }) => {
@@ -695,88 +652,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       }).catch(() => {});
     }
 
-    const todayStr = new Date().toISOString().split('T')[0];
-
-    const { data: pastConfirmedMeetings } = await supabase
-      .from('meeting_room_bookings')
-      .select('id')
-      .eq('status', 'confirmed')
-      .lt('booking_date', todayStr);
-
-    if (pastConfirmedMeetings && pastConfirmedMeetings.length > 0) {
-      await supabase
-        .from('meeting_room_bookings')
-        .update({ status: 'completed' })
-        .in('id', pastConfirmedMeetings.map(b => b.id));
-    }
-
-    const { data: bookingsData } = await supabase
-      .from('meeting_room_bookings')
-      .select(`
-        id,
-        booking_date,
-        start_time,
-        end_time,
-        total_hours,
-        total_amount,
-        status,
-        invoice_id,
-        tenant_id,
-        external_customer_id,
-        space:office_spaces(space_number)
-      `)
-      .in('status', ['pending', 'confirmed', 'completed'])
-      .order('booking_date', { ascending: false });
-
-    setMeetingRoomBookings(bookingsData || []);
-    const { data: pastConfirmedFlex } = await supabase
-      .from('flex_day_bookings')
-      .select('id')
-      .eq('status', 'confirmed')
-      .lt('booking_date', todayStr);
-
-    if (pastConfirmedFlex && pastConfirmedFlex.length > 0) {
-      await supabase
-        .from('flex_day_bookings')
-        .update({ status: 'completed' })
-        .in('id', pastConfirmedFlex.map(b => b.id));
-    }
-
-    const { data: flexBookingsData } = await supabase
-      .from('flex_day_bookings')
-      .select(`
-        id,
-        booking_date,
-        start_time,
-        end_time,
-        total_hours,
-        total_amount,
-        status,
-        invoice_id,
-        external_customer_id,
-        lease_id,
-        leases(tenant_id),
-        space:office_spaces(space_number)
-      `)
-      .in('status', ['pending', 'confirmed', 'completed'])
-      .order('booking_date', { ascending: false });
-
-    const flexWithTenantId = (flexBookingsData || []).map((b: any) => ({
-      ...b,
-      tenant_id: b.leases?.tenant_id || null
-    }));
-
-    setFlexDayBookings(flexWithTenantId);
-
-    const { data: mappingsData } = await supabase
-      .from('eboekhouden_grootboek_mapping')
-      .select('*')
-      .order('local_category');
-
-    setGrootboekMappings(mappingsData || []);
-
     setLoading(false);
-
     triggerPdfSync();
   };
 
