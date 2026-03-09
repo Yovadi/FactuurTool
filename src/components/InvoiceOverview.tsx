@@ -1,0 +1,766 @@
+import { useState, useEffect, useCallback } from 'react';
+import { supabase, type Tenant, type ExternalCustomer, type Lease, type LeaseSpace, type OfficeSpace } from '../lib/supabase';
+import { Home, Zap, Calendar, CheckSquare, Square, Loader2, AlertCircle, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
+import { Toast } from './Toast';
+
+type LeaseWithDetails = Lease & {
+  tenant: Tenant;
+  lease_spaces: (LeaseSpace & { space: OfficeSpace })[];
+};
+
+type InvoiceItem = {
+  id: string;
+  type: 'huur' | 'flex_contract' | 'meeting_booking' | 'flex_booking';
+  customerId: string;
+  customerName: string;
+  isExternal: boolean;
+  leaseId?: string;
+  description: string;
+  amount: number;
+  vatRate: number;
+  vatInclusive: boolean;
+  bookings?: any[];
+  lease?: LeaseWithDetails;
+  details: string[];
+};
+
+function getLocalCategory(spaceType?: string, bookingType?: string): string | null {
+  if (bookingType === 'meeting_room') return 'vergaderruimte';
+  if (bookingType === 'flex') return 'flexplek';
+  switch (spaceType) {
+    case 'kantoor': return 'huur_kantoor';
+    case 'bedrijfsruimte': return 'huur_bedrijfsruimte';
+    case 'buitenterrein': return 'huur_buitenterrein';
+    case 'diversen': return 'diversen';
+    default: return null;
+  }
+}
+
+function calculateVAT(baseAmount: number, vatRate: number, vatInclusive: boolean) {
+  if (vatInclusive) {
+    const total = Math.round(baseAmount * 100) / 100;
+    const subtotal = Math.round((baseAmount / (1 + (vatRate / 100))) * 100) / 100;
+    const vatAmount = Math.round((baseAmount - subtotal) * 100) / 100;
+    return { subtotal, vatAmount, total };
+  } else {
+    const subtotal = Math.round(baseAmount * 100) / 100;
+    const vatAmount = Math.round((baseAmount * (vatRate / 100)) * 100) / 100;
+    const total = Math.round((baseAmount + vatAmount) * 100) / 100;
+    return { subtotal, vatAmount, total };
+  }
+}
+
+export function InvoiceOverview() {
+  const [invoiceMonth, setInvoiceMonth] = useState('');
+  const [items, setItems] = useState<InvoiceItem[]>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [toasts, setToasts] = useState<{ id: number; message: string; type: 'success' | 'error' | 'info' }[]>([]);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+  };
+
+  const removeToast = (id: number) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
+
+  useEffect(() => {
+    const now = new Date();
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    setInvoiceMonth(`${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}`);
+  }, []);
+
+  const loadInvoiceableItems = useCallback(async () => {
+    if (!invoiceMonth) return;
+    setLoading(true);
+
+    const [year, month] = invoiceMonth.split('-').map(Number);
+    const startDateStr = `${year}-${String(month).padStart(2, '0')}-01`;
+    const lastDay = new Date(year, month, 0).getDate();
+    const endDateStr = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
+    const [
+      { data: leasesData },
+      { data: invoicesData },
+      { data: tenantsData },
+      { data: externalData },
+      { data: meetingData },
+      { data: flexData }
+    ] = await Promise.all([
+      supabase.from('leases').select(`
+        *, tenant:tenants(*),
+        lease_spaces:lease_spaces(*, space:office_spaces(*))
+      `).eq('status', 'active'),
+      supabase.from('invoices').select('id, lease_id, tenant_id, external_customer_id, invoice_month, status'),
+      supabase.from('tenants').select('*'),
+      supabase.from('external_customers').select('*'),
+      supabase.from('meeting_room_bookings').select(`
+        id, booking_date, start_time, end_time, total_hours, total_amount, hourly_rate,
+        discount_percentage, discount_amount, rate_type, applied_rate, status, invoice_id,
+        tenant_id, external_customer_id, office_spaces(space_number)
+      `).gte('booking_date', startDateStr).lte('booking_date', endDateStr)
+        .in('status', ['confirmed', 'completed']).is('invoice_id', null),
+      supabase.from('flex_day_bookings').select(`
+        id, booking_date, start_time, end_time, total_hours, total_amount, hourly_rate,
+        is_half_day, half_day_period, status, invoice_id, lease_id, external_customer_id,
+        leases(tenant_id), office_spaces(space_number)
+      `).gte('booking_date', startDateStr).lte('booking_date', endDateStr)
+        .in('status', ['confirmed', 'completed']).is('invoice_id', null)
+    ]);
+
+    const leases = (leasesData || []) as LeaseWithDetails[];
+    const invoices = invoicesData || [];
+    const tenants = (tenantsData || []) as Tenant[];
+    const externals = (externalData || []) as ExternalCustomer[];
+    const meetings = (meetingData || []).map((b: any) => ({ ...b, space: b.office_spaces, booking_type: 'meeting_room' }));
+    const flex = (flexData || []).map((b: any) => ({
+      ...b, space: b.office_spaces, booking_type: 'flex',
+      tenant_id: b.leases?.tenant_id || null
+    }));
+
+    const newItems: InvoiceItem[] = [];
+
+    for (const lease of leases) {
+      const hasExisting = invoices.some(inv => inv.lease_id === lease.id && inv.invoice_month === invoiceMonth);
+      if (hasExisting) continue;
+
+      let amount = 0;
+      const details: string[] = [];
+
+      if (lease.lease_type === 'flex') {
+        if (lease.flex_pricing_model === 'monthly_unlimited') {
+          amount = lease.flex_monthly_rate || 0;
+          details.push('Maandelijks tarief (onbeperkt)');
+        } else if (lease.flex_pricing_model === 'daily') {
+          const daysInMonth = new Date(year, month, 0).getDate();
+          const workingDays = Math.round(daysInMonth * (5 / 7));
+          amount = (lease.flex_daily_rate || 0) * workingDays;
+          details.push(`${workingDays} werkdagen x ${(lease.flex_daily_rate || 0).toFixed(2)}`);
+        } else if (lease.flex_pricing_model === 'credit_based') {
+          const creditsPerWeek = lease.credits_per_week || 0;
+          const monthlyCredits = Math.round(creditsPerWeek * 4.33);
+          amount = monthlyCredits * (lease.flex_credit_rate || 0);
+          details.push(`${monthlyCredits} credits x ${(lease.flex_credit_rate || 0).toFixed(2)}`);
+        }
+
+        newItems.push({
+          id: `flex_contract_${lease.id}`,
+          type: 'flex_contract',
+          customerId: lease.tenant_id,
+          customerName: lease.tenant?.company_name || lease.tenant?.name || 'Onbekend',
+          isExternal: false,
+          leaseId: lease.id,
+          description: `Flex contract`,
+          amount,
+          vatRate: lease.vat_rate,
+          vatInclusive: lease.vat_inclusive,
+          lease,
+          details
+        });
+      } else {
+        amount = lease.lease_spaces.reduce((sum, ls) => {
+          const rent = typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent;
+          return sum + rent;
+        }, 0);
+        const deposit = typeof lease.security_deposit === 'string' ? parseFloat(lease.security_deposit) : lease.security_deposit;
+        amount += deposit;
+
+        lease.lease_spaces.forEach(ls => {
+          let name = ls.space.space_number;
+          if (ls.space.space_type === 'bedrijfsruimte') {
+            const numOnly = name.replace(/^(Bedrijfsruimte|Hal)\s*/i, '').trim();
+            if (/^\d+/.test(numOnly)) name = `Hal ${numOnly}`;
+          }
+          const rent = typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent;
+          details.push(`${name}: ${rent.toFixed(2)}`);
+        });
+        if (deposit > 0) {
+          details.push(`Voorschot GWE: ${deposit.toFixed(2)}`);
+        }
+
+        newItems.push({
+          id: `huur_${lease.id}`,
+          type: 'huur',
+          customerId: lease.tenant_id,
+          customerName: lease.tenant?.company_name || lease.tenant?.name || 'Onbekend',
+          isExternal: false,
+          leaseId: lease.id,
+          description: `Huurcontract`,
+          amount,
+          vatRate: lease.vat_rate,
+          vatInclusive: lease.vat_inclusive,
+          lease,
+          details
+        });
+      }
+    }
+
+    const allCustomers = [
+      ...tenants.map(t => ({ id: t.id, name: t.company_name || t.name, isExternal: false, discountPct: t.meeting_discount_percentage || 0 })),
+      ...externals.map(e => ({ id: e.id, name: e.company_name || e.contact_name, isExternal: true, discountPct: e.meeting_discount_percentage || 0 }))
+    ];
+
+    for (const customer of allCustomers) {
+      const customerMeetings = meetings.filter((b: any) =>
+        customer.isExternal ? b.external_customer_id === customer.id : b.tenant_id === customer.id
+      );
+      const customerFlex = flex.filter((b: any) =>
+        customer.isExternal ? b.external_customer_id === customer.id : b.tenant_id === customer.id
+      );
+      const allBookings = [...customerMeetings, ...customerFlex];
+
+      if (allBookings.length === 0) continue;
+
+      const hasExisting = invoices.some(inv => {
+        const matchesCustomer = customer.isExternal
+          ? inv.external_customer_id === customer.id
+          : inv.tenant_id === customer.id;
+        return matchesCustomer && inv.invoice_month === invoiceMonth && !inv.lease_id;
+      });
+      if (hasExisting) continue;
+
+      let totalAmount = 0;
+      const details: string[] = [];
+
+      allBookings.forEach((b: any) => {
+        totalAmount += b.total_amount || 0;
+        const spaceName = b.space?.space_number || (b.booking_type === 'flex' ? 'Flexplek' : 'Vergaderruimte');
+        const date = new Date(b.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit' });
+        const start = b.start_time?.substring(0, 5) || '--:--';
+        const end = b.end_time?.substring(0, 5) || '--:--';
+        details.push(`${spaceName} - ${date} ${start}-${end}: ${(b.total_amount || 0).toFixed(2)}`);
+      });
+
+      const hasMeeting = customerMeetings.length > 0;
+      const hasFlex = customerFlex.length > 0;
+      let typeLabel = 'Vergaderruimte';
+      if (hasFlex && !hasMeeting) typeLabel = 'Flex werkplek';
+      else if (hasFlex && hasMeeting) typeLabel = 'Vergader & Flex';
+
+      newItems.push({
+        id: `bookings_${customer.id}`,
+        type: hasMeeting ? 'meeting_booking' : 'flex_booking',
+        customerId: customer.id,
+        customerName: customer.name,
+        isExternal: customer.isExternal,
+        description: `${typeLabel} boekingen (${allBookings.length}x)`,
+        amount: totalAmount,
+        vatRate: 21,
+        vatInclusive: false,
+        bookings: allBookings,
+        details
+      });
+    }
+
+    newItems.sort((a, b) => {
+      const typeOrder = { huur: 0, flex_contract: 1, meeting_booking: 2, flex_booking: 3 };
+      if (typeOrder[a.type] !== typeOrder[b.type]) return typeOrder[a.type] - typeOrder[b.type];
+      return a.customerName.localeCompare(b.customerName);
+    });
+
+    setItems(newItems);
+    setSelected(new Set(newItems.map(i => i.id)));
+    setLoading(false);
+  }, [invoiceMonth]);
+
+  useEffect(() => {
+    if (invoiceMonth) loadInvoiceableItems();
+  }, [invoiceMonth, loadInvoiceableItems]);
+
+  const toggleItem = (id: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (selected.size === items.length) setSelected(new Set());
+    else setSelected(new Set(items.map(i => i.id)));
+  };
+
+  const toggleExpand = (id: string) => {
+    setExpandedItems(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const generateSelectedInvoices = async () => {
+    const selectedItems = items.filter(i => selected.has(i.id));
+    if (selectedItems.length === 0) return;
+
+    setGenerating(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    const { data: settings } = await supabase
+      .from('company_settings')
+      .select('test_mode, test_date')
+      .maybeSingle();
+
+    let currentDate = new Date();
+    if (settings?.test_mode === true && settings?.test_date) {
+      currentDate = new Date(settings.test_date);
+    }
+
+    const invoiceDate = currentDate.toISOString().split('T')[0];
+    const dueDateObj = new Date(currentDate);
+    dueDateObj.setDate(dueDateObj.getDate() + 14);
+    const dueDate = dueDateObj.toISOString().split('T')[0];
+
+    for (const item of selectedItems) {
+      try {
+        const { data: invoiceNumber, error: numError } = await supabase.rpc('generate_invoice_number');
+        if (numError || !invoiceNumber) { failCount++; continue; }
+
+        if (item.type === 'huur' || item.type === 'flex_contract') {
+          const lease = item.lease!;
+          let rentAmount = 0;
+          const lineItemsToInsert: any[] = [];
+
+          if (lease.lease_type === 'flex') {
+            if (lease.flex_pricing_model === 'monthly_unlimited') {
+              rentAmount = lease.flex_monthly_rate || 0;
+              lineItemsToInsert.push({
+                description: 'Flexplek - Maandelijks tarief (onbeperkt)',
+                quantity: 1, unit_price: rentAmount, amount: rentAmount, local_category: 'flexplek'
+              });
+            } else if (lease.flex_pricing_model === 'daily') {
+              const [y, m] = invoiceMonth.split('-').map(Number);
+              const workingDays = Math.round(new Date(y, m, 0).getDate() * (5 / 7));
+              rentAmount = (lease.flex_daily_rate || 0) * workingDays;
+              lineItemsToInsert.push({
+                description: `Flexplek - Dagelijks tarief (${workingDays} werkdagen)`,
+                quantity: workingDays, unit_price: lease.flex_daily_rate || 0, amount: rentAmount, local_category: 'flexplek'
+              });
+            } else if (lease.flex_pricing_model === 'credit_based') {
+              const creditsPerWeek = lease.credits_per_week || 0;
+              const monthlyCredits = Math.round(creditsPerWeek * 4.33);
+              rentAmount = monthlyCredits * (lease.flex_credit_rate || 0);
+              lineItemsToInsert.push({
+                description: `Flexplek - ${creditsPerWeek} dagen/week`,
+                quantity: monthlyCredits, unit_price: lease.flex_credit_rate || 0, amount: rentAmount, local_category: 'flexplek'
+              });
+            }
+          } else {
+            rentAmount = lease.lease_spaces.reduce((sum, ls) => {
+              return sum + (typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent);
+            }, 0);
+
+            for (const ls of lease.lease_spaces) {
+              let displayName = ls.space.space_number;
+              if (ls.space.space_type === 'bedrijfsruimte') {
+                const numOnly = displayName.replace(/^(Bedrijfsruimte|Hal)\s*/i, '').trim();
+                if (/^\d+/.test(numOnly)) displayName = `Hal ${numOnly}`;
+              }
+              const sqft = typeof ls.space.square_footage === 'string' ? parseFloat(ls.space.square_footage) : ls.space.square_footage;
+              const diversenCalc = (ls.space as any).diversen_calculation;
+              const isDiversenFixed = ls.space.space_type === 'diversen' && (!diversenCalc || diversenCalc === 'fixed');
+              let quantity = 1;
+              if (!isDiversenFixed && sqft && !isNaN(sqft) && sqft > 0) quantity = sqft;
+              const pricePerSqm = typeof ls.price_per_sqm === 'string' ? parseFloat(ls.price_per_sqm) : ls.price_per_sqm;
+              const monthlyRent = typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent;
+
+              lineItemsToInsert.push({
+                description: displayName, quantity, unit_price: pricePerSqm,
+                amount: monthlyRent, local_category: getLocalCategory(ls.space.space_type)
+              });
+            }
+          }
+
+          const vatRate = typeof lease.vat_rate === 'string' ? parseFloat(lease.vat_rate) : lease.vat_rate;
+          const deposit = typeof lease.security_deposit === 'string' ? parseFloat(lease.security_deposit) : lease.security_deposit;
+          const discountPct = lease.tenant?.lease_discount_percentage
+            ? (typeof lease.tenant.lease_discount_percentage === 'string' ? parseFloat(lease.tenant.lease_discount_percentage) : lease.tenant.lease_discount_percentage)
+            : 0;
+
+          let discountAmount = 0;
+          if (discountPct > 0) discountAmount = Math.round(rentAmount * (discountPct / 100) * 100) / 100;
+
+          const baseAmount = Math.round((rentAmount - discountAmount + deposit) * 100) / 100;
+          const { subtotal, vatAmount, total } = calculateVAT(baseAmount, vatRate, lease.vat_inclusive);
+
+          const { data: newInvoice, error: invErr } = await supabase
+            .from('invoices')
+            .insert([{
+              lease_id: lease.id, tenant_id: lease.tenant_id,
+              invoice_number: invoiceNumber, invoice_date: invoiceDate, due_date: dueDate,
+              invoice_month: invoiceMonth, subtotal, vat_amount: vatAmount, amount: total,
+              vat_rate: vatRate, vat_inclusive: lease.vat_inclusive, status: 'draft', notes: null
+            }]).select().single();
+
+          if (invErr || !newInvoice) { failCount++; continue; }
+
+          if (discountAmount > 0) {
+            lineItemsToInsert.push({
+              description: `Korting verhuur (${discountPct}%)`, quantity: 1,
+              unit_price: -discountAmount, amount: -discountAmount, local_category: null
+            });
+          }
+          if (deposit > 0) {
+            lineItemsToInsert.push({
+              description: 'Voorschot Gas, Water & Electra', quantity: 1,
+              unit_price: deposit, amount: deposit, local_category: 'diversen'
+            });
+          }
+
+          const { error: liErr } = await supabase
+            .from('invoice_line_items')
+            .insert(lineItemsToInsert.map(li => ({ ...li, invoice_id: newInvoice.id })));
+
+          if (liErr) {
+            await supabase.from('invoices').delete().eq('id', newInvoice.id);
+            failCount++;
+          } else {
+            successCount++;
+          }
+        } else {
+          const bookings = item.bookings || [];
+          if (bookings.length === 0) { failCount++; continue; }
+
+          const customerDiscountPct = 0;
+          let totalBeforeDiscount = 0;
+          bookings.forEach((b: any) => {
+            totalBeforeDiscount += (b.total_amount || 0) + (b.discount_amount || 0);
+          });
+          const totalDiscountAmount = customerDiscountPct > 0
+            ? Math.round(totalBeforeDiscount * (customerDiscountPct / 100) * 100) / 100
+            : bookings.reduce((sum: number, b: any) => sum + (b.discount_amount || 0), 0);
+
+          const finalAmount = totalBeforeDiscount - totalDiscountAmount;
+          const { subtotal, vatAmount, total } = calculateVAT(finalAmount, 21, false);
+
+          const hasMeeting = bookings.some((b: any) => b.booking_type === 'meeting_room');
+          const hasFlex = bookings.some((b: any) => b.booking_type === 'flex');
+          let notesHeader = 'Vergaderruimte boekingen:';
+          if (hasFlex && !hasMeeting) notesHeader = 'Flex werkplek boekingen:';
+          else if (hasFlex && hasMeeting) notesHeader = 'Vergaderruimte & Flex werkplek boekingen:';
+
+          const notesLines = [notesHeader];
+          bookings.forEach((b: any) => {
+            let rateDesc = '';
+            if (b.booking_type === 'flex') {
+              rateDesc = b.is_half_day ? 'dagdeel' : (b.total_hours > 0 && b.total_hours < 8 ? `${Math.round(b.total_hours)}u` : 'hele dag');
+            } else {
+              rateDesc = b.rate_type === 'half_day' ? 'dagdeel' : (b.rate_type === 'full_day' ? 'hele dag' : `${Math.round(b.total_hours)}u`);
+            }
+            const label = b.booking_type === 'flex' ? 'Flexplek' : 'Vergaderruimte';
+            const amt = (b.total_amount || 0) + (b.discount_amount || 0);
+            const start = b.start_time?.substring(0, 5) || '--:--';
+            const end = b.end_time?.substring(0, 5) || '--:--';
+            notesLines.push(`- ${b.space?.space_number || label} - ${new Date(b.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${start}-${end} (${rateDesc}) = \u20AC${amt.toFixed(2)}`);
+          });
+
+          const { data: newInvoice, error: invErr } = await supabase
+            .from('invoices')
+            .insert({
+              invoice_number: invoiceNumber,
+              tenant_id: item.isExternal ? null : item.customerId,
+              external_customer_id: item.isExternal ? item.customerId : null,
+              invoice_date: invoiceDate, due_date: dueDate,
+              subtotal, vat_amount: vatAmount, amount: total,
+              vat_rate: 21, vat_inclusive: false, status: 'draft',
+              invoice_month: invoiceMonth, notes: notesLines.join('\n')
+            }).select().single();
+
+          if (invErr || !newInvoice) { failCount++; continue; }
+
+          const lineItems = bookings.map((b: any) => {
+            const amt = (b.total_amount || 0) + (b.discount_amount || 0);
+            const label = b.booking_type === 'flex' ? 'Flexplek' : 'Vergaderruimte';
+            const category = b.booking_type === 'flex' ? 'flexplek' : 'vergaderruimte';
+            return {
+              invoice_id: newInvoice.id,
+              description: `${b.space?.space_number || label} - ${new Date(b.booking_date).toLocaleDateString('nl-NL')} ${b.start_time}-${b.end_time}`,
+              quantity: b.total_hours, unit_price: b.hourly_rate, amount: amt,
+              booking_id: b.booking_type === 'meeting_room' ? b.id : null,
+              local_category: category
+            };
+          });
+
+          if (totalDiscountAmount > 0) {
+            lineItems.push({
+              invoice_id: newInvoice.id,
+              description: `Korting boekingen`,
+              quantity: 1, unit_price: -totalDiscountAmount, amount: -totalDiscountAmount,
+              booking_id: null, local_category: null as any
+            });
+          }
+
+          const { error: liErr } = await supabase.from('invoice_line_items').insert(lineItems);
+          if (liErr) {
+            await supabase.from('invoices').delete().eq('id', newInvoice.id);
+            failCount++; continue;
+          }
+
+          const meetingIds = bookings.filter((b: any) => b.booking_type === 'meeting_room').map((b: any) => b.id);
+          const flexIds = bookings.filter((b: any) => b.booking_type === 'flex').map((b: any) => b.id);
+          if (meetingIds.length > 0) {
+            await supabase.from('meeting_room_bookings').update({ invoice_id: newInvoice.id }).in('id', meetingIds);
+          }
+          if (flexIds.length > 0) {
+            await supabase.from('flex_day_bookings').update({ invoice_id: newInvoice.id }).in('id', flexIds);
+          }
+          successCount++;
+        }
+      } catch {
+        failCount++;
+      }
+    }
+
+    setGenerating(false);
+
+    if (successCount > 0) {
+      showToast(`${successCount} factuur${successCount !== 1 ? 'en' : ''} succesvol aangemaakt als concept.`, 'success');
+      loadInvoiceableItems();
+    }
+    if (failCount > 0) {
+      showToast(`${failCount} factuur${failCount !== 1 ? 'en' : ''} konden niet worden aangemaakt.`, 'error');
+    }
+  };
+
+  const getTypeIcon = (type: InvoiceItem['type']) => {
+    switch (type) {
+      case 'huur': return <Home size={16} className="text-emerald-400" />;
+      case 'flex_contract': return <Zap size={16} className="text-teal-400" />;
+      case 'meeting_booking': return <Calendar size={16} className="text-blue-400" />;
+      case 'flex_booking': return <Zap size={16} className="text-teal-400" />;
+    }
+  };
+
+  const getTypeLabel = (type: InvoiceItem['type']) => {
+    switch (type) {
+      case 'huur': return 'Huur';
+      case 'flex_contract': return 'Flex contract';
+      case 'meeting_booking': return 'Vergaderruimte';
+      case 'flex_booking': return 'Flex boekingen';
+    }
+  };
+
+  const getTypeBadgeColor = (type: InvoiceItem['type']) => {
+    switch (type) {
+      case 'huur': return 'bg-emerald-900/50 text-emerald-400 border-emerald-700/50';
+      case 'flex_contract': return 'bg-teal-900/50 text-teal-400 border-teal-700/50';
+      case 'meeting_booking': return 'bg-blue-900/50 text-blue-400 border-blue-700/50';
+      case 'flex_booking': return 'bg-teal-900/50 text-teal-400 border-teal-700/50';
+    }
+  };
+
+  const huurItems = items.filter(i => i.type === 'huur');
+  const flexContractItems = items.filter(i => i.type === 'flex_contract');
+  const bookingItems = items.filter(i => i.type === 'meeting_booking' || i.type === 'flex_booking');
+
+  const selectedCount = items.filter(i => selected.has(i.id)).length;
+  const selectedTotal = items.filter(i => selected.has(i.id)).reduce((sum, i) => {
+    const { total } = calculateVAT(i.amount, i.vatRate, i.vatInclusive);
+    return sum + total;
+  }, 0);
+
+  const monthLabel = invoiceMonth
+    ? new Date(invoiceMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })
+    : '';
+
+  const renderSection = (title: string, icon: React.ReactNode, sectionItems: InvoiceItem[], color: string) => {
+    if (sectionItems.length === 0) return null;
+    const sectionSelected = sectionItems.filter(i => selected.has(i.id)).length;
+    const allSelected = sectionSelected === sectionItems.length;
+
+    return (
+      <div className="bg-dark-800 rounded-lg border border-dark-700 overflow-hidden">
+        <div className="px-4 py-3 border-b border-dark-700 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                if (allSelected) {
+                  setSelected(prev => {
+                    const next = new Set(prev);
+                    sectionItems.forEach(i => next.delete(i.id));
+                    return next;
+                  });
+                } else {
+                  setSelected(prev => {
+                    const next = new Set(prev);
+                    sectionItems.forEach(i => next.add(i.id));
+                    return next;
+                  });
+                }
+              }}
+              className="text-gray-400 hover:text-gray-200 transition-colors"
+            >
+              {allSelected ? <CheckSquare size={18} className={color} /> : <Square size={18} />}
+            </button>
+            {icon}
+            <span className="font-medium text-gray-200">{title}</span>
+            <span className="text-sm text-gray-400">({sectionItems.length})</span>
+          </div>
+          <div className="text-sm text-gray-400">
+            {sectionSelected} geselecteerd
+          </div>
+        </div>
+
+        <div className="divide-y divide-dark-700/50">
+          {sectionItems.map(item => (
+            <div key={item.id} className="group">
+              <div className="flex items-center gap-3 px-4 py-3 hover:bg-dark-750 transition-colors">
+                <button onClick={() => toggleItem(item.id)} className="flex-shrink-0">
+                  {selected.has(item.id)
+                    ? <CheckSquare size={18} className="text-gold-500" />
+                    : <Square size={18} className="text-gray-500" />}
+                </button>
+
+                <button
+                  onClick={() => toggleExpand(item.id)}
+                  className="flex-shrink-0 text-gray-500 hover:text-gray-300 transition-colors"
+                >
+                  {expandedItems.has(item.id)
+                    ? <ChevronDown size={16} />
+                    : <ChevronRight size={16} />}
+                </button>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-gray-100 truncate">{item.customerName}</span>
+                    {item.isExternal && (
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-dark-700 text-gray-400 border border-dark-600">Extern</span>
+                    )}
+                  </div>
+                  <div className="text-sm text-gray-400 mt-0.5">{item.description}</div>
+                </div>
+
+                <div className={`text-xs px-2 py-1 rounded border ${getTypeBadgeColor(item.type)}`}>
+                  {getTypeLabel(item.type)}
+                </div>
+
+                <div className="text-right flex-shrink-0 w-28">
+                  <div className="font-semibold text-gray-100">
+                    {'\u20AC'}{calculateVAT(item.amount, item.vatRate, item.vatInclusive).total.toFixed(2)}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    excl. {'\u20AC'}{item.amount.toFixed(2)}
+                  </div>
+                </div>
+              </div>
+
+              {expandedItems.has(item.id) && item.details.length > 0 && (
+                <div className="px-4 pb-3 pl-16">
+                  <div className="bg-dark-900/50 rounded-lg p-3 text-sm text-gray-400 space-y-1">
+                    {item.details.map((d, idx) => (
+                      <div key={idx} className="flex items-start gap-2">
+                        <span className="text-gray-600 mt-0.5">-</span>
+                        <span>{d}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="h-full flex flex-col overflow-hidden">
+      <div className="flex-shrink-0 bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-4 mb-4">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1">Facturatiemaand</label>
+              <input
+                type="month"
+                value={invoiceMonth}
+                onChange={(e) => setInvoiceMonth(e.target.value)}
+                className="px-4 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 text-sm"
+              />
+            </div>
+            {monthLabel && (
+              <div className="text-lg font-semibold text-gray-100 capitalize">{monthLabel}</div>
+            )}
+            <button
+              onClick={loadInvoiceableItems}
+              disabled={loading}
+              className="p-2 text-gray-400 hover:text-gray-200 transition-colors"
+              title="Vernieuwen"
+            >
+              <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+            </button>
+          </div>
+
+          <div className="flex items-center gap-4">
+            {items.length > 0 && (
+              <div className="flex items-center gap-3 text-sm">
+                <button
+                  onClick={toggleAll}
+                  className="text-gray-400 hover:text-gray-200 transition-colors underline"
+                >
+                  {selected.size === items.length ? 'Deselecteer alles' : 'Selecteer alles'}
+                </button>
+                <span className="text-gray-500">|</span>
+                <span className="text-gray-300">
+                  <span className="font-semibold text-gold-500">{selectedCount}</span> van {items.length} geselecteerd
+                </span>
+                <span className="text-gray-500">|</span>
+                <span className="text-gray-300">
+                  Totaal: <span className="font-semibold text-gray-100">{'\u20AC'}{selectedTotal.toFixed(2)}</span> incl. BTW
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pb-4">
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="text-gold-500 animate-spin" size={32} />
+          </div>
+        ) : items.length === 0 ? (
+          <div className="text-center py-20">
+            <AlertCircle className="mx-auto text-gray-600 mb-3" size={48} />
+            <p className="text-gray-400 text-lg">Geen facturen te genereren voor {monthLabel || 'deze maand'}</p>
+            <p className="text-gray-500 text-sm mt-1">Alle huurcontracten en boekingen zijn al gefactureerd.</p>
+          </div>
+        ) : (
+          <>
+            {renderSection('Huurcontracten', <Home size={18} className="text-emerald-400" />, huurItems, 'text-emerald-400')}
+            {renderSection('Flex contracten', <Zap size={18} className="text-teal-400" />, flexContractItems, 'text-teal-400')}
+            {renderSection('Boekingen', <Calendar size={18} className="text-blue-400" />, bookingItems, 'text-blue-400')}
+          </>
+        )}
+      </div>
+
+      {items.length > 0 && selectedCount > 0 && (
+        <div className="flex-shrink-0 pt-3 border-t border-dark-700">
+          <button
+            onClick={generateSelectedInvoices}
+            disabled={generating || selectedCount === 0}
+            className="w-full px-6 py-4 bg-gold-500 text-white font-semibold text-lg rounded-lg hover:bg-gold-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-3"
+          >
+            {generating ? (
+              <>
+                <Loader2 size={20} className="animate-spin" />
+                Facturen worden gegenereerd...
+              </>
+            ) : (
+              `Genereer ${selectedCount} ${selectedCount !== 1 ? 'facturen' : 'factuur'} (${'\u20AC'}${selectedTotal.toFixed(2)} incl. BTW)`
+            )}
+          </button>
+        </div>
+      )}
+
+      {toasts.map(toast => (
+        <Toast key={toast.id} message={toast.message} type={toast.type} onClose={() => removeToast(toast.id)} />
+      ))}
+    </div>
+  );
+}

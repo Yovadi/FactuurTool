@@ -312,7 +312,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       `)
       .gte('booking_date', startDateStr)
       .lte('booking_date', endDateStr)
-      .eq('status', 'completed')
+      .in('status', ['confirmed', 'completed'])
       .is('invoice_id', null);
 
     if (customerType === 'tenant') {
@@ -327,7 +327,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       console.error('Error fetching meeting room bookings:', meetingError);
     }
 
-    // Fetch flex day bookings
     let flexQuery = supabase
       .from('flex_day_bookings')
       .select(`
@@ -349,7 +348,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       `)
       .gte('booking_date', startDateStr)
       .lte('booking_date', endDateStr)
-      .eq('status', 'completed')
+      .in('status', ['confirmed', 'completed'])
       .is('invoice_id', null);
 
     if (customerType === 'tenant') {
@@ -415,7 +414,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       `)
       .gte('booking_date', startDateStr)
       .lte('booking_date', endDateStr)
-      .eq('status', 'completed')
+      .in('status', ['confirmed', 'completed'])
       .is('invoice_id', null);
 
     if (customerType === 'tenant') {
@@ -431,7 +430,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       return [];
     }
 
-    // Filter for tenant type based on lease tenant_id
     const filteredBookings = customerType === 'tenant'
       ? (bookings || []).filter(booking => booking.leases?.tenant_id === customerId)
       : bookings || [];
@@ -439,7 +437,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     return filteredBookings.map(booking => ({
       ...booking,
       space: booking.office_spaces,
-      status: 'completed'
+      status: booking.status
     }));
   };
 
@@ -722,7 +720,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         external_customer_id,
         space:office_spaces(space_number)
       `)
-      .eq('status', 'completed')
+      .in('status', ['confirmed', 'completed'])
       .order('booking_date', { ascending: false });
 
     setMeetingRoomBookings(bookingsData || []);
@@ -755,7 +753,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         leases(tenant_id),
         space:office_spaces(space_number)
       `)
-      .eq('status', 'completed')
+      .in('status', ['confirmed', 'completed'])
       .order('booking_date', { ascending: false });
 
     const flexWithTenantId = (flexBookingsData || []).map((b: any) => ({
@@ -926,25 +924,12 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         const bookingYearMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
         const isForSelectedMonth = bookingYearMonth === invoiceMonth;
         const isUnbilled = !booking.invoice_id;
-        const isCompleted = booking.status === 'completed';
+        const isInvoiceable = booking.status === 'completed' || booking.status === 'confirmed';
         const isForCustomer = (customer as any).isExternal
           ? booking.external_customer_id === customer.id
           : booking.tenant_id === customer.id;
 
-        if (customer.company_name?.includes('Youri')) {
-          console.log('Checking Youri booking:', {
-            bookingDate: booking.booking_date,
-            bookingYearMonth,
-            invoiceMonth,
-            isForSelectedMonth,
-            isUnbilled,
-            isCompleted,
-            status: booking.status,
-            isForCustomer
-          });
-        }
-
-        return isForSelectedMonth && isUnbilled && isCompleted && isForCustomer;
+        return isForSelectedMonth && isUnbilled && isInvoiceable && isForCustomer;
       });
 
       const flexBookings = flexDayBookings.filter(booking => {
@@ -952,21 +937,12 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         const bookingYearMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
         const isForSelectedMonth = bookingYearMonth === invoiceMonth;
         const isUnbilled = !booking.invoice_id;
-        const isCompleted = booking.status === 'completed';
+        const isInvoiceable = booking.status === 'completed' || booking.status === 'confirmed';
         const isForCustomer = (customer as any).isExternal
           ? booking.external_customer_id === customer.id
           : booking.tenant_id === customer.id;
-        return isForSelectedMonth && isUnbilled && isCompleted && isForCustomer;
+        return isForSelectedMonth && isUnbilled && isInvoiceable && isForCustomer;
       });
-
-      if (customer.company_name?.includes('Youri')) {
-        console.log('Youri bookings found:', {
-          meetingCount: meetingBookings.length,
-          flexCount: flexBookings.length,
-          invoiceMonth,
-          totalMeetingBookings: meetingRoomBookings.length
-        });
-      }
 
       if (meetingBookings.length === 0 && flexBookings.length === 0) return false;
 
@@ -3961,11 +3937,11 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
             const bookingYearMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
             const isForSelectedMonth = bookingYearMonth === targetMonth;
             const isUnbilled = !booking.invoice_id;
-            const isCompleted = booking.status === 'completed';
+            const isInvoiceable = booking.status === 'completed' || booking.status === 'confirmed';
             const isForCustomer = (customer as any).isExternal
               ? booking.external_customer_id === customer.id
               : booking.tenant_id === customer.id;
-            return isForSelectedMonth && isUnbilled && isCompleted && isForCustomer;
+            return isForSelectedMonth && isUnbilled && isInvoiceable && isForCustomer;
           };
           return {
             meeting: meetingRoomBookings.filter(bookingFilter),

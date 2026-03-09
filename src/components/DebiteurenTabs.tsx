@@ -1,17 +1,19 @@
 import { useState, useRef } from 'react';
 import { InvoiceManagement, InvoiceManagementRef } from './InvoiceManagement';
+import { InvoiceOverview } from './InvoiceOverview';
 import { DebtorsOverview } from './DebtorsOverview';
-import { FileText, AlertTriangle, FileCheck, Plus, Home, Calendar } from 'lucide-react';
+import { FileText, AlertTriangle, FileCheck, ClipboardList, Home, Calendar } from 'lucide-react';
 
 type DebiteurenTabsProps = {
   onCreateCreditNote?: (invoice: any, tenant: any, spaces: any[]) => void;
 };
 
 export function DebiteurenTabs({ onCreateCreditNote }: DebiteurenTabsProps) {
-  const [activeTab, setActiveTab] = useState<'facturen' | 'outstanding' | 'log'>('facturen');
+  const [activeTab, setActiveTab] = useState<'overzicht' | 'facturen' | 'outstanding' | 'log'>('overzicht');
   const invoiceManagementRef = useRef<InvoiceManagementRef>(null);
 
   const tabs: { id: typeof activeTab; label: string; icon: any }[] = [
+    { id: 'overzicht', label: 'Factuuroverzicht', icon: ClipboardList },
     { id: 'facturen', label: 'Facturen', icon: FileText },
     { id: 'outstanding', label: 'Openstaand', icon: AlertTriangle },
     { id: 'log', label: 'Logboek', icon: FileCheck },
@@ -61,6 +63,7 @@ export function DebiteurenTabs({ onCreateCreditNote }: DebiteurenTabsProps) {
       </div>
 
       <div className="flex-1 min-h-0 overflow-hidden">
+        {activeTab === 'overzicht' && <InvoiceOverview />}
         {activeTab === 'facturen' && (
           <InvoiceManagement
             ref={invoiceManagementRef}
