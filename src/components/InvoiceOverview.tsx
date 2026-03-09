@@ -74,7 +74,7 @@ export function InvoiceOverview() {
   const getMonthRange = (centerMonth: string) => {
     const [cy, cm] = centerMonth.split('-').map(Number);
     const months: string[] = [];
-    for (let offset = -1; offset <= 2; offset++) {
+    for (let offset = -1; offset <= 1; offset++) {
       const d = new Date(cy, cm - 1 + offset, 1);
       months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
     }
@@ -858,10 +858,6 @@ export function InvoiceOverview() {
                 <span className="text-gray-500">|</span>
                 <span className="text-gray-300">
                   <span className="font-semibold text-gold-500">{selectedCount}</span> van {items.length} geselecteerd
-                </span>
-                <span className="text-gray-500">|</span>
-                <span className="text-gray-300">
-                  Totaal: <span className="font-semibold text-gray-100">{'\u20AC'}{selectedTotal.toFixed(2)}</span> incl. BTW
                 </span>
               </div>
             )}
