@@ -3050,6 +3050,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
             if (pendingSubmit) {
               await pendingSubmit();
               setPendingSubmit(null);
+              await loadData();
             }
           }}
           onCancel={() => {
