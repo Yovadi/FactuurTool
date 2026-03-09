@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase, type Tenant, type ExternalCustomer, type Lease, type LeaseSpace, type OfficeSpace } from '../lib/supabase';
-import { Home, Zap, Calendar, CheckSquare, Square, Loader2, AlertCircle, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
+import { Home, Zap, Calendar, CheckSquare, Square, Loader2, AlertCircle, AlertTriangle, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
 import { Toast } from './Toast';
 
 type LeaseWithDetails = Lease & {
@@ -58,6 +58,7 @@ export function InvoiceOverview() {
   const [generating, setGenerating] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [toasts, setToasts] = useState<{ id: number; message: string; type: 'success' | 'error' | 'info' }[]>([]);
+  const [pastDueBookings, setPastDueBookings] = useState<{ meetingCount: number; flexCount: number; months: string[] }>({ meetingCount: 0, flexCount: 0, months: [] });
 
   const showToast = (message: string, type: 'success' | 'error' | 'info') => {
     const id = Date.now();
@@ -89,7 +90,9 @@ export function InvoiceOverview() {
       { data: tenantsData },
       { data: externalData },
       { data: meetingData },
-      { data: flexData }
+      { data: flexData },
+      { data: pastMeetingData },
+      { data: pastFlexData }
     ] = await Promise.all([
       supabase.from('leases').select(`
         *, tenant:tenants(*),
@@ -109,8 +112,29 @@ export function InvoiceOverview() {
         is_half_day, half_day_period, status, invoice_id, lease_id, external_customer_id,
         leases(tenant_id), office_spaces(space_number)
       `).gte('booking_date', startDateStr).lte('booking_date', endDateStr)
+        .in('status', ['confirmed', 'completed']).is('invoice_id', null),
+      supabase.from('meeting_room_bookings').select('id, booking_date')
+        .lt('booking_date', startDateStr)
+        .in('status', ['confirmed', 'completed']).is('invoice_id', null),
+      supabase.from('flex_day_bookings').select('id, booking_date')
+        .lt('booking_date', startDateStr)
         .in('status', ['confirmed', 'completed']).is('invoice_id', null)
     ]);
+
+    const allPastDue = [
+      ...(pastMeetingData || []).map((b: any) => b.booking_date),
+      ...(pastFlexData || []).map((b: any) => b.booking_date)
+    ];
+    const pastMonthsSet = new Set<string>();
+    allPastDue.forEach(d => {
+      const dt = new Date(d + 'T00:00:00');
+      pastMonthsSet.add(dt.toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' }));
+    });
+    setPastDueBookings({
+      meetingCount: (pastMeetingData || []).length,
+      flexCount: (pastFlexData || []).length,
+      months: Array.from(pastMonthsSet).sort()
+    });
 
     const leases = (leasesData || []) as LeaseWithDetails[];
     const invoices = invoicesData || [];
@@ -733,13 +757,28 @@ export function InvoiceOverview() {
             <Loader2 className="text-gold-500 animate-spin" size={32} />
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-4 h-full">
+          <div className="space-y-4">
+          {(pastDueBookings.meetingCount + pastDueBookings.flexCount) > 0 && (
+            <div className="bg-amber-900/20 border border-amber-700/50 rounded-lg px-4 py-3 flex items-start gap-3">
+              <AlertTriangle size={20} className="text-amber-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-amber-200 font-medium text-sm">
+                  Er zijn {pastDueBookings.meetingCount + pastDueBookings.flexCount} ongefactureerde boekingen uit eerdere maanden
+                </p>
+                <p className="text-amber-300/70 text-xs mt-1">
+                  {pastDueBookings.months.join(', ')} - Selecteer de betreffende maand om deze boekingen te factureren.
+                </p>
+              </div>
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-4">
             <div>
               {renderSection('Huur & Flex contracten', <Home size={18} className="text-emerald-400" />, huurItems, 'text-emerald-400', 'Geen huurcontracten te factureren voor deze maand.')}
             </div>
             <div>
               {renderSection('Boekingen', <Calendar size={18} className="text-blue-400" />, bookingItems, 'text-blue-400', 'Geen boekingen te factureren voor deze maand.')}
             </div>
+          </div>
           </div>
         )}
       </div>
