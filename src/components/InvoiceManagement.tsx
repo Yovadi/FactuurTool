@@ -6,6 +6,7 @@ import { generateInvoicePDF, generateInvoicePDFBase64 } from '../utils/pdfGenera
 import { isEmailConfigured, sendEmail, getActiveEmailMethodLabel } from '../utils/emailSender';
 import { buildInvoiceEmailHtml, buildInvoiceEmailText, buildInvoiceEmailSubject } from '../utils/emailTemplate';
 import { InvoicePreview } from './InvoicePreview';
+import { ConfirmModal } from './ConfirmModal';
 import { Toast } from './Toast';
 import { checkAndRunScheduledJobs } from '../utils/scheduledJobs';
 import { getLocalRootFolderPath } from '../utils/localSettings';
@@ -169,6 +170,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   const [eBoekhoudenPaidWarning, setEBoekhoudenPaidWarning] = useState<{ invoiceId: string; invoiceNumber: string } | null>(null);
   const [eBoekhoudenBatchPaidWarning, setEBoekhoudenBatchPaidWarning] = useState<{ syncedCount: number; totalCount: number } | null>(null);
   const [toasts, setToasts] = useState<{ id: number; message: string; type: 'success' | 'error' | 'info' }[]>([]);
+  const [duplicateInvoiceConfirm, setDuplicateInvoiceConfirm] = useState<{ month: string; customerName: string; count: number } | null>(null);
+  const [pendingSubmit, setPendingSubmit] = useState<(() => Promise<void>) | null>(null);
   const [filterType, setFilterType] = useState<InvoiceTypeFilter>('all');
   const [filterCustomer, setFilterCustomer] = useState<string>('all');
   const [pdfSyncStatus, setPdfSyncStatus] = useState<{
@@ -1127,40 +1130,37 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       }
       return;
     } else {
-      const { data: invoiceNumber } = await supabase.rpc('generate_invoice_number');
+      const createInvoice = async () => {
+        const { data: invoiceNumber } = await supabase.rpc('generate_invoice_number');
 
-      const { data: newInvoice, error: invoiceError } = await supabase
-        .from('invoices')
-        .insert([{
-          lease_id: invoiceMode === 'lease' ? formData.lease_id : null,
-          tenant_id: invoiceMode === 'manual' && formData.customer_type === 'tenant' ? formData.tenant_id : null,
-          external_customer_id: invoiceMode === 'manual' && formData.customer_type === 'external' ? formData.external_customer_id : null,
-          invoice_number: invoiceNumber,
-          invoice_date: formData.invoice_date,
-          due_date: formData.due_date,
-          invoice_month: formData.invoice_month || null,
-          subtotal: subtotal,
-          vat_amount: vatAmount,
-          amount: total,
-          vat_rate: vatRate,
-          vat_inclusive: vatInclusive,
-          reference_number: formData.reference_number || null,
-          payment_term_days: parseInt(formData.payment_term_days) || 14,
-          status: 'draft',
-          notes: formData.notes || null
-        }])
-        .select()
-        .single();
+        const { data: newInvoice, error: invoiceError } = await supabase
+          .from('invoices')
+          .insert([{
+            lease_id: invoiceMode === 'lease' ? formData.lease_id : null,
+            tenant_id: invoiceMode === 'manual' && formData.customer_type === 'tenant' ? formData.tenant_id : null,
+            external_customer_id: invoiceMode === 'manual' && formData.customer_type === 'external' ? formData.external_customer_id : null,
+            invoice_number: invoiceNumber,
+            invoice_date: formData.invoice_date,
+            due_date: formData.due_date,
+            invoice_month: formData.invoice_month || null,
+            subtotal: subtotal,
+            vat_amount: vatAmount,
+            amount: total,
+            vat_rate: vatRate,
+            vat_inclusive: vatInclusive,
+            reference_number: formData.reference_number || null,
+            payment_term_days: parseInt(formData.payment_term_days) || 14,
+            status: 'draft',
+            notes: formData.notes || null
+          }])
+          .select()
+          .single();
 
-      if (invoiceError) {
-        console.error('Error creating invoice:', invoiceError);
-        if (invoiceError.code === '23505') {
-          showToast('Er bestaat al een factuur voor deze klant in deze maand.', 'error');
-        } else {
+        if (invoiceError) {
+          console.error('Error creating invoice:', invoiceError);
           showToast('Factuur kon niet worden aangemaakt.', 'error');
+          return;
         }
-        return;
-      }
 
       const lineItemsToInsert = lineItems.map(item => {
         const quantity = item.quantity ? parseFloat(item.quantity) : 1;
@@ -1237,6 +1237,48 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       if (fullInvoice) {
         setInvoices(prev => [fullInvoice as InvoiceWithDetails, ...prev]);
       }
+      };
+
+      if (formData.invoice_month) {
+        let query = supabase
+          .from('invoices')
+          .select('id', { count: 'exact', head: true })
+          .eq('invoice_month', formData.invoice_month);
+
+        if (invoiceMode === 'lease') {
+          query = query.eq('lease_id', formData.lease_id);
+        } else if (formData.customer_type === 'tenant') {
+          query = query.eq('tenant_id', formData.tenant_id).is('lease_id', null);
+        } else {
+          query = query.eq('external_customer_id', formData.external_customer_id).is('lease_id', null);
+        }
+
+        const { count } = await query;
+
+        if (count && count > 0) {
+          let customerName = '';
+          if (invoiceMode === 'lease') {
+            const lease = leases.find(l => l.id === formData.lease_id);
+            customerName = lease?.tenant?.company_name || lease?.tenant?.name || '';
+          } else if (formData.customer_type === 'tenant') {
+            const tenant = tenants.find(t => t.id === formData.tenant_id);
+            customerName = tenant?.company_name || tenant?.name || '';
+          } else {
+            const customer = externalCustomers.find(c => c.id === formData.external_customer_id);
+            customerName = customer?.company_name || customer?.contact_name || '';
+          }
+
+          setDuplicateInvoiceConfirm({
+            month: formData.invoice_month,
+            customerName,
+            count
+          });
+          setPendingSubmit(() => createInvoice);
+          return;
+        }
+      }
+
+      await createInvoice();
     }
   };
 
@@ -2996,6 +3038,26 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
   return (
     <div className="h-full flex overflow-hidden">
+
+      {duplicateInvoiceConfirm && (
+        <ConfirmModal
+          title="Factuurmaand al gebruikt"
+          message={`Er ${duplicateInvoiceConfirm.count === 1 ? 'bestaat al' : 'bestaan al'} ${duplicateInvoiceConfirm.count} ${duplicateInvoiceConfirm.count === 1 ? 'factuur' : 'facturen'} voor ${duplicateInvoiceConfirm.customerName} met factuurmaand ${duplicateInvoiceConfirm.month}.\n\nWil je toch een extra factuur aanmaken?`}
+          confirmText="Ja, aanmaken"
+          cancelText="Annuleren"
+          onConfirm={async () => {
+            setDuplicateInvoiceConfirm(null);
+            if (pendingSubmit) {
+              await pendingSubmit();
+              setPendingSubmit(null);
+            }
+          }}
+          onCancel={() => {
+            setDuplicateInvoiceConfirm(null);
+            setPendingSubmit(null);
+          }}
+        />
+      )}
 
       {eBoekhoudenPaidWarning && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] p-4">
