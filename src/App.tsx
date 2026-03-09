@@ -48,6 +48,7 @@ function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [isElectron, setIsElectron] = useState(false);
   const [prefilledInvoiceData, setPrefilledInvoiceData] = useState<PrefilledInvoiceData | null>(null);
+  const [debiteurenInitialTab, setDebiteurenInitialTab] = useState<'facturen' | 'outstanding' | 'log' | undefined>(undefined);
   const [appVersion, setAppVersion] = useState<string>('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -763,7 +764,10 @@ function App() {
 
           <main className="flex-1 min-w-0 h-full flex flex-col overflow-hidden bg-dark-950 lg:mt-0 mt-0">
             <Suspense fallback={<LoadingFallback />}>
-              {activeTab === 'dashboard' && <OverzichtTabs />}
+              {activeTab === 'dashboard' && <OverzichtTabs onNavigateToDebtors={(subTab) => {
+                setDebiteurenInitialTab(subTab);
+                setActiveTab('financial-debtors');
+              }} />}
               {activeTab === 'tenants' && <TenantManagement />}
               {activeTab === 'spaces-spaces' && <SpaceManagement />}
               {activeTab === 'spaces-rates' && <SpaceTypeRates />}
@@ -772,6 +776,8 @@ function App() {
               {activeTab === 'flex-bookings' && <FlexWorkspaceBookings />}
               {activeTab === 'financial-debtors' && (
                 <DebiteurenTabs
+                  initialTab={debiteurenInitialTab}
+                  onInitialTabConsumed={() => setDebiteurenInitialTab(undefined)}
                   onCreateCreditNote={(invoice, tenant, spaces) => {
                     setPrefilledInvoiceData({ invoice, tenant, spaces });
                     setActiveTab('financial-creditors');

@@ -66,7 +66,11 @@ type Lease = {
   };
 };
 
-export function Dashboard() {
+type DashboardProps = {
+  onNavigateToDebtors?: (subTab: 'facturen' | 'outstanding') => void;
+};
+
+export function Dashboard({ onNavigateToDebtors }: DashboardProps) {
   const [stats, setStats] = useState<DashboardStats>({
     totalTenants: 0,
     totalSpaces: 0,
@@ -248,7 +252,7 @@ export function Dashboard() {
     setDraftInvoices(draftInvoicesData);
 
     const outstandingInvoicesData = invoices?.filter(
-      inv => inv.status === 'sent'
+      inv => inv.status === 'sent' && inv.due_date >= todayStr
     ) || [];
     setOutstandingInvoices(outstandingInvoicesData);
 
@@ -573,7 +577,10 @@ export function Dashboard() {
         {(overdueInvoices.length > 0 || outstandingInvoices.length > 0 || draftInvoices.length > 0 || expiredLeases.length > 0 || expiringLeases.length > 0) ? (
           <div className="grid grid-cols-1 gap-3">
             {overdueInvoices.length > 0 && (
-              <div className="bg-red-900/20 border-2 border-red-800 rounded-lg p-4">
+              <div
+                onClick={() => onNavigateToDebtors?.('outstanding')}
+                className="bg-red-900/20 border-2 border-red-800 rounded-lg p-4 cursor-pointer hover:bg-red-900/30 transition-colors"
+              >
                 <div className="flex items-start gap-3">
                   <AlertCircle className="text-red-400 mt-0.5" size={20} />
                   <div className="flex-1">
@@ -609,7 +616,10 @@ export function Dashboard() {
             )}
 
             {outstandingInvoices.length > 0 && (
-              <div className="bg-blue-900/20 border border-blue-800 rounded-lg p-4">
+              <div
+                onClick={() => onNavigateToDebtors?.('outstanding')}
+                className="bg-blue-900/20 border border-blue-800 rounded-lg p-4 cursor-pointer hover:bg-blue-900/30 transition-colors"
+              >
                 <div className="flex items-start gap-3">
                   <FileText className="text-blue-400 mt-0.5" size={20} />
                   <div className="flex-1">
@@ -650,7 +660,10 @@ export function Dashboard() {
             )}
 
             {draftInvoices.length > 0 && (
-              <div className="bg-amber-900/20 border border-amber-800 rounded-lg p-4">
+              <div
+                onClick={() => onNavigateToDebtors?.('facturen')}
+                className="bg-amber-900/20 border border-amber-800 rounded-lg p-4 cursor-pointer hover:bg-amber-900/30 transition-colors"
+              >
                 <div className="flex items-start gap-3">
                   <FileText className="text-amber-400 mt-0.5" size={20} />
                   <div className="flex-1">

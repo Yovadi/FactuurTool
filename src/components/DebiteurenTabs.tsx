@@ -1,15 +1,24 @@
-import { useState, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { InvoiceManagement, InvoiceManagementRef } from './InvoiceManagement';
 import { InvoiceOverview } from './InvoiceOverview';
 import { DebtorsOverview } from './DebtorsOverview';
 import { FileText, AlertTriangle, FileCheck, Home, Calendar } from 'lucide-react';
 
 type DebiteurenTabsProps = {
+  initialTab?: 'facturen' | 'outstanding' | 'log';
+  onInitialTabConsumed?: () => void;
   onCreateCreditNote?: (invoice: any, tenant: any, spaces: any[]) => void;
 };
 
-export function DebiteurenTabs({ onCreateCreditNote }: DebiteurenTabsProps) {
-  const [activeTab, setActiveTab] = useState<'facturen' | 'outstanding' | 'log'>('facturen');
+export function DebiteurenTabs({ initialTab, onInitialTabConsumed, onCreateCreditNote }: DebiteurenTabsProps) {
+  const [activeTab, setActiveTab] = useState<'facturen' | 'outstanding' | 'log'>(initialTab || 'facturen');
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+      onInitialTabConsumed?.();
+    }
+  }, [initialTab]);
   const invoiceManagementRef = useRef<InvoiceManagementRef>(null);
 
   const tabs: { id: typeof activeTab; label: string; icon: any }[] = [

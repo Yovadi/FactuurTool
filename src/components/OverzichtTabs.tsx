@@ -3,7 +3,11 @@ import { LayoutDashboard, TrendingUp } from 'lucide-react';
 import { Dashboard } from './Dashboard';
 import { Analytics } from './Analytics';
 
-export function OverzichtTabs() {
+type OverzichtTabsProps = {
+  onNavigateToDebtors?: (subTab: 'facturen' | 'outstanding') => void;
+};
+
+export function OverzichtTabs({ onNavigateToDebtors }: OverzichtTabsProps) {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'analytics'>('dashboard');
 
   return (
@@ -38,7 +42,7 @@ export function OverzichtTabs() {
       </div>
 
       <div className="flex-1 min-h-0 overflow-hidden">
-        {activeTab === 'dashboard' && <Dashboard />}
+        {activeTab === 'dashboard' && <Dashboard onNavigateToDebtors={onNavigateToDebtors} />}
         {activeTab === 'analytics' && <Analytics />}
       </div>
     </div>
