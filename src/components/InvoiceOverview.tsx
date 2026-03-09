@@ -239,14 +239,6 @@ export function InvoiceOverview() {
 
       if (allBookings.length === 0) continue;
 
-      const hasExisting = invoices.some(inv => {
-        const matchesCustomer = customer.isExternal
-          ? inv.external_customer_id === customer.id
-          : inv.tenant_id === customer.id;
-        return matchesCustomer && inv.invoice_month === invoiceMonth && !inv.lease_id;
-      });
-      if (hasExisting) continue;
-
       let totalAmount = 0;
       const details: string[] = [];
 
