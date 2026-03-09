@@ -568,102 +568,111 @@ export function InvoiceOverview() {
     ? new Date(invoiceMonth + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })
     : '';
 
-  const renderSection = (title: string, icon: React.ReactNode, sectionItems: InvoiceItem[], color: string) => {
-    if (sectionItems.length === 0) return null;
+  const renderSection = (title: string, icon: React.ReactNode, sectionItems: InvoiceItem[], color: string, emptyMessage: string) => {
     const sectionSelected = sectionItems.filter(i => selected.has(i.id)).length;
-    const allSelected = sectionSelected === sectionItems.length;
+    const allSelected = sectionItems.length > 0 && sectionSelected === sectionItems.length;
 
     return (
-      <div className="bg-dark-800 rounded-lg border border-dark-700 overflow-hidden">
+      <div className="bg-dark-800 rounded-lg border border-dark-700 overflow-hidden h-full flex flex-col">
         <div className="px-4 py-3 border-b border-dark-700 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => {
-                if (allSelected) {
-                  setSelected(prev => {
-                    const next = new Set(prev);
-                    sectionItems.forEach(i => next.delete(i.id));
-                    return next;
-                  });
-                } else {
-                  setSelected(prev => {
-                    const next = new Set(prev);
-                    sectionItems.forEach(i => next.add(i.id));
-                    return next;
-                  });
-                }
-              }}
-              className="text-gray-400 hover:text-gray-200 transition-colors"
-            >
-              {allSelected ? <CheckSquare size={18} className={color} /> : <Square size={18} />}
-            </button>
+            {sectionItems.length > 0 && (
+              <button
+                onClick={() => {
+                  if (allSelected) {
+                    setSelected(prev => {
+                      const next = new Set(prev);
+                      sectionItems.forEach(i => next.delete(i.id));
+                      return next;
+                    });
+                  } else {
+                    setSelected(prev => {
+                      const next = new Set(prev);
+                      sectionItems.forEach(i => next.add(i.id));
+                      return next;
+                    });
+                  }
+                }}
+                className="text-gray-400 hover:text-gray-200 transition-colors"
+              >
+                {allSelected ? <CheckSquare size={18} className={color} /> : <Square size={18} />}
+              </button>
+            )}
             {icon}
             <span className="font-medium text-gray-200">{title}</span>
             <span className="text-sm text-gray-400">({sectionItems.length})</span>
           </div>
-          <div className="text-sm text-gray-400">
-            {sectionSelected} geselecteerd
-          </div>
-        </div>
-
-        <div className="divide-y divide-dark-700/50">
-          {sectionItems.map(item => (
-            <div key={item.id} className="group">
-              <div className="flex items-center gap-3 px-4 py-3 hover:bg-dark-750 transition-colors">
-                <button onClick={() => toggleItem(item.id)} className="flex-shrink-0">
-                  {selected.has(item.id)
-                    ? <CheckSquare size={18} className="text-gold-500" />
-                    : <Square size={18} className="text-gray-500" />}
-                </button>
-
-                <button
-                  onClick={() => toggleExpand(item.id)}
-                  className="flex-shrink-0 text-gray-500 hover:text-gray-300 transition-colors"
-                >
-                  {expandedItems.has(item.id)
-                    ? <ChevronDown size={16} />
-                    : <ChevronRight size={16} />}
-                </button>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-gray-100 truncate">{item.customerName}</span>
-                    {item.isExternal && (
-                      <span className="text-xs px-1.5 py-0.5 rounded bg-dark-700 text-gray-400 border border-dark-600">Extern</span>
-                    )}
-                  </div>
-                  <div className="text-sm text-gray-400 mt-0.5">{item.description}</div>
-                </div>
-
-                <div className={`text-xs px-2 py-1 rounded border ${getTypeBadgeColor(item.type)}`}>
-                  {getTypeLabel(item.type)}
-                </div>
-
-                <div className="text-right flex-shrink-0 w-28">
-                  <div className="font-semibold text-gray-100">
-                    {'\u20AC'}{calculateVAT(item.amount, item.vatRate, item.vatInclusive).total.toFixed(2)}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    excl. {'\u20AC'}{item.amount.toFixed(2)}
-                  </div>
-                </div>
-              </div>
-
-              {expandedItems.has(item.id) && item.details.length > 0 && (
-                <div className="px-4 pb-3 pl-16">
-                  <div className="bg-dark-900/50 rounded-lg p-3 text-sm text-gray-400 space-y-1">
-                    {item.details.map((d, idx) => (
-                      <div key={idx} className="flex items-start gap-2">
-                        <span className="text-gray-600 mt-0.5">-</span>
-                        <span>{d}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+          {sectionItems.length > 0 && (
+            <div className="text-sm text-gray-400">
+              {sectionSelected} geselecteerd
             </div>
-          ))}
+          )}
         </div>
+
+        {sectionItems.length === 0 ? (
+          <div className="flex-1 flex items-center justify-center py-12 px-4">
+            <p className="text-gray-500 text-sm text-center">{emptyMessage}</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-dark-700/50">
+            {sectionItems.map(item => (
+              <div key={item.id} className="group">
+                <div className="flex items-center gap-3 px-4 py-3 hover:bg-dark-750 transition-colors">
+                  <button onClick={() => toggleItem(item.id)} className="flex-shrink-0">
+                    {selected.has(item.id)
+                      ? <CheckSquare size={18} className="text-gold-500" />
+                      : <Square size={18} className="text-gray-500" />}
+                  </button>
+
+                  <button
+                    onClick={() => toggleExpand(item.id)}
+                    className="flex-shrink-0 text-gray-500 hover:text-gray-300 transition-colors"
+                  >
+                    {expandedItems.has(item.id)
+                      ? <ChevronDown size={16} />
+                      : <ChevronRight size={16} />}
+                  </button>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-100 truncate">{item.customerName}</span>
+                      {item.isExternal && (
+                        <span className="text-xs px-1.5 py-0.5 rounded bg-dark-700 text-gray-400 border border-dark-600">Extern</span>
+                      )}
+                    </div>
+                    <div className="text-sm text-gray-400 mt-0.5">{item.description}</div>
+                  </div>
+
+                  <div className={`text-xs px-2 py-1 rounded border ${getTypeBadgeColor(item.type)}`}>
+                    {getTypeLabel(item.type)}
+                  </div>
+
+                  <div className="text-right flex-shrink-0 w-28">
+                    <div className="font-semibold text-gray-100">
+                      {'\u20AC'}{calculateVAT(item.amount, item.vatRate, item.vatInclusive).total.toFixed(2)}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      excl. {'\u20AC'}{item.amount.toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+
+                {expandedItems.has(item.id) && item.details.length > 0 && (
+                  <div className="px-4 pb-3 pl-16">
+                    <div className="bg-dark-900/50 rounded-lg p-3 text-sm text-gray-400 space-y-1">
+                      {item.details.map((d, idx) => (
+                        <div key={idx} className="flex items-start gap-2">
+                          <span className="text-gray-600 mt-0.5">-</span>
+                          <span>{d}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   };
@@ -723,19 +732,13 @@ export function InvoiceOverview() {
           <div className="flex items-center justify-center py-20">
             <Loader2 className="text-gold-500 animate-spin" size={32} />
           </div>
-        ) : items.length === 0 ? (
-          <div className="text-center py-20">
-            <AlertCircle className="mx-auto text-gray-600 mb-3" size={48} />
-            <p className="text-gray-400 text-lg">Geen facturen te genereren voor {monthLabel || 'deze maand'}</p>
-            <p className="text-gray-500 text-sm mt-1">Alle huurcontracten en boekingen zijn al gefactureerd.</p>
-          </div>
         ) : (
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-4">
-              {renderSection('Huur & Flex contracten', <Home size={18} className="text-emerald-400" />, huurItems, 'text-emerald-400')}
+          <div className="grid grid-cols-2 gap-4 h-full">
+            <div>
+              {renderSection('Huur & Flex contracten', <Home size={18} className="text-emerald-400" />, huurItems, 'text-emerald-400', 'Geen huurcontracten te factureren voor deze maand.')}
             </div>
-            <div className="space-y-4">
-              {renderSection('Boekingen', <Calendar size={18} className="text-blue-400" />, bookingItems, 'text-blue-400')}
+            <div>
+              {renderSection('Boekingen', <Calendar size={18} className="text-blue-400" />, bookingItems, 'text-blue-400', 'Geen boekingen te factureren voor deze maand.')}
             </div>
           </div>
         )}
