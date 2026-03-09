@@ -702,7 +702,7 @@ export function InvoiceOverview() {
   };
 
   return (
-    <div className="h-full flex flex-col overflow-hidden">
+    <div className="flex flex-col flex-shrink-0">
       <div className="flex-shrink-0 bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-4 mb-4">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-4">
@@ -751,7 +751,7 @@ export function InvoiceOverview() {
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto pb-4">
+      <div className="pb-4">
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="text-gold-500 animate-spin" size={32} />
