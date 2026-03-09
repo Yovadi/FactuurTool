@@ -922,11 +922,11 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       isExternal: true
     }))].filter(customer => {
       const meetingBookings = meetingRoomBookings.filter(booking => {
-        const bookingDate = new Date(booking.booking_date);
-        const bookingYearMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
+        const [y, m] = booking.booking_date.split('-');
+        const bookingYearMonth = `${y}-${m}`;
         const isForSelectedMonth = bookingYearMonth === invoiceMonth;
         const isUnbilled = !booking.invoice_id;
-        const isInvoiceable = booking.status === 'completed' || booking.status === 'confirmed';
+        const isInvoiceable = booking.status === 'completed' || booking.status === 'confirmed' || booking.status === 'pending';
         const isForCustomer = (customer as any).isExternal
           ? booking.external_customer_id === customer.id
           : booking.tenant_id === customer.id;
@@ -935,11 +935,11 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       });
 
       const flexBookings = flexDayBookings.filter(booking => {
-        const bookingDate = new Date(booking.booking_date);
-        const bookingYearMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
+        const [y, m] = booking.booking_date.split('-');
+        const bookingYearMonth = `${y}-${m}`;
         const isForSelectedMonth = bookingYearMonth === invoiceMonth;
         const isUnbilled = !booking.invoice_id;
-        const isInvoiceable = booking.status === 'completed' || booking.status === 'confirmed';
+        const isInvoiceable = booking.status === 'completed' || booking.status === 'confirmed' || booking.status === 'pending';
         const isForCustomer = (customer as any).isExternal
           ? booking.external_customer_id === customer.id
           : booking.tenant_id === customer.id;
@@ -4002,11 +4002,11 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
         const getCustomerBookings = (customer: any) => {
           const bookingFilter = (booking: any) => {
-            const bookingDate = new Date(booking.booking_date);
-            const bookingYearMonth = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, '0')}`;
+            const [y, m] = booking.booking_date.split('-');
+            const bookingYearMonth = `${y}-${m}`;
             const isForSelectedMonth = bookingYearMonth === targetMonth;
             const isUnbilled = !booking.invoice_id;
-            const isInvoiceable = booking.status === 'completed' || booking.status === 'confirmed';
+            const isInvoiceable = booking.status === 'completed' || booking.status === 'confirmed' || booking.status === 'pending';
             const isForCustomer = (customer as any).isExternal
               ? booking.external_customer_id === customer.id
               : booking.tenant_id === customer.id;
