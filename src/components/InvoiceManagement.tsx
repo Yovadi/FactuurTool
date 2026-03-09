@@ -1844,19 +1844,19 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       try {
         console.log('Processing customer:', customer.company_name, 'type:', customerType);
 
-        let existingInvoice;
+        let existingDraftInvoice;
         if (customerType === 'tenant') {
-          existingInvoice = invoices.find(
-            inv => inv.tenant_id === customer.id && inv.invoice_month === targetMonth && inv.lease_id === null
+          existingDraftInvoice = invoices.find(
+            inv => inv.tenant_id === customer.id && inv.invoice_month === targetMonth && inv.lease_id === null && inv.status === 'draft'
           );
         } else {
-          existingInvoice = invoices.find(
-            inv => inv.external_customer_id === customer.id && inv.invoice_month === targetMonth && inv.lease_id === null
+          existingDraftInvoice = invoices.find(
+            inv => inv.external_customer_id === customer.id && inv.invoice_month === targetMonth && inv.lease_id === null && inv.status === 'draft'
           );
         }
 
-        if (existingInvoice) {
-          console.log('Invoice already exists for customer:', customer.company_name);
+        if (existingDraftInvoice) {
+          console.log('Draft invoice already exists for customer:', customer.company_name);
           failCount++;
           continue;
         }
@@ -2457,18 +2457,15 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         const isExternal = externalCustomers.some(ec => ec.id === customerId);
         console.log('Is external:', isExternal);
 
-        const existingBookingInvoice = invoices.find(inv => {
+        const existingDraftBookingInvoice = invoices.find(inv => {
           const matchesCustomer = isExternal
             ? inv.external_customer_id === customerId
             : inv.tenant_id === customerId;
-          if (!matchesCustomer || inv.invoice_month !== targetMonth || inv.lease_id) return false;
-          const hasLinkedBookings = meetingRoomBookings.some(b => b.invoice_id === inv.id) ||
-            flexDayBookings.some(b => b.invoice_id === inv.id);
-          return hasLinkedBookings;
+          return matchesCustomer && inv.invoice_month === targetMonth && !inv.lease_id && inv.status === 'draft';
         });
 
-        if (existingBookingInvoice) {
-          console.log(`⚠️ Skipping: booking invoice already exists for customer ${customer.company_name || customer.name} for month ${targetMonth}`);
+        if (existingDraftBookingInvoice) {
+          console.log(`⚠️ Skipping: draft booking invoice already exists for customer ${customer.company_name || customer.name} for month ${targetMonth}`);
           meetingFail++;
           continue;
         }
@@ -4023,7 +4020,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
             const matchesCustomer = (customer as any).isExternal
               ? inv.external_customer_id === customer.id
               : inv.tenant_id === customer.id;
-            return matchesCustomer && inv.invoice_month === targetMonth && !inv.lease_id;
+            return matchesCustomer && inv.invoice_month === targetMonth && !inv.lease_id && inv.status === 'draft';
           });
           return !existingInvoice;
         };
