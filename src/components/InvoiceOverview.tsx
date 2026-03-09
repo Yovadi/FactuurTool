@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase, type Tenant, type ExternalCustomer, type Lease, type LeaseSpace, type OfficeSpace } from '../lib/supabase';
-import { Home, Zap, Calendar, CheckSquare, Square, Loader2, AlertCircle, AlertTriangle, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
+import { Home, Zap, Calendar, CheckSquare, Square, Loader2, AlertCircle, AlertTriangle, ChevronDown, ChevronRight, ChevronLeft, RefreshCw } from 'lucide-react';
 import { Toast } from './Toast';
 
 type LeaseWithDetails = Lease & {
@@ -59,6 +59,8 @@ export function InvoiceOverview() {
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [toasts, setToasts] = useState<{ id: number; message: string; type: 'success' | 'error' | 'info' }[]>([]);
   const [pastDueBookings, setPastDueBookings] = useState<{ meetingCount: number; flexCount: number; months: string[] }>({ meetingCount: 0, flexCount: 0, months: [] });
+  const [monthIndicators, setMonthIndicators] = useState<Record<string, { hasLeases: boolean; hasBookings: boolean; count: number }>>({});
+  const [visibleMonths, setVisibleMonths] = useState<string[]>([]);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info') => {
     const id = Date.now();
@@ -69,10 +71,73 @@ export function InvoiceOverview() {
     setToasts(prev => prev.filter(t => t.id !== id));
   };
 
+  const getMonthRange = (centerMonth: string) => {
+    const [cy, cm] = centerMonth.split('-').map(Number);
+    const months: string[] = [];
+    for (let offset = -1; offset <= 2; offset++) {
+      const d = new Date(cy, cm - 1 + offset, 1);
+      months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    }
+    return months;
+  };
+
+  const loadMonthIndicators = useCallback(async (months: string[]) => {
+    const indicators: Record<string, { hasLeases: boolean; hasBookings: boolean; count: number }> = {};
+
+    const [
+      { data: activeLeases },
+      { data: allInvoices },
+      { data: unbilledMeetings },
+      { data: unbilledFlex }
+    ] = await Promise.all([
+      supabase.from('leases').select('id, tenant_id').eq('status', 'active'),
+      supabase.from('invoices').select('lease_id, invoice_month'),
+      supabase.from('meeting_room_bookings').select('id, booking_date')
+        .in('status', ['confirmed', 'completed']).is('invoice_id', null),
+      supabase.from('flex_day_bookings').select('id, booking_date')
+        .in('status', ['confirmed', 'completed']).is('invoice_id', null)
+    ]);
+
+    for (const month of months) {
+      const [year, m] = month.split('-').map(Number);
+      const startDate = `${year}-${String(m).padStart(2, '0')}-01`;
+      const lastDay = new Date(year, m, 0).getDate();
+      const endDate = `${year}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
+      let leaseCount = 0;
+      if (activeLeases) {
+        for (const lease of activeLeases) {
+          const alreadyInvoiced = (allInvoices || []).some(
+            (inv: any) => inv.lease_id === lease.id && inv.invoice_month === month
+          );
+          if (!alreadyInvoiced) leaseCount++;
+        }
+      }
+
+      const meetingsInMonth = (unbilledMeetings || []).filter(
+        (b: any) => b.booking_date >= startDate && b.booking_date <= endDate
+      );
+      const flexInMonth = (unbilledFlex || []).filter(
+        (b: any) => b.booking_date >= startDate && b.booking_date <= endDate
+      );
+      const bookingCount = meetingsInMonth.length + flexInMonth.length;
+
+      indicators[month] = {
+        hasLeases: leaseCount > 0,
+        hasBookings: bookingCount > 0,
+        count: leaseCount + bookingCount
+      };
+    }
+
+    setMonthIndicators(indicators);
+  }, []);
+
   useEffect(() => {
     const now = new Date();
-    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-    setInvoiceMonth(`${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}`);
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    setInvoiceMonth(currentMonth);
+    const months = getMonthRange(currentMonth);
+    setVisibleMonths(months);
   }, []);
 
   const loadInvoiceableItems = useCallback(async () => {
@@ -286,6 +351,25 @@ export function InvoiceOverview() {
   useEffect(() => {
     if (invoiceMonth) loadInvoiceableItems();
   }, [invoiceMonth, loadInvoiceableItems]);
+
+  useEffect(() => {
+    if (visibleMonths.length > 0) loadMonthIndicators(visibleMonths);
+  }, [visibleMonths, loadMonthIndicators]);
+
+  const selectMonth = (month: string) => {
+    setInvoiceMonth(month);
+    const months = getMonthRange(month);
+    setVisibleMonths(months);
+  };
+
+  const shiftMonths = (direction: -1 | 1) => {
+    const edgeMonth = visibleMonths[direction === -1 ? 0 : visibleMonths.length - 1];
+    const [cy, cm] = edgeMonth.split('-').map(Number);
+    const d = new Date(cy, cm - 1 + direction, 1);
+    const newCenter = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const months = getMonthRange(newCenter);
+    setVisibleMonths(months);
+  };
 
   const toggleItem = (id: string) => {
     setSelected(prev => {
@@ -695,29 +779,71 @@ export function InvoiceOverview() {
 
   return (
     <div className="flex flex-col flex-shrink-0">
-      <div className="flex-shrink-0 bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-4 mb-4">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1">Facturatiemaand</label>
-              <input
-                type="month"
-                value={invoiceMonth}
-                onChange={(e) => setInvoiceMonth(e.target.value)}
-                className="px-4 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 text-sm"
-              />
-            </div>
-            {monthLabel && (
-              <div className="text-lg font-semibold text-gray-100 capitalize">{monthLabel}</div>
-            )}
+      <div className="flex-shrink-0 bg-dark-900 rounded-lg shadow-lg border border-dark-700 mb-4 overflow-hidden">
+        <div className="flex items-center border-b border-dark-700">
+          <button
+            onClick={() => shiftMonths(-1)}
+            className="px-3 py-4 text-gray-500 hover:text-gray-300 hover:bg-dark-800 transition-colors flex-shrink-0"
+          >
+            <ChevronLeft size={18} />
+          </button>
+
+          <div className="flex flex-1">
+            {visibleMonths.map(month => {
+              const isActive = month === invoiceMonth;
+              const indicator = monthIndicators[month];
+              const hasItems = indicator && (indicator.hasLeases || indicator.hasBookings);
+              const label = new Date(month + '-01').toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' });
+
+              return (
+                <button
+                  key={month}
+                  onClick={() => selectMonth(month)}
+                  className={`flex-1 relative px-4 py-3.5 text-sm font-medium capitalize transition-all ${
+                    isActive
+                      ? 'text-gold-500 bg-dark-800'
+                      : 'text-gray-400 hover:text-gray-200 hover:bg-dark-800/50'
+                  }`}
+                >
+                  <span className="flex items-center justify-center gap-2">
+                    {label}
+                    {hasItems && (
+                      <span className={`inline-flex items-center justify-center w-2.5 h-2.5 rounded-full ${
+                        isActive ? 'bg-gold-500' : 'bg-emerald-500'
+                      }`} />
+                    )}
+                  </span>
+                  {isActive && (
+                    <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-gold-500 rounded-full" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            onClick={() => shiftMonths(1)}
+            className="px-3 py-4 text-gray-500 hover:text-gray-300 hover:bg-dark-800 transition-colors flex-shrink-0"
+          >
+            <ChevronRight size={18} />
+          </button>
+
+          <div className="border-l border-dark-700 px-3">
             <button
-              onClick={loadInvoiceableItems}
+              onClick={() => { loadInvoiceableItems(); loadMonthIndicators(visibleMonths); }}
               disabled={loading}
               className="p-2 text-gray-400 hover:text-gray-200 transition-colors"
               title="Vernieuwen"
             >
               <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
             </button>
+          </div>
+        </div>
+
+        <div className="px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-lg font-semibold text-gray-100 capitalize">{monthLabel}</span>
+            {loading && <Loader2 size={16} className="text-gold-500 animate-spin" />}
           </div>
 
           <div className="flex items-center gap-4">
