@@ -116,9 +116,11 @@ export interface InvoiceManagementRef {
 type InvoiceManagementProps = {
   onCreateCreditNote?: (invoice: any, tenant: any, spaces: any[]) => void;
   invoiceTypeFilter?: InvoiceTypeFilter;
+  hideOpenInvoices?: boolean;
+  onlyOpenInvoices?: boolean;
 };
 
-export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCreateCreditNote, invoiceTypeFilter = 'all' }, ref) => {
+export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCreateCreditNote, invoiceTypeFilter = 'all', hideOpenInvoices = false, onlyOpenInvoices = false }, ref) => {
   const [invoices, setInvoices] = useState<InvoiceWithDetails[]>([]);
   const [leases, setLeases] = useState<LeaseWithDetails[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -3713,6 +3715,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
           return (
             <>
+              {!onlyOpenInvoices && (
               <div className="flex flex-wrap items-center gap-3 bg-dark-900 rounded-lg border border-dark-700 px-4 py-3">
                 <div className="flex items-center gap-2 text-gray-400">
                   <Filter size={16} />
@@ -3756,7 +3759,9 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                   Nieuwe Factuur
                 </button>
               </div>
+              )}
 
+              {!onlyOpenInvoices && (
               <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700">
                 <div className="flex items-center justify-between px-4 py-3 bg-dark-800 border-b border-emerald-500">
                   <h2 className="text-lg font-bold text-gray-100">Concept Facturen</h2>
@@ -3822,7 +3827,9 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                   </table>
                 </div>
               </div>
+              )}
 
+              {!hideOpenInvoices && !onlyOpenInvoices && (
               <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700">
                 <div className="flex items-center justify-between px-4 py-3 bg-dark-800 border-b border-amber-500">
                   <h2 className="text-lg font-bold text-gray-100">Openstaande Facturen</h2>
@@ -3888,6 +3895,68 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                   </table>
                 </div>
               </div>
+              )}
+
+              {onlyOpenInvoices && (
+              <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700">
+                <div className="flex items-center justify-between px-4 py-3 bg-dark-800 border-b border-amber-500">
+                  <h2 className="text-lg font-bold text-gray-100">Openstaande Facturen</h2>
+                  <div className="flex items-center gap-2">
+                    {openSelected > 0 && (
+                      <>
+                        <div className="flex items-center gap-2 bg-gold-600 text-white px-3 py-1.5 rounded-lg text-sm">
+                          <CheckSquare size={16} />
+                          {openSelected} Geselecteerd
+                        </div>
+                        <button
+                          onClick={() => handleBatchStatusChange('paid')}
+                          className="flex items-center gap-2 bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition-colors text-sm"
+                        >
+                          <CheckCircle size={16} />
+                          Markeer als Betaald
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full table-fixed min-w-[1100px]">
+                    <thead>
+                      <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
+                        <th className="text-center px-4 py-3 font-semibold w-[4%]">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); toggleSelectAll(allOpenInvoices); }}
+                            className="text-gray-300 hover:text-gold-500 transition-colors"
+                          >
+                            {allOpenInvoices.every(inv => selectedInvoices.has(inv.id)) && allOpenInvoices.length > 0 ? <CheckSquare size={18} /> : <Square size={18} />}
+                          </button>
+                        </th>
+                        <th className="text-left px-4 py-3 font-semibold w-[15%]">Klant</th>
+                        <th className="text-left px-4 py-3 font-semibold w-[9%]">Factuur Nr.</th>
+                        <th className="text-center px-4 py-3 font-semibold w-[9%]">Type</th>
+                        <th className="text-left px-4 py-3 font-semibold w-[7%]">Maand</th>
+                        <th className="text-left px-4 py-3 font-semibold w-[9%]">Factuur Datum</th>
+                        <th className="text-left px-4 py-3 font-semibold w-[9%]">Vervaldatum</th>
+                        <th className="text-right px-4 py-3 font-semibold w-[9%]">Bedrag</th>
+                        <th className="text-center px-4 py-3 font-semibold w-[9%]">Status</th>
+                        <th className="text-right px-4 py-3 font-semibold w-[12%]">Acties</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {allOpenInvoices.length === 0 ? (
+                        <tr>
+                          <td colSpan={10} className="px-4 py-8 text-center text-gray-400">
+                            Geen openstaande facturen
+                          </td>
+                        </tr>
+                      ) : (
+                        allOpenInvoices.map(inv => renderInvoiceRow(inv, true))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              )}
             </>
           );
         })()}

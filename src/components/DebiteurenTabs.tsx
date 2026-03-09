@@ -2,18 +2,17 @@ import { useState, useRef } from 'react';
 import { InvoiceManagement, InvoiceManagementRef } from './InvoiceManagement';
 import { InvoiceOverview } from './InvoiceOverview';
 import { DebtorsOverview } from './DebtorsOverview';
-import { FileText, AlertTriangle, FileCheck, Home, Calendar, ClipboardList } from 'lucide-react';
+import { FileText, AlertTriangle, FileCheck, Home, Calendar } from 'lucide-react';
 
 type DebiteurenTabsProps = {
   onCreateCreditNote?: (invoice: any, tenant: any, spaces: any[]) => void;
 };
 
 export function DebiteurenTabs({ onCreateCreditNote }: DebiteurenTabsProps) {
-  const [activeTab, setActiveTab] = useState<'factureren' | 'facturen' | 'outstanding' | 'log'>('factureren');
+  const [activeTab, setActiveTab] = useState<'facturen' | 'outstanding' | 'log'>('facturen');
   const invoiceManagementRef = useRef<InvoiceManagementRef>(null);
 
   const tabs: { id: typeof activeTab; label: string; icon: any }[] = [
-    { id: 'factureren', label: 'Factureren', icon: ClipboardList },
     { id: 'facturen', label: 'Facturen', icon: FileText },
     { id: 'outstanding', label: 'Openstaand', icon: AlertTriangle },
     { id: 'log', label: 'Logboek', icon: FileCheck },
@@ -58,37 +57,32 @@ export function DebiteurenTabs({ onCreateCreditNote }: DebiteurenTabsProps) {
                 </button>
               </div>
             )}
-            {activeTab === 'factureren' && (
-              <button
-                onClick={() => {
-                  setActiveTab('facturen');
-                }}
-                className="flex items-center gap-2 px-4 py-2 text-gray-300 hover:text-white hover:bg-dark-800 rounded-lg transition-colors text-sm"
-              >
-                <FileText size={16} />
-                Bekijk facturen
-              </button>
-            )}
           </div>
         </div>
       </div>
 
       <div className="flex-1 min-h-0 overflow-hidden">
-        {activeTab === 'factureren' && (
-          <div className="h-full overflow-y-auto">
-            <InvoiceOverview />
-          </div>
-        )}
         {activeTab === 'facturen' && (
-          <div className="h-full overflow-y-auto">
+          <div className="h-full flex flex-col gap-4 overflow-y-auto">
+            <InvoiceOverview />
             <InvoiceManagement
               ref={invoiceManagementRef}
               onCreateCreditNote={onCreateCreditNote}
               invoiceTypeFilter="all"
+              hideOpenInvoices
             />
           </div>
         )}
-        {activeTab === 'outstanding' && <DebtorsOverview initialTab="open" />}
+        {activeTab === 'outstanding' && (
+          <div className="h-full flex flex-col gap-6 overflow-y-auto">
+            <InvoiceManagement
+              onCreateCreditNote={onCreateCreditNote}
+              invoiceTypeFilter="all"
+              onlyOpenInvoices
+            />
+            <DebtorsOverview initialTab="open" />
+          </div>
+        )}
         {activeTab === 'log' && <DebtorsOverview initialTab="log" />}
       </div>
     </div>
