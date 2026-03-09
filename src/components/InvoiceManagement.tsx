@@ -314,7 +314,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       `)
       .gte('booking_date', startDateStr)
       .lte('booking_date', endDateStr)
-      .in('status', ['confirmed', 'completed'])
+      .in('status', ['pending', 'confirmed', 'completed'])
       .is('invoice_id', null);
 
     if (customerType === 'tenant') {
@@ -350,7 +350,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       `)
       .gte('booking_date', startDateStr)
       .lte('booking_date', endDateStr)
-      .in('status', ['confirmed', 'completed'])
+      .in('status', ['pending', 'confirmed', 'completed'])
       .is('invoice_id', null);
 
     if (customerType === 'tenant') {
@@ -722,7 +722,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         external_customer_id,
         space:office_spaces(space_number)
       `)
-      .in('status', ['confirmed', 'completed'])
+      .in('status', ['pending', 'confirmed', 'completed'])
       .order('booking_date', { ascending: false });
 
     setMeetingRoomBookings(bookingsData || []);
@@ -755,7 +755,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         leases(tenant_id),
         space:office_spaces(space_number)
       `)
-      .in('status', ['confirmed', 'completed'])
+      .in('status', ['pending', 'confirmed', 'completed'])
       .order('booking_date', { ascending: false });
 
     const flexWithTenantId = (flexBookingsData || []).map((b: any) => ({
