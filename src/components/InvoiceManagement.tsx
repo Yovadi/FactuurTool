@@ -1154,6 +1154,11 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
       if (invoiceError) {
         console.error('Error creating invoice:', invoiceError);
+        if (invoiceError.code === '23505') {
+          showToast('Er bestaat al een factuur voor deze klant in deze maand.', 'error');
+        } else {
+          showToast('Factuur kon niet worden aangemaakt.', 'error');
+        }
         return;
       }
 
