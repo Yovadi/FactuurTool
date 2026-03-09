@@ -148,43 +148,39 @@ export function Dashboard({ onNavigateToDebtors }: DashboardProps) {
   const loadDashboardStats = async () => {
     setLoading(true);
 
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const fourteenDaysFromNow = new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000);
+    const fourteenDaysStr = fourteenDaysFromNow.toISOString().split('T')[0];
+    const sevenDaysFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const sevenDaysStr = sevenDaysFromNow.toISOString().split('T')[0];
+
     const [
       { data: tenants },
       { data: spaces },
-      { data: leases },
+      { data: activeLeases },
       { data: leaseSpaces },
       { data: invoices },
-      { data: bookings },
+      { count: todayBookingCount },
+      { count: upcomingBookingCount },
       { data: pendingMeetingRooms },
       { data: pendingFlexBookings },
     ] = await Promise.all([
       supabase.from('tenants').select('id'),
       supabase.from('office_spaces').select('is_available, space_type').in('space_type', ['kantoor', 'bedrijfsruimte']),
-      supabase.from('leases').select('id, end_date, status, tenant_id, tenants(name)'),
-      supabase.from('lease_spaces').select('space_id, lease_id, leases!inner(status)'),
+      supabase.from('leases').select('id, end_date, status, tenant_id, tenants(name)').eq('status', 'active'),
+      supabase.from('lease_spaces').select('space_id, lease_id, leases!inner(status)').eq('leases.status', 'active'),
       supabase.from('invoices').select(`
-        invoice_number,
-        amount,
-        status,
-        due_date,
-        tenant_id,
-        external_customer_id,
-        tenants(company_name),
-        external_customers(company_name)
-      `),
-      supabase.from('meeting_room_bookings').select('id, booking_date, start_time, end_time, status'),
+        invoice_number, amount, status, due_date, tenant_id, external_customer_id,
+        tenants(company_name), external_customers(company_name)
+      `).in('status', ['draft', 'sent', 'overdue']),
+      supabase.from('meeting_room_bookings').select('*', { count: 'exact', head: true }).eq('booking_date', todayStr).neq('status', 'cancelled'),
+      supabase.from('meeting_room_bookings').select('*', { count: 'exact', head: true }).gte('booking_date', todayStr).lte('booking_date', sevenDaysStr).neq('status', 'cancelled'),
       supabase
         .from('meeting_room_bookings')
         .select(`
-          id,
-          booking_date,
-          start_time,
-          end_time,
-          tenant_id,
-          external_customer_id,
-          space:office_spaces(space_number),
-          tenants(company_name),
-          external_customers(company_name)
+          id, booking_date, start_time, end_time, tenant_id, external_customer_id,
+          space:office_spaces(space_number), tenants(company_name), external_customers(company_name)
         `)
         .eq('status', 'pending')
         .order('booking_date', { ascending: true })
@@ -193,15 +189,8 @@ export function Dashboard({ onNavigateToDebtors }: DashboardProps) {
       supabase
         .from('flex_day_bookings')
         .select(`
-          id,
-          booking_date,
-          start_time,
-          end_time,
-          is_half_day,
-          half_day_period,
-          external_customer_id,
-          space:office_spaces(space_number),
-          external_customers(company_name)
+          id, booking_date, start_time, end_time, is_half_day, half_day_period, external_customer_id,
+          space:office_spaces(space_number), external_customers(company_name)
         `)
         .eq('status', 'pending')
         .order('booking_date', { ascending: true })
@@ -213,74 +202,44 @@ export function Dashboard({ onNavigateToDebtors }: DashboardProps) {
       ...(pendingFlexBookings || []).map(b => ({ ...b, booking_type: 'flex_workspace' as const }))
     ].sort((a, b) => new Date(a.booking_date).getTime() - new Date(b.booking_date).getTime());
 
-    setPendingBookings(allPendingBookings);
-
-    const activeLeaseSpaceIds = new Set(
-      leaseSpaces
-        ?.filter(ls => ls.leases?.status === 'active')
-        .map(ls => ls.space_id) || []
-    );
-
-    const occupiedSpaces = activeLeaseSpaceIds.size;
+    const occupiedSpaces = new Set((leaseSpaces || []).map(ls => ls.space_id)).size;
     const totalRentableSpaces = spaces?.length || 0;
 
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
-    const fourteenDaysFromNow = new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000);
-    const fourteenDaysStr = fourteenDaysFromNow.toISOString().split('T')[0];
-    const sevenDaysFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
-    const sevenDaysStr = sevenDaysFromNow.toISOString().split('T')[0];
-
-    const todayBookings = bookings?.filter(b => b.booking_date === todayStr && b.status !== 'cancelled').length || 0;
-    const upcomingBookings = bookings?.filter(
-      b => b.booking_date >= todayStr && b.booking_date <= sevenDaysStr && b.status !== 'cancelled'
-    ).length || 0;
-
-    const expiringLeasesData = leases?.filter(
-      lease => lease.status === 'active' && lease.end_date >= todayStr && lease.end_date <= fourteenDaysStr
+    const expiringLeasesData = activeLeases?.filter(
+      lease => lease.end_date >= todayStr && lease.end_date <= fourteenDaysStr
     ) || [];
-    setExpiringLeases(expiringLeasesData);
 
-    const expiredLeasesData = leases?.filter(
-      lease => lease.status === 'active' && lease.end_date < todayStr
+    const expiredLeasesData = activeLeases?.filter(
+      lease => lease.end_date < todayStr
     ) || [];
-    setExpiredLeases(expiredLeasesData);
 
-    const draftInvoicesData = invoices?.filter(
-      inv => inv.status === 'draft'
-    ) || [];
-    setDraftInvoices(draftInvoicesData);
-
-    const outstandingInvoicesData = invoices?.filter(
-      inv => inv.status === 'sent' && inv.due_date >= todayStr
-    ) || [];
-    setOutstandingInvoices(outstandingInvoicesData);
-
-    const overdueInvoicesData = invoices?.filter(
-      inv => inv.status !== 'paid' && inv.status !== 'credited' && inv.due_date < todayStr
-    ) || [];
-    setOverdueInvoices(overdueInvoicesData);
-
+    const draftInvoicesData = invoices?.filter(inv => inv.status === 'draft') || [];
+    const outstandingInvoicesData = invoices?.filter(inv => inv.status === 'sent' && inv.due_date >= todayStr) || [];
+    const overdueInvoicesData = invoices?.filter(inv => inv.status !== 'paid' && inv.status !== 'credited' && inv.due_date < todayStr) || [];
     const upcomingDueInvoices = invoices?.filter(
       inv => inv.status !== 'paid' && inv.status !== 'credited' && inv.due_date >= todayStr && inv.due_date <= sevenDaysStr
     ) || [];
 
     const overdueAmt = overdueInvoicesData.reduce((sum, inv) => sum + Number(inv.amount), 0);
-    setOverdueAmount(overdueAmt);
-
     const draftAmt = draftInvoicesData.reduce((sum, inv) => sum + Number(inv.amount), 0);
-    setDraftAmount(draftAmt);
-
     const outstandingAmt = outstandingInvoicesData.reduce((sum, inv) => sum + Number(inv.amount), 0);
-    setOutstandingAmount(outstandingAmt);
 
+    setPendingBookings(allPendingBookings);
+    setExpiringLeases(expiringLeasesData);
+    setExpiredLeases(expiredLeasesData);
+    setDraftInvoices(draftInvoicesData);
+    setOutstandingInvoices(outstandingInvoicesData);
+    setOverdueInvoices(overdueInvoicesData);
+    setOverdueAmount(overdueAmt);
+    setDraftAmount(draftAmt);
+    setOutstandingAmount(outstandingAmt);
     setStats({
       totalTenants: tenants?.length || 0,
       totalSpaces: totalRentableSpaces,
       occupiedSpaces,
-      todayBookings,
-      upcomingBookings,
-      totalBookings: bookings?.length || 0
+      todayBookings: todayBookingCount || 0,
+      upcomingBookings: upcomingBookingCount || 0,
+      totalBookings: 0
     });
 
     const newFinancialNotifications: Notification[] = [];

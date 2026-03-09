@@ -59,61 +59,40 @@ export function TenantManagement() {
   });
 
   useEffect(() => {
-    loadTenants();
-    loadExternalCustomers();
-    loadCompanySettings();
+    loadAllData();
   }, []);
 
-  const loadTenants = async () => {
+  const loadAllData = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('tenants')
-      .select(`
-        *,
-        leases(
-          id,
-          status,
-          lease_type
-        )
-      `)
-      .order('name');
+    const [
+      { data: tenantsData, error: tenantsError },
+      { data: externalData, error: externalError },
+      { data: settingsData },
+      localPath,
+    ] = await Promise.all([
+      supabase.from('tenants').select(`*, leases(id, status, lease_type)`).order('name'),
+      supabase.from('external_customers').select('*').order('company_name'),
+      supabase.from('company_settings').select('*').order('updated_at', { ascending: false }).limit(1).maybeSingle(),
+      getLocalRootFolderPath(),
+    ]);
 
-    if (error) {
-      console.error('Error loading tenants:', error);
-    } else {
-      setTenants(data || []);
+    if (!tenantsError) setTenants(tenantsData || []);
+    if (!externalError) setExternalCustomers(externalData || []);
+    if (settingsData) {
+      if (localPath) settingsData.root_folder_path = localPath;
+      setCompanySettings(settingsData);
     }
     setLoading(false);
   };
 
-  const loadExternalCustomers = async () => {
-    const { data, error } = await supabase
-      .from('external_customers')
-      .select('*')
-      .order('company_name');
-
-    if (error) {
-      console.error('Error loading external customers:', error);
-    } else {
-      setExternalCustomers(data || []);
-    }
+  const loadTenants = async () => {
+    const { data } = await supabase.from('tenants').select(`*, leases(id, status, lease_type)`).order('name');
+    if (data) setTenants(data);
   };
 
-  const loadCompanySettings = async () => {
-    const [{ data }, localPath] = await Promise.all([
-      supabase
-        .from('company_settings')
-        .select('*')
-        .order('updated_at', { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-      getLocalRootFolderPath(),
-    ]);
-
-    if (data) {
-      if (localPath) data.root_folder_path = localPath;
-      setCompanySettings(data);
-    }
+  const loadExternalCustomers = async () => {
+    const { data } = await supabase.from('external_customers').select('*').order('company_name');
+    if (data) setExternalCustomers(data);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

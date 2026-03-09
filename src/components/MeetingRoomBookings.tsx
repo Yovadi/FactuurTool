@@ -129,48 +129,6 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
   const loadData = async () => {
     setLoading(true);
 
-    const { data: tenantsData } = await supabase
-      .from('tenants')
-      .select('id, name, company_name, meeting_discount_percentage')
-      .order('name');
-    console.log('Loaded tenants:', tenantsData);
-
-    const { data: externalCustomersData } = await supabase
-      .from('external_customers')
-      .select('id, company_name, contact_name, email, phone, street, postal_code, city, country, meeting_discount_percentage')
-      .order('company_name');
-    console.log('Loaded external customers:', externalCustomersData);
-
-    const { data: spacesData } = await supabase
-      .from('office_spaces')
-      .select('id, space_number')
-      .eq('space_type', 'Meeting Room')
-      .order('space_number');
-
-    const { data: ratesData } = await supabase
-      .from('space_type_rates')
-      .select('hourly_rate, half_day_rate, full_day_rate, vat_inclusive')
-      .eq('space_type', 'Meeting Room')
-      .maybeSingle();
-
-    console.log('Raw rates data from DB:', ratesData);
-
-    if (ratesData) {
-      const convertedRates = {
-        hourly_rate: Number(ratesData.hourly_rate) || 0,
-        half_day_rate: ratesData.half_day_rate ? Number(ratesData.half_day_rate) : null,
-        full_day_rate: ratesData.full_day_rate ? Number(ratesData.full_day_rate) : null,
-        vat_inclusive: ratesData.vat_inclusive || false
-      };
-      console.log('Converted rates:', convertedRates);
-      console.log('Types:', {
-        hourly: typeof convertedRates.hourly_rate,
-        halfDay: typeof convertedRates.half_day_rate,
-        fullDay: typeof convertedRates.full_day_rate
-      });
-      setMeetingRoomRates(convertedRates);
-    }
-
     let bookingsQuery = supabase
       .from('meeting_room_bookings')
       .select(`
@@ -186,7 +144,28 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       bookingsQuery = bookingsQuery.eq('tenant_id', loggedInTenantId);
     }
 
-    const { data: bookingsData } = await bookingsQuery;
+    const [
+      { data: tenantsData },
+      { data: externalCustomersData },
+      { data: spacesData },
+      { data: ratesData },
+      { data: bookingsData },
+    ] = await Promise.all([
+      supabase.from('tenants').select('id, name, company_name, meeting_discount_percentage').order('name'),
+      supabase.from('external_customers').select('id, company_name, contact_name, email, phone, street, postal_code, city, country, meeting_discount_percentage').order('company_name'),
+      supabase.from('office_spaces').select('id, space_number').eq('space_type', 'Meeting Room').order('space_number'),
+      supabase.from('space_type_rates').select('hourly_rate, half_day_rate, full_day_rate, vat_inclusive').eq('space_type', 'Meeting Room').maybeSingle(),
+      bookingsQuery,
+    ]);
+
+    if (ratesData) {
+      setMeetingRoomRates({
+        hourly_rate: Number(ratesData.hourly_rate) || 0,
+        half_day_rate: ratesData.half_day_rate ? Number(ratesData.half_day_rate) : null,
+        full_day_rate: ratesData.full_day_rate ? Number(ratesData.full_day_rate) : null,
+        vat_inclusive: ratesData.vat_inclusive || false
+      });
+    }
 
     const todayAutoStr = new Date().toISOString().split('T')[0];
     const pastConfirmed = (bookingsData || []).filter(

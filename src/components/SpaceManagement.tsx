@@ -35,8 +35,7 @@ export function SpaceManagement() {
   });
 
   useEffect(() => {
-    loadSpaces();
-    loadRates();
+    loadAllSpaceData();
   }, []);
 
   useEffect(() => {
@@ -109,11 +108,19 @@ export function SpaceManagement() {
     return emptyRates;
   };
 
-  const loadSpaces = async () => {
+  const loadAllSpaceData = async () => {
     setLoading(true);
-    const { data: spacesData, error } = await supabase
-      .from('office_spaces')
-      .select('*');
+    const [
+      { data: spacesData, error },
+      { data: leaseSpacesData },
+      { data: ratesData },
+    ] = await Promise.all([
+      supabase.from('office_spaces').select('*'),
+      supabase.from('lease_spaces').select('space_id, leases!inner(tenant_id, status, tenants(*))').eq('leases.status', 'active'),
+      supabase.from('space_type_rates').select('*'),
+    ]);
+
+    if (ratesData) setSpaceTypeRates(ratesData);
 
     if (error) {
       console.error('Error loading spaces:', error);
@@ -121,39 +128,20 @@ export function SpaceManagement() {
       return;
     }
 
-    const spacesWithTenants: SpaceWithTenant[] = await Promise.all(
-      (spacesData || []).map(async (space) => {
-        const { data: leaseSpaces } = await supabase
-          .from('lease_spaces')
-          .select('lease_id')
-          .eq('space_id', space.id);
+    const tenantBySpaceId = new Map<string, any>();
+    (leaseSpacesData || []).forEach((ls: any) => {
+      if (ls.leases?.tenants) {
+        tenantBySpaceId.set(ls.space_id, ls.leases.tenants);
+      }
+    });
 
-        if (leaseSpaces && leaseSpaces.length > 0) {
-          const { data: lease } = await supabase
-            .from('leases')
-            .select('tenant_id, status')
-            .eq('id', leaseSpaces[0].lease_id)
-            .eq('status', 'active')
-            .maybeSingle();
+    const spacesWithTenants: SpaceWithTenant[] = (spacesData || []).map(space => {
+      const tenant = tenantBySpaceId.get(space.id);
+      return tenant
+        ? { ...space, tenant, is_available: false }
+        : { ...space, is_available: true };
+    });
 
-          if (lease) {
-            const { data: tenant } = await supabase
-              .from('tenants')
-              .select('*')
-              .eq('id', lease.tenant_id)
-              .maybeSingle();
-
-            if (tenant) {
-              return { ...space, tenant, is_available: false };
-            }
-          }
-        }
-
-        return { ...space, is_available: true };
-      })
-    );
-
-    // Sort spaces by name (space_number)
     spacesWithTenants.sort((a, b) => {
       const nameA = a.space_number.toLowerCase();
       const nameB = b.space_number.toLowerCase();
@@ -162,6 +150,10 @@ export function SpaceManagement() {
 
     setSpaces(spacesWithTenants);
     setLoading(false);
+  };
+
+  const loadSpaces = async () => {
+    loadAllSpaceData();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
