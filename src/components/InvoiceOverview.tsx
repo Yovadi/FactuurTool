@@ -555,8 +555,7 @@ export function InvoiceOverview() {
     }
   };
 
-  const huurItems = items.filter(i => i.type === 'huur');
-  const flexContractItems = items.filter(i => i.type === 'flex_contract');
+  const huurItems = items.filter(i => i.type === 'huur' || i.type === 'flex_contract');
   const bookingItems = items.filter(i => i.type === 'meeting_booking' || i.type === 'flex_booking');
 
   const selectedCount = items.filter(i => selected.has(i.id)).length;
@@ -719,7 +718,7 @@ export function InvoiceOverview() {
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pb-4">
+      <div className="flex-1 min-h-0 overflow-y-auto pb-4">
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="text-gold-500 animate-spin" size={32} />
@@ -731,25 +730,28 @@ export function InvoiceOverview() {
             <p className="text-gray-500 text-sm mt-1">Alle huurcontracten en boekingen zijn al gefactureerd.</p>
           </div>
         ) : (
-          <>
-            {renderSection('Huurcontracten', <Home size={18} className="text-emerald-400" />, huurItems, 'text-emerald-400')}
-            {renderSection('Flex contracten', <Zap size={18} className="text-teal-400" />, flexContractItems, 'text-teal-400')}
-            {renderSection('Boekingen', <Calendar size={18} className="text-blue-400" />, bookingItems, 'text-blue-400')}
-          </>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-4">
+              {renderSection('Huur & Flex contracten', <Home size={18} className="text-emerald-400" />, huurItems, 'text-emerald-400')}
+            </div>
+            <div className="space-y-4">
+              {renderSection('Boekingen', <Calendar size={18} className="text-blue-400" />, bookingItems, 'text-blue-400')}
+            </div>
+          </div>
         )}
       </div>
 
       {items.length > 0 && selectedCount > 0 && (
-        <div className="flex-shrink-0 pt-3 border-t border-dark-700">
+        <div className="flex-shrink-0 pt-3 border-t border-dark-700 flex justify-end">
           <button
             onClick={generateSelectedInvoices}
             disabled={generating || selectedCount === 0}
-            className="w-full px-6 py-4 bg-gold-500 text-white font-semibold text-lg rounded-lg hover:bg-gold-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-3"
+            className="px-5 py-2.5 bg-gold-500 text-white font-medium text-sm rounded-lg hover:bg-gold-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
           >
             {generating ? (
               <>
-                <Loader2 size={20} className="animate-spin" />
-                Facturen worden gegenereerd...
+                <Loader2 size={16} className="animate-spin" />
+                Genereren...
               </>
             ) : (
               `Genereer ${selectedCount} ${selectedCount !== 1 ? 'facturen' : 'factuur'} (${'\u20AC'}${selectedTotal.toFixed(2)} incl. BTW)`
