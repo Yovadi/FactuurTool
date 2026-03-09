@@ -322,12 +322,12 @@ export function Dashboard({ onNavigateToDebtors }: DashboardProps) {
       });
     }
 
-    if (todayBookings > 0) {
+    if ((todayBookingCount || 0) > 0) {
       newBookingNotifications.push({
         type: 'info',
         icon: <CalendarClock size={18} />,
         title: 'Vergaderruimte Boekingen Vandaag',
-        message: `${todayBookings} boeking${todayBookings !== 1 ? 'en' : ''} gepland voor vandaag`
+        message: `${todayBookingCount} boeking${todayBookingCount !== 1 ? 'en' : ''} gepland voor vandaag`
       });
     }
 

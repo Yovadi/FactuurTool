@@ -243,7 +243,7 @@ export function FlexWorkspaceBookings() {
             *,
             office_spaces(space_number),
             external_customers(id, company_name, contact_name, email, phone, street, postal_code, city, country),
-            leases(tenant_id, tenants(id, company_name, contact_name))
+            leases(tenant_id, tenants(id, company_name, name))
           `),
         supabase
           .from('office_spaces')
