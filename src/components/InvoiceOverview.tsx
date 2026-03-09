@@ -105,7 +105,7 @@ export function InvoiceOverview() {
       const endDate = `${year}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 
       let leaseCount = 0;
-      if (activeLeases) {
+      if (activeLeases && month >= '2026-02') {
         for (const lease of activeLeases) {
           const alreadyInvoiced = (allInvoices || []).some(
             (inv: any) => inv.lease_id === lease.id && inv.invoice_month === month
