@@ -536,162 +536,79 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
         </div>
 
         {(overdueInvoices.length > 0 || outstandingInvoices.length > 0 || draftInvoices.length > 0 || expiredLeases.length > 0 || expiringLeases.length > 0) ? (
-          <div className="grid grid-cols-1 gap-3">
+          <div className="space-y-2">
             {overdueInvoices.length > 0 && (
               <div
                 onClick={() => onNavigateToDebtors?.('outstanding')}
-                className="bg-red-900/20 border-2 border-red-800 rounded-lg p-4 cursor-pointer hover:bg-red-900/30 transition-colors"
+                className="flex items-center justify-between px-3 py-2.5 bg-red-900/20 border border-red-800/60 rounded-lg cursor-pointer hover:bg-red-900/30 transition-colors"
               >
-                <div className="flex items-start gap-3">
-                  <AlertCircle className="text-red-400 mt-0.5" size={20} />
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-sm font-semibold text-red-400">Achterstallige Facturen</h4>
-                      <span className="text-xs font-medium text-red-400 bg-red-900 px-2 py-1 rounded">
-                        {overdueInvoices.length} {overdueInvoices.length === 1 ? 'factuur' : 'facturen'}
-                      </span>
-                    </div>
-                    <p className="text-xs text-red-300 mb-2">
-                      Facturen over de vervaldatum die direct aandacht nodig hebben
-                    </p>
-                    <div className="space-y-1 mb-3">
-                      {overdueInvoices.map((inv, idx) => {
-                        const customerName = inv.tenant_id
-                          ? (inv.tenants?.company_name || 'Onbekende huurder')
-                          : (inv.external_customers?.company_name || 'Externe klant');
-                        return (
-                          <div key={idx} className="text-xs text-red-200 flex items-center gap-2">
-                            <span className="font-medium">{inv.invoice_number}</span>
-                            <span className="text-red-400">•</span>
-                            <span>{customerName}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <p className="text-lg font-bold text-red-400">
-                      €{overdueAmount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </p>
-                  </div>
+                <div className="flex items-center gap-2.5">
+                  <AlertCircle className="text-red-400" size={16} />
+                  <span className="text-sm font-medium text-red-300">Achterstallig</span>
+                  <span className="text-xs font-medium text-red-400 bg-red-900/60 px-1.5 py-0.5 rounded">{overdueInvoices.length}</span>
                 </div>
+                <span className="text-sm font-semibold text-red-400">
+                  {'\u20AC'}{overdueAmount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
               </div>
             )}
 
             {outstandingInvoices.length > 0 && (
               <div
                 onClick={() => onNavigateToDebtors?.('outstanding')}
-                className="bg-blue-900/20 border border-blue-800 rounded-lg p-4 cursor-pointer hover:bg-blue-900/30 transition-colors"
+                className="flex items-center justify-between px-3 py-2.5 bg-blue-900/15 border border-blue-800/40 rounded-lg cursor-pointer hover:bg-blue-900/25 transition-colors"
               >
-                <div className="flex items-start gap-3">
-                  <FileText className="text-blue-400 mt-0.5" size={20} />
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-sm font-semibold text-blue-400">Openstaande Facturen</h4>
-                      <span className="text-xs font-medium text-blue-400 bg-blue-900 px-2 py-1 rounded">
-                        {outstandingInvoices.length} {outstandingInvoices.length === 1 ? 'factuur' : 'facturen'}
-                      </span>
-                    </div>
-                    <p className="text-xs text-blue-300 mb-2">
-                      Verzonden facturen die nog betaald moeten worden
-                    </p>
-                    <div className="space-y-1 mb-3">
-                      {outstandingInvoices.slice(0, 5).map((inv, idx) => {
-                        const customerName = inv.tenant_id
-                          ? (inv.tenants?.company_name || 'Onbekende huurder')
-                          : (inv.external_customers?.company_name || 'Externe klant');
-                        return (
-                          <div key={idx} className="text-xs text-blue-200 flex items-center gap-2">
-                            <span className="font-medium">{inv.invoice_number}</span>
-                            <span className="text-blue-400">•</span>
-                            <span>{customerName}</span>
-                          </div>
-                        );
-                      })}
-                      {outstandingInvoices.length > 5 && (
-                        <p className="text-xs text-blue-300 italic">
-                          en {outstandingInvoices.length - 5} meer...
-                        </p>
-                      )}
-                    </div>
-                    <p className="text-lg font-bold text-blue-400">
-                      €{outstandingAmount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </p>
-                  </div>
+                <div className="flex items-center gap-2.5">
+                  <FileText className="text-blue-400" size={16} />
+                  <span className="text-sm font-medium text-blue-300">Openstaand</span>
+                  <span className="text-xs font-medium text-blue-400 bg-blue-900/60 px-1.5 py-0.5 rounded">{outstandingInvoices.length}</span>
                 </div>
+                <span className="text-sm font-semibold text-blue-400">
+                  {'\u20AC'}{outstandingAmount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
               </div>
             )}
 
             {draftInvoices.length > 0 && (
               <div
                 onClick={() => onNavigateToDebtors?.('facturen')}
-                className="bg-amber-900/20 border border-amber-800 rounded-lg p-4 cursor-pointer hover:bg-amber-900/30 transition-colors"
+                className="flex items-center justify-between px-3 py-2.5 bg-amber-900/15 border border-amber-800/40 rounded-lg cursor-pointer hover:bg-amber-900/25 transition-colors"
               >
-                <div className="flex items-start gap-3">
-                  <FileText className="text-amber-400 mt-0.5" size={20} />
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-sm font-semibold text-amber-400">Concept Facturen</h4>
-                      <span className="text-xs font-medium text-amber-400 bg-amber-900 px-2 py-1 rounded">
-                        {draftInvoices.length} {draftInvoices.length === 1 ? 'factuur' : 'facturen'}
-                      </span>
-                    </div>
-                    <p className="text-xs text-amber-300">
-                      Conceptfacturen die nog verzonden moeten worden
-                    </p>
-                    <p className="text-lg font-bold text-amber-400 mt-2">
-                      €{draftAmount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </p>
-                  </div>
+                <div className="flex items-center gap-2.5">
+                  <FileText className="text-amber-400" size={16} />
+                  <span className="text-sm font-medium text-amber-300">Concept</span>
+                  <span className="text-xs font-medium text-amber-400 bg-amber-900/60 px-1.5 py-0.5 rounded">{draftInvoices.length}</span>
                 </div>
+                <span className="text-sm font-semibold text-amber-400">
+                  {'\u20AC'}{draftAmount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
               </div>
             )}
 
-            {(expiredLeases.length > 0 || expiringLeases.length > 0) && (
-              <div className="border-t border-dark-700 my-2"></div>
-            )}
-
             {expiredLeases.length > 0 && (
-              <div className="bg-red-900/20 border border-red-800 rounded-lg p-4">
-                <div className="flex items-start gap-3">
-                  <Calendar className="text-red-400 mt-0.5" size={20} />
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-sm font-semibold text-red-400">Verlopen Contracten</h4>
-                      <span className="text-xs font-medium text-red-400 bg-red-900 px-2 py-1 rounded">
-                        {expiredLeases.length}
-                      </span>
-                    </div>
-                    <p className="text-xs text-red-300">
-                      {expiredLeases.length} contract{expiredLeases.length !== 1 ? 'en zijn' : ' is'} verlopen en moet{expiredLeases.length !== 1 ? 'en' : ''} worden verlengd of beëindigd
-                    </p>
-                  </div>
+              <div className="flex items-center justify-between px-3 py-2.5 bg-red-900/15 border border-red-800/40 rounded-lg">
+                <div className="flex items-center gap-2.5">
+                  <Calendar className="text-red-400" size={16} />
+                  <span className="text-sm font-medium text-red-300">Verlopen contracten</span>
+                  <span className="text-xs font-medium text-red-400 bg-red-900/60 px-1.5 py-0.5 rounded">{expiredLeases.length}</span>
                 </div>
               </div>
             )}
 
             {expiringLeases.length > 0 && (
-              <div className="bg-amber-900/20 border border-amber-800 rounded-lg p-4">
-                <div className="flex items-start gap-3">
-                  <Clock className="text-amber-400 mt-0.5" size={20} />
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-sm font-semibold text-amber-400">Contracten Verlopen Binnenkort</h4>
-                      <span className="text-xs font-medium text-amber-400 bg-amber-900 px-2 py-1 rounded">
-                        {expiringLeases.length}
-                      </span>
-                    </div>
-                    <p className="text-xs text-amber-300">
-                      {expiringLeases.length} contract{expiringLeases.length !== 1 ? 'en verlopen' : ' verloopt'} binnen 14 dagen
-                    </p>
-                  </div>
+              <div className="flex items-center justify-between px-3 py-2.5 bg-amber-900/15 border border-amber-800/40 rounded-lg">
+                <div className="flex items-center gap-2.5">
+                  <Clock className="text-amber-400" size={16} />
+                  <span className="text-sm font-medium text-amber-300">Verloopt binnenkort</span>
+                  <span className="text-xs font-medium text-amber-400 bg-amber-900/60 px-1.5 py-0.5 rounded">{expiringLeases.length}</span>
                 </div>
               </div>
             )}
           </div>
         ) : (
-          <div className="bg-dark-800 rounded-lg p-8 text-center">
-            <CheckCircle size={48} className="text-green-500 mx-auto mb-3" />
-            <p className="text-gray-400 font-medium">Geen financiële meldingen</p>
-            <p className="text-gray-500 text-sm mt-1">Alles is up-to-date</p>
+          <div className="bg-dark-800 rounded-lg p-6 text-center">
+            <CheckCircle size={36} className="text-green-500 mx-auto mb-2" />
+            <p className="text-gray-400 font-medium text-sm">Geen meldingen</p>
           </div>
         )}
       </div>
