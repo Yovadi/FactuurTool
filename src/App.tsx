@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { UpdateDialog } from './components/UpdateDialog';
-import { LayoutDashboard, Users, Building, Settings, CalendarClock, Calendar, FileText, Building2, Calculator, Euro, UserCheck, UserMinus, Loader2, Menu, X, Database, Bell, AlertTriangle, TrendingUp, CalendarCheck, DoorOpen, Mail, CheckCircle, RefreshCw } from 'lucide-react';
+import { LayoutDashboard, Users, Building, Settings, CalendarClock, Calendar, FileText, Building2, Calculator, Euro, UserCheck, UserMinus, Loader2, Menu, X, Database, Mail, CheckCircle, RefreshCw } from 'lucide-react';
 import { supabase } from './lib/supabase';
-import { markAllNotificationsRead, deleteReadNotifications, deleteNotification } from './utils/notificationHelper';
 import { syncInvoicePDFs, syncLeaseContractPDFs, syncCreditNotePDFs, startPeriodicSync, type SyncResult } from './utils/invoicePdfSync';
 import { getEffectiveRootFolderPath } from './utils/localSettings';
 
@@ -58,11 +57,6 @@ function App() {
     show: false,
     type: 'update-not-available'
   });
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [notifOpen, setNotifOpen] = useState(false);
-  const notifRef = useRef<HTMLDivElement>(null);
-  const notifBtnRef = useRef<HTMLButtonElement>(null);
-  const [notifPos, setNotifPos] = useState({ top: 0, left: 0 });
   const [syncStatus, setSyncStatus] = useState<{
     active: boolean;
     current: number;
@@ -225,43 +219,20 @@ function App() {
     };
     window.addEventListener('email-enabled-changed', handleEmailChange);
 
-    loadNotifications();
     checkNewInvoices();
-    const notifInterval = setInterval(loadNotifications, 60000);
     const invoiceCheckInterval = setInterval(checkNewInvoices, 30000);
     const handleInvoicesSeen = () => setNewInvoiceCount(0);
     window.addEventListener('invoices-seen', handleInvoicesSeen);
-
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as Node;
-      const clickedBtn = notifBtnRef.current?.contains(target);
-      const clickedPanel = notifRef.current?.contains(target);
-      if (!clickedBtn && !clickedPanel) {
-        setNotifOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
 
     return () => {
       timers.forEach(clearTimeout);
       stopPeriodicSync?.();
       window.removeEventListener('eboekhouden-enabled-changed', handleEboekhoudenChange);
       window.removeEventListener('email-enabled-changed', handleEmailChange);
-      clearInterval(notifInterval);
       clearInterval(invoiceCheckInterval);
       window.removeEventListener('invoices-seen', handleInvoicesSeen);
-      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
-
-  const loadNotifications = async () => {
-    const { data } = await supabase
-      .from('admin_notifications')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(20);
-    if (data) setNotifications(data);
-  };
 
   const checkNewInvoices = async () => {
     const lastSeen = localStorage.getItem('hal5-invoices-last-seen');
@@ -275,13 +246,6 @@ function App() {
       .select('*', { count: 'exact', head: true })
       .gt('created_at', lastSeen);
     setNewInvoiceCount(count ?? 0);
-  };
-
-  const handleMarkAllRead = async () => {
-    await markAllNotificationsRead();
-    await deleteReadNotifications();
-    setNotifications([]);
-    setNotifOpen(false);
   };
 
   const syncFolders = async () => {
@@ -587,92 +551,6 @@ function App() {
                       <RefreshCw size={18} className={syncStatus.active ? 'animate-spin text-gold-500' : ''} />
                     </button>
                   )}
-                  <div className="relative">
-                    <button
-                      ref={notifBtnRef}
-                      onClick={() => {
-                        if (notifBtnRef.current) {
-                          const rect = notifBtnRef.current.getBoundingClientRect();
-                          setNotifPos({ top: rect.bottom + 8, left: rect.left });
-                        }
-                        setNotifOpen(o => !o);
-                      }}
-                      className="relative p-1.5 text-gray-400 hover:text-gray-200 transition-colors rounded-lg hover:bg-dark-800"
-                      title="Meldingen"
-                    >
-                      <Bell size={18} />
-                      {notifications.filter(n => !n.is_read).length > 0 && (
-                        <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-gold-500 text-dark-950 text-[10px] font-bold rounded-full flex items-center justify-center">
-                          {notifications.filter(n => !n.is_read).length > 9 ? '9+' : notifications.filter(n => !n.is_read).length}
-                        </span>
-                      )}
-                    </button>
-
-                    {notifOpen && (
-                      <div
-                        ref={notifRef}
-                        className="fixed w-80 bg-dark-800 border border-dark-600 rounded-xl shadow-2xl z-[200] overflow-hidden"
-                        style={{ top: notifPos.top, left: notifPos.left }}
-                      >
-                        <div className="flex items-center justify-between px-4 py-3 border-b border-dark-700">
-                          <span className="text-sm font-semibold text-gray-100">Meldingen</span>
-                          {notifications.some(n => !n.is_read) && (
-                            <button
-                              onClick={handleMarkAllRead}
-                              className="text-xs text-gray-400 hover:text-gray-200 transition-colors"
-                            >
-                              Alles gelezen
-                            </button>
-                          )}
-                        </div>
-                        <div className="max-h-80 overflow-y-auto">
-                          {notifications.length === 0 ? (
-                            <div className="px-4 py-8 text-center text-gray-500 text-sm">Geen meldingen</div>
-                          ) : (
-                            notifications.map(n => {
-                              const iconMap: Record<string, React.ReactNode> = {
-                                lease_expiring_30: <AlertTriangle size={14} className="text-red-400" />,
-                                lease_expiring_60: <AlertTriangle size={14} className="text-amber-400" />,
-                                rent_indexation_applied: <TrendingUp size={14} className="text-green-400" />,
-                                booking_cancelled: <DoorOpen size={14} className="text-red-400" />,
-                                booking_pending: <CalendarCheck size={14} className="text-amber-400" />,
-                              };
-                              const icon = iconMap[n.notification_type] || <Bell size={14} className="text-gray-400" />;
-                              const date = new Date(n.created_at).toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' });
-                              return (
-                                <div
-                                  key={n.id}
-                                  className={`px-4 py-3 border-b border-dark-700 last:border-0 ${!n.is_read ? 'bg-dark-750' : ''}`}
-                                >
-                                  <div className="flex items-start gap-2.5">
-                                    <div className="mt-0.5 flex-shrink-0">{icon}</div>
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex items-center gap-2">
-                                        <p className={`text-xs font-semibold truncate ${!n.is_read ? 'text-gray-100' : 'text-gray-400'}`}>{n.title}</p>
-                                        {!n.is_read && <span className="w-1.5 h-1.5 rounded-full bg-gold-500 flex-shrink-0" />}
-                                      </div>
-                                      <p className="text-xs text-gray-500 mt-0.5 leading-relaxed line-clamp-2">{n.message}</p>
-                                      <p className="text-xs text-gray-600 mt-1">{date}</p>
-                                    </div>
-                                    <button
-                                      onClick={async () => {
-                                        await deleteNotification(n.id);
-                                        setNotifications(prev => prev.filter(x => x.id !== n.id));
-                                      }}
-                                      className="flex-shrink-0 p-0.5 text-gray-600 hover:text-gray-300 transition-colors"
-                                      title="Verwijderen"
-                                    >
-                                      <X size={12} />
-                                    </button>
-                                  </div>
-                                </div>
-                              );
-                            })
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
                   <button
                     onClick={() => setMobileMenuOpen(false)}
                     className="lg:hidden p-1 text-gray-400 hover:text-gray-200"
