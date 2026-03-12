@@ -283,16 +283,18 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
 
       let description = line.replace(/^-\s*/, '').trim();
       let amount = '';
+      let isNegativeAmount = false;
 
-      // Extract amount from pattern like = €62.50
-      const amountMatch = description.match(/=\s*€([\d.]+)\s*$/);
+      // Extract amount from pattern like = €62.50 or = €-4.50
+      const amountMatch = description.match(/=\s*€(-?)([\d.]+)\s*$/);
       if (amountMatch) {
-        amount = amountMatch[1];
+        isNegativeAmount = amountMatch[1] === '-';
+        amount = amountMatch[2];
         description = description.substring(0, description.lastIndexOf('=')).trim();
       }
 
       // Check if this is a discount line (starts with "Totale korting" or "Korting")
-      const isDiscount = description.toLowerCase().startsWith('totale korting') || description.toLowerCase().startsWith('korting');
+      const isDiscount = description.toLowerCase().startsWith('totale korting') || description.toLowerCase().startsWith('korting') || isNegativeAmount;
 
       if (lineIndex % 2 === 0) {
         pdf.setFillColor(250, 250, 250);
@@ -309,7 +311,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
       pdf.text('', col2X + 20, yPosition, { align: 'right' });
       pdf.text('', col3X + 18, yPosition, { align: 'right' });
       if (amount) {
-        const amountText = isDiscount ? `€ -${amount}` : `€ ${amount}`;
+        const amountText = isDiscount || isNegativeAmount ? `€ -${amount}` : `€ ${amount}`;
         pdf.text(amountText, col4X - 2, yPosition, { align: 'right' });
       }
 

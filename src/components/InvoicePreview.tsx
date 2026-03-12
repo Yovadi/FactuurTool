@@ -394,13 +394,15 @@ export function InvoicePreview({
                         if (line.startsWith('-')) {
                           let cleanLine = line.replace(/^-\s*/, '');
                           let amount = '';
-                          const amountMatch = cleanLine.match(/=\s*€([\d.]+)\s*$/);
+                          let isNegativeAmount = false;
+                          const amountMatch = cleanLine.match(/=\s*€(-?)([\d.]+)\s*$/);
                           if (amountMatch) {
-                            amount = amountMatch[1];
+                            isNegativeAmount = amountMatch[1] === '-';
+                            amount = amountMatch[2];
                             cleanLine = cleanLine.substring(0, cleanLine.lastIndexOf('=')).trim();
                           }
-                          const isDiscount = cleanLine.toLowerCase().startsWith('totale korting') || cleanLine.toLowerCase().startsWith('korting');
-                          const amountText = amount ? (isDiscount ? `€ -${amount}` : `€ ${amount}`) : '';
+                          const isDiscount = cleanLine.toLowerCase().startsWith('totale korting') || cleanLine.toLowerCase().startsWith('korting') || isNegativeAmount;
+                          const amountText = amount ? (isDiscount || isNegativeAmount ? `€ -${amount}` : `€ ${amount}`) : '';
                           return (
                             <tr key={`line-${lineIndex}`} className={lineIndex % 2 === 0 ? 'bg-dark-800' : 'bg-dark-850'}>
                               <td className={`px-4 py-3 text-left ${isDiscount ? 'text-green-400' : 'text-gray-100'}`}>{cleanLine}</td>
