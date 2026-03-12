@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Building, Users, AlertCircle, Calendar, Clock, CalendarClock, FileText, DollarSign, CheckCircle, Check, XCircle, AlertTriangle } from 'lucide-react';
+import { Building, Users, AlertCircle, Calendar, Clock, CalendarClock, FileText, DollarSign, CheckCircle, Check, XCircle, AlertTriangle, Home, Zap, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react';
 import { SkeletonDashboard } from './SkeletonLoader';
 import { createAdminNotification } from '../utils/notificationHelper';
 import { useUnbilledItems } from './UnbilledItemsReminder';
@@ -95,7 +95,8 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
   const [overdueAmount, setOverdueAmount] = useState(0);
   const [draftAmount, setDraftAmount] = useState(0);
   const [outstandingAmount, setOutstandingAmount] = useState(0);
-  const { totalItems: unbilledCount, totalAmount: unbilledAmount } = useUnbilledItems();
+  const { totalItems: unbilledCount, totalAmount: unbilledAmount, groups: unbilledGroups } = useUnbilledItems();
+  const [unbilledExpanded, setUnbilledExpanded] = useState(false);
 
   useEffect(() => {
     loadDashboardStats();
@@ -587,18 +588,72 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
             )}
 
             {unbilledCount > 0 && (
-              <div
-                onClick={() => onNavigateToInvoicing?.('')}
-                className="flex items-center justify-between px-3 py-2.5 bg-amber-900/15 border border-amber-800/40 rounded-lg cursor-pointer hover:bg-amber-900/25 transition-colors"
-              >
-                <div className="flex items-center gap-2.5">
-                  <AlertTriangle className="text-amber-400" size={16} />
-                  <span className="text-sm font-medium text-amber-300">Ongefactureerd</span>
-                  <span className="text-xs font-medium text-amber-400 bg-amber-900/60 px-1.5 py-0.5 rounded">{unbilledCount}</span>
-                </div>
-                <span className="text-sm font-semibold text-amber-400">
-                  {'\u20AC'}{unbilledAmount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
+              <div className="bg-amber-900/15 border border-amber-800/40 rounded-lg overflow-hidden">
+                <button
+                  onClick={() => setUnbilledExpanded(!unbilledExpanded)}
+                  className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-amber-900/25 transition-colors"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <AlertTriangle className="text-amber-400" size={16} />
+                    <span className="text-sm font-medium text-amber-300">Ongefactureerd</span>
+                    <span className="text-xs font-medium text-amber-400 bg-amber-900/60 px-1.5 py-0.5 rounded">{unbilledCount}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-amber-400">
+                      {'\u20AC'}{unbilledAmount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                    {unbilledExpanded
+                      ? <ChevronUp size={14} className="text-gray-500" />
+                      : <ChevronDown size={14} className="text-gray-500" />
+                    }
+                  </div>
+                </button>
+                {unbilledExpanded && (
+                  <div className="border-t border-amber-800/30">
+                    {unbilledGroups.map(group => (
+                      <div key={group.month} className="border-b border-dark-700/30 last:border-b-0">
+                        <div className="px-3 py-2 flex items-center justify-between bg-dark-800/30">
+                          <span className="text-xs font-semibold text-gray-300 uppercase tracking-wide capitalize">{group.monthLabel}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-amber-400">
+                              {'\u20AC'}{group.totalAmount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                            {onNavigateToInvoicing && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); onNavigateToInvoicing(group.month); }}
+                                className="text-xs text-gold-500 hover:text-gold-400 flex items-center gap-0.5 transition-colors"
+                              >
+                                Factureren <ArrowRight size={11} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <div className="divide-y divide-dark-700/20">
+                          {group.items.map((item, idx) => (
+                            <div key={idx} className="px-4 py-1.5 flex items-center justify-between">
+                              <div className="flex items-center gap-2.5">
+                                {item.type === 'huur' && <Home size={12} className="text-emerald-400" />}
+                                {item.type === 'vergaderruimte' && <Calendar size={12} className="text-blue-400" />}
+                                {item.type === 'flexplek' && <Zap size={12} className="text-teal-400" />}
+                                <span className="text-xs text-gray-300">{item.customerName}</span>
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                                  item.type === 'huur' ? 'bg-emerald-900/40 text-emerald-400' :
+                                  item.type === 'vergaderruimte' ? 'bg-blue-900/40 text-blue-400' :
+                                  'bg-teal-900/40 text-teal-400'
+                                }`}>
+                                  {item.type === 'huur' ? 'Huur' : item.type === 'vergaderruimte' ? 'Vergader' : 'Flex'}
+                                </span>
+                              </div>
+                              <span className="text-xs text-gray-400">
+                                {'\u20AC'}{item.amount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 

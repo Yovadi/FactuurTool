@@ -1,9 +1,25 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 
+export type UnbilledItem = {
+  type: 'huur' | 'vergaderruimte' | 'flexplek';
+  month: string;
+  monthLabel: string;
+  customerName: string;
+  amount: number;
+};
+
+export type UnbilledGroup = {
+  month: string;
+  monthLabel: string;
+  items: UnbilledItem[];
+  totalAmount: number;
+};
+
 export function useUnbilledItems() {
   const [totalItems, setTotalItems] = useState(0);
   const [totalAmount, setTotalAmount] = useState(0);
+  const [groups, setGroups] = useState<UnbilledGroup[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -21,24 +37,35 @@ export function useUnbilledItems() {
       { data: unbilledFlex }
     ] = await Promise.all([
       supabase.from('leases').select(`
-        id, lease_type,
+        id, lease_type, tenant_id,
         flex_pricing_model, flex_monthly_rate, flex_daily_rate, flex_credit_rate, credits_per_week,
         security_deposit, start_date,
-        lease_spaces:lease_spaces(monthly_rent)
+        lease_spaces:lease_spaces(monthly_rent),
+        tenants(company_name)
       `).eq('status', 'active'),
       supabase.from('invoices').select('lease_id, invoice_month'),
-      supabase.from('meeting_room_bookings').select('id, booking_date, total_amount')
+      supabase.from('meeting_room_bookings').select(`
+        id, booking_date, total_amount, tenant_id, external_customer_id,
+        tenants(company_name), external_customers(company_name)
+      `)
         .lt('booking_date', currentMonthStart)
         .in('status', ['confirmed', 'completed'])
         .is('invoice_id', null),
-      supabase.from('flex_day_bookings').select('id, booking_date, total_amount')
+      supabase.from('flex_day_bookings').select(`
+        id, booking_date, total_amount, external_customer_id,
+        external_customers(company_name)
+      `)
         .lt('booking_date', currentMonthStart)
         .in('status', ['confirmed', 'completed'])
         .is('invoice_id', null)
     ]);
 
-    let items = 0;
-    let amount = 0;
+    const allItems: UnbilledItem[] = [];
+
+    const getMonthLabel = (month: string) => {
+      const [y, m] = month.split('-').map(Number);
+      return new Date(y, m - 1, 1).toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' });
+    };
 
     if (activeLeases) {
       const pastMonths: string[] = [];
@@ -51,6 +78,7 @@ export function useUnbilledItems() {
 
       for (const lease of activeLeases) {
         const leaseStart = (lease as any).start_date?.substring(0, 7) || lookbackStart;
+        const customerName = (lease as any).tenants?.company_name || 'Onbekende huurder';
 
         for (const month of pastMonths) {
           if (month < leaseStart) continue;
@@ -80,8 +108,13 @@ export function useUnbilledItems() {
             amt += deposit || 0;
           }
 
-          items++;
-          amount += amt;
+          allItems.push({
+            type: 'huur',
+            month,
+            monthLabel: getMonthLabel(month),
+            customerName,
+            amount: amt
+          });
         }
       }
     }
@@ -89,19 +122,50 @@ export function useUnbilledItems() {
     (unbilledMeetings || []).forEach((b: any) => {
       const month = b.booking_date.substring(0, 7);
       if (month >= currentMonth) return;
-      items++;
-      amount += b.total_amount || 0;
+      const name = b.tenant_id
+        ? (b.tenants?.company_name || 'Onbekende huurder')
+        : (b.external_customers?.company_name || 'Externe klant');
+      allItems.push({
+        type: 'vergaderruimte',
+        month,
+        monthLabel: getMonthLabel(month),
+        customerName: name,
+        amount: b.total_amount || 0
+      });
     });
 
     (unbilledFlex || []).forEach((b: any) => {
       const month = b.booking_date.substring(0, 7);
       if (month >= currentMonth) return;
-      items++;
-      amount += b.total_amount || 0;
+      allItems.push({
+        type: 'flexplek',
+        month,
+        monthLabel: getMonthLabel(month),
+        customerName: b.external_customers?.company_name || 'Externe klant',
+        amount: b.total_amount || 0
+      });
     });
 
-    setTotalItems(items);
-    setTotalAmount(amount);
+    const groupMap = new Map<string, UnbilledGroup>();
+    for (const item of allItems) {
+      if (!groupMap.has(item.month)) {
+        groupMap.set(item.month, {
+          month: item.month,
+          monthLabel: item.monthLabel,
+          items: [],
+          totalAmount: 0
+        });
+      }
+      const g = groupMap.get(item.month)!;
+      g.items.push(item);
+      g.totalAmount += item.amount;
+    }
+
+    const sorted = Array.from(groupMap.values()).sort((a, b) => a.month.localeCompare(b.month));
+
+    setTotalItems(allItems.length);
+    setTotalAmount(allItems.reduce((s, i) => s + i.amount, 0));
+    setGroups(sorted);
     setLoading(false);
   }, []);
 
@@ -109,5 +173,5 @@ export function useUnbilledItems() {
     load();
   }, [load]);
 
-  return { totalItems, totalAmount, loading };
+  return { totalItems, totalAmount, groups, loading };
 }
