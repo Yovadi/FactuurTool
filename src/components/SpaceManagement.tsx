@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase, type OfficeSpace, type Lease, type LeaseSpace, type Tenant, type SpaceTypeRate } from '../lib/supabase';
 import { Plus, CreditCard as Edit2, Trash2, Home, Square, User, AlertCircle } from 'lucide-react';
+import { SkeletonTable } from './SkeletonLoader';
 
 type SpaceWithTenant = OfficeSpace & {
   tenant?: Tenant;
@@ -346,7 +347,7 @@ export function SpaceManagement() {
   };
 
   if (loading) {
-    return <div className="text-center py-8">Ruimtes laden...</div>;
+    return <SkeletonTable />;
   }
 
   return (

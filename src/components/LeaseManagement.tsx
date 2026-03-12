@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase, type Lease, type Tenant, type OfficeSpace, type LeaseSpace, type SpaceTypeRate, type CompanySettings } from '../lib/supabase';
 import { Plus, CreditCard as Edit2, Trash2, Calendar, Euro, X, CheckCircle, XCircle, AlertCircle, FileText } from 'lucide-react';
 import { LeaseContractPreview } from './LeaseContractPreview';
 import type { LeaseContractData } from '../utils/leaseContractPdf';
+import { SkeletonTable } from './SkeletonLoader';
 
 type LeaseWithDetails = Lease & {
   tenant: Tenant;
@@ -82,36 +83,29 @@ export function LeaseManagement() {
   const loadData = async () => {
     setLoading(true);
 
-    const { data: leasesData } = await supabase
-      .from('leases')
-      .select(`
-        *,
-        tenant:tenants(*),
-        lease_spaces:lease_spaces(
+    const [
+      { data: leasesData },
+      { data: tenantsData },
+      { data: spacesData },
+      { data: ratesData },
+      { data: settingsData },
+    ] = await Promise.all([
+      supabase
+        .from('leases')
+        .select(`
           *,
-          space:office_spaces(*)
-        )
-      `)
-      .order('created_at', { ascending: false });
-
-    const { data: tenantsData } = await supabase
-      .from('tenants')
-      .select('*')
-      .order('name');
-
-    const { data: spacesData } = await supabase
-      .from('office_spaces')
-      .select('*')
-      .order('space_number');
-
-    const { data: ratesData } = await supabase
-      .from('space_type_rates')
-      .select('*');
-
-    const { data: settingsData } = await supabase
-      .from('company_settings')
-      .select('*')
-      .maybeSingle();
+          tenant:tenants(*),
+          lease_spaces:lease_spaces(
+            *,
+            space:office_spaces(*)
+          )
+        `)
+        .order('created_at', { ascending: false }),
+      supabase.from('tenants').select('*').order('name'),
+      supabase.from('office_spaces').select('*').order('space_number'),
+      supabase.from('space_type_rates').select('*'),
+      supabase.from('company_settings').select('*').maybeSingle(),
+    ]);
 
     setLeases(leasesData as LeaseWithDetails[] || []);
     setTenants(tenantsData || []);
@@ -714,15 +708,20 @@ export function LeaseManagement() {
   };
 
   if (loading) {
-    return <div className="text-center py-8">Huurcontracten laden...</div>;
+    return <SkeletonTable />;
   }
 
-  const activeLeases = leases.filter(l => l.status === 'active');
-  const expiredLeases = leases.filter(l => l.status === 'expired' || l.status === 'terminated');
-  const currentLeases = activeTab === 'active' ? activeLeases : expiredLeases;
-
-  const regularLeases = currentLeases.filter(l => (l as any).lease_type !== 'flex');
-  const flexLeases = currentLeases.filter(l => (l as any).lease_type === 'flex');
+  const { activeLeases, currentLeases, regularLeases, flexLeases } = useMemo(() => {
+    const active = leases.filter(l => l.status === 'active');
+    const expired = leases.filter(l => l.status === 'expired' || l.status === 'terminated');
+    const current = activeTab === 'active' ? active : expired;
+    return {
+      activeLeases: active,
+      currentLeases: current,
+      regularLeases: current.filter(l => (l as any).lease_type !== 'flex'),
+      flexLeases: current.filter(l => (l as any).lease_type === 'flex'),
+    };
+  }, [leases, activeTab]);
 
   return (
     <div className="h-full bg-dark-950 overflow-y-auto p-6">

@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase, type Tenant, type CompanySettings } from '../lib/supabase';
 import { Plus, CreditCard as Edit2, Trash2, Mail, Phone, MapPin, Key, Users, Building2, AlertCircle, CheckCircle, Calendar } from 'lucide-react';
 import { BookingOverview } from './BookingOverview';
 import { getLocalRootFolderPath } from '../utils/localSettings';
+import { SkeletonTable } from './SkeletonLoader';
 
 type TenantWithLeases = Tenant & {
   leases?: Array<{
@@ -318,8 +319,13 @@ export function TenantManagement() {
     setShowForm(false);
   };
 
+  const inactiveTenants = useMemo(() =>
+    tenants.filter(t =>
+      t.leases && t.leases.length > 0 && t.leases.every((l: any) => l.status !== 'active')
+    ), [tenants]);
+
   if (loading) {
-    return <div className="text-center py-8">Huurders laden...</div>;
+    return <SkeletonTable />;
   }
 
   return (
@@ -834,13 +840,7 @@ export function TenantManagement() {
                 </tr>
               </thead>
               <tbody>
-                {tenants
-                  .filter(tenant =>
-                    tenant.leases &&
-                    tenant.leases.length > 0 &&
-                    tenant.leases.every(lease => lease.status !== 'active')
-                  )
-                  .map((tenant) => (
+                {inactiveTenants.map((tenant) => (
                     <tr
                       key={tenant.id}
                       className="border-b border-dark-800 hover:bg-dark-800 transition-colors"
@@ -1016,11 +1016,7 @@ export function TenantManagement() {
         </div>
       )}
 
-      {activeTab === 'inactive' && tenants.filter(t =>
-        t.leases &&
-        t.leases.length > 0 &&
-        t.leases.every(l => l.status !== 'active')
-      ).length === 0 && (
+      {activeTab === 'inactive' && inactiveTenants.length === 0 && (
         <div className="bg-dark-900 rounded-lg p-8 text-center">
           <CheckCircle size={48} className="text-green-500 mx-auto mb-4" />
           <p className="text-gray-400">Geen afgelopen huurders gevonden</p>

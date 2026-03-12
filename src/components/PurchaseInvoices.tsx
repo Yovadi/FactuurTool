@@ -6,6 +6,7 @@ import { PurchaseInvoiceUpload } from './PurchaseInvoiceUpload';
 import { PurchaseInvoicePreview } from './PurchaseInvoicePreview';
 import { ConfirmModal } from './ConfirmModal';
 import { syncPurchaseInvoiceToEBoekhouden } from '../lib/eboekhoudenSync';
+import { SkeletonTable } from './SkeletonLoader';
 
 type LineItem = {
   id?: string;
@@ -679,11 +680,7 @@ export function PurchaseInvoices() {
   const { subtotal, vatAmount, total } = calculateTotals();
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-gray-400">Laden...</div>
-      </div>
-    );
+    return <SkeletonTable />;
   }
 
   return (

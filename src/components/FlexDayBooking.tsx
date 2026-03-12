@@ -104,8 +104,7 @@ export default function FlexDayBooking({
   };
 
   useEffect(() => {
-    loadBookings();
-    loadFlexSchedule();
+    Promise.all([loadBookings(), loadFlexSchedule()]);
   }, [leaseId, spaceId, currentMonth]);
 
   const loadFlexSchedule = async () => {

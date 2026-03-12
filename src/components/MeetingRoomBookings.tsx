@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { Calendar, Clock, Plus, X, Check, AlertCircle, Trash2, CalendarDays, CheckCircle, XCircle, Info, RotateCcw, Filter, RefreshCw, Link2 } from 'lucide-react';
 import { BookingCalendar } from './BookingCalendar';
 import { InlineDatePicker } from './InlineDatePicker';
+import { SkeletonTable } from './SkeletonLoader';
 import { createAdminNotification } from '../utils/notificationHelper';
 
 type NotificationType = 'success' | 'error' | 'info';
@@ -751,7 +752,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
   };
 
   if (loading) {
-    return <div className="text-center py-8">Boekingen laden...</div>;
+    return <SkeletonTable />;
   }
 
   return (

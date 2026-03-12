@@ -1,25 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { TrendingUp, Euro, FileText, DollarSign, Calendar, Download, Users, BarChart3, Table, LineChart as LineChartIcon } from 'lucide-react';
 import { BookingOverview } from './BookingOverview';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-
-type AnalyticsStats = {
-  totalRevenue: number;
-  paidRevenue: number;
-  pendingAmount: number;
-  totalInvoices: number;
-  paidInvoices: number;
-  pendingInvoices: number;
-  overdueInvoices: number;
-  overdueAmount: number;
-  forecastNextMonth: number;
-  averageInvoiceAmount: number;
-  leaseRevenue: number;
-  meetingRoomRevenue: number;
-  leaseInvoices: number;
-  meetingRoomInvoices: number;
-};
+import { SkeletonTable } from './SkeletonLoader';
 
 type YearlyData = {
   year: number;
@@ -48,25 +32,6 @@ type VATData = {
 };
 
 export function Analytics() {
-  const [stats, setStats] = useState<AnalyticsStats>({
-    totalRevenue: 0,
-    paidRevenue: 0,
-    pendingAmount: 0,
-    totalInvoices: 0,
-    paidInvoices: 0,
-    pendingInvoices: 0,
-    overdueInvoices: 0,
-    overdueAmount: 0,
-    forecastNextMonth: 0,
-    averageInvoiceAmount: 0,
-    leaseRevenue: 0,
-    meetingRoomRevenue: 0,
-    leaseInvoices: 0,
-    meetingRoomInvoices: 0
-  });
-  const [yearlyData, setYearlyData] = useState<YearlyData[]>([]);
-  const [quarterlyData, setQuarterlyData] = useState<QuarterlyData[]>([]);
-  const [vatData, setVATData] = useState<VATData[]>([]);
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [loading, setLoading] = useState(true);
   const [tenants, setTenants] = useState<any[]>([]);
@@ -79,90 +44,74 @@ export function Analytics() {
 
   useEffect(() => {
     loadAllData();
-  }, [selectedYear]);
-
-  useEffect(() => {
-    loadCustomers();
   }, []);
 
-  const loadCustomers = async () => {
-    const { data: tenantsData } = await supabase
-      .from('tenants')
-      .select('id, company_name')
-      .order('company_name');
-
-    const { data: externalData } = await supabase
-      .from('external_customers')
-      .select('id, company_name')
-      .order('company_name');
-
-    setTenants(tenantsData || []);
-    setExternalCustomers(externalData || []);
-  };
+  const [allInvoices, setAllInvoices] = useState<any[]>([]);
+  const [leaseSpacesData, setLeaseSpacesData] = useState<any[]>([]);
 
   const loadAllData = async () => {
     setLoading(true);
-    await Promise.all([
-      loadAnalyticsStats(),
-      loadYearlyData(),
-      loadQuarterlyData(),
-      loadVATData()
+    const [
+      { data: invoicesData },
+      { data: leaseSpData },
+      { data: tenantsData },
+      { data: externalData },
+    ] = await Promise.all([
+      supabase.from('invoices').select('invoice_date, amount, status, due_date, lease_id, tenant_id, vat_amount, vat_rate, subtotal'),
+      supabase.from('lease_spaces').select('monthly_rent, lease_id, leases!inner(status, start_date, end_date)'),
+      supabase.from('tenants').select('id, company_name').order('company_name'),
+      supabase.from('external_customers').select('id, company_name').order('company_name'),
     ]);
+
+    setAllInvoices(invoicesData || []);
+    setLeaseSpacesData(leaseSpData || []);
+    setTenants(tenantsData || []);
+    setExternalCustomers(externalData || []);
     setLoading(false);
   };
 
-  const loadAnalyticsStats = async () => {
-    const { data: invoices } = await supabase
-      .from('invoices')
-      .select('amount, status, due_date, lease_id, tenant_id');
-
-    const { data: leaseSpaces } = await supabase
-      .from('lease_spaces')
-      .select('monthly_rent, lease_id, leases!inner(status, start_date, end_date)');
-
+  const computedStats = useMemo(() => {
+    const invoices = allInvoices;
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
 
-    const totalRevenue = invoices?.filter(inv => inv.status !== 'credited')
-      .reduce((sum, inv) => sum + Number(inv.amount), 0) || 0;
-    const paidRevenue = invoices?.filter(inv => inv.status === 'paid')
-      .reduce((sum, inv) => sum + Number(inv.amount), 0) || 0;
-    const pendingAmount = invoices?.filter(inv => inv.status !== 'paid' && inv.status !== 'credited')
-      .reduce((sum, inv) => sum + Number(inv.amount), 0) || 0;
+    const totalRevenue = invoices.filter(inv => inv.status !== 'credited')
+      .reduce((sum, inv) => sum + Number(inv.amount), 0);
+    const paidRevenue = invoices.filter(inv => inv.status === 'paid')
+      .reduce((sum, inv) => sum + Number(inv.amount), 0);
+    const pendingAmount = invoices.filter(inv => inv.status !== 'paid' && inv.status !== 'credited')
+      .reduce((sum, inv) => sum + Number(inv.amount), 0);
 
-    const paidInvoices = invoices?.filter(inv => inv.status === 'paid').length || 0;
-    const pendingInvoices = invoices?.filter(inv => inv.status !== 'paid' && inv.status !== 'credited').length || 0;
-    const overdueInvoices = invoices?.filter(
+    const paidInvoices = invoices.filter(inv => inv.status === 'paid').length;
+    const pendingInvoices = invoices.filter(inv => inv.status !== 'paid' && inv.status !== 'credited').length;
+    const overdueInvoices = invoices.filter(
       inv => inv.status !== 'paid' && inv.status !== 'credited' && inv.due_date < todayStr
-    ).length || 0;
+    ).length;
 
-    const overdueAmount = invoices?.filter(
+    const overdueAmount = invoices.filter(
       inv => inv.status !== 'paid' && inv.status !== 'credited' && inv.due_date < todayStr
-    ).reduce((sum, inv) => sum + Number(inv.amount), 0) || 0;
+    ).reduce((sum, inv) => sum + Number(inv.amount), 0);
 
-    const activeLeaseSpaces = leaseSpaces?.filter(ls => {
+    const activeLeaseSpaces = leaseSpacesData.filter(ls => {
       const lease = ls.leases;
       return lease.status === 'active' &&
              lease.start_date <= todayStr &&
              lease.end_date >= todayStr;
-    }) || [];
+    });
 
     const forecastNextMonth = activeLeaseSpaces.reduce((sum, ls) =>
       sum + Number(ls.monthly_rent), 0
     );
 
-    const nonCreditedInvoices = invoices?.filter(inv => inv.status !== 'credited') || [];
+    const nonCreditedInvoices = invoices.filter(inv => inv.status !== 'credited');
     const averageInvoiceAmount = nonCreditedInvoices.length > 0
       ? totalRevenue / nonCreditedInvoices.length
       : 0;
 
-    const leaseInvoices = invoices?.filter(inv => inv.lease_id !== null) || [];
-    const meetingRoomInvoices = invoices?.filter(inv => inv.lease_id === null) || [];
+    const leaseInvs = invoices.filter(inv => inv.lease_id !== null);
+    const meetingRoomInvs = invoices.filter(inv => inv.lease_id === null);
 
-    const leaseRevenue = leaseInvoices.reduce((sum, inv) => sum + Number(inv.amount), 0);
-    const meetingRoomRevenue = meetingRoomInvoices.reduce((sum, inv) => sum + Number(inv.amount), 0);
-
-    setStats({
+    return {
       totalRevenue,
       paidRevenue,
       pendingAmount,
@@ -173,35 +122,22 @@ export function Analytics() {
       overdueAmount,
       forecastNextMonth,
       averageInvoiceAmount,
-      leaseRevenue,
-      meetingRoomRevenue,
-      leaseInvoices: leaseInvoices.length,
-      meetingRoomInvoices: meetingRoomInvoices.length
-    });
-  };
+      leaseRevenue: leaseInvs.reduce((sum, inv) => sum + Number(inv.amount), 0),
+      meetingRoomRevenue: meetingRoomInvs.reduce((sum, inv) => sum + Number(inv.amount), 0),
+      leaseInvoices: leaseInvs.length,
+      meetingRoomInvoices: meetingRoomInvs.length
+    };
+  }, [allInvoices, leaseSpacesData]);
 
-  const loadYearlyData = async () => {
-    const { data: invoices } = await supabase
-      .from('invoices')
-      .select('invoice_date, amount, status')
-      .neq('status', 'credited');
-
-    if (!invoices) return;
-
+  const computedYearlyData = useMemo(() => {
     const yearMap = new Map<number, YearlyData>();
+    const nonCredited = allInvoices.filter(inv => inv.status !== 'credited');
 
-    invoices.forEach(inv => {
+    nonCredited.forEach(inv => {
       const year = new Date(inv.invoice_date).getFullYear();
       if (!yearMap.has(year)) {
-        yearMap.set(year, {
-          year,
-          revenue: 0,
-          paid: 0,
-          pending: 0,
-          invoices: 0
-        });
+        yearMap.set(year, { year, revenue: 0, paid: 0, pending: 0, invoices: 0 });
       }
-
       const yearData = yearMap.get(year)!;
       yearData.revenue += Number(inv.amount);
       yearData.invoices += 1;
@@ -212,21 +148,14 @@ export function Analytics() {
       }
     });
 
-    const sortedYears = Array.from(yearMap.values()).sort((a, b) => b.year - a.year);
-    setYearlyData(sortedYears);
-  };
+    return Array.from(yearMap.values()).sort((a, b) => b.year - a.year);
+  }, [allInvoices]);
 
-  const loadQuarterlyData = async () => {
-    const { data: invoices } = await supabase
-      .from('invoices')
-      .select('invoice_date, amount, status')
-      .neq('status', 'credited');
-
-    if (!invoices) return;
-
+  const computedQuarterlyData = useMemo(() => {
     const quarterMap = new Map<string, QuarterlyData>();
+    const nonCredited = allInvoices.filter(inv => inv.status !== 'credited');
 
-    invoices.forEach(inv => {
+    nonCredited.forEach(inv => {
       const date = new Date(inv.invoice_date);
       const year = date.getFullYear();
       const month = date.getMonth();
@@ -234,16 +163,8 @@ export function Analytics() {
       const key = `${year}-Q${quarter}`;
 
       if (!quarterMap.has(key)) {
-        quarterMap.set(key, {
-          year,
-          quarter,
-          revenue: 0,
-          paid: 0,
-          pending: 0,
-          invoices: 0
-        });
+        quarterMap.set(key, { year, quarter, revenue: 0, paid: 0, pending: 0, invoices: 0 });
       }
-
       const quarterData = quarterMap.get(key)!;
       quarterData.revenue += Number(inv.amount);
       quarterData.invoices += 1;
@@ -254,38 +175,23 @@ export function Analytics() {
       }
     });
 
-    const sortedQuarters = Array.from(quarterMap.values())
+    return Array.from(quarterMap.values())
       .filter(q => q.year === selectedYear)
       .sort((a, b) => a.quarter - b.quarter);
-    setQuarterlyData(sortedQuarters);
-  };
+  }, [allInvoices, selectedYear]);
 
-  const loadVATData = async () => {
-    const { data: invoices } = await supabase
-      .from('invoices')
-      .select('invoice_date, vat_amount, vat_rate, subtotal, status');
-
-    if (!invoices) return;
-
+  const computedVATData = useMemo(() => {
     const monthMap = new Map<string, VATData>();
 
-    invoices.forEach(inv => {
+    allInvoices.forEach(inv => {
       const date = new Date(inv.invoice_date);
       const year = date.getFullYear();
       const month = date.getMonth() + 1;
       const key = `${year}-${String(month).padStart(2, '0')}`;
 
       if (!monthMap.has(key)) {
-        monthMap.set(key, {
-          period: key,
-          vatCollected: 0,
-          vatPaid: 0,
-          netVAT: 0,
-          revenue: 0,
-          vatRate: 0
-        });
+        monthMap.set(key, { period: key, vatCollected: 0, vatPaid: 0, netVAT: 0, revenue: 0, vatRate: 0 });
       }
-
       const monthData = monthMap.get(key)!;
       if (inv.status === 'paid') {
         monthData.vatCollected += Number(inv.vat_amount || 0);
@@ -297,11 +203,10 @@ export function Analytics() {
       value.netVAT = value.vatCollected - value.vatPaid;
     });
 
-    const sortedVAT = Array.from(monthMap.values())
+    return Array.from(monthMap.values())
       .filter(v => v.period.startsWith(selectedYear.toString()))
       .sort((a, b) => a.period.localeCompare(b.period));
-    setVATData(sortedVAT);
-  };
+  }, [allInvoices, selectedYear]);
 
   const exportToExcel = (type: 'yearly' | 'quarterly' | 'vat') => {
     let csvContent = '';
@@ -310,7 +215,7 @@ export function Analytics() {
     switch (type) {
       case 'yearly':
         csvContent = 'Jaar;Omzet;Betaald;Openstaand;Aantal Facturen\n';
-        yearlyData.forEach(row => {
+        computedYearlyData.forEach(row => {
           csvContent += `${row.year};${row.revenue.toFixed(2).replace('.', ',')};${row.paid.toFixed(2).replace('.', ',')};${row.pending.toFixed(2).replace('.', ',')};${row.invoices}\n`;
         });
         filename = 'jaaroverzicht.csv';
@@ -318,7 +223,7 @@ export function Analytics() {
 
       case 'quarterly':
         csvContent = 'Jaar;Kwartaal;Omzet;Betaald;Openstaand;Aantal Facturen\n';
-        quarterlyData.forEach(row => {
+        computedQuarterlyData.forEach(row => {
           csvContent += `${row.year};Q${row.quarter};${row.revenue.toFixed(2).replace('.', ',')};${row.paid.toFixed(2).replace('.', ',')};${row.pending.toFixed(2).replace('.', ',')};${row.invoices}\n`;
         });
         filename = `kwartaaloverzicht-${selectedYear}.csv`;
@@ -326,7 +231,7 @@ export function Analytics() {
 
       case 'vat':
         csvContent = 'Periode;BTW Geïnd;BTW Betaald;Netto BTW;Omzet\n';
-        vatData.forEach(row => {
+        computedVATData.forEach(row => {
           csvContent += `${row.period};${row.vatCollected.toFixed(2).replace('.', ',')};${row.vatPaid.toFixed(2).replace('.', ',')};${row.netVAT.toFixed(2).replace('.', ',')};${row.revenue.toFixed(2).replace('.', ',')}\n`;
         });
         filename = `btw-overzicht-${selectedYear}.csv`;
@@ -352,10 +257,10 @@ export function Analytics() {
   };
 
   if (loading) {
-    return <div className="text-center py-8 text-gray-300">Analytics laden...</div>;
+    return <SkeletonTable />;
   }
 
-  const availableYears = yearlyData.map(y => y.year);
+  const availableYears = computedYearlyData.map(y => y.year);
 
   return (
     <div className="h-full bg-dark-950 overflow-y-auto p-6">
@@ -432,7 +337,7 @@ export function Analytics() {
             <p className="text-sm text-gray-300 mb-1">Totale Omzet</p>
             <div className="h-12 flex items-center">
               <p className="text-3xl font-bold text-gray-100">
-                {formatCurrency(stats.totalRevenue)}
+                {formatCurrency(computedStats.totalRevenue)}
               </p>
             </div>
             <p className="text-xs text-gray-400 mt-1 h-5">
@@ -451,11 +356,11 @@ export function Analytics() {
             <p className="text-sm text-gray-300 mb-1">Geïnde Omzet</p>
             <div className="h-12 flex items-center">
               <p className="text-3xl font-bold text-gray-100">
-                {formatCurrency(stats.paidRevenue)}
+                {formatCurrency(computedStats.paidRevenue)}
               </p>
             </div>
             <p className="text-xs text-gray-400 mt-1 h-5">
-              {stats.paidInvoices} betaalde facturen
+              {computedStats.paidInvoices} betaalde facturen
             </p>
           </div>
         </div>
@@ -470,11 +375,11 @@ export function Analytics() {
             <p className="text-sm text-gray-300 mb-1">Uitstaand Bedrag</p>
             <div className="h-12 flex items-center">
               <p className="text-3xl font-bold text-gray-100">
-                {formatCurrency(stats.pendingAmount)}
+                {formatCurrency(computedStats.pendingAmount)}
               </p>
             </div>
             <p className="text-xs text-gray-400 mt-1 h-5">
-              {stats.pendingInvoices} openstaande facturen
+              {computedStats.pendingInvoices} openstaande facturen
             </p>
           </div>
         </div>
@@ -489,7 +394,7 @@ export function Analytics() {
             <p className="text-sm text-gray-300 mb-1">Prognose Volgende Maand</p>
             <div className="h-12 flex items-center">
               <p className="text-3xl font-bold text-gray-100">
-                {formatCurrency(stats.forecastNextMonth)}
+                {formatCurrency(computedStats.forecastNextMonth)}
               </p>
             </div>
             <p className="text-xs text-gray-400 mt-1 h-5">
@@ -536,11 +441,11 @@ export function Analytics() {
               </button>
             </div>
           </div>
-          {yearlyData.length === 0 ? (
+          {computedYearlyData.length === 0 ? (
             <p className="text-gray-400 text-center py-4">Geen data beschikbaar</p>
           ) : yearlyView === 'table' ? (
             <div className="space-y-3">
-              {yearlyData.map((year) => (
+              {computedYearlyData.map((year) => (
                 <div key={year.year} className="p-4 bg-dark-800 rounded-lg">
                   <div className="flex justify-between items-center mb-2">
                     <span className="font-bold text-gray-100 text-lg">{year.year}</span>
@@ -567,7 +472,7 @@ export function Analytics() {
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={yearlyData}>
+              <LineChart data={computedYearlyData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                 <XAxis dataKey="year" stroke="#9CA3AF" />
                 <YAxis stroke="#9CA3AF" tickFormatter={(value) => `€${(value / 1000).toFixed(0)}k`} />
@@ -621,11 +526,11 @@ export function Analytics() {
               </button>
             </div>
           </div>
-          {quarterlyData.length === 0 ? (
+          {computedQuarterlyData.length === 0 ? (
             <p className="text-gray-400 text-center py-4">Geen data beschikbaar voor {selectedYear}</p>
           ) : quarterlyView === 'table' ? (
             <div className="space-y-3">
-              {quarterlyData.map((quarter) => (
+              {computedQuarterlyData.map((quarter) => (
                 <div key={`${quarter.year}-Q${quarter.quarter}`} className="p-4 bg-dark-800 rounded-lg">
                   <div className="flex justify-between items-center mb-2">
                     <span className="font-bold text-gray-100">Q{quarter.quarter} {quarter.year}</span>
@@ -652,7 +557,7 @@ export function Analytics() {
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={quarterlyData}>
+              <LineChart data={computedQuarterlyData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                 <XAxis
                   dataKey="quarter"
@@ -676,16 +581,16 @@ export function Analytics() {
         </div>
       </div>
 
-          {stats.overdueInvoices > 0 && (
+          {computedStats.overdueInvoices > 0 && (
             <div className="bg-red-900/20 border border-red-800 rounded-lg p-6">
               <div className="flex items-center gap-3 mb-2">
                 <DollarSign className="text-red-400" size={24} />
                 <h3 className="text-lg font-semibold text-red-400">Achterstallige Betalingen</h3>
               </div>
               <p className="text-gray-300 mb-4">
-                Er zijn momenteel {stats.overdueInvoices} achterstallige factu{stats.overdueInvoices !== 1 ? 'ren' : 'ur'} met een totaalbedrag van{' '}
+                Er zijn momenteel {computedStats.overdueInvoices} achterstallige factu{computedStats.overdueInvoices !== 1 ? 'ren' : 'ur'} met een totaalbedrag van{' '}
                 <span className="font-bold text-red-400">
-                  {formatCurrency(stats.overdueAmount)}
+                  {formatCurrency(computedStats.overdueAmount)}
                 </span>
               </p>
               <p className="text-sm text-gray-400">
@@ -811,7 +716,7 @@ export function Analytics() {
                 </button>
               </div>
             </div>
-            {vatData.length === 0 ? (
+            {computedVATData.length === 0 ? (
               <p className="text-gray-400 text-center py-4">Geen BTW data beschikbaar voor {selectedYear}</p>
             ) : vatView === 'table' ? (
               <div className="overflow-x-auto">
@@ -826,7 +731,7 @@ export function Analytics() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-700">
-                    {vatData.map((row) => (
+                    {computedVATData.map((row) => (
                       <tr key={row.period} className="hover:bg-dark-800/50">
                         <td className="px-4 py-3 text-sm text-gray-300">{row.period}</td>
                         <td className="px-4 py-3 text-sm text-gray-200 text-right font-semibold">
@@ -846,16 +751,16 @@ export function Analytics() {
                     <tr className="bg-dark-800 font-bold">
                       <td className="px-4 py-3 text-sm text-gray-100">Totaal</td>
                       <td className="px-4 py-3 text-sm text-gray-100 text-right">
-                        {formatCurrency(vatData.reduce((sum, row) => sum + row.revenue, 0))}
+                        {formatCurrency(computedVATData.reduce((sum, row) => sum + row.revenue, 0))}
                       </td>
                       <td className="px-4 py-3 text-sm text-green-400 text-right">
-                        {formatCurrency(vatData.reduce((sum, row) => sum + row.vatCollected, 0))}
+                        {formatCurrency(computedVATData.reduce((sum, row) => sum + row.vatCollected, 0))}
                       </td>
                       <td className="px-4 py-3 text-sm text-red-400 text-right">
-                        {formatCurrency(vatData.reduce((sum, row) => sum + row.vatPaid, 0))}
+                        {formatCurrency(computedVATData.reduce((sum, row) => sum + row.vatPaid, 0))}
                       </td>
                       <td className="px-4 py-3 text-sm text-blue-400 text-right">
-                        {formatCurrency(vatData.reduce((sum, row) => sum + row.netVAT, 0))}
+                        {formatCurrency(computedVATData.reduce((sum, row) => sum + row.netVAT, 0))}
                       </td>
                     </tr>
                   </tbody>
@@ -863,7 +768,7 @@ export function Analytics() {
               </div>
             ) : (
               <ResponsiveContainer width="100%" height={400}>
-                <LineChart data={vatData}>
+                <LineChart data={computedVATData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                   <XAxis
                     dataKey="period"

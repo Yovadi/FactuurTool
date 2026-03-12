@@ -96,42 +96,41 @@ export function BookingOverview({ customerId, customerType, customerName, onClos
       meetingRoomQuery.eq('external_customer_id', customerId).eq('booking_type', 'external');
     }
 
-    const { data: meetingRoomData, error: meetingRoomError } = await meetingRoomQuery;
+    const flexQuery = customerType === 'external'
+      ? supabase
+          .from('flex_day_bookings')
+          .select(`
+            id,
+            booking_date,
+            start_time,
+            end_time,
+            is_half_day,
+            half_day_period,
+            status,
+            invoice_id,
+            external_customer_id,
+            space:office_spaces(space_number),
+            external_customers(company_name)
+          `)
+          .eq('external_customer_id', customerId)
+          .order('booking_date', { ascending: false })
+      : null;
 
-    if (meetingRoomError) {
-      console.error('Error loading meeting room bookings:', meetingRoomError);
+    const [meetingRoomResult, flexResult] = await Promise.all([
+      meetingRoomQuery,
+      flexQuery,
+    ]);
+
+    if (meetingRoomResult.error) {
+      console.error('Error loading meeting room bookings:', meetingRoomResult.error);
     }
-
-    let flexData: any[] = [];
-    if (customerType === 'external') {
-      const { data, error } = await supabase
-        .from('flex_day_bookings')
-        .select(`
-          id,
-          booking_date,
-          start_time,
-          end_time,
-          is_half_day,
-          half_day_period,
-          status,
-          invoice_id,
-          external_customer_id,
-          space:office_spaces(space_number),
-          external_customers(company_name)
-        `)
-        .eq('external_customer_id', customerId)
-        .order('booking_date', { ascending: false });
-
-      if (error) {
-        console.error('Error loading flex bookings:', error);
-      } else {
-        flexData = data || [];
-      }
+    if (flexResult?.error) {
+      console.error('Error loading flex bookings:', flexResult.error);
     }
 
     const allBookings: Booking[] = [
-      ...(meetingRoomData || []).map(b => ({ ...b, type: 'meeting_room' as const })),
-      ...(flexData || []).map(b => ({ ...b, type: 'flex_workspace' as const }))
+      ...(meetingRoomResult.data || []).map(b => ({ ...b, type: 'meeting_room' as const })),
+      ...(flexResult?.data || []).map(b => ({ ...b, type: 'flex_workspace' as const }))
     ].sort((a, b) => new Date(b.booking_date).getTime() - new Date(a.booking_date).getTime());
 
     setBookings(allBookings);
@@ -230,7 +229,12 @@ export function BookingOverview({ customerId, customerType, customerName, onClos
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-dark-900 rounded-lg p-8 max-w-4xl w-full mx-4">
-          <p className="text-gray-300">Boekingen laden...</p>
+          <div className="animate-pulse space-y-4">
+            <div className="h-6 bg-dark-700 rounded w-48" />
+            <div className="h-4 bg-dark-700 rounded w-full" />
+            <div className="h-4 bg-dark-700 rounded w-3/4" />
+            <div className="h-4 bg-dark-700 rounded w-5/6" />
+          </div>
         </div>
       </div>
     );
