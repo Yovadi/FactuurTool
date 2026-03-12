@@ -707,12 +707,13 @@ export function LeaseManagement() {
     return lease.lease_spaces.reduce((sum, ls) => sum + ls.monthly_rent, 0);
   };
 
-  const { activeLeases, currentLeases, regularLeases, flexLeases } = useMemo(() => {
+  const { activeLeases, expiredLeases, currentLeases, regularLeases, flexLeases } = useMemo(() => {
     const active = leases.filter(l => l.status === 'active');
     const expired = leases.filter(l => l.status === 'expired' || l.status === 'terminated');
     const current = activeTab === 'active' ? active : expired;
     return {
       activeLeases: active,
+      expiredLeases: expired,
       currentLeases: current,
       regularLeases: current.filter(l => (l as any).lease_type !== 'flex'),
       flexLeases: current.filter(l => (l as any).lease_type === 'flex'),
