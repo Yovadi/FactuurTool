@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Download, Send, Edit, Receipt, FileText, Loader2, RotateCcw, Trash2 } from 'lucide-react';
+import { X, Download, Send, CreditCard as Edit, Receipt, FileText, Loader2, RotateCcw, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { generateInvoicePDFBlobUrl } from '../utils/pdfGenerator';
 
