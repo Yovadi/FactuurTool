@@ -707,10 +707,6 @@ export function LeaseManagement() {
     return lease.lease_spaces.reduce((sum, ls) => sum + ls.monthly_rent, 0);
   };
 
-  if (loading) {
-    return <SkeletonTable />;
-  }
-
   const { activeLeases, currentLeases, regularLeases, flexLeases } = useMemo(() => {
     const active = leases.filter(l => l.status === 'active');
     const expired = leases.filter(l => l.status === 'expired' || l.status === 'terminated');
@@ -722,6 +718,10 @@ export function LeaseManagement() {
       flexLeases: current.filter(l => (l as any).lease_type === 'flex'),
     };
   }, [leases, activeTab]);
+
+  if (loading) {
+    return <SkeletonTable />;
+  }
 
   return (
     <div className="h-full bg-dark-950 overflow-y-auto p-6">
