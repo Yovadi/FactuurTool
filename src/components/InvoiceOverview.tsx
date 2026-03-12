@@ -22,6 +22,7 @@ type InvoiceItem = {
   bookings?: any[];
   lease?: LeaseWithDetails;
   details: string[];
+  customerDiscountPct?: number;
 };
 
 function getLocalCategory(spaceType?: string, bookingType?: string): string | null {
@@ -50,7 +51,11 @@ function calculateVAT(baseAmount: number, vatRate: number, vatInclusive: boolean
   }
 }
 
-export function InvoiceOverview() {
+type InvoiceOverviewProps = {
+  onInvoicesCreated?: () => void;
+};
+
+export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}) {
   const [invoiceMonth, setInvoiceMonth] = useState('');
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -333,7 +338,8 @@ export function InvoiceOverview() {
         vatRate: 21,
         vatInclusive: false,
         bookings: allBookings,
-        details
+        details,
+        customerDiscountPct: customer.discountPct
       });
     }
 
@@ -527,7 +533,7 @@ export function InvoiceOverview() {
           const bookings = item.bookings || [];
           if (bookings.length === 0) { failCount++; continue; }
 
-          const customerDiscountPct = 0;
+          const customerDiscountPct = item.customerDiscountPct || 0;
           let totalBeforeDiscount = 0;
           bookings.forEach((b: any) => {
             totalBeforeDiscount += (b.total_amount || 0) + (b.discount_amount || 0);
@@ -590,7 +596,7 @@ export function InvoiceOverview() {
           if (totalDiscountAmount > 0) {
             lineItems.push({
               invoice_id: newInvoice.id,
-              description: `Korting boekingen`,
+              description: customerDiscountPct > 0 ? `Korting boekingen (${customerDiscountPct}%)` : 'Korting boekingen',
               quantity: 1, unit_price: -totalDiscountAmount, amount: -totalDiscountAmount,
               booking_id: null, local_category: null as any
             });
@@ -622,6 +628,7 @@ export function InvoiceOverview() {
     if (successCount > 0) {
       showToast(`${successCount} factuur${successCount !== 1 ? 'en' : ''} succesvol aangemaakt als concept.`, 'success');
       loadInvoiceableItems();
+      onInvoicesCreated?.();
     }
     if (failCount > 0) {
       showToast(`${failCount} factuur${failCount !== 1 ? 'en' : ''} konden niet worden aangemaakt.`, 'error');

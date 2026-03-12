@@ -112,6 +112,7 @@ export interface InvoiceManagementRef {
   openGenerateModal: () => Promise<void>;
   openGenerateHuurModal: () => Promise<void>;
   openGenerateBookingsModal: () => Promise<void>;
+  refreshInvoices: () => Promise<void>;
 }
 
 type InvoiceManagementProps = {
@@ -240,7 +241,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       setInvoiceMonth(defaultMonth);
       setGenerateModalType('bookings');
       setShowGenerateModal(true);
-    }
+    },
+    refreshInvoices
   }));
 
   const getDefaultInvoiceMonth = async (type?: InvoiceTypeFilter) => {

@@ -73,7 +73,7 @@ export function DebiteurenTabs({ initialTab, onInitialTabConsumed, onCreateCredi
       <div className="flex-1 min-h-0 overflow-hidden">
         {activeTab === 'facturen' && (
           <div className="h-full flex flex-col gap-4 overflow-y-auto">
-            <InvoiceOverview />
+            <InvoiceOverview onInvoicesCreated={() => invoiceManagementRef.current?.refreshInvoices()} />
             <InvoiceManagement
               ref={invoiceManagementRef}
               onCreateCreditNote={onCreateCreditNote}
