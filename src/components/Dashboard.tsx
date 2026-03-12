@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Building, Users, AlertCircle, Calendar, Clock, CalendarClock, FileText, DollarSign, CheckCircle, Check, XCircle } from 'lucide-react';
+import { Building, Users, AlertCircle, Calendar, Clock, CalendarClock, FileText, DollarSign, CheckCircle, Check, XCircle, AlertTriangle } from 'lucide-react';
 import { SkeletonDashboard } from './SkeletonLoader';
 import { createAdminNotification } from '../utils/notificationHelper';
-import { UnbilledItemsReminder } from './UnbilledItemsReminder';
+import { useUnbilledItems } from './UnbilledItemsReminder';
 
 type DashboardStats = {
   totalTenants: number;
@@ -95,6 +95,7 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
   const [overdueAmount, setOverdueAmount] = useState(0);
   const [draftAmount, setDraftAmount] = useState(0);
   const [outstandingAmount, setOutstandingAmount] = useState(0);
+  const { totalItems: unbilledCount, totalAmount: unbilledAmount } = useUnbilledItems();
 
   useEffect(() => {
     loadDashboardStats();
@@ -535,7 +536,7 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
           <h3 className="text-lg font-semibold text-gray-100">Financiële Meldingen</h3>
         </div>
 
-        {(overdueInvoices.length > 0 || outstandingInvoices.length > 0 || draftInvoices.length > 0 || expiredLeases.length > 0 || expiringLeases.length > 0) ? (
+        {(overdueInvoices.length > 0 || outstandingInvoices.length > 0 || draftInvoices.length > 0 || expiredLeases.length > 0 || expiringLeases.length > 0 || unbilledCount > 0) ? (
           <div className="space-y-2">
             {overdueInvoices.length > 0 && (
               <div
@@ -585,6 +586,22 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
               </div>
             )}
 
+            {unbilledCount > 0 && (
+              <div
+                onClick={() => onNavigateToInvoicing?.('')}
+                className="flex items-center justify-between px-3 py-2.5 bg-amber-900/15 border border-amber-800/40 rounded-lg cursor-pointer hover:bg-amber-900/25 transition-colors"
+              >
+                <div className="flex items-center gap-2.5">
+                  <AlertTriangle className="text-amber-400" size={16} />
+                  <span className="text-sm font-medium text-amber-300">Ongefactureerd</span>
+                  <span className="text-xs font-medium text-amber-400 bg-amber-900/60 px-1.5 py-0.5 rounded">{unbilledCount}</span>
+                </div>
+                <span className="text-sm font-semibold text-amber-400">
+                  {'\u20AC'}{unbilledAmount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+            )}
+
             {expiredLeases.length > 0 && (
               <div className="flex items-center justify-between px-3 py-2.5 bg-red-900/15 border border-red-800/40 rounded-lg">
                 <div className="flex items-center gap-2.5">
@@ -614,7 +631,6 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
       </div>
       </div>
 
-      <UnbilledItemsReminder onNavigateToInvoicing={onNavigateToInvoicing} />
     </div>
   );
 }
