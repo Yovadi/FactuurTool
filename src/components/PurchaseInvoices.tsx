@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import type { CompanySettings } from '../lib/supabase';
-import { Plus, Search, Eye, Edit2, Trash2, Upload, FileText, CheckCircle, Clock, AlertCircle, Sparkles, X, Filter, Loader2, RefreshCw, Link2 } from 'lucide-react';
+import { Plus, Search, Eye, CreditCard as Edit2, Trash2, Upload, FileText, CheckCircle, Clock, AlertCircle, Sparkles, X, Filter, Loader2, RefreshCw, Link2 } from 'lucide-react';
 import { PurchaseInvoiceUpload } from './PurchaseInvoiceUpload';
 import { PurchaseInvoicePreview } from './PurchaseInvoicePreview';
 import { ConfirmModal } from './ConfirmModal';
