@@ -81,9 +81,10 @@ function convertLineItemsToSpaces(items: InvoiceLineItem[]) {
       }
     }
 
+    const rentAmount = typeof item.amount === 'string' ? parseFloat(item.amount) : (item.amount || 0);
     return {
       space_name: cleanDescription,
-      monthly_rent: item.amount,
+      monthly_rent: rentAmount,
       space_type: spaceType as any,
       square_footage: squareFootage,
       price_per_sqm: pricePerSqm,
