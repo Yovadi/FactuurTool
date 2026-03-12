@@ -1828,11 +1828,11 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         });
 
         if (totalDiscount > 0 && bookings.length > 0 && bookings[0].discount_percentage) {
-          notesLines.push(`- Totale korting ${Math.round(bookings[0].discount_percentage)}% huurderkorting = €${totalDiscount.toFixed(2)}`);
+          notesLines.push(`- Totale korting ${Math.round(bookings[0].discount_percentage)}% huurderkorting = €-${totalDiscount.toFixed(2)}`);
         }
 
         if (additionalDiscount > 0 && discountPercentage) {
-          notesLines.push(`- Korting vergaderruimtes (${discountPercentage}%) = €${additionalDiscount.toFixed(2)}`);
+          notesLines.push(`- Korting vergaderruimtes (${discountPercentage}%) = €-${additionalDiscount.toFixed(2)}`);
         }
 
         const invoiceNotes = notesLines.join('\n');
@@ -2484,7 +2484,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           });
 
           if (totalDiscountAmount > 0 && customerDiscountPercentage > 0) {
-            notesLines.push(`- Totale korting ${Math.round(customerDiscountPercentage)}% huurderkorting = €${totalDiscountAmount.toFixed(2)}`);
+            notesLines.push(`- Totale korting ${Math.round(customerDiscountPercentage)}% huurderkorting = €-${totalDiscountAmount.toFixed(2)}`);
           }
 
           const invoiceNotes = notesLines.join('\n');

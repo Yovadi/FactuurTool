@@ -572,6 +572,10 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
             const end = b.end_time?.substring(0, 5) || '--:--';
             notesLines.push(`- ${b.space?.space_number || label} - ${new Date(b.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${start}-${end} (${rateDesc}) = \u20AC${amt.toFixed(2)}`);
           });
+          if (totalDiscountAmount > 0) {
+            const discLabel = customerDiscountPct > 0 ? `Korting boekingen (${customerDiscountPct}%)` : 'Korting boekingen';
+            notesLines.push(`- ${discLabel} = \u20AC-${totalDiscountAmount.toFixed(2)}`);
+          }
 
           const { data: newInvoice, error: invErr } = await supabase
             .from('invoices')
