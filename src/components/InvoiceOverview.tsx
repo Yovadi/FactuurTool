@@ -536,11 +536,16 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
           const customerDiscountPct = item.customerDiscountPct || 0;
           let totalBeforeDiscount = 0;
           bookings.forEach((b: any) => {
-            totalBeforeDiscount += (b.total_amount || 0) + (b.discount_amount || 0);
+            const amt = typeof b.total_amount === 'string' ? parseFloat(b.total_amount) : (b.total_amount || 0);
+            const disc = typeof b.discount_amount === 'string' ? parseFloat(b.discount_amount) : (b.discount_amount || 0);
+            totalBeforeDiscount += amt + disc;
           });
           const totalDiscountAmount = customerDiscountPct > 0
             ? Math.round(totalBeforeDiscount * (customerDiscountPct / 100) * 100) / 100
-            : bookings.reduce((sum: number, b: any) => sum + (b.discount_amount || 0), 0);
+            : bookings.reduce((sum: number, b: any) => {
+                const disc = typeof b.discount_amount === 'string' ? parseFloat(b.discount_amount) : (b.discount_amount || 0);
+                return sum + disc;
+              }, 0);
 
           const finalAmount = totalBeforeDiscount - totalDiscountAmount;
           const { subtotal, vatAmount, total } = calculateVAT(finalAmount, 21, false);
@@ -560,7 +565,9 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
               rateDesc = b.rate_type === 'half_day' ? 'dagdeel' : (b.rate_type === 'full_day' ? 'hele dag' : `${Math.round(b.total_hours)}u`);
             }
             const label = b.booking_type === 'flex' ? 'Flexplek' : 'Vergaderruimte';
-            const amt = (b.total_amount || 0) + (b.discount_amount || 0);
+            const totalAmt = typeof b.total_amount === 'string' ? parseFloat(b.total_amount) : (b.total_amount || 0);
+            const discAmt = typeof b.discount_amount === 'string' ? parseFloat(b.discount_amount) : (b.discount_amount || 0);
+            const amt = totalAmt + discAmt;
             const start = b.start_time?.substring(0, 5) || '--:--';
             const end = b.end_time?.substring(0, 5) || '--:--';
             notesLines.push(`- ${b.space?.space_number || label} - ${new Date(b.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${start}-${end} (${rateDesc}) = \u20AC${amt.toFixed(2)}`);
@@ -581,7 +588,9 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
           if (invErr || !newInvoice) { failCount++; continue; }
 
           const lineItems = bookings.map((b: any) => {
-            const amt = (b.total_amount || 0) + (b.discount_amount || 0);
+            const totalAmt = typeof b.total_amount === 'string' ? parseFloat(b.total_amount) : (b.total_amount || 0);
+            const discAmt = typeof b.discount_amount === 'string' ? parseFloat(b.discount_amount) : (b.discount_amount || 0);
+            const amt = totalAmt + discAmt;
             const label = b.booking_type === 'flex' ? 'Flexplek' : 'Vergaderruimte';
             const category = b.booking_type === 'flex' ? 'flexplek' : 'vergaderruimte';
             return {
