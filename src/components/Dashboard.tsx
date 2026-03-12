@@ -1,24 +1,22 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Building, Users, AlertCircle, Calendar, Clock, CalendarClock, FileText, DollarSign, CheckCircle, Check, XCircle, AlertTriangle, Home, Zap, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react';
+import { AlertCircle, Calendar, Clock, CalendarClock, FileText, DollarSign, CheckCircle, Check, XCircle, AlertTriangle, Home, Zap, ChevronDown, ChevronUp, ArrowRight, TrendingUp, TrendingDown, Wallet, FileCheck } from 'lucide-react';
 import { SkeletonDashboard } from './SkeletonLoader';
 import { createAdminNotification } from '../utils/notificationHelper';
 import { useUnbilledItems } from './UnbilledItemsReminder';
 
 type DashboardStats = {
-  totalTenants: number;
-  totalSpaces: number;
-  occupiedSpaces: number;
-  todayBookings: number;
-  upcomingBookings: number;
-  totalBookings: number;
-};
-
-type Notification = {
-  type: 'danger' | 'warning' | 'info' | 'success';
-  icon: React.ReactNode;
-  title: string;
-  message: string;
+  revenueThisMonth: number;
+  revenuePreviousMonth: number;
+  totalReceivable: number;
+  overdueReceivable: number;
+  todayMeetingBookings: number;
+  todayFlexBookings: number;
+  weekMeetingBookings: number;
+  weekFlexBookings: number;
+  activeLeases: number;
+  expiringLeases: number;
+  expiredLeases: number;
 };
 
 type PendingBooking = {
@@ -74,15 +72,18 @@ type DashboardProps = {
 
 export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: DashboardProps) {
   const [stats, setStats] = useState<DashboardStats>({
-    totalTenants: 0,
-    totalSpaces: 0,
-    occupiedSpaces: 0,
-    todayBookings: 0,
-    upcomingBookings: 0,
-    totalBookings: 0
+    revenueThisMonth: 0,
+    revenuePreviousMonth: 0,
+    totalReceivable: 0,
+    overdueReceivable: 0,
+    todayMeetingBookings: 0,
+    todayFlexBookings: 0,
+    weekMeetingBookings: 0,
+    weekFlexBookings: 0,
+    activeLeases: 0,
+    expiringLeases: 0,
+    expiredLeases: 0
   });
-  const [financialNotifications, setFinancialNotifications] = useState<Notification[]>([]);
-  const [bookingNotifications, setBookingNotifications] = useState<Notification[]>([]);
   const [pendingBookings, setPendingBookings] = useState<PendingBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -188,27 +189,34 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
     const sevenDaysFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
     const sevenDaysStr = sevenDaysFromNow.toISOString().split('T')[0];
 
+    const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+    const thisMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
+    const prevMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1).toISOString().split('T')[0];
+    const prevMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0).toISOString().split('T')[0];
+
     const [
-      { data: tenants },
-      { data: spaces },
       { data: activeLeases },
-      { data: leaseSpaces },
       { data: invoices },
-      { count: todayBookingCount },
-      { count: upcomingBookingCount },
+      { data: thisMonthInvoices },
+      { data: prevMonthInvoices },
+      { count: todayMeetingCount },
+      { count: weekMeetingCount },
+      { count: todayFlexCount },
+      { count: weekFlexCount },
       { data: pendingMeetingRooms },
       { data: pendingFlexBookings },
     ] = await Promise.all([
-      supabase.from('tenants').select('id'),
-      supabase.from('office_spaces').select('is_available, space_type').in('space_type', ['kantoor', 'bedrijfsruimte']),
       supabase.from('leases').select('id, end_date, status, tenant_id, tenants(name)').eq('status', 'active'),
-      supabase.from('lease_spaces').select('space_id, lease_id, leases!inner(status)').eq('leases.status', 'active'),
       supabase.from('invoices').select(`
         invoice_number, amount, status, due_date, tenant_id, external_customer_id,
         tenants(company_name), external_customers(company_name)
       `).in('status', ['draft', 'sent', 'overdue']),
+      supabase.from('invoices').select('amount').gte('created_at', thisMonthStart).lte('created_at', thisMonthEnd + 'T23:59:59'),
+      supabase.from('invoices').select('amount').gte('created_at', prevMonthStart).lte('created_at', prevMonthEnd + 'T23:59:59'),
       supabase.from('meeting_room_bookings').select('*', { count: 'exact', head: true }).eq('booking_date', todayStr).neq('status', 'cancelled'),
       supabase.from('meeting_room_bookings').select('*', { count: 'exact', head: true }).gte('booking_date', todayStr).lte('booking_date', sevenDaysStr).neq('status', 'cancelled'),
+      supabase.from('flex_day_bookings').select('*', { count: 'exact', head: true }).eq('booking_date', todayStr).neq('status', 'cancelled'),
+      supabase.from('flex_day_bookings').select('*', { count: 'exact', head: true }).gte('booking_date', todayStr).lte('booking_date', sevenDaysStr).neq('status', 'cancelled'),
       supabase
         .from('meeting_room_bookings')
         .select(`
@@ -235,9 +243,6 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
       ...(pendingFlexBookings || []).map(b => ({ ...b, booking_type: 'flex_workspace' as const }))
     ].sort((a, b) => new Date(a.booking_date).getTime() - new Date(b.booking_date).getTime());
 
-    const occupiedSpaces = new Set((leaseSpaces || []).map(ls => ls.space_id)).size;
-    const totalRentableSpaces = spaces?.length || 0;
-
     const expiringLeasesData = activeLeases?.filter(
       lease => lease.end_date >= todayStr && lease.end_date <= fourteenDaysStr
     ) || [];
@@ -249,13 +254,13 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
     const draftInvoicesData = invoices?.filter(inv => inv.status === 'draft') || [];
     const outstandingInvoicesData = invoices?.filter(inv => inv.status === 'sent' && inv.due_date >= todayStr) || [];
     const overdueInvoicesData = invoices?.filter(inv => inv.status !== 'paid' && inv.status !== 'credited' && inv.due_date < todayStr) || [];
-    const upcomingDueInvoices = invoices?.filter(
-      inv => inv.status !== 'paid' && inv.status !== 'credited' && inv.due_date >= todayStr && inv.due_date <= sevenDaysStr
-    ) || [];
 
     const overdueAmt = overdueInvoicesData.reduce((sum, inv) => sum + Number(inv.amount), 0);
     const draftAmt = draftInvoicesData.reduce((sum, inv) => sum + Number(inv.amount), 0);
     const outstandingAmt = outstandingInvoicesData.reduce((sum, inv) => sum + Number(inv.amount), 0);
+
+    const revenueThisMonth = (thisMonthInvoices || []).reduce((sum, inv) => sum + Number(inv.amount), 0);
+    const revenuePrevMonth = (prevMonthInvoices || []).reduce((sum, inv) => sum + Number(inv.amount), 0);
 
     setPendingBookings(allPendingBookings);
     setExpiringLeases(expiringLeasesData);
@@ -267,121 +272,28 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
     setDraftAmount(draftAmt);
     setOutstandingAmount(outstandingAmt);
     setStats({
-      totalTenants: tenants?.length || 0,
-      totalSpaces: totalRentableSpaces,
-      occupiedSpaces,
-      todayBookings: todayBookingCount || 0,
-      upcomingBookings: upcomingBookingCount || 0,
-      totalBookings: 0
+      revenueThisMonth,
+      revenuePreviousMonth: revenuePrevMonth,
+      totalReceivable: outstandingAmt + overdueAmt,
+      overdueReceivable: overdueAmt,
+      todayMeetingBookings: todayMeetingCount || 0,
+      todayFlexBookings: todayFlexCount || 0,
+      weekMeetingBookings: weekMeetingCount || 0,
+      weekFlexBookings: weekFlexCount || 0,
+      activeLeases: activeLeases?.length || 0,
+      expiringLeases: expiringLeasesData.length,
+      expiredLeases: expiredLeasesData.length
     });
 
-    const newFinancialNotifications: Notification[] = [];
-    const newBookingNotifications: Notification[] = [];
-
-    if (draftInvoicesData.length > 0) {
-      newFinancialNotifications.push({
-        type: 'info',
-        icon: <FileText size={18} />,
-        title: 'Concept Facturen',
-        message: `${draftInvoicesData.length} factu${draftInvoicesData.length !== 1 ? 'ren' : 'ur'} in concept (€${draftAmt.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`
-      });
-    }
-
-    if (outstandingInvoicesData.length > 0) {
-      const invoiceDetails = outstandingInvoicesData.slice(0, 3).map(inv => {
-        const customerName = inv.tenant_id
-          ? (inv.tenants?.company_name || 'Onbekende huurder')
-          : (inv.external_customers?.company_name || 'Externe klant');
-        return `${inv.invoice_number} (${customerName})`;
-      }).join(', ');
-      const moreCount = outstandingInvoicesData.length > 3 ? ` en ${outstandingInvoicesData.length - 3} meer` : '';
-
-      newFinancialNotifications.push({
-        type: 'info',
-        icon: <FileText size={18} />,
-        title: 'Openstaande Facturen',
-        message: `${outstandingInvoicesData.length} factu${outstandingInvoicesData.length !== 1 ? 'ren' : 'ur'} openstaand: ${invoiceDetails}${moreCount} (€${outstandingAmt.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`
-      });
-    }
-
-    if (overdueInvoicesData.length > 0) {
-      const invoiceDetails = overdueInvoicesData.map(inv => {
-        const customerName = inv.tenant_id
-          ? (inv.tenants?.company_name || 'Onbekende huurder')
-          : (inv.external_customers?.company_name || 'Externe klant');
-        return `${inv.invoice_number} (${customerName})`;
-      }).join(', ');
-
-      newFinancialNotifications.push({
-        type: 'danger',
-        icon: <DollarSign size={18} />,
-        title: 'Achterstallige Facturen',
-        message: `${overdueInvoicesData.length} factu${overdueInvoicesData.length !== 1 ? 'ren' : 'ur'} over de vervaldatum: ${invoiceDetails} (€${overdueAmt.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`
-      });
-    }
-
-    if (expiredLeasesData.length > 0) {
-      newFinancialNotifications.push({
-        type: 'danger',
-        icon: <Calendar size={18} />,
-        title: 'Verlopen Contracten',
-        message: `${expiredLeasesData.length} contract${expiredLeasesData.length !== 1 ? 'en zijn' : ' is'} verlopen en moet${expiredLeasesData.length !== 1 ? 'en' : ''} worden verlengd of beëindigd`
-      });
-    }
-
-    if (upcomingDueInvoices.length > 0) {
-      const invoiceDetails = upcomingDueInvoices.slice(0, 3).map(inv => {
-        const customerName = inv.tenant_id
-          ? (inv.tenants?.company_name || 'Onbekende huurder')
-          : (inv.external_customers?.company_name || 'Externe klant');
-        return `${inv.invoice_number} (${customerName})`;
-      }).join(', ');
-      const moreCount = upcomingDueInvoices.length > 3 ? ` en ${upcomingDueInvoices.length - 3} meer` : '';
-
-      newFinancialNotifications.push({
-        type: 'warning',
-        icon: <FileText size={18} />,
-        title: 'Binnenkort Te Betalen',
-        message: `${upcomingDueInvoices.length} factu${upcomingDueInvoices.length !== 1 ? 'ren' : 'ur'} binnen 7 dagen: ${invoiceDetails}${moreCount}`
-      });
-    }
-
-    if (expiringLeasesData.length > 0) {
-      newFinancialNotifications.push({
-        type: 'warning',
-        icon: <Clock size={18} />,
-        title: 'Contracten Verlopen Binnenkort',
-        message: `${expiringLeasesData.length} contract${expiringLeasesData.length !== 1 ? 'en verlopen' : ' verloopt'} binnen 14 dagen`
-      });
-    }
-
-    if ((todayBookingCount || 0) > 0) {
-      newBookingNotifications.push({
-        type: 'info',
-        icon: <CalendarClock size={18} />,
-        title: 'Vergaderruimte Boekingen Vandaag',
-        message: `${todayBookingCount} boeking${todayBookingCount !== 1 ? 'en' : ''} gepland voor vandaag`
-      });
-    }
-
-    const availableSpaces = totalRentableSpaces - occupiedSpaces;
-    if (availableSpaces > 0) {
-      newBookingNotifications.push({
-        type: 'info',
-        icon: <Building size={18} />,
-        title: 'Beschikbare Ruimtes',
-        message: `${availableSpaces} ruimte${availableSpaces !== 1 ? 's' : ''} beschikbaar voor verhuur`
-      });
-    }
-
-    setFinancialNotifications(newFinancialNotifications);
-    setBookingNotifications(newBookingNotifications);
     setLoading(false);
   };
 
-  const occupancyRate = stats.totalSpaces > 0
-    ? ((stats.occupiedSpaces / stats.totalSpaces) * 100).toFixed(1)
-    : 0;
+  const revenueChange = stats.revenuePreviousMonth > 0
+    ? ((stats.revenueThisMonth - stats.revenuePreviousMonth) / stats.revenuePreviousMonth * 100)
+    : (stats.revenueThisMonth > 0 ? 100 : 0);
+
+  const todayTotalBookings = stats.todayMeetingBookings + stats.todayFlexBookings;
+  const weekTotalBookings = stats.weekMeetingBookings + stats.weekFlexBookings;
 
   if (loading) {
     return <SkeletonDashboard />;
@@ -402,31 +314,51 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
         <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4 sm:p-6">
           <div className="flex items-center justify-between mb-3 sm:mb-4">
             <div className="p-2 sm:p-3 bg-dark-700 rounded-lg">
-              <Users className="text-gold-500" size={20} />
+              <DollarSign className="text-green-400" size={20} />
             </div>
+            {revenueChange !== 0 && (
+              <div className={`flex items-center gap-1 text-xs font-medium ${revenueChange > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {revenueChange > 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                {Math.abs(revenueChange).toFixed(0)}%
+              </div>
+            )}
           </div>
           <div>
-            <p className="text-xs sm:text-sm text-gray-300 mb-1">Totaal Huurders</p>
+            <p className="text-xs sm:text-sm text-gray-300 mb-1">Omzet deze maand</p>
             <div className="h-10 sm:h-12 flex items-center">
-              <p className="text-2xl sm:text-3xl font-bold text-gray-100">{stats.totalTenants}</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-100">
+                {'\u20AC'}{stats.revenueThisMonth.toLocaleString('nl-NL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              </p>
             </div>
-            <p className="text-xs text-gray-400 mt-1 h-5 invisible">.</p>
+            <p className="text-xs text-gray-400 mt-1 h-5">
+              Vorige maand: {'\u20AC'}{stats.revenuePreviousMonth.toLocaleString('nl-NL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+            </p>
           </div>
         </div>
 
-        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4 sm:p-6">
+        <div
+          onClick={() => onNavigateToDebtors?.('outstanding')}
+          className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4 sm:p-6 cursor-pointer hover:border-dark-600 transition-colors"
+        >
           <div className="flex items-center justify-between mb-3 sm:mb-4">
             <div className="p-2 sm:p-3 bg-dark-700 rounded-lg">
-              <Building className="text-green-400" size={20} />
+              <Wallet className={stats.overdueReceivable > 0 ? 'text-red-400' : 'text-gold-500'} size={20} />
             </div>
+            {stats.overdueReceivable > 0 && (
+              <span className="text-xs font-medium text-red-400 bg-red-900/40 px-2 py-0.5 rounded">
+                {'\u20AC'}{stats.overdueReceivable.toLocaleString('nl-NL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} achterstallig
+              </span>
+            )}
           </div>
           <div>
-            <p className="text-xs sm:text-sm text-gray-300 mb-1">Totaal Ruimtes</p>
+            <p className="text-xs sm:text-sm text-gray-300 mb-1">Te ontvangen</p>
             <div className="h-10 sm:h-12 flex items-center">
-              <p className="text-2xl sm:text-3xl font-bold text-gray-100">{stats.totalSpaces}</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-100">
+                {'\u20AC'}{stats.totalReceivable.toLocaleString('nl-NL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              </p>
             </div>
             <p className="text-xs text-gray-400 mt-1 h-5">
-              {stats.occupiedSpaces} bezet, {stats.totalSpaces - stats.occupiedSpaces} beschikbaar
+              {overdueInvoices.length + outstandingInvoices.length} openstaande facturen
             </p>
           </div>
         </div>
@@ -434,36 +366,50 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
         <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4 sm:p-6">
           <div className="flex items-center justify-between mb-3 sm:mb-4">
             <div className="p-2 sm:p-3 bg-dark-700 rounded-lg">
-              <Building className="text-blue-400" size={20} />
+              <CalendarClock className="text-blue-400" size={20} />
             </div>
           </div>
           <div>
-            <p className="text-xs sm:text-sm text-gray-300 mb-1">Bezettingsgraad</p>
-            <div className="h-10 sm:h-12 flex items-center">
-              <p className="text-2xl sm:text-3xl font-bold text-gray-100">{occupancyRate}%</p>
+            <p className="text-xs sm:text-sm text-gray-300 mb-1">Boekingen vandaag</p>
+            <div className="h-10 sm:h-12 flex items-center gap-3">
+              <p className="text-2xl sm:text-3xl font-bold text-gray-100">{todayTotalBookings}</p>
+              {todayTotalBookings > 0 && (
+                <div className="flex gap-2">
+                  {stats.todayMeetingBookings > 0 && (
+                    <span className="text-xs bg-blue-900/40 text-blue-400 px-2 py-0.5 rounded">{stats.todayMeetingBookings} vergader</span>
+                  )}
+                  {stats.todayFlexBookings > 0 && (
+                    <span className="text-xs bg-teal-900/40 text-teal-400 px-2 py-0.5 rounded">{stats.todayFlexBookings} flex</span>
+                  )}
+                </div>
+              )}
             </div>
-            <div className="w-full bg-dark-800 rounded-full h-2 mt-1">
-              <div
-                className="bg-gradient-to-r from-gold-500 to-gold-600 h-2 rounded-full transition-all duration-500"
-                style={{ width: `${occupancyRate}%` }}
-              />
-            </div>
+            <p className="text-xs text-gray-400 mt-1 h-5">
+              {weekTotalBookings} deze week
+            </p>
           </div>
         </div>
 
         <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4 sm:p-6">
           <div className="flex items-center justify-between mb-3 sm:mb-4">
             <div className="p-2 sm:p-3 bg-dark-700 rounded-lg">
-              <CalendarClock className="text-purple-400" size={20} />
+              <FileCheck className={stats.expiredLeases > 0 ? 'text-red-400' : stats.expiringLeases > 0 ? 'text-amber-400' : 'text-green-400'} size={20} />
             </div>
+            {(stats.expiredLeases > 0 || stats.expiringLeases > 0) && (
+              <span className={`text-xs font-medium px-2 py-0.5 rounded ${
+                stats.expiredLeases > 0 ? 'text-red-400 bg-red-900/40' : 'text-amber-400 bg-amber-900/40'
+              }`}>
+                {stats.expiredLeases > 0 ? `${stats.expiredLeases} verlopen` : `${stats.expiringLeases} verloopt binnenkort`}
+              </span>
+            )}
           </div>
           <div>
-            <p className="text-xs sm:text-sm text-gray-300 mb-1">Vergaderruimte Boekingen</p>
+            <p className="text-xs sm:text-sm text-gray-300 mb-1">Actieve contracten</p>
             <div className="h-10 sm:h-12 flex items-center">
-              <p className="text-2xl sm:text-3xl font-bold text-gray-100">{stats.todayBookings}</p>
+              <p className="text-2xl sm:text-3xl font-bold text-gray-100">{stats.activeLeases}</p>
             </div>
             <p className="text-xs text-gray-400 mt-1 h-5">
-              {stats.upcomingBookings} komende week
+              {stats.expiringLeases > 0 ? `${stats.expiringLeases} verloopt binnen 14 dagen` : 'Geen actie vereist'}
             </p>
           </div>
         </div>
