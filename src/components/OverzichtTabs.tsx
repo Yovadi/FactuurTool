@@ -5,9 +5,10 @@ import { Analytics } from './Analytics';
 
 type OverzichtTabsProps = {
   onNavigateToDebtors?: (subTab: 'facturen' | 'outstanding') => void;
+  onNavigateToInvoicing?: (month: string) => void;
 };
 
-export function OverzichtTabs({ onNavigateToDebtors }: OverzichtTabsProps) {
+export function OverzichtTabs({ onNavigateToDebtors, onNavigateToInvoicing }: OverzichtTabsProps) {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'analytics'>('dashboard');
 
   return (
@@ -42,7 +43,7 @@ export function OverzichtTabs({ onNavigateToDebtors }: OverzichtTabsProps) {
       </div>
 
       <div className="flex-1 min-h-0 overflow-hidden">
-        {activeTab === 'dashboard' && <Dashboard onNavigateToDebtors={onNavigateToDebtors} />}
+        {activeTab === 'dashboard' && <Dashboard onNavigateToDebtors={onNavigateToDebtors} onNavigateToInvoicing={onNavigateToInvoicing} />}
         {activeTab === 'analytics' && <Analytics />}
       </div>
     </div>

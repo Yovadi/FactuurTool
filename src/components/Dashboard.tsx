@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { Building, Users, AlertCircle, Calendar, Clock, CalendarClock, FileText, DollarSign, CheckCircle, Check, XCircle } from 'lucide-react';
 import { SkeletonDashboard } from './SkeletonLoader';
 import { createAdminNotification } from '../utils/notificationHelper';
+import { UnbilledItemsReminder } from './UnbilledItemsReminder';
 
 type DashboardStats = {
   totalTenants: number;
@@ -68,9 +69,10 @@ type Lease = {
 
 type DashboardProps = {
   onNavigateToDebtors?: (subTab: 'facturen' | 'outstanding') => void;
+  onNavigateToInvoicing?: (month: string) => void;
 };
 
-export function Dashboard({ onNavigateToDebtors }: DashboardProps) {
+export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: DashboardProps) {
   const [stats, setStats] = useState<DashboardStats>({
     totalTenants: 0,
     totalSpaces: 0,
@@ -694,6 +696,8 @@ export function Dashboard({ onNavigateToDebtors }: DashboardProps) {
         )}
       </div>
       </div>
+
+      <UnbilledItemsReminder onNavigateToInvoicing={onNavigateToInvoicing} />
     </div>
   );
 }

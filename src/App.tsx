@@ -798,6 +798,8 @@ function App() {
                 {visitedTabs.has('dashboard') && <OverzichtTabs onNavigateToDebtors={(subTab) => {
                   setDebiteurenInitialTab(subTab);
                   switchTab('financial-debtors');
+                }} onNavigateToInvoicing={() => {
+                  switchTab('financial-debtors');
                 }} />}
               </div>
               <div className="h-full" style={tabStyle('tenants')}>
