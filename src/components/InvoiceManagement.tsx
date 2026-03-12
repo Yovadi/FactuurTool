@@ -31,7 +31,8 @@ function convertLineItemsToSpaces(items: InvoiceLineItem[]) {
     let isKnownSpaceType = false;
     let isDiscount = false;
 
-    if (item.description.toLowerCase().includes('korting') || item.amount < 0) {
+    const itemAmount = typeof item.amount === 'string' ? parseFloat(item.amount) : (item.amount || 0);
+    if (item.description.toLowerCase().includes('korting') || itemAmount < 0) {
       isDiscount = true;
       spaceType = 'discount';
     } else if (item.booking_id) {
@@ -81,10 +82,9 @@ function convertLineItemsToSpaces(items: InvoiceLineItem[]) {
       }
     }
 
-    const rentAmount = typeof item.amount === 'string' ? parseFloat(item.amount) : (item.amount || 0);
     return {
       space_name: cleanDescription,
-      monthly_rent: rentAmount,
+      monthly_rent: itemAmount,
       space_type: spaceType as any,
       square_footage: squareFootage,
       price_per_sqm: pricePerSqm,
