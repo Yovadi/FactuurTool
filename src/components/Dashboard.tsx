@@ -100,6 +100,33 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
 
   useEffect(() => {
     loadDashboardStats();
+
+    const meetingChannel = supabase
+      .channel('dashboard-meeting-bookings')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'meeting_room_bookings'
+      }, () => {
+        loadDashboardStats();
+      })
+      .subscribe();
+
+    const flexChannel = supabase
+      .channel('dashboard-flex-bookings')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'flex_day_bookings'
+      }, () => {
+        loadDashboardStats();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(meetingChannel);
+      supabase.removeChannel(flexChannel);
+    };
   }, []);
 
   const showNotification = (message: string, type: 'success' | 'error' | 'info') => {
