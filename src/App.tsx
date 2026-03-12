@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { UpdateDialog } from './components/UpdateDialog';
 import { LayoutDashboard, Users, Building, Settings, CalendarClock, Calendar, FileText, Building2, Calculator, Euro, UserCheck, UserMinus, Loader2, Menu, X, Database, Bell, AlertTriangle, TrendingUp, CalendarCheck, DoorOpen, Mail, CheckCircle, RefreshCw } from 'lucide-react';
 import { supabase } from './lib/supabase';
@@ -72,6 +72,7 @@ function App() {
     result?: { synced: number; failed: number; errors: string[]; leaseSynced?: number; leaseFailed?: number } | null;
   }>({ active: false, current: 0, total: 0, invoiceNumber: '' });
   const [newInvoiceCount, setNewInvoiceCount] = useState(0);
+  const [visitedTabs, setVisitedTabs] = useState<Set<Tab>>(new Set(['dashboard']));
 
   useEffect(() => {
     const isElectronApp = !!(window as any).electronAPI;
@@ -197,14 +198,30 @@ function App() {
     const handleEboekhoudenChange = (e: Event) => {
       const detail = (e as CustomEvent).detail;
       setEBoekhoudenEnabled(detail.enabled);
-      if (!detail.enabled) setActiveTab(prev => prev === 'eboekhouden' ? 'settings' : prev);
+      if (!detail.enabled) {
+        setActiveTab(prev => {
+          if (prev === 'eboekhouden') {
+            setVisitedTabs(v => { const n = new Set(v); n.add('settings'); return n; });
+            return 'settings';
+          }
+          return prev;
+        });
+      }
     };
     window.addEventListener('eboekhouden-enabled-changed', handleEboekhoudenChange);
 
     const handleEmailChange = (e: Event) => {
       const detail = (e as CustomEvent).detail;
       setEmailEnabled(detail.enabled);
-      if (!detail.enabled) setActiveTab(prev => prev === 'email' ? 'settings' : prev);
+      if (!detail.enabled) {
+        setActiveTab(prev => {
+          if (prev === 'email') {
+            setVisitedTabs(v => { const n = new Set(v); n.add('settings'); return n; });
+            return 'settings';
+          }
+          return prev;
+        });
+      }
     };
     window.addEventListener('email-enabled-changed', handleEmailChange);
 
@@ -350,6 +367,19 @@ function App() {
       setSyncStatus(prev => ({ ...prev, active: false }));
     }
   };
+
+  const switchTab = useCallback((tab: Tab) => {
+    setVisitedTabs(prev => {
+      if (prev.has(tab)) return prev;
+      const next = new Set(prev);
+      next.add(tab);
+      return next;
+    });
+    setActiveTab(tab);
+  }, []);
+
+  const tabStyle = (tab: Tab): React.CSSProperties =>
+    activeTab === tab ? {} : { display: 'none' };
 
   const navigation: MenuSection[] = [
     { id: 'dashboard', label: 'Overzicht', icon: LayoutDashboard },
@@ -664,7 +694,7 @@ function App() {
                         <button
                           onClick={(e) => {
                             e.preventDefault();
-                            setActiveTab(item.children![0].id);
+                            switchTab(item.children![0].id);
                             setMobileMenuOpen(false);
                           }}
                           className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${
@@ -688,7 +718,7 @@ function App() {
                                 key={child.id}
                                 onClick={(e) => {
                                   e.preventDefault();
-                                  setActiveTab(child.id);
+                                  switchTab(child.id);
                                   setMobileMenuOpen(false);
                                 }}
                                 className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -719,7 +749,7 @@ function App() {
                       key={item.id}
                       onClick={(e) => {
                         e.preventDefault();
-                        setActiveTab(item.id as Tab);
+                        switchTab(item.id as Tab);
                         setMobileMenuOpen(false);
                       }}
                       className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
@@ -744,7 +774,7 @@ function App() {
                       key={item.id}
                       onClick={(e) => {
                         e.preventDefault();
-                        setActiveTab(item.id as Tab);
+                        switchTab(item.id as Tab);
                         setMobileMenuOpen(false);
                       }}
                       className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
@@ -764,46 +794,72 @@ function App() {
 
           <main className="flex-1 min-w-0 h-full flex flex-col overflow-hidden bg-dark-950 lg:mt-0 mt-0">
             <Suspense fallback={<LoadingFallback />}>
-              {activeTab === 'dashboard' && <OverzichtTabs onNavigateToDebtors={(subTab) => {
-                setDebiteurenInitialTab(subTab);
-                setActiveTab('financial-debtors');
-              }} />}
-              {activeTab === 'tenants' && <TenantManagement />}
-              {activeTab === 'spaces-spaces' && <SpaceManagement />}
-              {activeTab === 'spaces-rates' && <SpaceTypeRates />}
-              {activeTab === 'contracts' && <LeaseManagement />}
-              {activeTab === 'bookings' && <MeetingRoomBookings />}
-              {activeTab === 'flex-bookings' && <FlexWorkspaceBookings />}
-              {activeTab === 'financial-debtors' && (
-                <DebiteurenTabs
-                  initialTab={debiteurenInitialTab}
-                  onInitialTabConsumed={() => setDebiteurenInitialTab(undefined)}
-                  onCreateCreditNote={(invoice, tenant, spaces) => {
-                    setPrefilledInvoiceData({ invoice, tenant, spaces });
-                    setActiveTab('financial-creditors');
-                  }}
-                />
-              )}
-              {activeTab === 'financial-creditors' && (
-                <CrediteurenTabs
-                  prefilledInvoiceData={prefilledInvoiceData}
-                  onClearPrefilled={() => setPrefilledInvoiceData(null)}
-                />
-              )}
-              {activeTab === 'eboekhouden' && eBoekhoudenEnabled && <EBoekhoudenDashboard />}
-              {activeTab === 'email' && emailEnabled && (
-                <EmailTab
-                  onOpenInSplitscreen={() => {
-                    const electron = (window as any).electron;
-                    if (electron?.openPreviewWindow) {
-                      electron.openPreviewWindow({ type: 'email', props: {} });
-                    }
-                  }}
-                  onNavigateToIntegrations={() => setActiveTab('settings')}
-                />
-              )}
-              {activeTab === 'verhuurder' && <VerhuurderTabs />}
-              {activeTab === 'settings' && <InstellingenTabs />}
+              <div className="h-full" style={tabStyle('dashboard')}>
+                {visitedTabs.has('dashboard') && <OverzichtTabs onNavigateToDebtors={(subTab) => {
+                  setDebiteurenInitialTab(subTab);
+                  switchTab('financial-debtors');
+                }} />}
+              </div>
+              <div className="h-full" style={tabStyle('tenants')}>
+                {visitedTabs.has('tenants') && <TenantManagement />}
+              </div>
+              <div className="h-full" style={tabStyle('spaces-spaces')}>
+                {visitedTabs.has('spaces-spaces') && <SpaceManagement />}
+              </div>
+              <div className="h-full" style={tabStyle('spaces-rates')}>
+                {visitedTabs.has('spaces-rates') && <SpaceTypeRates />}
+              </div>
+              <div className="h-full" style={tabStyle('contracts')}>
+                {visitedTabs.has('contracts') && <LeaseManagement />}
+              </div>
+              <div className="h-full" style={tabStyle('bookings')}>
+                {visitedTabs.has('bookings') && <MeetingRoomBookings />}
+              </div>
+              <div className="h-full" style={tabStyle('flex-bookings')}>
+                {visitedTabs.has('flex-bookings') && <FlexWorkspaceBookings />}
+              </div>
+              <div className="h-full" style={tabStyle('financial-debtors')}>
+                {visitedTabs.has('financial-debtors') && (
+                  <DebiteurenTabs
+                    initialTab={debiteurenInitialTab}
+                    onInitialTabConsumed={() => setDebiteurenInitialTab(undefined)}
+                    onCreateCreditNote={(invoice, tenant, spaces) => {
+                      setPrefilledInvoiceData({ invoice, tenant, spaces });
+                      switchTab('financial-creditors');
+                    }}
+                  />
+                )}
+              </div>
+              <div className="h-full" style={tabStyle('financial-creditors')}>
+                {visitedTabs.has('financial-creditors') && (
+                  <CrediteurenTabs
+                    prefilledInvoiceData={prefilledInvoiceData}
+                    onClearPrefilled={() => setPrefilledInvoiceData(null)}
+                  />
+                )}
+              </div>
+              <div className="h-full" style={tabStyle('eboekhouden')}>
+                {visitedTabs.has('eboekhouden') && eBoekhoudenEnabled && <EBoekhoudenDashboard />}
+              </div>
+              <div className="h-full" style={tabStyle('email')}>
+                {visitedTabs.has('email') && emailEnabled && (
+                  <EmailTab
+                    onOpenInSplitscreen={() => {
+                      const electron = (window as any).electron;
+                      if (electron?.openPreviewWindow) {
+                        electron.openPreviewWindow({ type: 'email', props: {} });
+                      }
+                    }}
+                    onNavigateToIntegrations={() => switchTab('settings')}
+                  />
+                )}
+              </div>
+              <div className="h-full" style={tabStyle('verhuurder')}>
+                {visitedTabs.has('verhuurder') && <VerhuurderTabs />}
+              </div>
+              <div className="h-full" style={tabStyle('settings')}>
+                {visitedTabs.has('settings') && <InstellingenTabs />}
+              </div>
             </Suspense>
           </main>
         </div>
