@@ -1243,7 +1243,7 @@ export function LeaseManagement() {
 
       <div className="space-y-6">
         {regularLeases.length > 0 && (
-          <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
+          <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden flex flex-col">
             <div className="flex justify-between items-center px-4 py-3 bg-dark-800 border-b border-amber-500">
               <h2 className="text-lg font-bold text-gray-100">
                 Huurcontracten
@@ -1257,7 +1257,7 @@ export function LeaseManagement() {
                 Huurcontract Aanmaken
               </button>
             </div>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto flex-1 min-h-0">
               <table className="w-full table-fixed min-w-[1000px]">
                 <thead>
                   <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
@@ -1361,7 +1361,7 @@ export function LeaseManagement() {
         )}
 
         {flexLeases.length > 0 && (
-          <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
+          <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden flex flex-col">
             <div className="flex justify-between items-center px-4 py-3 bg-dark-800 border-b border-amber-500">
               <h2 className="text-lg font-bold text-gray-100">
                 Flexcontracten
@@ -1377,7 +1377,7 @@ export function LeaseManagement() {
                 </button>
               )}
             </div>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto flex-1 min-h-0">
               <table className="w-full table-fixed min-w-[1000px]">
                 <thead>
                   <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">

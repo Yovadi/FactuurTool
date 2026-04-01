@@ -499,7 +499,6 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                   <p className="text-gray-400">Geen openstaande debiteuren</p>
                 </div>
               ) : (
-                <>
                 <div className="divide-y divide-dark-700">
                   {debtors.slice((debtorsPage - 1) * debtorsPageSize, debtorsPage * debtorsPageSize).map((debtor) => (
                     <button
@@ -531,17 +530,16 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                     </button>
                   ))}
                 </div>
-                <Pagination
-                  currentPage={debtorsPage}
-                  totalItems={debtors.length}
-                  pageSize={debtorsPageSize}
-                  onPageChange={(page) => { setDebtorsPage(page); }}
-                  onPageSizeChange={(size) => { setDebtorsPageSize(size); setDebtorsPage(1); }}
-                  label="debiteuren"
-                />
-                </>
               )}
             </div>
+            <Pagination
+              currentPage={debtorsPage}
+              totalItems={debtors.length}
+              pageSize={debtorsPageSize}
+              onPageChange={(page) => { setDebtorsPage(page); }}
+              onPageSizeChange={(size) => { setDebtorsPageSize(size); setDebtorsPage(1); }}
+              label="debiteuren"
+            />
           </div>
 
           <div className="bg-dark-900 rounded-lg overflow-hidden flex flex-col">

@@ -709,8 +709,8 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
             <p className="text-gray-400">Geen credit nota's gevonden</p>
           </div>
         ) : (
-          <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
-            <div className="overflow-x-auto">
+          <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden flex flex-col">
+            <div className="overflow-x-auto flex-1 min-h-0">
               <table className="w-full table-fixed min-w-[1000px]">
                 <thead>
                   <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">

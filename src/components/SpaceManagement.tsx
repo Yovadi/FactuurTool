@@ -835,11 +835,11 @@ export function SpaceManagement() {
           };
 
           return (
-            <div key={type} className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
+            <div key={type} className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden flex flex-col">
               <h2 className="text-lg font-bold text-gray-100 px-4 py-3 bg-dark-800 border-b border-amber-500">
                 {typeLabels[type]}
               </h2>
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto flex-1 min-h-0">
                 <table className="w-full table-fixed">
                   <thead>
                     <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">

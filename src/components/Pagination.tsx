@@ -56,7 +56,7 @@ export function Pagination({
   if (totalItems <= pageSizeOptions[0]) return null;
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 border-t border-dark-700 bg-dark-800">
+    <div className="flex items-center justify-between px-4 py-3 border-t border-dark-700 bg-dark-800 flex-shrink-0">
       <div className="text-sm text-gray-400">
         Toon {startItem} tot {endItem} van {totalItems} {label}
       </div>
