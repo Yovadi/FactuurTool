@@ -4,6 +4,7 @@ import { Plus, CreditCard as Edit2, Trash2, Calendar, Euro, X, CheckCircle, XCir
 import { LeaseContractPreview } from './LeaseContractPreview';
 import type { LeaseContractData } from '../utils/leaseContractPdf';
 import { SkeletonTable } from './SkeletonLoader';
+import { Pagination } from './Pagination';
 
 type LeaseWithDetails = Lease & {
   tenant: Tenant;
@@ -55,6 +56,11 @@ export function LeaseManagement() {
 
   const [previewLease, setPreviewLease] = useState<LeaseWithDetails | null>(null);
   const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
+
+  const [regularPage, setRegularPage] = useState(1);
+  const [regularPageSize, setRegularPageSize] = useState(10);
+  const [flexPage, setFlexPage] = useState(1);
+  const [flexPageSize, setFlexPageSize] = useState(10);
 
   useEffect(() => {
     loadData();
@@ -729,7 +735,7 @@ export function LeaseManagement() {
       <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2 mb-6">
         <div className="flex gap-2">
           <button
-            onClick={() => setActiveTab('active')}
+            onClick={() => { setActiveTab('active'); setRegularPage(1); setFlexPage(1); }}
             className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
               activeTab === 'active'
                 ? 'bg-gold-500 text-white'
@@ -740,7 +746,7 @@ export function LeaseManagement() {
             Actief ({activeLeases.length})
           </button>
           <button
-            onClick={() => setActiveTab('expired')}
+            onClick={() => { setActiveTab('expired'); setRegularPage(1); setFlexPage(1); }}
             className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
               activeTab === 'expired'
                 ? 'bg-gold-500 text-white'
@@ -1265,7 +1271,7 @@ export function LeaseManagement() {
                   </tr>
                 </thead>
                 <tbody>
-                  {regularLeases.map((lease) => {
+                  {regularLeases.slice((regularPage - 1) * regularPageSize, regularPage * regularPageSize).map((lease) => {
                     const totalRent = calculateLeaseTotal(lease);
                     return (
                       <tr
@@ -1343,6 +1349,14 @@ export function LeaseManagement() {
                 </tbody>
               </table>
             </div>
+            <Pagination
+              currentPage={regularPage}
+              totalItems={regularLeases.length}
+              pageSize={regularPageSize}
+              onPageChange={(page) => { setRegularPage(page); }}
+              onPageSizeChange={(size) => { setRegularPageSize(size); setRegularPage(1); }}
+              label="huurcontracten"
+            />
           </div>
         )}
 
@@ -1377,7 +1391,7 @@ export function LeaseManagement() {
                   </tr>
                 </thead>
                 <tbody>
-                  {flexLeases.map((lease) => {
+                  {flexLeases.slice((flexPage - 1) * flexPageSize, flexPage * flexPageSize).map((lease) => {
                     const totalRent = calculateLeaseTotal(lease);
                     return (
                       <tr
@@ -1465,6 +1479,14 @@ export function LeaseManagement() {
                 </tbody>
               </table>
             </div>
+            <Pagination
+              currentPage={flexPage}
+              totalItems={flexLeases.length}
+              pageSize={flexPageSize}
+              onPageChange={(page) => { setFlexPage(page); }}
+              onPageSizeChange={(size) => { setFlexPageSize(size); setFlexPage(1); }}
+              label="flexcontracten"
+            />
           </div>
         )}
 

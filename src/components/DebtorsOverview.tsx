@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Euro, Calendar, AlertCircle, CheckCircle, FileText, Trash2, Eye, Filter, RefreshCw, Loader2, Database, XCircle, Square, CheckSquare, AlertTriangle } from 'lucide-react';
 import { resyncInvoiceToEBoekhouden } from '../lib/eboekhoudenSync';
+import { Pagination } from './Pagination';
 
 const getInvoiceTypeColor = (invoice: any): string => {
   if (invoice.lease_id !== null && invoice.lease?.lease_type === 'flex') return 'text-teal-500';
@@ -57,6 +58,13 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
   const [bulkResyncing, setBulkResyncing] = useState(false);
   const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
 
+  const [debtorsPage, setDebtorsPage] = useState(1);
+  const [debtorsPageSize, setDebtorsPageSize] = useState(25);
+  const [paidPage, setPaidPage] = useState(1);
+  const [paidPageSize, setPaidPageSize] = useState(25);
+  const [syncPage, setSyncPage] = useState(1);
+  const [syncPageSize, setSyncPageSize] = useState(25);
+
   useEffect(() => {
     setActiveTab(initialTab);
   }, [initialTab]);
@@ -64,10 +72,13 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
   useEffect(() => {
     loadCompanySettings();
     if (activeTab === 'open') {
+      setDebtorsPage(1);
       loadDebtors();
     } else if (activeTab === 'log') {
+      setPaidPage(1);
       loadPaidInvoices();
     } else if (activeTab === 'sync') {
+      setSyncPage(1);
       loadSyncedInvoices();
     }
   }, [activeTab]);
@@ -488,8 +499,9 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                   <p className="text-gray-400">Geen openstaande debiteuren</p>
                 </div>
               ) : (
+                <>
                 <div className="divide-y divide-dark-700">
-                  {debtors.map((debtor) => (
+                  {debtors.slice((debtorsPage - 1) * debtorsPageSize, debtorsPage * debtorsPageSize).map((debtor) => (
                     <button
                       key={debtor.id}
                       onClick={() => loadDebtorInvoices(debtor.id, debtor)}
@@ -519,6 +531,15 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                     </button>
                   ))}
                 </div>
+                <Pagination
+                  currentPage={debtorsPage}
+                  totalItems={debtors.length}
+                  pageSize={debtorsPageSize}
+                  onPageChange={(page) => { setDebtorsPage(page); }}
+                  onPageSizeChange={(size) => { setDebtorsPageSize(size); setDebtorsPage(1); }}
+                  label="debiteuren"
+                />
+                </>
               )}
             </div>
           </div>
@@ -612,6 +633,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                         onChange={(e) => {
                           setFilterCustomer(e.target.value);
                           setFilterPeriod('');
+                          setPaidPage(1);
                         }}
                         className="bg-dark-700 border border-dark-600 text-gray-200 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500 min-w-[200px]"
                       >
@@ -628,7 +650,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                       <label className="text-sm text-gray-400">Periode:</label>
                       <select
                         value={filterPeriod}
-                        onChange={(e) => setFilterPeriod(e.target.value)}
+                        onChange={(e) => { setFilterPeriod(e.target.value); setPaidPage(1); }}
                         className="bg-dark-700 border border-dark-600 text-gray-200 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500 min-w-[150px]"
                         disabled={!filterCustomer && getUniquePeriods().length === 0}
                       >
@@ -646,6 +668,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                         onClick={() => {
                           setFilterCustomer('');
                           setFilterPeriod('');
+                          setPaidPage(1);
                         }}
                         className="text-sm text-gold-400 hover:text-gold-300 underline ml-auto"
                       >
@@ -698,7 +721,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                       </tr>
                     </thead>
                     <tbody>
-                      {getFilteredPaidInvoices().map((invoice: any) => {
+                      {getFilteredPaidInvoices().slice((paidPage - 1) * paidPageSize, paidPage * paidPageSize).map((invoice: any) => {
                       const customer = invoice.tenant_id && invoice.tenants
                         ? invoice.tenants
                         : invoice.external_customer_id && invoice.external_customers
@@ -780,6 +803,14 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                     </tbody>
                   </table>
                 </div>
+                <Pagination
+                  currentPage={paidPage}
+                  totalItems={getFilteredPaidInvoices().length}
+                  pageSize={paidPageSize}
+                  onPageChange={(page) => { setPaidPage(page); }}
+                  onPageSizeChange={(size) => { setPaidPageSize(size); setPaidPage(1); }}
+                  label="facturen"
+                />
               </div>
             )}
           </div>
@@ -843,6 +874,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                   </div>
                 </div>
               ) : (
+                <>
                 <div className="flex-1 overflow-auto">
                   <table className="w-full">
                     <thead className="bg-dark-800 sticky top-0 border-b border-dark-700">
@@ -864,7 +896,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                       </tr>
                     </thead>
                     <tbody>
-                      {syncedInvoices.map((inv) => {
+                      {syncedInvoices.slice((syncPage - 1) * syncPageSize, syncPage * syncPageSize).map((inv) => {
                         const customerName = inv.tenant_id
                           ? (inv.tenants?.company_name || inv.tenants?.name)
                           : (inv.external_customers?.company_name || inv.external_customers?.contact_name);
@@ -934,6 +966,15 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                     </tbody>
                   </table>
                 </div>
+                <Pagination
+                  currentPage={syncPage}
+                  totalItems={syncedInvoices.length}
+                  pageSize={syncPageSize}
+                  onPageChange={(page) => { setSyncPage(page); }}
+                  onPageSizeChange={(size) => { setSyncPageSize(size); setSyncPage(1); }}
+                  label="facturen"
+                />
+                </>
               )}
             </div>
           )}

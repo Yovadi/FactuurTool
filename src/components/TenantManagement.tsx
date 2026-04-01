@@ -4,6 +4,7 @@ import { Plus, CreditCard as Edit2, Trash2, Mail, Phone, MapPin, Key, Users, Bui
 import { BookingOverview } from './BookingOverview';
 import { getLocalRootFolderPath } from '../utils/localSettings';
 import { SkeletonTable } from './SkeletonLoader';
+import { Pagination } from './Pagination';
 
 type TenantWithLeases = Tenant & {
   leases?: Array<{
@@ -44,6 +45,13 @@ export function TenantManagement() {
     customerType: 'tenant' | 'external';
     customerName: string;
   } | null>(null);
+
+  const [tenantsPage, setTenantsPage] = useState(1);
+  const [tenantsPageSize, setTenantsPageSize] = useState(25);
+  const [externalPage, setExternalPage] = useState(1);
+  const [externalPageSize, setExternalPageSize] = useState(25);
+  const [inactivePage, setInactivePage] = useState(1);
+  const [inactivePageSize, setInactivePageSize] = useState(25);
 
   const [formData, setFormData] = useState({
     company_name: '',
@@ -333,7 +341,7 @@ export function TenantManagement() {
       <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2 mb-6">
         <div className="flex gap-2">
           <button
-            onClick={() => setActiveTab('fulltime')}
+            onClick={() => { setActiveTab('fulltime'); setTenantsPage(1); }}
             className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
               activeTab === 'fulltime'
                 ? 'bg-gold-500 text-white'
@@ -344,7 +352,7 @@ export function TenantManagement() {
             Huurders
           </button>
           <button
-            onClick={() => setActiveTab('external')}
+            onClick={() => { setActiveTab('external'); setExternalPage(1); }}
             className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
               activeTab === 'external'
                 ? 'bg-gold-500 text-white'
@@ -355,7 +363,7 @@ export function TenantManagement() {
             Externe Huurders
           </button>
           <button
-            onClick={() => setActiveTab('inactive')}
+            onClick={() => { setActiveTab('inactive'); setInactivePage(1); }}
             className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
               activeTab === 'inactive'
                 ? 'bg-gold-500 text-white'
@@ -588,7 +596,7 @@ export function TenantManagement() {
                 </tr>
               </thead>
               <tbody>
-                {tenants.map((tenant) => (
+                {tenants.slice((tenantsPage - 1) * tenantsPageSize, tenantsPage * tenantsPageSize).map((tenant) => (
                     <tr
                       key={tenant.id}
                       className="border-b border-dark-800 hover:bg-dark-800 transition-colors"
@@ -675,6 +683,14 @@ export function TenantManagement() {
               </tbody>
             </table>
           </div>
+          <Pagination
+            currentPage={tenantsPage}
+            totalItems={tenants.length}
+            pageSize={tenantsPageSize}
+            onPageChange={(page) => { setTenantsPage(page); }}
+            onPageSizeChange={(size) => { setTenantsPageSize(size); setTenantsPage(1); }}
+            label="huurders"
+          />
         </div>
       ) : activeTab === 'external' ? (
         <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
@@ -706,7 +722,7 @@ export function TenantManagement() {
                 </tr>
               </thead>
               <tbody>
-                {externalCustomers.map((customer) => (
+                {externalCustomers.slice((externalPage - 1) * externalPageSize, externalPage * externalPageSize).map((customer) => (
                     <tr
                       key={customer.id}
                       className="border-b border-dark-800 hover:bg-dark-800 transition-colors"
@@ -818,6 +834,14 @@ export function TenantManagement() {
               </tbody>
             </table>
           </div>
+          <Pagination
+            currentPage={externalPage}
+            totalItems={externalCustomers.length}
+            pageSize={externalPageSize}
+            onPageChange={(page) => { setExternalPage(page); }}
+            onPageSizeChange={(size) => { setExternalPageSize(size); setExternalPage(1); }}
+            label="externe huurders"
+          />
         </div>
       ) : activeTab === 'inactive' ? (
         <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
@@ -840,7 +864,7 @@ export function TenantManagement() {
                 </tr>
               </thead>
               <tbody>
-                {inactiveTenants.map((tenant) => (
+                {inactiveTenants.slice((inactivePage - 1) * inactivePageSize, inactivePage * inactivePageSize).map((tenant) => (
                     <tr
                       key={tenant.id}
                       className="border-b border-dark-800 hover:bg-dark-800 transition-colors"
@@ -905,6 +929,14 @@ export function TenantManagement() {
               </tbody>
             </table>
           </div>
+          <Pagination
+            currentPage={inactivePage}
+            totalItems={inactiveTenants.length}
+            pageSize={inactivePageSize}
+            onPageChange={(page) => { setInactivePage(page); }}
+            onPageSizeChange={(size) => { setInactivePageSize(size); setInactivePage(1); }}
+            label="afgelopen huurders"
+          />
         </div>
       ) : (
         <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
@@ -934,7 +966,7 @@ export function TenantManagement() {
                 </tr>
               </thead>
               <tbody>
-                {externalCustomers.map((customer) => (
+                {externalCustomers.slice((externalPage - 1) * externalPageSize, externalPage * externalPageSize).map((customer) => (
                   <tr
                     key={customer.id}
                     className="border-b border-dark-800 hover:bg-dark-800 transition-colors"
@@ -1006,6 +1038,14 @@ export function TenantManagement() {
               </tbody>
             </table>
           </div>
+          <Pagination
+            currentPage={externalPage}
+            totalItems={externalCustomers.length}
+            pageSize={externalPageSize}
+            onPageChange={(page) => { setExternalPage(page); }}
+            onPageSizeChange={(size) => { setExternalPageSize(size); setExternalPage(1); }}
+            label="externe huurders"
+          />
         </div>
       )}
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, Edit2, Trash2, Mail, Phone, MapPin, Key, AlertCircle } from 'lucide-react';
+import { Plus, CreditCard as Edit2, Trash2, Mail, Phone, MapPin, Key, AlertCircle } from 'lucide-react';
+import { Pagination } from './Pagination';
 
 type ExternalCustomer = {
   id: string;
@@ -22,6 +23,8 @@ export function ExternalCustomers() {
   const [showForm, setShowForm] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<ExternalCustomer | null>(null);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const [showDeleteWarning, setShowDeleteWarning] = useState<{
     customerId: string;
     message: string;
@@ -395,7 +398,7 @@ export function ExternalCustomers() {
         </div>
       ) : (
         <div className="grid gap-3">
-          {customers.map((customer) => (
+          {customers.slice((currentPage - 1) * pageSize, currentPage * pageSize).map((customer) => (
             <div
               key={customer.id}
               className="bg-dark-800 rounded-lg p-4 hover:bg-dark-750 transition-colors border border-dark-700"
@@ -469,6 +472,17 @@ export function ExternalCustomers() {
             </div>
           ))}
         </div>
+      )}
+
+      {!loading && customers.length > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalItems={customers.length}
+          pageSize={pageSize}
+          onPageChange={(page) => { setCurrentPage(page); }}
+          onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
+          label="klanten"
+        />
       )}
 
       {/* Delete Warning Modal */}

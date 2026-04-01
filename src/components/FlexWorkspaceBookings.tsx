@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Calendar, Plus, X, Check, AlertCircle, Trash2, CalendarDays, CheckCircle, XCircle, Info, Filter, Building2, ChevronLeft, ChevronRight, Grid3x3, User, RefreshCw, RotateCcw, Link2, Download, Pencil, Search } from 'lucide-react';
+import { Pagination } from './Pagination';
 import { createAdminNotification } from '../utils/notificationHelper';
 
 type NotificationType = 'success' | 'error' | 'info';
@@ -2071,64 +2072,14 @@ export function FlexWorkspaceBookings() {
               </tbody>
             </table>
           </div>
-          {bookings.length > 0 && (() => {
-            const totalPages = Math.ceil(bookings.length / pageSize);
-            const startIndex = (currentPage - 1) * pageSize;
-            const endIndex = Math.min(startIndex + pageSize, bookings.length);
-            const startPage = Math.max(1, currentPage - 2);
-            const endPage = Math.min(totalPages, startPage + 4);
-            const pages = Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
-            return (
-              <div className="flex items-center justify-between px-4 py-3 border-t border-dark-700 bg-dark-800">
-                <div className="text-sm text-gray-400">
-                  Toon {startIndex + 1} tot {endIndex} van {bookings.length} boekingen
-                </div>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                    disabled={currentPage === 1}
-                    className="p-1.5 rounded-lg bg-dark-700 text-gray-300 hover:bg-dark-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <ChevronLeft size={18} />
-                  </button>
-                  {pages.map(page => (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
-                        page === currentPage
-                          ? 'bg-gold-500 text-white'
-                          : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  ))}
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                    disabled={currentPage === totalPages}
-                    className="p-1.5 rounded-lg bg-dark-700 text-gray-300 hover:bg-dark-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <ChevronRight size={18} />
-                  </button>
-                </div>
-                <div className="flex items-center gap-2">
-                  <select
-                    value={pageSize}
-                    onChange={(e) => {
-                      setPageSize(Number(e.target.value));
-                      setCurrentPage(1);
-                    }}
-                    className="px-2 py-1.5 bg-dark-700 border border-dark-600 text-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
-                  >
-                    {[10, 25, 50, 100].map(size => (
-                      <option key={size} value={size}>{size}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            );
-          })()}
+          <Pagination
+            currentPage={currentPage}
+            totalItems={bookings.length}
+            pageSize={pageSize}
+            onPageChange={(page) => { setCurrentPage(page); }}
+            onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
+            label="boekingen"
+          />
         </div>
       ) : (
         <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 overflow-hidden">

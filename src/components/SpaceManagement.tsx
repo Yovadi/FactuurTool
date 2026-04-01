@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase, type OfficeSpace, type Lease, type LeaseSpace, type Tenant, type SpaceTypeRate } from '../lib/supabase';
 import { Plus, CreditCard as Edit2, Trash2, Home, Square, User, AlertCircle } from 'lucide-react';
 import { SkeletonTable } from './SkeletonLoader';
+import { Pagination } from './Pagination';
 
 type SpaceWithTenant = OfficeSpace & {
   tenant?: Tenant;
@@ -14,6 +15,17 @@ export function SpaceManagement() {
   const [loading, setLoading] = useState(true);
   const [spaceTypeRates, setSpaceTypeRates] = useState<SpaceTypeRate[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  const [spacePages, setSpacePages] = useState<Record<string, number>>({});
+  const [spacePageSizes, setSpacePageSizes] = useState<Record<string, number>>({});
+
+  const getSpacePage = (type: string) => spacePages[type] || 1;
+  const getSpacePageSize = (type: string) => spacePageSizes[type] || 10;
+  const setSpacePage = (type: string, page: number) => setSpacePages(prev => ({ ...prev, [type]: page }));
+  const setSpacePageSize = (type: string, size: number) => {
+    setSpacePageSizes(prev => ({ ...prev, [type]: size }));
+    setSpacePages(prev => ({ ...prev, [type]: 1 }));
+  };
 
   const [formData, setFormData] = useState({
     space_type: 'bedrijfsruimte' as 'bedrijfsruimte' | 'kantoor' | 'buitenterrein' | 'diversen' | 'Meeting Room' | 'Flexplek',
@@ -842,7 +854,7 @@ export function SpaceManagement() {
                     </tr>
                   </thead>
                   <tbody>
-                    {typedSpaces.map((space) => (
+                    {typedSpaces.slice((getSpacePage(type) - 1) * getSpacePageSize(type), getSpacePage(type) * getSpacePageSize(type)).map((space) => (
                       <tr
                         key={space.id}
                         className="border-b border-dark-800 hover:bg-dark-800 transition-colors"
@@ -941,6 +953,14 @@ export function SpaceManagement() {
                   </tbody>
                 </table>
               </div>
+              <Pagination
+                currentPage={getSpacePage(type)}
+                totalItems={typedSpaces.length}
+                pageSize={getSpacePageSize(type)}
+                onPageChange={(page) => { setSpacePage(type, page); }}
+                onPageSizeChange={(size) => { setSpacePageSize(type, size); }}
+                label="ruimtes"
+              />
             </div>
           );
         })}

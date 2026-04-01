@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { getLocalRootFolderPath } from '../utils/localSettings';
-import { Plus, Eye, Trash2, Download, Edit, Edit2, FileText, CheckCircle, RefreshCw, Loader2, Link2 } from 'lucide-react';
+import { Plus, Eye, Trash2, Download, CreditCard as Edit, CreditCard as Edit2, FileText, CheckCircle, RefreshCw, Loader2, Link2 } from 'lucide-react';
 import { CreditNotePreview } from './CreditNotePreview';
 import { CreditNoteApplications } from './CreditNoteApplications';
 import { EmailCompose } from './EmailCompose';
+import { Pagination } from './Pagination';
 import { generateCreditNotePDF } from '../utils/pdfGenerator';
 import { syncCreditNoteToEBoekhouden } from '../lib/eboekhoudenSync';
 import { isEmailConfigured } from '../utils/emailSender';
@@ -98,6 +99,8 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
   const [applyingCreditNote, setApplyingCreditNote] = useState<CreditNote | null>(null);
   const [previewAvailableCredit, setPreviewAvailableCredit] = useState<number | null>(null);
   const [syncingIds, setSyncingIds] = useState<Set<string>>(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const [emailComposeData, setEmailComposeData] = useState<{
     to: string;
     toName: string;
@@ -607,6 +610,9 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
     return new Date(dateStr).toLocaleDateString('nl-NL');
   };
 
+  const creditNotesStartIndex = (currentPage - 1) * pageSize;
+  const paginatedCreditNotes = creditNotes.slice(creditNotesStartIndex, creditNotesStartIndex + pageSize);
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'draft': return 'bg-gray-600 text-gray-200';
@@ -719,7 +725,7 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
                   </tr>
                 </thead>
                 <tbody>
-                  {creditNotes.map((note) => {
+                  {paginatedCreditNotes.map((note) => {
                     const tenant = Array.isArray(note.tenants) ? note.tenants[0] : note.tenants;
                     const externalCustomer = Array.isArray(note.external_customers) ? note.external_customers[0] : note.external_customers;
                     const customerName = note.tenant_id
@@ -794,6 +800,14 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
                 </tbody>
               </table>
             </div>
+            <Pagination
+              currentPage={currentPage}
+              totalItems={creditNotes.length}
+              pageSize={pageSize}
+              onPageChange={(page) => { setCurrentPage(page); }}
+              onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
+              label="creditnota's"
+            />
           </div>
         )}
       </div>

@@ -5,6 +5,7 @@ import { Plus, Search, Eye, CreditCard as Edit2, Trash2, Upload, FileText, Check
 import { PurchaseInvoiceUpload } from './PurchaseInvoiceUpload';
 import { PurchaseInvoicePreview } from './PurchaseInvoicePreview';
 import { ConfirmModal } from './ConfirmModal';
+import { Pagination } from './Pagination';
 import { syncPurchaseInvoiceToEBoekhouden } from '../lib/eboekhoudenSync';
 import { SkeletonTable } from './SkeletonLoader';
 
@@ -129,6 +130,8 @@ export function PurchaseInvoices() {
   };
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const [openaiApiKey, setOpenaiApiKey] = useState('');
   const [supabaseUrl, setSupabaseUrl] = useState('');
   const [formData, setFormData] = useState<FormData>({ ...emptyForm });
@@ -661,6 +664,9 @@ export function PurchaseInvoices() {
     return matchesSearch && matchesStatus;
   });
 
+  const startIndex = (currentPage - 1) * pageSize;
+  const paginatedInvoices = filteredInvoices.slice(startIndex, startIndex + pageSize);
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'paid': return { bg: 'bg-green-600', text: 'text-green-100', label: 'Betaald' };
@@ -792,14 +798,14 @@ export function PurchaseInvoices() {
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
                 placeholder="Zoek op leverancier, nummer..."
                 className="w-full pl-10 pr-4 py-2.5 bg-dark-900 border border-dark-700 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 text-sm"
               />
             </div>
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
               className="px-3 py-2.5 bg-dark-900 border border-dark-700 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 text-sm"
             >
               <option value="all">Alle statussen</option>
@@ -871,7 +877,7 @@ export function PurchaseInvoices() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredInvoices.map((inv) => {
+                  {paginatedInvoices.map((inv) => {
                     const status = getStatusBadge(inv.status);
                     return (
                       <tr
@@ -948,6 +954,14 @@ export function PurchaseInvoices() {
                 </tbody>
               </table>
             </div>
+            <Pagination
+              currentPage={currentPage}
+              totalItems={filteredInvoices.length}
+              pageSize={pageSize}
+              onPageChange={(page) => { setCurrentPage(page); }}
+              onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
+              label="facturen"
+            />
           </div>
         )}
       </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { loadEmailLogs, type EmailLog } from '../utils/emailSender';
 import { Mail, CheckCircle2, XCircle, Clock, RefreshCw, Loader2, ChevronDown, ChevronUp, Search } from 'lucide-react';
+import { Pagination } from './Pagination';
 
 type Props = {
   refreshTrigger?: number;
@@ -11,6 +12,8 @@ export function EmailSentItems({ refreshTrigger }: Props) {
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
   useEffect(() => {
     fetchLogs();
@@ -18,7 +21,7 @@ export function EmailSentItems({ refreshTrigger }: Props) {
 
   const fetchLogs = async () => {
     setLoading(true);
-    const data = await loadEmailLogs(100);
+    const data = await loadEmailLogs(500);
     setLogs(data);
     setLoading(false);
   };
@@ -32,6 +35,8 @@ export function EmailSentItems({ refreshTrigger }: Props) {
       log.subject.toLowerCase().includes(q)
     );
   });
+
+  const paginatedLogs = filteredLogs.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr);
@@ -89,7 +94,7 @@ export function EmailSentItems({ refreshTrigger }: Props) {
         <input
           type="text"
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
           placeholder="Zoek in verzonden items..."
           className="w-full pl-9 pr-3 py-2 bg-dark-800 border border-dark-700 text-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
@@ -109,7 +114,7 @@ export function EmailSentItems({ refreshTrigger }: Props) {
         </div>
       ) : (
         <div className="space-y-1">
-          {filteredLogs.map((log) => {
+          {paginatedLogs.map((log) => {
             const status = statusConfig[log.status] || statusConfig.pending;
             const StatusIcon = status.icon;
             const isExpanded = expandedId === log.id;
@@ -193,6 +198,17 @@ export function EmailSentItems({ refreshTrigger }: Props) {
             );
           })}
         </div>
+      )}
+
+      {filteredLogs.length > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalItems={filteredLogs.length}
+          pageSize={pageSize}
+          onPageChange={(page) => { setCurrentPage(page); }}
+          onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
+          label="e-mails"
+        />
       )}
     </div>
   );
