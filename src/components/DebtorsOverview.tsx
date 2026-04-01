@@ -198,7 +198,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
           invoice_line_items(id, description, quantity, unit_price, amount, booking_id)
         `)
         .in('status', ['paid', 'credited'])
-        .order('invoice_date', { ascending: false });
+        .order('invoice_number', { ascending: true });
 
       if (error) throw error;
 
@@ -424,7 +424,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
     }
 
     filtered.sort((a, b) => {
-      return new Date(b.invoice_date).getTime() - new Date(a.invoice_date).getTime();
+      return (a.invoice_number || '').localeCompare(b.invoice_number || '');
     });
 
     return filtered;
