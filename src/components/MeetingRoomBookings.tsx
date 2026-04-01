@@ -1428,7 +1428,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       )}
 
       {selectedView === 'invoiced' && (
-        <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 overflow-hidden">
+        <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 flex-1 flex flex-col min-h-0 overflow-hidden">
           <div className="flex-shrink-0 flex justify-between items-center px-4 py-3 bg-dark-800 border-b border-amber-500">
             <h2 className="text-lg font-bold text-gray-100">
               Gefactureerde Boekingen
@@ -1460,7 +1460,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
               </select>
             </div>
           </div>
-          <div className="overflow-x-auto">
+          <div className="overflow-auto flex-1 min-h-0">
             <table className="w-full table-fixed min-w-[1000px]">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
