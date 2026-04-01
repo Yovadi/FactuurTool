@@ -252,9 +252,10 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
       lease => lease.end_date < todayStr
     ) || [];
 
-    const draftInvoicesData = invoices?.filter(inv => inv.status === 'draft') || [];
-    const outstandingInvoicesData = invoices?.filter(inv => inv.status === 'sent' && inv.due_date >= todayStr) || [];
-    const overdueInvoicesData = invoices?.filter(inv => inv.status !== 'paid' && inv.status !== 'credited' && inv.due_date < todayStr) || [];
+    const sortByInvoiceNumber = (a: Invoice, b: Invoice) => (a.invoice_number || '').localeCompare(b.invoice_number || '');
+    const draftInvoicesData = (invoices?.filter(inv => inv.status === 'draft') || []).sort(sortByInvoiceNumber);
+    const outstandingInvoicesData = (invoices?.filter(inv => inv.status === 'sent' && inv.due_date >= todayStr) || []).sort(sortByInvoiceNumber);
+    const overdueInvoicesData = (invoices?.filter(inv => inv.status !== 'paid' && inv.status !== 'credited' && inv.due_date < todayStr) || []).sort(sortByInvoiceNumber);
 
     const overdueAmt = overdueInvoicesData.reduce((sum, inv) => sum + Number(inv.amount), 0);
     const draftAmt = draftInvoicesData.reduce((sum, inv) => sum + Number(inv.amount), 0);
