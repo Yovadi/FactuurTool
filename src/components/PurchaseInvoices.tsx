@@ -181,7 +181,7 @@ export function PurchaseInvoices() {
         supabase
           .from('purchase_invoices')
           .select('*, purchase_invoice_line_items(*)')
-          .order('invoice_date', { ascending: false }),
+          .order('invoice_number', { ascending: true }),
         supabase
           .from('company_settings')
           .select('*')

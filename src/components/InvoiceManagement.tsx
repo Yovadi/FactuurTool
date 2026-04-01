@@ -3477,17 +3477,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       <div className="flex-1 min-w-0 overflow-y-auto w-full transition-all duration-300">
       <div className="space-y-4">
         {(() => {
-          const sortByTenantAndDate = (a: InvoiceWithDetails, b: InvoiceWithDetails) => {
-            const tenantA = getInvoiceTenant(a);
-            const tenantB = getInvoiceTenant(b);
-            if (tenantA && tenantB) {
-              const nameCompare = tenantA.company_name.localeCompare(tenantB.company_name);
-              if (nameCompare !== 0) return nameCompare;
-            }
-            if (a.invoice_month && b.invoice_month) {
-              return b.invoice_month.localeCompare(a.invoice_month);
-            }
-            return new Date(b.invoice_date).getTime() - new Date(a.invoice_date).getTime();
+          const sortByInvoiceNumber = (a: InvoiceWithDetails, b: InvoiceWithDetails) => {
+            return (a.invoice_number || '').localeCompare(b.invoice_number || '');
           };
 
           const applyFilters = (list: InvoiceWithDetails[]) => {
@@ -3506,11 +3497,11 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
           const allDraftInvoices = applyFilters(
             invoices.filter(inv => inv.status === 'draft')
-          ).sort(sortByTenantAndDate);
+          ).sort(sortByInvoiceNumber);
 
           const allOpenInvoices = applyFilters(
             invoices.filter(inv => inv.status !== 'paid' && inv.status !== 'draft' && inv.status !== 'credited')
-          ).sort(sortByTenantAndDate);
+          ).sort(sortByInvoiceNumber);
 
           const uniqueCustomers = Array.from(
             new Map(
