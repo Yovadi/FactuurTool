@@ -8,6 +8,7 @@ import { buildInvoiceEmailHtml, buildInvoiceEmailText, buildInvoiceEmailSubject 
 import { InvoicePreview } from './InvoicePreview';
 import { ConfirmModal } from './ConfirmModal';
 import { Toast } from './Toast';
+import { Pagination } from './Pagination';
 import { checkAndRunScheduledJobs } from '../utils/scheduledJobs';
 import { getLocalRootFolderPath } from '../utils/localSettings';
 import { syncInvoicePDFs, buildInvoiceFolderPath } from '../utils/invoicePdfSync';
@@ -176,6 +177,10 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   const [pendingSubmit, setPendingSubmit] = useState<(() => Promise<void>) | null>(null);
   const [filterType, setFilterType] = useState<InvoiceTypeFilter>('all');
   const [filterCustomer, setFilterCustomer] = useState<string>('all');
+  const [draftPage, setDraftPage] = useState(1);
+  const [draftPageSize, setDraftPageSize] = useState(25);
+  const [openPage, setOpenPage] = useState(1);
+  const [openPageSize, setOpenPageSize] = useState(25);
   const [pdfSyncStatus, setPdfSyncStatus] = useState<{
     active: boolean;
     current: number;
@@ -3658,7 +3663,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                 </div>
                 <select
                   value={filterType}
-                  onChange={(e) => setFilterType(e.target.value as InvoiceTypeFilter)}
+                  onChange={(e) => { setFilterType(e.target.value as InvoiceTypeFilter); setDraftPage(1); setOpenPage(1); }}
                   className="px-3 py-1.5 bg-dark-800 border border-dark-600 text-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
                 >
                   <option value="all">Alle types</option>
@@ -3669,7 +3674,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                 </select>
                 <select
                   value={filterCustomer}
-                  onChange={(e) => setFilterCustomer(e.target.value)}
+                  onChange={(e) => { setFilterCustomer(e.target.value); setDraftPage(1); setOpenPage(1); }}
                   className="px-3 py-1.5 bg-dark-800 border border-dark-600 text-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold-500 max-w-[220px]"
                 >
                   <option value="all">Alle klanten</option>
@@ -3679,7 +3684,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                 </select>
                 {(filterType !== 'all' || filterCustomer !== 'all') && (
                   <button
-                    onClick={() => { setFilterType('all'); setFilterCustomer('all'); }}
+                    onClick={() => { setFilterType('all'); setFilterCustomer('all'); setDraftPage(1); setOpenPage(1); }}
                     className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-400 hover:text-gray-200 bg-dark-800 border border-dark-600 rounded-lg transition-colors"
                   >
                     <X size={14} />
@@ -3756,11 +3761,19 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                           </td>
                         </tr>
                       ) : (
-                        allDraftInvoices.map(inv => renderInvoiceRow(inv, true))
+                        allDraftInvoices.slice((draftPage - 1) * draftPageSize, draftPage * draftPageSize).map(inv => renderInvoiceRow(inv, true))
                       )}
                     </tbody>
                   </table>
                 </div>
+                <Pagination
+                  currentPage={draftPage}
+                  totalItems={allDraftInvoices.length}
+                  pageSize={draftPageSize}
+                  onPageChange={(page) => { setDraftPage(page); }}
+                  onPageSizeChange={(size) => { setDraftPageSize(size); setDraftPage(1); }}
+                  label="facturen"
+                />
               </div>
               )}
 
@@ -3824,11 +3837,19 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                           </td>
                         </tr>
                       ) : (
-                        allOpenInvoices.map(inv => renderInvoiceRow(inv, true))
+                        allOpenInvoices.slice((openPage - 1) * openPageSize, openPage * openPageSize).map(inv => renderInvoiceRow(inv, true))
                       )}
                     </tbody>
                   </table>
                 </div>
+                <Pagination
+                  currentPage={openPage}
+                  totalItems={allOpenInvoices.length}
+                  pageSize={openPageSize}
+                  onPageChange={(page) => { setOpenPage(page); }}
+                  onPageSizeChange={(size) => { setOpenPageSize(size); setOpenPage(1); }}
+                  label="facturen"
+                />
               </div>
               )}
 
@@ -3885,11 +3906,19 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                           </td>
                         </tr>
                       ) : (
-                        allOpenInvoices.map(inv => renderInvoiceRow(inv, true))
+                        allOpenInvoices.slice((openPage - 1) * openPageSize, openPage * openPageSize).map(inv => renderInvoiceRow(inv, true))
                       )}
                     </tbody>
                   </table>
                 </div>
+                <Pagination
+                  currentPage={openPage}
+                  totalItems={allOpenInvoices.length}
+                  pageSize={openPageSize}
+                  onPageChange={(page) => { setOpenPage(page); }}
+                  onPageSizeChange={(size) => { setOpenPageSize(size); setOpenPage(1); }}
+                  label="facturen"
+                />
               </div>
               )}
             </>
