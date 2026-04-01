@@ -1861,7 +1861,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           vat_rate: 21,
           vat_inclusive: false,
           status: 'draft',
-          notes: null
+          notes: invoiceNotes
         };
 
         if (customerType === 'tenant') {
@@ -2504,7 +2504,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
               vat_inclusive: false,
               status: 'draft',
               invoice_month: targetMonth,
-              notes: null
+              notes: invoiceNotes
             })
             .select()
             .single();

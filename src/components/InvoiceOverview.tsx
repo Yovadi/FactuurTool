@@ -586,7 +586,7 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
               invoice_date: invoiceDate, due_date: dueDate,
               subtotal, vat_amount: vatAmount, amount: total,
               vat_rate: 21, vat_inclusive: false, status: 'draft',
-              invoice_month: invoiceMonth, notes: null
+              invoice_month: invoiceMonth, notes: notesLines.join('\n')
             }).select().single();
 
           if (invErr || !newInvoice) { failCount++; continue; }
