@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Calendar, Plus, X, Check, AlertCircle, Trash2, CalendarDays, CheckCircle, XCircle, Info, Filter, Building2, ChevronLeft, ChevronRight, Grid3x3, User, RefreshCw, RotateCcw, Link2 } from 'lucide-react';
+import { Calendar, Plus, X, Check, AlertCircle, Trash2, CalendarDays, CheckCircle, XCircle, Info, Filter, Building2, ChevronLeft, ChevronRight, Grid3x3, User, RefreshCw, RotateCcw, Link2, Download, Pencil, Search } from 'lucide-react';
 import { createAdminNotification } from '../utils/notificationHelper';
 
 type NotificationType = 'success' | 'error' | 'info';
@@ -38,7 +38,8 @@ type FlexSpace = {
 type FlexBooking = {
   id: string;
   space_id: string;
-  external_customer_id: string;
+  external_customer_id: string | null;
+  lease_id?: string | null;
   booking_date: string;
   slot_number: number | null;
   is_half_day: boolean;
@@ -53,6 +54,10 @@ type FlexBooking = {
   created_at: string;
   office_spaces?: { space_number: string };
   external_customers?: ExternalCustomer;
+  leases?: {
+    tenant_id: string;
+    tenants?: { id: string; company_name: string; name: string };
+  };
 };
 
 type FlexSchedule = {
@@ -163,10 +168,15 @@ export function FlexWorkspaceBookings() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationId, setNotificationId] = useState(0);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [editingBooking, setEditingBooking] = useState<FlexBooking | null>(null);
   const [linkDialogBooking, setLinkDialogBooking] = useState<FlexBooking | null>(null);
   const [existingInvoices, setExistingInvoices] = useState<any[]>([]);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string>('');
   const [selectedCustomerFilter, setSelectedCustomerFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [dateRange, setDateRange] = useState<{ from: string; to: string }>({ from: '', to: '' });
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(25);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [calendarDays, setCalendarDays] = useState<CalendarDay[]>([]);
   const [showQuickBooking, setShowQuickBooking] = useState(false);
@@ -198,7 +208,7 @@ export function FlexWorkspaceBookings() {
 
   useEffect(() => {
     applyFilters();
-  }, [selectedFilter, selectedCustomerFilter, allBookings]);
+  }, [selectedFilter, selectedCustomerFilter, allBookings, searchQuery, dateRange]);
 
   useEffect(() => {
     if (selectedView === 'calendar') {
@@ -233,9 +243,9 @@ export function FlexWorkspaceBookings() {
           .select(`
             *,
             office_spaces(space_number),
-            external_customers(id, company_name, contact_name, email, phone, street, postal_code, city, country)
+            external_customers(id, company_name, contact_name, email, phone, street, postal_code, city, country),
+            leases(tenant_id, tenants(id, company_name, name))
           `)
-          .not('external_customer_id', 'is', null)
           .order('booking_date', { ascending: false }),
         supabase
           .from('flex_schedules')
@@ -394,7 +404,7 @@ export function FlexWorkspaceBookings() {
     let filtered = [...allBookings];
 
     if (selectedCustomerFilter !== 'all') {
-      filtered = filtered.filter(b => b.external_customer_id === selectedCustomerFilter);
+      filtered = filtered.filter(b => b.external_customer_id === selectedCustomerFilter || b.lease_id === selectedCustomerFilter);
     }
 
     if (selectedFilter === 'all') {
@@ -406,7 +416,27 @@ export function FlexWorkspaceBookings() {
       filtered = filtered.filter(b => b.invoice_id !== null);
     }
 
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(b => {
+        const customerName = b.external_customers?.contact_name?.toLowerCase() || '';
+        const companyName = b.external_customers?.company_name?.toLowerCase() || '';
+        const tenantName = b.leases?.tenants?.name?.toLowerCase() || '';
+        const tenantCompany = b.leases?.tenants?.company_name?.toLowerCase() || '';
+        const spaceNumber = b.office_spaces?.space_number?.toLowerCase() || '';
+        return customerName.includes(q) || companyName.includes(q) || tenantName.includes(q) || tenantCompany.includes(q) || spaceNumber.includes(q);
+      });
+    }
+
+    if (dateRange.from) {
+      filtered = filtered.filter(b => b.booking_date >= dateRange.from);
+    }
+    if (dateRange.to) {
+      filtered = filtered.filter(b => b.booking_date <= dateRange.to);
+    }
+
     setBookings(filtered);
+    setCurrentPage(1);
   };
 
   const showNotification = (message: string, type: NotificationType) => {
@@ -432,19 +462,6 @@ export function FlexWorkspaceBookings() {
     }
 
     try {
-      const { data: availableSlotsData } = await supabase
-        .rpc('get_available_flex_slots', {
-          p_space_id: formData.space_id,
-          p_booking_date: formData.booking_date
-        });
-
-      if (!availableSlotsData || availableSlotsData.length === 0) {
-        showNotification('Geen beschikbare plekken voor deze datum', 'error');
-        return;
-      }
-
-      const firstAvailableSlot = availableSlotsData[0];
-
       const { data: spaceData } = await supabase
         .from('office_spaces')
         .select('hourly_rate, half_day_rate, full_day_rate')
@@ -471,46 +488,95 @@ export function FlexWorkspaceBookings() {
         return;
       }
 
-      const bookingData: any = {
-        space_id: formData.space_id,
-        external_customer_id: formData.external_customer_id,
-        booking_date: formData.booking_date,
-        slot_number: firstAvailableSlot,
-        start_time: formData.start_time,
-        end_time: formData.end_time,
-        hourly_rate: Number(spaceData.hourly_rate) || 0,
-        total_hours: calculation.totalHours,
-        total_amount: calculation.totalAmount,
-        is_half_day: calculation.isHalfDay,
-        half_day_period: calculation.halfDayPeriod
-      };
+      if (editingBooking) {
+        const updateData: any = {
+          space_id: formData.space_id,
+          external_customer_id: formData.external_customer_id,
+          booking_date: formData.booking_date,
+          start_time: formData.start_time,
+          end_time: formData.end_time,
+          hourly_rate: Number(spaceData.hourly_rate) || 0,
+          total_hours: calculation.totalHours,
+          total_amount: calculation.totalAmount,
+          is_half_day: calculation.isHalfDay,
+          half_day_period: calculation.halfDayPeriod
+        };
 
-      const { data, error } = await supabase
-        .from('flex_day_bookings')
-        .insert([bookingData])
-        .select(`
-          *,
-          office_spaces(space_number),
-          external_customers(id, company_name, contact_name, email, phone, street, postal_code, city, country)
-        `)
-        .single();
+        const { data, error } = await supabase
+          .from('flex_day_bookings')
+          .update(updateData)
+          .eq('id', editingBooking.id)
+          .select(`
+            *,
+            office_spaces(space_number),
+            external_customers(id, company_name, contact_name, email, phone, street, postal_code, city, country)
+          `)
+          .single();
 
-      if (error) throw error;
+        if (error) throw error;
 
-      if (data) {
-        setAllBookings(prev => [data as FlexBooking, ...prev]);
-        const rateTypeText = calculation.rateUsed === 'hourly' ? 'uurtarief' : calculation.rateUsed === 'half_day' ? 'halve dag tarief' : 'hele dag tarief';
-        showNotification(`Flexplekboeking aangemaakt op Plek ${firstAvailableSlot} (${rateTypeText})`, 'success');
-        setShowForm(false);
-        resetForm();
+        if (data) {
+          setAllBookings(prev => prev.map(b => b.id === editingBooking.id ? data as FlexBooking : b));
+          showNotification('Boeking succesvol bijgewerkt!', 'success');
+          setEditingBooking(null);
+          setShowForm(false);
+          resetForm();
+        }
+      } else {
+        const { data: availableSlotsData } = await supabase
+          .rpc('get_available_flex_slots', {
+            p_space_id: formData.space_id,
+            p_booking_date: formData.booking_date
+          });
+
+        if (!availableSlotsData || availableSlotsData.length === 0) {
+          showNotification('Geen beschikbare plekken voor deze datum', 'error');
+          return;
+        }
+
+        const firstAvailableSlot = availableSlotsData[0];
+
+        const bookingData: any = {
+          space_id: formData.space_id,
+          external_customer_id: formData.external_customer_id,
+          booking_date: formData.booking_date,
+          slot_number: firstAvailableSlot,
+          start_time: formData.start_time,
+          end_time: formData.end_time,
+          hourly_rate: Number(spaceData.hourly_rate) || 0,
+          total_hours: calculation.totalHours,
+          total_amount: calculation.totalAmount,
+          is_half_day: calculation.isHalfDay,
+          half_day_period: calculation.halfDayPeriod
+        };
+
+        const { data, error } = await supabase
+          .from('flex_day_bookings')
+          .insert([bookingData])
+          .select(`
+            *,
+            office_spaces(space_number),
+            external_customers(id, company_name, contact_name, email, phone, street, postal_code, city, country)
+          `)
+          .single();
+
+        if (error) throw error;
+
+        if (data) {
+          setAllBookings(prev => [data as FlexBooking, ...prev]);
+          const rateTypeText = calculation.rateUsed === 'hourly' ? 'uurtarief' : calculation.rateUsed === 'half_day' ? 'halve dag tarief' : 'hele dag tarief';
+          showNotification(`Flexplekboeking aangemaakt op Plek ${firstAvailableSlot} (${rateTypeText})`, 'success');
+          setShowForm(false);
+          resetForm();
+        }
       }
     } catch (error: any) {
-      console.error('Error creating booking:', error);
+      console.error('Error saving booking:', error);
       const message = error.message?.includes('unique_flex_slot_booking')
         ? 'Deze plek is al geboekt voor deze datum'
         : error.message?.includes('flex_day_bookings_customer_check')
         ? 'Externe klant is verplicht voor flexplekken'
-        : 'Fout bij aanmaken boeking';
+        : editingBooking ? 'Fout bij bijwerken boeking' : 'Fout bij aanmaken boeking';
       showNotification(message, 'error');
     }
   };
@@ -544,7 +610,7 @@ export function FlexWorkspaceBookings() {
     );
 
     if (newStatus === 'cancelled') {
-      const customerName = booking.external_customers?.company_name || 'Onbekende klant';
+      const customerName = booking.external_customers?.company_name || booking.leases?.tenants?.company_name || booking.leases?.tenants?.name || 'Onbekende klant';
       const periodText = booking.start_time && booking.end_time
         ? `${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)}`
         : booking.is_half_day
@@ -589,13 +655,25 @@ export function FlexWorkspaceBookings() {
   };
 
   const handleLinkToInvoice = async (booking: FlexBooking) => {
-    if (!booking.external_customer_id) return;
+    if (!booking.external_customer_id && !booking.leases?.tenant_id) return;
 
-    const { data } = await supabase
-      .from('invoices')
-      .select('id, invoice_number, invoice_date, amount, status, invoice_month')
-      .eq('external_customer_id', booking.external_customer_id)
-      .order('invoice_date', { ascending: false });
+    let data: any[] | null = null;
+
+    if (booking.external_customer_id) {
+      const res = await supabase
+        .from('invoices')
+        .select('id, invoice_number, invoice_date, amount, status, invoice_month')
+        .eq('external_customer_id', booking.external_customer_id)
+        .order('invoice_date', { ascending: false });
+      data = res.data;
+    } else if (booking.leases?.tenant_id) {
+      const res = await supabase
+        .from('invoices')
+        .select('id, invoice_number, invoice_date, amount, status, invoice_month')
+        .eq('tenant_id', booking.leases.tenant_id)
+        .order('invoice_date', { ascending: false });
+      data = res.data;
+    }
 
     setExistingInvoices(data || []);
     setSelectedInvoiceId('');
@@ -1025,8 +1103,8 @@ export function FlexWorkspaceBookings() {
     dayBookings.forEach(booking => {
       slotBookings.push({
         type: 'booking',
-        customerName: booking.external_customers?.company_name || 'Onbekend',
-        customerId: booking.external_customer_id,
+        customerName: booking.external_customers?.company_name || booking.leases?.tenants?.company_name || booking.leases?.tenants?.name || 'Onbekend',
+        customerId: booking.external_customer_id || booking.lease_id || '',
         bookingId: booking.id,
         isInvoiced: booking.invoice_id !== null,
         status: booking.status,
@@ -1160,6 +1238,68 @@ export function FlexWorkspaceBookings() {
   const isToday = selectedDateStr === todayStr;
   const isWeekend = currentDate.getDay() === 0 || currentDate.getDay() === 6;
 
+  const handleExportCSV = (exportBookings: FlexBooking[]) => {
+    const formatDate = (dateStr: string) => {
+      const [year, month, day] = dateStr.split('-');
+      return `${day}-${month}-${year}`;
+    };
+
+    const getCustomerName = (booking: FlexBooking) => {
+      return booking.external_customers?.company_name || booking.leases?.tenants?.company_name || booking.leases?.tenants?.name || '';
+    };
+
+    const getStartTime = (booking: FlexBooking) => {
+      if (booking.start_time) return booking.start_time.substring(0, 5);
+      if (booking.is_half_day) return booking.half_day_period === 'morning' ? '08:00' : '13:00';
+      return '08:00';
+    };
+
+    const getEndTime = (booking: FlexBooking) => {
+      if (booking.end_time) return booking.end_time.substring(0, 5);
+      if (booking.is_half_day) return booking.half_day_period === 'morning' ? '13:00' : '18:00';
+      return '18:00';
+    };
+
+    const getStatusLabel = (status: string) => {
+      switch (status) {
+        case 'pending': return 'In afwachting';
+        case 'confirmed': return 'Bevestigd';
+        case 'completed': return 'Voltooid';
+        case 'cancelled': return 'Geannuleerd';
+        default: return status;
+      }
+    };
+
+    const headers = ['Datum', 'Starttijd', 'Eindtijd', 'Ruimte', 'Plek', 'Klant', 'Uren', 'Bedrag', 'Status', 'Gefactureerd'];
+    const rows = exportBookings.map(booking => [
+      formatDate(booking.booking_date),
+      getStartTime(booking),
+      getEndTime(booking),
+      booking.office_spaces?.space_number || '',
+      booking.slot_number ? `Plek ${booking.slot_number}` : '',
+      getCustomerName(booking),
+      booking.total_hours.toFixed(1),
+      booking.total_amount.toFixed(2).replace('.', ','),
+      getStatusLabel(booking.status),
+      booking.invoice_id ? 'Ja' : 'Nee'
+    ]);
+
+    const csvContent = '\uFEFF' + [headers, ...rows].map(row =>
+      row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(';')
+    ).join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const today = new Date().toISOString().split('T')[0];
+    link.href = url;
+    link.download = `flexplek-boekingen-${today}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -1199,6 +1339,14 @@ export function FlexWorkspaceBookings() {
       <div className="flex-shrink-0 mb-4">
         <div className="flex items-center justify-end mb-4">
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleExportCSV(bookings)}
+              className="flex items-center gap-2 px-4 py-2 bg-dark-700 text-gray-300 rounded-lg hover:bg-dark-600 transition-colors font-medium"
+              title="Exporteer als CSV"
+            >
+              <Download size={20} />
+              Exporteer CSV
+            </button>
             <button
               onClick={loadData}
               className="flex items-center gap-2 px-4 py-2 bg-dark-700 text-gray-300 rounded-lg hover:bg-dark-600 transition-colors font-medium"
@@ -1259,10 +1407,11 @@ export function FlexWorkspaceBookings() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
           <div className="bg-dark-900 rounded-lg p-6 max-w-2xl w-full mx-4 my-8 border border-dark-700">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-gray-100">Nieuwe Flexplek Boeking</h2>
+              <h2 className="text-xl font-bold text-gray-100">{editingBooking ? 'Flexplek Boeking Bewerken' : 'Nieuwe Flexplek Boeking'}</h2>
               <button
                 onClick={() => {
                   setShowForm(false);
+                  setEditingBooking(null);
                   resetForm();
                 }}
                 className="text-gray-400 hover:text-gray-300"
@@ -1378,6 +1527,7 @@ export function FlexWorkspaceBookings() {
                   type="button"
                   onClick={() => {
                     setShowForm(false);
+                    setEditingBooking(null);
                     resetForm();
                   }}
                   className="flex-1 px-4 py-2 bg-dark-800 text-gray-300 rounded-lg hover:bg-dark-700 transition-colors font-medium"
@@ -1388,7 +1538,7 @@ export function FlexWorkspaceBookings() {
                   type="submit"
                   className="flex-1 px-4 py-2 bg-gold-500 text-white rounded-lg hover:bg-gold-600 transition-colors font-medium"
                 >
-                  Boeking Aanmaken
+                  {editingBooking ? 'Boeking Bijwerken' : 'Boeking Aanmaken'}
                 </button>
               </div>
             </form>
@@ -1655,6 +1805,32 @@ export function FlexWorkspaceBookings() {
           <div className="flex-shrink-0 flex justify-between items-center px-4 py-3 bg-dark-800 border-b border-amber-500">
             <h2 className="text-lg font-bold text-gray-100">Flexplek Boekingen</h2>
             <div className="flex items-center gap-4">
+              <div className="relative w-56">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Zoek op klant, ruimte..."
+                  className="w-full px-3 py-1.5 bg-dark-700 border border-dark-600 text-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold-500 pl-9"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-gray-400">Van</label>
+                <input
+                  type="date"
+                  value={dateRange.from}
+                  onChange={(e) => setDateRange(prev => ({ ...prev, from: e.target.value }))}
+                  className="px-3 py-1.5 bg-dark-700 border border-dark-600 text-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                />
+                <label className="text-xs text-gray-400">Tot</label>
+                <input
+                  type="date"
+                  value={dateRange.to}
+                  onChange={(e) => setDateRange(prev => ({ ...prev, to: e.target.value }))}
+                  className="px-3 py-1.5 bg-dark-700 border border-dark-600 text-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                />
+              </div>
               <div className="flex items-center gap-2">
                 <Filter size={16} className="text-gray-400" />
                 <select
@@ -1722,7 +1898,10 @@ export function FlexWorkspaceBookings() {
                     </td>
                   </tr>
                 ) : (
-                  bookings.map((booking) => (
+                  (() => {
+                    const flexStartIndex = (currentPage - 1) * pageSize;
+                    const paginatedBookings = bookings.slice(flexStartIndex, flexStartIndex + pageSize);
+                    return paginatedBookings.map((booking) => (
                     <tr
                       key={booking.id}
                       className={`hover:bg-dark-800/50 transition-colors ${
@@ -1751,9 +1930,16 @@ export function FlexWorkspaceBookings() {
                         )}
                       </td>
                       <td className="px-4 py-3 w-[15%]">
-                        <div className="text-sm text-gray-200">{booking.external_customers?.contact_name || '-'}</div>
-                        {booking.external_customers?.company_name && (
-                          <div className="text-xs text-gray-400 mt-0.5">{booking.external_customers.company_name}</div>
+                        <div className="text-sm text-gray-200">
+                          {booking.external_customers?.contact_name || booking.leases?.tenants?.name || '-'}
+                        </div>
+                        {(booking.external_customers?.company_name || booking.leases?.tenants?.company_name) && (
+                          <div className="text-xs text-gray-400 mt-0.5">
+                            {booking.external_customers?.company_name || booking.leases?.tenants?.company_name}
+                          </div>
+                        )}
+                        {booking.lease_id && !booking.external_customer_id && (
+                          <div className="text-[10px] text-blue-400 mt-0.5 font-medium">Via huurcontract</div>
                         )}
                       </td>
                       <td className="px-4 py-3 w-[10%]">
@@ -1841,6 +2027,25 @@ export function FlexWorkspaceBookings() {
                               </button>
                             </>
                           )}
+                          {(booking.status === 'pending' || booking.status === 'confirmed') && !booking.invoice_id && (
+                            <button
+                              onClick={() => {
+                                setEditingBooking(booking);
+                                setFormData({
+                                  space_id: booking.space_id,
+                                  external_customer_id: booking.external_customer_id || '',
+                                  booking_date: booking.booking_date,
+                                  start_time: booking.start_time || '09:00',
+                                  end_time: booking.end_time || '17:00'
+                                });
+                                setShowForm(true);
+                              }}
+                              className="p-2 bg-dark-700 hover:bg-gold-500 text-gray-400 hover:text-white rounded-lg transition-colors"
+                              title="Bewerken"
+                            >
+                              <Pencil size={20} />
+                            </button>
+                          )}
                           {(booking.status === 'pending' || booking.status === 'confirmed') && (
                             <button
                               onClick={() => handleStatusChange(booking.id, 'cancelled')}
@@ -1860,11 +2065,70 @@ export function FlexWorkspaceBookings() {
                         </div>
                       </td>
                     </tr>
-                  ))
+                  ));
+                  })()
                 )}
               </tbody>
             </table>
           </div>
+          {bookings.length > 0 && (() => {
+            const totalPages = Math.ceil(bookings.length / pageSize);
+            const startIndex = (currentPage - 1) * pageSize;
+            const endIndex = Math.min(startIndex + pageSize, bookings.length);
+            const startPage = Math.max(1, currentPage - 2);
+            const endPage = Math.min(totalPages, startPage + 4);
+            const pages = Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
+            return (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-dark-700 bg-dark-800">
+                <div className="text-sm text-gray-400">
+                  Toon {startIndex + 1} tot {endIndex} van {bookings.length} boekingen
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    className="p-1.5 rounded-lg bg-dark-700 text-gray-300 hover:bg-dark-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+                  {pages.map(page => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
+                        page === currentPage
+                          ? 'bg-gold-500 text-white'
+                          : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                    className="p-1.5 rounded-lg bg-dark-700 text-gray-300 hover:bg-dark-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    className="px-2 py-1.5 bg-dark-700 border border-dark-600 text-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                  >
+                    {[10, 25, 50, 100].map(size => (
+                      <option key={size} value={size}>{size}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       ) : (
         <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 overflow-hidden">
@@ -2020,7 +2284,7 @@ export function FlexWorkspaceBookings() {
                             : 'bg-amber-700/50 text-amber-100 border border-amber-500/50'
                         }`}
                       >
-                        {booking.external_customers?.company_name}
+                        {booking.external_customers?.company_name || booking.leases?.tenants?.company_name || booking.leases?.tenants?.name || 'Onbekend'}
                         {calendarMode === 'week' && booking.start_time && booking.end_time && (
                           <span className="ml-1 opacity-80">
                             {booking.start_time.substring(0, 5)}-{booking.end_time.substring(0, 5)}

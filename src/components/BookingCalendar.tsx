@@ -1009,6 +1009,33 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
     return <div className="text-center py-8 text-gray-300">Kalender laden...</div>;
   }
 
+  // Determine if we should show multi-room sub-columns
+  const showMultiRoom = !selectedRoom && meetingRooms.length >= 2;
+
+  // Get bookings for a specific room on a specific date at a specific time slot
+  const getBookingAtTimeForRoom = (dateStr: string, time: string, roomSpaceNumber: string) => {
+    const day = weekDays.find(d => d.dateStr === dateStr);
+    if (!day) return null;
+
+    const slotIdx = timeSlots.indexOf(time);
+    return day.bookings.find(b => {
+      const startTime = normalizeTime(b.start_time);
+      return getSlotIndex(startTime) === slotIdx && b.office_spaces?.space_number === roomSpaceNumber;
+    });
+  };
+
+  // Check if a specific room has a booking at a given time
+  const hasBookingForRoom = (dateStr: string, time: string, roomSpaceNumber: string) => {
+    const day = weekDays.find(d => d.dateStr === dateStr);
+    if (!day) return false;
+
+    return day.bookings.some(b => {
+      const startTime = normalizeTime(b.start_time);
+      const endTime = normalizeTime(b.end_time);
+      return time >= startTime && time < endTime && b.office_spaces?.space_number === roomSpaceNumber;
+    });
+  };
+
 
   // Generate month calendar data
   const generateMonthDays = () => {
@@ -1405,6 +1432,21 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                     }`}>
                       {day.date.getDate()}
                     </div>
+                    {showMultiRoom && (
+                      <div className="flex mt-1 border-t border-dark-700/50">
+                        {meetingRooms.map((room, roomIdx) => (
+                          <div
+                            key={room.id}
+                            className={`flex-1 text-[8px] font-medium text-gray-400 truncate px-0.5 py-0.5 ${
+                              roomIdx < meetingRooms.length - 1 ? 'border-r border-dark-600/50' : ''
+                            }`}
+                            title={room.space_number}
+                          >
+                            {room.space_number}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -1429,126 +1471,189 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
           {weekDays.map((day) => {
             const isTodayDate = isToday(day.date);
             const isWeekendDay = day.date.getDay() === 0 || day.date.getDay() === 6;
+
+            // Helper to render a booking block
+            const renderBookingBlock = (booking: Booking) => {
+              const isFlex = booking.booking_type === 'flex';
+              const colors = getTenantColor(booking.tenant_id || booking.external_customer_id, isFlex);
+              const isBeingDragged = draggedBooking?.id === booking.id;
+              const isCompleted = booking.status === 'completed';
+              const isPending = booking.status === 'pending';
+              const bookingHeight = getBookingHeight(booking) * CELL_HEIGHT - 2;
+              const isSmall = bookingHeight < 40;
+
+              return (
+                <div
+                  key={booking.id}
+                  className={`absolute left-0.5 right-0.5 ${colors.bg} border-l-[3px] ${colors.border} rounded-sm shadow-md px-1.5 z-10 cursor-move hover:shadow-lg hover:brightness-110 transition-all select-none flex flex-col justify-center ${isBeingDragged ? 'opacity-50' : isCompleted ? 'opacity-60' : isPending ? 'opacity-80 ring-1 ring-orange-400' : ''}`}
+                  style={{
+                    height: `${bookingHeight}px`,
+                    top: '1px',
+                    overflow: 'hidden'
+                  }}
+                  title={`${isFlex ? 'FLEXPLEK' : booking.office_spaces?.space_number} - ${booking.external_customer_id ? `Extern: ${booking.external_customers?.company_name}` : booking.tenants?.company_name || ''} (${booking.start_time?.substring(0, 5) || '--:--'} - ${booking.end_time?.substring(0, 5) || '--:--'})${isCompleted ? ' - Voltooid' : ''}${isPending ? ' - In afwachting' : ''}${booking.invoice_id ? ' - Gefactureerd' : ''}\nKlik om te beheren${isFlex ? '' : ', sleep om te verplaatsen'}`}
+                  onMouseDown={(e) => {
+                    if (e.button === 0 && !isFlex) {
+                      handleBookingDragStart(booking, e);
+                    }
+                  }}
+                  onClick={(e) => {
+                    if (!isDraggingBooking) {
+                      e.stopPropagation();
+                      handleBookingClick(booking);
+                    }
+                  }}
+                >
+                  <div className="w-full">
+                    {isSmall ? (
+                      <div className={`${colors.text} text-[10px] font-medium leading-none truncate`}>
+                        {booking.external_customer_id
+                          ? booking.external_customers?.company_name
+                          : booking.tenants?.company_name || ''
+                        }
+                        <span className="opacity-75 ml-1">{booking.start_time?.substring(0, 5) || '--:--'}-{booking.end_time?.substring(0, 5) || '--:--'}</span>
+                      </div>
+                    ) : (
+                      <>
+                        {isFlex && (
+                          <div className={`font-semibold ${colors.text} text-[8px] uppercase leading-tight opacity-75`}>
+                            FLEXPLEK
+                          </div>
+                        )}
+                        {booking.external_customer_id ? (
+                          <>
+                            {!isFlex && (
+                              <div className={`font-semibold ${colors.text} text-[8px] uppercase leading-tight opacity-75`}>
+                                EXTERN
+                              </div>
+                            )}
+                            <div className={`font-semibold ${colors.text} text-[11px] leading-tight truncate`}>
+                              {booking.external_customers?.company_name}
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            {loggedInTenantId && booking.tenant_id === loggedInTenantId && (
+                              <div className={`font-semibold ${colors.text} text-[8px] uppercase leading-tight opacity-75`}>
+                                {booking.status === 'confirmed' ? 'BEVESTIGD' : booking.status === 'pending' ? 'IN AFWACHTING' : 'MIJN BOEKING'}
+                              </div>
+                            )}
+                            <div className={`font-semibold ${colors.text} text-[11px] leading-tight truncate`}>
+                              {booking.tenants?.company_name || ''}
+                            </div>
+                          </>
+                        )}
+                        <div className={`${colors.text} text-[10px] opacity-80 leading-tight`}>
+                          {booking.start_time?.substring(0, 5) || '--:--'} - {booking.end_time?.substring(0, 5) || '--:--'}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            };
+
             return (
               <div key={day.dateStr} className={`relative border-l border-dark-700/50 ${isTodayDate ? 'bg-gold-500/5' : isWeekendDay ? 'bg-dark-950/30' : ''}`}>
-                {timeSlots.map((time) => {
-                  const booking = getBookingAtTime(day.dateStr, time);
-                  const hasBookingHere = hasBooking(day.dateStr, time);
-                  const isSelected = isCellSelected(day.dateStr, time);
+                {showMultiRoom ? (
+                  /* Multi-room layout: each time slot row has sub-columns per room */
+                  timeSlots.map((time) => {
+                    const isSelected = isCellSelected(day.dateStr, time);
+                    const [hour] = time.split(':').map(Number);
+                    const isWorkHours = hour >= 8 && hour < 17;
+                    const isWholeHour = time.endsWith(':00');
 
-                  const [hour] = time.split(':').map(Number);
-                  const isWorkHours = hour >= 8 && hour < 17;
-                  const isWholeHour = time.endsWith(':00');
+                    return (
+                      <div
+                        key={time}
+                        className={`flex ${isWholeHour ? 'border-b border-dark-700/40' : ''} ${isSelected ? (isTouchDevice ? 'bg-yellow-500/50 border border-yellow-300' : 'bg-yellow-200/20 border border-yellow-500/50') : ''} ${!isWorkHours ? 'bg-dark-950/20' : ''}`}
+                        style={{ height: `${CELL_HEIGHT}px` }}
+                      >
+                        {meetingRooms.map((room, roomIdx) => {
+                          const roomBooking = getBookingAtTimeForRoom(day.dateStr, time, room.space_number);
+                          const hasBookingInRoom = hasBookingForRoom(day.dateStr, time, room.space_number);
 
-                  return (
-                    <div
-                      key={time}
-                      className={`relative ${isWholeHour ? 'border-b border-dark-700/40' : ''} ${
-                        !hasBookingHere ? 'cursor-pointer hover:bg-dark-700/20' : ''
-                      } ${isSelected ? (isTouchDevice ? 'bg-yellow-500/50 border border-yellow-300' : 'bg-yellow-200/20 border border-yellow-500/50') : ''} ${!isWorkHours ? 'bg-dark-950/20' : ''} ${isDraggingBooking && !hasBookingHere ? 'bg-green-900/10' : ''} ${isTouchDevice && !hasBookingHere ? 'active:bg-yellow-500/20 transition-colors' : ''}`}
-                      style={{ height: `${CELL_HEIGHT}px` }}
-                      onMouseDown={(e) => {
-                        if (!isDraggingBooking && !isTouchDevice) {
-                          handleCellMouseDown(day.dateStr, time);
-                        }
-                      }}
-                      onMouseEnter={() => {
-                        if (!isDraggingBooking && !isTouchDevice) {
-                          handleCellMouseEnter(day.dateStr, time);
-                        }
-                      }}
-                      onMouseUp={() => {
-                        if (isDraggingBooking && !hasBookingHere) {
-                          handleBookingDrop(day.dateStr, time);
-                        }
-                      }}
-                      onClick={() => {
-                        if (isTouchDevice && !isDraggingBooking && !hasBookingHere) {
-                          handleCellTap(day.dateStr, time);
-                        }
-                      }}
-                    >
-                      {booking && (() => {
-                        const isFlex = booking.booking_type === 'flex';
-                        const colors = getTenantColor(booking.tenant_id || booking.external_customer_id, isFlex);
-                        const isBeingDragged = draggedBooking?.id === booking.id;
-                        const isCompleted = booking.status === 'completed';
-                        const isPending = booking.status === 'pending';
-                        const bookingHeight = getBookingHeight(booking) * CELL_HEIGHT - 2;
-                        const isSmall = bookingHeight < 40;
-
-                        return (
-                          <div
-                            className={`absolute left-0.5 right-0.5 ${colors.bg} border-l-[3px] ${colors.border} rounded-sm shadow-md px-1.5 z-10 cursor-move hover:shadow-lg hover:brightness-110 transition-all select-none flex flex-col justify-center ${isBeingDragged ? 'opacity-50' : isCompleted ? 'opacity-60' : isPending ? 'opacity-80 ring-1 ring-orange-400' : ''}`}
-                            style={{
-                              height: `${bookingHeight}px`,
-                              top: '1px',
-                              overflow: 'hidden'
-                            }}
-                            title={`${isFlex ? 'FLEXPLEK' : booking.office_spaces?.space_number} - ${booking.external_customer_id ? `Extern: ${booking.external_customers?.company_name}` : booking.tenants?.company_name || ''} (${booking.start_time?.substring(0, 5) || '--:--'} - ${booking.end_time?.substring(0, 5) || '--:--'})${isCompleted ? ' - Voltooid' : ''}${isPending ? ' - In afwachting' : ''}${booking.invoice_id ? ' - Gefactureerd' : ''}\nKlik om te beheren${isFlex ? '' : ', sleep om te verplaatsen'}`}
-                            onMouseDown={(e) => {
-                              if (e.button === 0 && !isFlex) {
-                                handleBookingDragStart(booking, e);
-                              }
-                            }}
-                            onClick={(e) => {
-                              if (!isDraggingBooking) {
-                                e.stopPropagation();
-                                handleBookingClick(booking);
-                              }
-                            }}
-                          >
-                            <div className="w-full">
-                              {isSmall ? (
-                                <div className={`${colors.text} text-[10px] font-medium leading-none truncate`}>
-                                  {booking.external_customer_id
-                                    ? booking.external_customers?.company_name
-                                    : booking.tenants?.company_name || ''
-                                  }
-                                  <span className="opacity-75 ml-1">{booking.start_time?.substring(0, 5) || '--:--'}-{booking.end_time?.substring(0, 5) || '--:--'}</span>
-                                </div>
-                              ) : (
-                                <>
-                                  {isFlex && (
-                                    <div className={`font-semibold ${colors.text} text-[8px] uppercase leading-tight opacity-75`}>
-                                      FLEXPLEK
-                                    </div>
-                                  )}
-                                  {booking.external_customer_id ? (
-                                    <>
-                                      {!isFlex && (
-                                        <div className={`font-semibold ${colors.text} text-[8px] uppercase leading-tight opacity-75`}>
-                                          EXTERN
-                                        </div>
-                                      )}
-                                      <div className={`font-semibold ${colors.text} text-[11px] leading-tight truncate`}>
-                                        {booking.external_customers?.company_name}
-                                      </div>
-                                    </>
-                                  ) : (
-                                    <>
-                                      {loggedInTenantId && booking.tenant_id === loggedInTenantId && (
-                                        <div className={`font-semibold ${colors.text} text-[8px] uppercase leading-tight opacity-75`}>
-                                          {booking.status === 'confirmed' ? 'BEVESTIGD' : booking.status === 'pending' ? 'IN AFWACHTING' : 'MIJN BOEKING'}
-                                        </div>
-                                      )}
-                                      <div className={`font-semibold ${colors.text} text-[11px] leading-tight truncate`}>
-                                        {booking.tenants?.company_name || ''}
-                                      </div>
-                                    </>
-                                  )}
-                                  <div className={`${colors.text} text-[10px] opacity-80 leading-tight`}>
-                                    {booking.start_time?.substring(0, 5) || '--:--'} - {booking.end_time?.substring(0, 5) || '--:--'}
-                                  </div>
-                                </>
-                              )}
+                          return (
+                            <div
+                              key={room.id}
+                              className={`relative flex-1 ${
+                                roomIdx < meetingRooms.length - 1 ? 'border-r border-dark-600/30' : ''
+                              } ${
+                                !hasBookingInRoom ? 'cursor-pointer hover:bg-dark-700/20' : ''
+                              } ${isDraggingBooking && !hasBookingInRoom ? 'bg-green-900/10' : ''} ${isTouchDevice && !hasBookingInRoom ? 'active:bg-yellow-500/20 transition-colors' : ''}`}
+                              style={{ height: `${CELL_HEIGHT}px` }}
+                              onMouseDown={() => {
+                                if (!isDraggingBooking && !isTouchDevice && !hasBookingInRoom) {
+                                  handleCellMouseDown(day.dateStr, time);
+                                }
+                              }}
+                              onMouseEnter={() => {
+                                if (!isDraggingBooking && !isTouchDevice) {
+                                  handleCellMouseEnter(day.dateStr, time);
+                                }
+                              }}
+                              onMouseUp={() => {
+                                if (isDraggingBooking && !hasBookingInRoom) {
+                                  handleBookingDrop(day.dateStr, time);
+                                }
+                              }}
+                              onClick={() => {
+                                if (isTouchDevice && !isDraggingBooking && !hasBookingInRoom) {
+                                  handleCellTap(day.dateStr, time);
+                                }
+                              }}
+                            >
+                              {roomBooking && renderBookingBlock(roomBooking)}
                             </div>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  );
-                })}
+                          );
+                        })}
+                      </div>
+                    );
+                  })
+                ) : (
+                  /* Single room layout: original behavior */
+                  timeSlots.map((time) => {
+                    const booking = getBookingAtTime(day.dateStr, time);
+                    const hasBookingHere = hasBooking(day.dateStr, time);
+                    const isSelected = isCellSelected(day.dateStr, time);
+
+                    const [hour] = time.split(':').map(Number);
+                    const isWorkHours = hour >= 8 && hour < 17;
+                    const isWholeHour = time.endsWith(':00');
+
+                    return (
+                      <div
+                        key={time}
+                        className={`relative ${isWholeHour ? 'border-b border-dark-700/40' : ''} ${
+                          !hasBookingHere ? 'cursor-pointer hover:bg-dark-700/20' : ''
+                        } ${isSelected ? (isTouchDevice ? 'bg-yellow-500/50 border border-yellow-300' : 'bg-yellow-200/20 border border-yellow-500/50') : ''} ${!isWorkHours ? 'bg-dark-950/20' : ''} ${isDraggingBooking && !hasBookingHere ? 'bg-green-900/10' : ''} ${isTouchDevice && !hasBookingHere ? 'active:bg-yellow-500/20 transition-colors' : ''}`}
+                        style={{ height: `${CELL_HEIGHT}px` }}
+                        onMouseDown={() => {
+                          if (!isDraggingBooking && !isTouchDevice) {
+                            handleCellMouseDown(day.dateStr, time);
+                          }
+                        }}
+                        onMouseEnter={() => {
+                          if (!isDraggingBooking && !isTouchDevice) {
+                            handleCellMouseEnter(day.dateStr, time);
+                          }
+                        }}
+                        onMouseUp={() => {
+                          if (isDraggingBooking && !hasBookingHere) {
+                            handleBookingDrop(day.dateStr, time);
+                          }
+                        }}
+                        onClick={() => {
+                          if (isTouchDevice && !isDraggingBooking && !hasBookingHere) {
+                            handleCellTap(day.dateStr, time);
+                          }
+                        }}
+                      >
+                        {booking && renderBookingBlock(booking)}
+                      </div>
+                    );
+                  })
+                )}
             </div>
           );
           })}
@@ -1987,6 +2092,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
         spaces={meetingRooms}
         tenants={tenants}
         preSelectedTenantId={loggedInTenantId}
+        externalCustomers={externalCustomers}
       />
       </div>
     </div>

@@ -1,6 +1,15 @@
 import { useState } from 'react';
-import { X, Repeat } from 'lucide-react';
+import { X, Repeat, AlertCircle } from 'lucide-react';
 import { supabase, type Tenant } from '../lib/supabase';
+
+type ExternalCustomerOption = {
+  id: string;
+  company_name: string;
+  contact_name: string;
+  meeting_discount_percentage?: number;
+};
+
+type BookingType = 'tenant' | 'external';
 
 type RecurringBookingModalProps = {
   isOpen: boolean;
@@ -9,6 +18,8 @@ type RecurringBookingModalProps = {
   spaces: { id: string; space_number: string }[];
   tenants: Tenant[];
   preSelectedTenantId?: string | null;
+  externalCustomers?: ExternalCustomerOption[];
+  preSelectedExternalCustomerId?: string | null;
 };
 
 type RecurrenceType = 'daily' | 'weekly' | 'monthly';
@@ -29,11 +40,15 @@ export function RecurringBookingModal({
   onSuccess,
   spaces,
   tenants,
-  preSelectedTenantId = null
+  preSelectedTenantId = null,
+  externalCustomers = [],
+  preSelectedExternalCustomerId = null
 }: RecurringBookingModalProps) {
+  const [bookingType, setBookingType] = useState<BookingType>('tenant');
   const [formData, setFormData] = useState({
     space_id: '',
     tenant_id: preSelectedTenantId || '',
+    external_customer_id: preSelectedExternalCustomerId || '',
     start_time: '09:00',
     end_time: '10:00',
     recurrence_type: 'weekly' as RecurrenceType,
@@ -45,15 +60,27 @@ export function RecurringBookingModal({
   });
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
+  const [skippedDates, setSkippedDates] = useState(0);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSkippedDates(0);
 
-    if (!formData.space_id || !formData.tenant_id) {
-      setError('Selecteer een ruimte en huurder');
+    if (!formData.space_id) {
+      setError('Selecteer een ruimte');
+      return;
+    }
+
+    if (bookingType === 'tenant' && !formData.tenant_id) {
+      setError('Selecteer een huurder');
+      return;
+    }
+
+    if (bookingType === 'external' && !formData.external_customer_id) {
+      setError('Selecteer een externe klant');
       return;
     }
 
@@ -65,21 +92,29 @@ export function RecurringBookingModal({
     setGenerating(true);
 
     try {
+      const patternInsert: any = {
+        space_id: formData.space_id,
+        start_time: formData.start_time,
+        end_time: formData.end_time,
+        recurrence_type: formData.recurrence_type,
+        recurrence_days: formData.recurrence_type === 'weekly' ? formData.recurrence_days : [],
+        recurrence_date: formData.recurrence_type === 'monthly' ? formData.recurrence_date : null,
+        start_date: formData.start_date,
+        end_date: formData.end_date || null,
+        notes: formData.notes,
+        is_active: true
+      };
+
+      if (bookingType === 'tenant') {
+        patternInsert.tenant_id = formData.tenant_id;
+      } else {
+        patternInsert.tenant_id = null;
+        patternInsert.external_customer_id = formData.external_customer_id;
+      }
+
       const { data: pattern, error: patternError } = await supabase
         .from('recurring_booking_patterns')
-        .insert({
-          space_id: formData.space_id,
-          tenant_id: formData.tenant_id,
-          start_time: formData.start_time,
-          end_time: formData.end_time,
-          recurrence_type: formData.recurrence_type,
-          recurrence_days: formData.recurrence_type === 'weekly' ? formData.recurrence_days : [],
-          recurrence_date: formData.recurrence_type === 'monthly' ? formData.recurrence_date : null,
-          start_date: formData.start_date,
-          end_date: formData.end_date || null,
-          notes: formData.notes,
-          is_active: true
-        })
+        .insert(patternInsert)
         .select()
         .single();
 
@@ -99,7 +134,7 @@ export function RecurringBookingModal({
   };
 
   const generateBookingsFromPattern = async (pattern: any) => {
-    const bookings = [];
+    const candidateDates: string[] = [];
     const startDate = new Date(pattern.start_date);
     const endDate = pattern.end_date ? new Date(pattern.end_date) : new Date(startDate.getTime() + 365 * 24 * 60 * 60 * 1000);
 
@@ -134,11 +169,22 @@ export function RecurringBookingModal({
       subtotal = totalHours * appliedRate;
     }
 
-    const selectedTenant = tenants.find(t => t.id === pattern.tenant_id);
-    const discountPercentage = Number(selectedTenant?.meeting_discount_percentage) || 0;
+    // Calculate discount based on booking type
+    let discountPercentage = 0;
+    const isExternal = bookingType === 'external';
+
+    if (isExternal) {
+      const selectedCustomer = externalCustomers.find(c => c.id === pattern.external_customer_id);
+      discountPercentage = Number(selectedCustomer?.meeting_discount_percentage) || 0;
+    } else {
+      const selectedTenant = tenants.find(t => t.id === pattern.tenant_id);
+      discountPercentage = Number(selectedTenant?.meeting_discount_percentage) || 0;
+    }
+
     const discountAmount = (subtotal * discountPercentage) / 100;
     const totalAmount = subtotal - discountAmount;
 
+    // Collect all candidate dates
     let currentDate = new Date(startDate);
 
     while (currentDate <= endDate) {
@@ -154,28 +200,70 @@ export function RecurringBookingModal({
       }
 
       if (shouldBook) {
-        bookings.push({
-          space_id: pattern.space_id,
-          tenant_id: pattern.tenant_id,
-          booking_date: currentDate.toISOString().split('T')[0],
-          start_time: pattern.start_time,
-          end_time: pattern.end_time,
-          hourly_rate: (space as any).hourly_rate || 25,
-          total_hours: totalHours,
-          total_amount: totalAmount,
-          discount_percentage: discountPercentage,
-          discount_amount: discountAmount,
-          rate_type: rateType,
-          applied_rate: appliedRate,
-          status: 'pending',
-          notes: pattern.notes || '',
-          recurring_pattern_id: pattern.id,
-          is_exception: false,
-          booking_type: 'tenant'
-        });
+        candidateDates.push(currentDate.toISOString().split('T')[0]);
       }
 
       currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    if (candidateDates.length === 0) return;
+
+    // Check for conflicts: fetch existing bookings for this space on candidate dates
+    const conflictingDatesSet = new Set<string>();
+
+    // Query in batches of 100 dates to avoid overly large queries
+    for (let i = 0; i < candidateDates.length; i += 100) {
+      const batch = candidateDates.slice(i, i + 100);
+      const { data: existingBookings } = await supabase
+        .from('meeting_room_bookings')
+        .select('booking_date, start_time, end_time')
+        .eq('space_id', pattern.space_id)
+        .neq('status', 'cancelled')
+        .in('booking_date', batch);
+
+      if (existingBookings) {
+        for (const existing of existingBookings) {
+          // Check for time overlap: new start < existing end AND new end > existing start
+          if (pattern.start_time < existing.end_time && pattern.end_time > existing.start_time) {
+            conflictingDatesSet.add(existing.booking_date);
+          }
+        }
+      }
+    }
+
+    // Build bookings excluding conflicting dates
+    const bookings = [];
+    for (const date of candidateDates) {
+      if (conflictingDatesSet.has(date)) continue;
+
+      const bookingData: any = {
+        space_id: pattern.space_id,
+        booking_date: date,
+        start_time: pattern.start_time,
+        end_time: pattern.end_time,
+        hourly_rate: (space as any).hourly_rate || 25,
+        total_hours: totalHours,
+        total_amount: totalAmount,
+        discount_percentage: discountPercentage,
+        discount_amount: discountAmount,
+        rate_type: rateType,
+        applied_rate: appliedRate,
+        status: 'pending',
+        notes: pattern.notes || '',
+        recurring_pattern_id: pattern.id,
+        is_exception: false
+      };
+
+      if (isExternal) {
+        bookingData.booking_type = 'external';
+        bookingData.external_customer_id = pattern.external_customer_id;
+        bookingData.tenant_id = null;
+      } else {
+        bookingData.booking_type = 'tenant';
+        bookingData.tenant_id = pattern.tenant_id;
+      }
+
+      bookings.push(bookingData);
     }
 
     if (bookings.length > 0) {
@@ -185,12 +273,19 @@ export function RecurringBookingModal({
 
       if (error) throw error;
     }
+
+    // Track skipped dates for the info notification
+    if (conflictingDatesSet.size > 0) {
+      setSkippedDates(conflictingDatesSet.size);
+    }
   };
 
   const resetForm = () => {
+    setBookingType('tenant');
     setFormData({
       space_id: '',
       tenant_id: preSelectedTenantId || '',
+      external_customer_id: preSelectedExternalCustomerId || '',
       start_time: '09:00',
       end_time: '10:00',
       recurrence_type: 'weekly',
@@ -201,6 +296,7 @@ export function RecurringBookingModal({
       notes: ''
     });
     setError('');
+    setSkippedDates(0);
   };
 
   const toggleWeekday = (day: string) => {
@@ -232,6 +328,40 @@ export function RecurringBookingModal({
             </div>
           )}
 
+          {skippedDates > 0 && (
+            <div className="bg-blue-900/50 border border-blue-700 text-blue-200 px-4 py-2 rounded text-sm flex items-center gap-2">
+              <AlertCircle size={16} className="flex-shrink-0" />
+              <span>
+                {skippedDates} datum(s) overgeslagen wegens conflicterende boekingen op dezelfde ruimte.
+              </span>
+            </div>
+          )}
+
+          <div className="flex gap-2 mb-1">
+            <button
+              type="button"
+              onClick={() => setBookingType('tenant')}
+              className={`px-4 py-2 font-medium rounded-lg transition-all ${
+                bookingType === 'tenant'
+                  ? 'bg-gold-500 text-white shadow-lg'
+                  : 'bg-dark-700 text-gray-400 hover:bg-dark-600 hover:text-gray-300'
+              }`}
+            >
+              Huurder
+            </button>
+            <button
+              type="button"
+              onClick={() => setBookingType('external')}
+              className={`px-4 py-2 font-medium rounded-lg transition-all ${
+                bookingType === 'external'
+                  ? 'bg-gold-500 text-white shadow-lg'
+                  : 'bg-dark-700 text-gray-400 hover:bg-dark-600 hover:text-gray-300'
+              }`}
+            >
+              Externe Klant
+            </button>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1">
@@ -250,25 +380,49 @@ export function RecurringBookingModal({
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
-                Huurder
-              </label>
-              <select
-                value={formData.tenant_id}
-                onChange={(e) => setFormData({ ...formData, tenant_id: e.target.value })}
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-                disabled={!!preSelectedTenantId}
-              >
-                <option value="">Selecteer huurder</option>
-                {tenants.map(tenant => (
-                  <option key={tenant.id} value={tenant.id}>
-                    {tenant.name} {tenant.company_name && `(${tenant.company_name})`}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {bookingType === 'tenant' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Huurder
+                </label>
+                <select
+                  value={formData.tenant_id}
+                  onChange={(e) => setFormData({ ...formData, tenant_id: e.target.value })}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                  disabled={!!preSelectedTenantId}
+                >
+                  <option value="">Selecteer huurder</option>
+                  {tenants.map(tenant => (
+                    <option key={tenant.id} value={tenant.id}>
+                      {tenant.name} {tenant.company_name && `(${tenant.company_name})`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {bookingType === 'external' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Externe klant
+                </label>
+                <select
+                  value={formData.external_customer_id}
+                  onChange={(e) => setFormData({ ...formData, external_customer_id: e.target.value })}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                  disabled={!!preSelectedExternalCustomerId}
+                >
+                  <option value="">Selecteer externe klant</option>
+                  {externalCustomers.map(customer => (
+                    <option key={customer.id} value={customer.id}>
+                      {customer.company_name} ({customer.contact_name})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">

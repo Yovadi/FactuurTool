@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Calendar, Clock, Plus, X, Check, AlertCircle, Trash2, CalendarDays, CheckCircle, XCircle, Info, RotateCcw, Filter, RefreshCw, Link2 } from 'lucide-react';
+import { Calendar, Clock, Plus, X, Check, AlertCircle, Trash2, CalendarDays, CheckCircle, XCircle, Info, RotateCcw, Filter, RefreshCw, Link2, Download, Pencil, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { BookingCalendar } from './BookingCalendar';
 import { InlineDatePicker } from './InlineDatePicker';
 import { SkeletonTable } from './SkeletonLoader';
@@ -89,9 +89,14 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationId, setNotificationId] = useState(0);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
   const [linkDialogBooking, setLinkDialogBooking] = useState<Booking | null>(null);
   const [existingInvoices, setExistingInvoices] = useState<any[]>([]);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [dateRange, setDateRange] = useState<{ from: string; to: string }>({ from: '', to: '' });
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(25);
   const [meetingRoomRates, setMeetingRoomRates] = useState<MeetingRoomRates>({
     hourly_rate: 0,
     half_day_rate: null,
@@ -126,6 +131,11 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
   useEffect(() => {
     console.log('Meeting room rates state updated:', meetingRoomRates);
   }, [meetingRoomRates]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+    applyFilter(allBookings, selectedFilter);
+  }, [searchQuery, dateRange]);
 
   const loadData = async () => {
     setLoading(true);
@@ -220,7 +230,27 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       });
     }
 
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(b => {
+        const tenantName = b.tenants?.name?.toLowerCase() || '';
+        const tenantCompany = b.tenants?.company_name?.toLowerCase() || '';
+        const externalName = b.external_customers?.contact_name?.toLowerCase() || '';
+        const externalCompany = b.external_customers?.company_name?.toLowerCase() || '';
+        const spaceNumber = b.office_spaces?.space_number?.toLowerCase() || '';
+        return tenantName.includes(q) || tenantCompany.includes(q) || externalName.includes(q) || externalCompany.includes(q) || spaceNumber.includes(q);
+      });
+    }
+
+    if (dateRange.from) {
+      filtered = filtered.filter(b => b.booking_date >= dateRange.from);
+    }
+    if (dateRange.to) {
+      filtered = filtered.filter(b => b.booking_date <= dateRange.to);
+    }
+
     setBookings(filtered);
+    setCurrentPage(1);
   };
 
   const showNotification = (message: string, type: NotificationType = 'info') => {
@@ -241,6 +271,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
 
   const handleTenantFilterChange = (tenantId: string) => {
     setSelectedTenantFilter(tenantId);
+    setCurrentPage(1);
     applyFilter(allBookings, selectedFilter, tenantId);
   };
 
@@ -341,12 +372,18 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       }
     }
 
-    const { data: existingBookings } = await supabase
+    let overlapQuery = supabase
       .from('meeting_room_bookings')
       .select('id, start_time, end_time')
       .eq('space_id', formData.space_id)
       .eq('booking_date', formData.booking_date)
       .neq('status', 'cancelled');
+
+    if (editingBooking) {
+      overlapQuery = overlapQuery.neq('id', editingBooking.id);
+    }
+
+    const { data: existingBookings } = await overlapQuery;
 
     if (existingBookings && existingBookings.length > 0) {
       const newStart = formData.start_time;
@@ -406,7 +443,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     const finalAmount = totalAmount - discountAmount;
     console.log('Booking calculation - Total:', totalAmount, 'Discount%:', discountPercentage, 'Discount amount:', discountAmount, 'Final:', finalAmount);
 
-    const insertData: any = {
+    const bookingData: any = {
       space_id: formData.space_id,
       booking_date: formData.booking_date,
       start_time: formData.start_time,
@@ -418,50 +455,86 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       discount_amount: discountAmount,
       rate_type: rateType,
       applied_rate: appliedRate,
-      status: 'pending',
       notes: formData.notes,
       booking_type: bookingType
     };
 
     if (bookingType === 'tenant') {
       const tenantId = loggedInTenantId || formData.tenant_id;
-      insertData.tenant_id = tenantId || null;
-      insertData.external_customer_id = null;
+      bookingData.tenant_id = tenantId || null;
+      bookingData.external_customer_id = null;
     } else {
-      insertData.tenant_id = null;
-      insertData.external_customer_id = formData.external_customer_id || null;
+      bookingData.tenant_id = null;
+      bookingData.external_customer_id = formData.external_customer_id || null;
     }
 
-    console.log('Insert data:', JSON.stringify(insertData, null, 2));
+    if (editingBooking) {
+      console.log('Update data:', JSON.stringify(bookingData, null, 2));
 
-    const { data, error } = await supabase
-      .from('meeting_room_bookings')
-      .insert(insertData)
-      .select(`
-        *,
-        tenants(name, company_name),
-        external_customers(id, company_name, contact_name, email, phone, street, postal_code, city, country),
-        office_spaces(space_number)
-      `)
-      .single();
+      const { data, error } = await supabase
+        .from('meeting_room_bookings')
+        .update(bookingData)
+        .eq('id', editingBooking.id)
+        .select(`
+          *,
+          tenants(name, company_name),
+          external_customers(id, company_name, contact_name, email, phone, street, postal_code, city, country),
+          office_spaces(space_number)
+        `)
+        .single();
 
-    if (error) {
-      console.error('Error creating booking:', error.message);
-      showNotification('Er is een fout opgetreden bij het aanmaken van de boeking.', 'error');
-      return;
+      if (error) {
+        console.error('Error updating booking:', error.message);
+        showNotification('Er is een fout opgetreden bij het bijwerken van de boeking.', 'error');
+        return;
+      }
+
+      if (data) {
+        const updatedAllBookings = allBookings.map(b => b.id === editingBooking.id ? data : b).sort((a, b) => {
+          const dateCompare = b.booking_date.localeCompare(a.booking_date);
+          if (dateCompare !== 0) return dateCompare;
+          return b.start_time.localeCompare(a.start_time);
+        });
+        setAllBookings(updatedAllBookings);
+        applyFilter(updatedAllBookings, selectedFilter);
+      }
+
+      showNotification('Boeking succesvol bijgewerkt!', 'success');
+      setEditingBooking(null);
+    } else {
+      bookingData.status = 'pending';
+      console.log('Insert data:', JSON.stringify(bookingData, null, 2));
+
+      const { data, error } = await supabase
+        .from('meeting_room_bookings')
+        .insert(bookingData)
+        .select(`
+          *,
+          tenants(name, company_name),
+          external_customers(id, company_name, contact_name, email, phone, street, postal_code, city, country),
+          office_spaces(space_number)
+        `)
+        .single();
+
+      if (error) {
+        console.error('Error creating booking:', error.message);
+        showNotification('Er is een fout opgetreden bij het aanmaken van de boeking.', 'error');
+        return;
+      }
+
+      if (data) {
+        const updatedAllBookings = [data, ...allBookings].sort((a, b) => {
+          const dateCompare = b.booking_date.localeCompare(a.booking_date);
+          if (dateCompare !== 0) return dateCompare;
+          return b.start_time.localeCompare(a.start_time);
+        });
+        setAllBookings(updatedAllBookings);
+        applyFilter(updatedAllBookings, selectedFilter);
+      }
+
+      showNotification('Boeking succesvol aangemaakt!', 'success');
     }
 
-    if (data) {
-      const updatedAllBookings = [data, ...allBookings].sort((a, b) => {
-        const dateCompare = b.booking_date.localeCompare(a.booking_date);
-        if (dateCompare !== 0) return dateCompare;
-        return b.start_time.localeCompare(a.start_time);
-      });
-      setAllBookings(updatedAllBookings);
-      applyFilter(updatedAllBookings, selectedFilter);
-    }
-
-    showNotification('Boeking succesvol aangemaakt!', 'success');
     setShowForm(false);
     setFormData({
       space_id: '',
@@ -747,6 +820,71 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     });
   };
 
+  const handleExportCSV = (exportBookings: Booking[]) => {
+    const formatDate = (dateStr: string) => {
+      const [year, month, day] = dateStr.split('-');
+      return `${day}-${month}-${year}`;
+    };
+
+    const getCustomerName = (booking: Booking) => {
+      if (booking.booking_type === 'external') {
+        return booking.external_customers?.company_name || booking.external_customers?.contact_name || '';
+      }
+      return booking.tenants?.company_name || booking.tenants?.name || '';
+    };
+
+    const getBookingType = (booking: Booking) => {
+      return booking.booking_type === 'external' ? 'Extern' : 'Intern';
+    };
+
+    const getStatusLabel = (status: string) => {
+      switch (status) {
+        case 'pending': return 'In afwachting';
+        case 'confirmed': return 'Bevestigd';
+        case 'completed': return 'Voltooid';
+        case 'cancelled': return 'Geannuleerd';
+        default: return status;
+      }
+    };
+
+    const getRateDisplay = (booking: Booking) => {
+      if (booking.rate_type) {
+        return getRateLabel(booking.rate_type);
+      }
+      return `€${booking.hourly_rate}/uur`;
+    };
+
+    const headers = ['Datum', 'Starttijd', 'Eindtijd', 'Ruimte', 'Klant', 'Type', 'Uren', 'Tarief', 'Bedrag', 'Status', 'Gefactureerd'];
+    const rows = exportBookings.map(booking => [
+      formatDate(booking.booking_date),
+      booking.start_time.substring(0, 5),
+      booking.end_time.substring(0, 5),
+      booking.office_spaces?.space_number || '',
+      getCustomerName(booking),
+      getBookingType(booking),
+      booking.total_hours.toFixed(1),
+      getRateDisplay(booking),
+      booking.total_amount.toFixed(2).replace('.', ','),
+      getStatusLabel(booking.status),
+      booking.invoice_id ? 'Ja' : 'Nee'
+    ]);
+
+    const csvContent = '\uFEFF' + [headers, ...rows].map(row =>
+      row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(';')
+    ).join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const today = new Date().toISOString().split('T')[0];
+    link.href = url;
+    link.download = `vergaderruimte-boekingen-${today}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   if (loading) {
     return <SkeletonTable />;
   }
@@ -780,7 +918,15 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       </div>
 
       <div className="flex-shrink-0 mb-4">
-        <div className="flex items-center justify-end mb-4">
+        <div className="flex items-center justify-end mb-4 gap-2">
+          <button
+            onClick={() => handleExportCSV(bookings)}
+            className="flex items-center gap-2 px-4 py-2 bg-dark-700 text-gray-300 rounded-lg hover:bg-dark-600 transition-colors font-medium"
+            title="Exporteer als CSV"
+          >
+            <Download size={20} />
+            Exporteer CSV
+          </button>
           <button
             onClick={loadData}
             className="flex items-center gap-2 px-4 py-2 bg-dark-700 text-gray-300 rounded-lg hover:bg-dark-600 transition-colors font-medium"
@@ -832,7 +978,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
           <div className="bg-dark-900 rounded-lg p-6 w-full max-w-2xl my-8 mx-4 border border-dark-700">
-            <h3 className="text-xl font-bold text-gray-100 mb-4">Nieuwe Boeking</h3>
+            <h3 className="text-xl font-bold text-gray-100 mb-4">{editingBooking ? 'Boeking Bewerken' : 'Nieuwe Boeking'}</h3>
 
             <div className="flex gap-2 mb-4">
               <div className="flex gap-2 w-full">
@@ -1076,7 +1222,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
               <div className="flex justify-end gap-2">
                 <button
                   type="button"
-                  onClick={() => setShowForm(false)}
+                  onClick={() => { setShowForm(false); setEditingBooking(null); }}
                   className="px-4 py-2 bg-dark-700 text-gray-200 rounded-lg hover:bg-dark-600 transition-colors"
                 >
                   Annuleren
@@ -1085,7 +1231,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                   type="submit"
                   className="px-4 py-2 bg-gold-500 text-white rounded-lg hover:bg-gold-600 transition-colors"
                 >
-                  Boeking Aanmaken
+                  {editingBooking ? 'Boeking Bijwerken' : 'Boeking Aanmaken'}
                 </button>
               </div>
             </form>
@@ -1163,6 +1309,32 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
               Vergaderruimte Boekingen
             </h2>
             <div className="flex items-center gap-4">
+              <div className="relative w-56">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Zoek op klant, ruimte..."
+                  className="w-full px-3 py-1.5 bg-dark-700 border border-dark-600 text-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold-500 pl-9"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-gray-400">Van</label>
+                <input
+                  type="date"
+                  value={dateRange.from}
+                  onChange={(e) => setDateRange(prev => ({ ...prev, from: e.target.value }))}
+                  className="px-3 py-1.5 bg-dark-700 border border-dark-600 text-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                />
+                <label className="text-xs text-gray-400">Tot</label>
+                <input
+                  type="date"
+                  value={dateRange.to}
+                  onChange={(e) => setDateRange(prev => ({ ...prev, to: e.target.value }))}
+                  className="px-3 py-1.5 bg-dark-700 border border-dark-600 text-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                />
+              </div>
               <div className="flex items-center gap-2">
                 <Filter size={16} className="text-gray-400" />
                 <select
@@ -1281,7 +1453,10 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                   </td>
                 </tr>
               ) : (
-                bookings.map((booking) => (
+                (() => {
+                  const listStartIndex = (currentPage - 1) * pageSize;
+                  const paginatedBookings = bookings.slice(listStartIndex, listStartIndex + pageSize);
+                  return paginatedBookings.map((booking) => (
                   <tr
                     key={booking.id}
                     className={`hover:bg-dark-800/50 transition-colors ${
@@ -1400,6 +1575,29 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                             </button>
                           </>
                         )}
+                        {(booking.status === 'pending' || booking.status === 'confirmed') && !booking.invoice_id && (
+                          <button
+                            onClick={() => {
+                              setEditingBooking(booking);
+                              setBookingType(booking.booking_type);
+                              setFormData({
+                                space_id: booking.space_id,
+                                tenant_id: booking.tenant_id || '',
+                                external_customer_id: booking.external_customer_id || '',
+                                booking_date: booking.booking_date,
+                                start_time: booking.start_time,
+                                end_time: booking.end_time,
+                                hourly_rate: booking.hourly_rate,
+                                notes: booking.notes || ''
+                              });
+                              setShowForm(true);
+                            }}
+                            className="p-2 bg-dark-700 hover:bg-gold-500 text-gray-400 hover:text-white rounded-lg transition-colors"
+                            title="Bewerken"
+                          >
+                            <Pencil size={20} />
+                          </button>
+                        )}
                         {(booking.status === 'pending' || booking.status === 'confirmed') && (
                           <button
                             onClick={() => handleStatusChange(booking.id, 'cancelled')}
@@ -1419,11 +1617,70 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                       </div>
                     </td>
                   </tr>
-                ))
+                ));
+                })()
               )}
             </tbody>
           </table>
         </div>
+        {bookings.length > 0 && (() => {
+          const totalPages = Math.ceil(bookings.length / pageSize);
+          const startIndex = (currentPage - 1) * pageSize;
+          const endIndex = Math.min(startIndex + pageSize, bookings.length);
+          const startPage = Math.max(1, currentPage - 2);
+          const endPage = Math.min(totalPages, startPage + 4);
+          const pages = Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
+          return (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-dark-700 bg-dark-800">
+              <div className="text-sm text-gray-400">
+                Toon {startIndex + 1} tot {endIndex} van {bookings.length} boekingen
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className="p-1.5 rounded-lg bg-dark-700 text-gray-300 hover:bg-dark-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft size={18} />
+                </button>
+                {pages.map(page => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
+                      page === currentPage
+                        ? 'bg-gold-500 text-white'
+                        : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  className="p-1.5 rounded-lg bg-dark-700 text-gray-300 hover:bg-dark-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="px-2 py-1.5 bg-dark-700 border border-dark-600 text-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                >
+                  {[10, 25, 50, 100].map(size => (
+                    <option key={size} value={size}>{size}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          );
+        })()}
       </div>
       )}
 
@@ -1433,31 +1690,77 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
             <h2 className="text-lg font-bold text-gray-100">
               Gefactureerde Boekingen
             </h2>
-            <div className="flex items-center gap-2">
-              <Filter size={16} className="text-gray-400" />
-              <select
-                value={selectedTenantFilter}
-                onChange={(e) => {
-                  setSelectedTenantFilter(e.target.value);
+            <div className="flex items-center gap-4">
+              <div className="relative w-56">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Zoek op klant, ruimte..."
+                  className="w-full px-3 py-1.5 bg-dark-700 border border-dark-600 text-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold-500 pl-9"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-gray-400">Van</label>
+                <input
+                  type="date"
+                  value={dateRange.from}
+                  onChange={(e) => setDateRange(prev => ({ ...prev, from: e.target.value }))}
+                  className="px-3 py-1.5 bg-dark-700 border border-dark-600 text-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                />
+                <label className="text-xs text-gray-400">Tot</label>
+                <input
+                  type="date"
+                  value={dateRange.to}
+                  onChange={(e) => setDateRange(prev => ({ ...prev, to: e.target.value }))}
+                  className="px-3 py-1.5 bg-dark-700 border border-dark-600 text-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                />
+              </div>
+              <button
+                onClick={() => {
+                  const invoicedBookings = allBookings
+                    .filter(b => b.invoice_id !== null)
+                    .filter(b => {
+                      if (selectedTenantFilter === 'all') return true;
+                      if (b.booking_type === 'tenant') return b.tenant_id === selectedTenantFilter;
+                      return b.external_customer_id === selectedTenantFilter;
+                    });
+                  handleExportCSV(invoicedBookings);
                 }}
-                className="px-3 py-1.5 bg-dark-700 border border-dark-600 text-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                className="flex items-center gap-2 px-4 py-2 bg-dark-700 text-gray-300 rounded-lg hover:bg-dark-600 transition-colors font-medium"
+                title="Exporteer als CSV"
               >
-                <option value="all">Alle klanten</option>
-                <optgroup label="Huurders">
-                  {tenants.map((tenant) => (
-                    <option key={tenant.id} value={tenant.id}>
-                      {tenant.company_name || tenant.name}
-                    </option>
-                  ))}
-                </optgroup>
-                <optgroup label="Externe klanten">
-                  {externalCustomers.map((customer) => (
-                    <option key={customer.id} value={customer.id}>
-                      {customer.company_name}
-                    </option>
-                  ))}
-                </optgroup>
-              </select>
+                <Download size={20} />
+                Exporteer CSV
+              </button>
+              <div className="flex items-center gap-2">
+                <Filter size={16} className="text-gray-400" />
+                <select
+                  value={selectedTenantFilter}
+                  onChange={(e) => {
+                    setSelectedTenantFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="px-3 py-1.5 bg-dark-700 border border-dark-600 text-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                >
+                  <option value="all">Alle klanten</option>
+                  <optgroup label="Huurders">
+                    {tenants.map((tenant) => (
+                      <option key={tenant.id} value={tenant.id}>
+                        {tenant.company_name || tenant.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Externe klanten">
+                    {externalCustomers.map((customer) => (
+                      <option key={customer.id} value={customer.id}>
+                        {customer.company_name}
+                      </option>
+                    ))}
+                  </optgroup>
+                </select>
+              </div>
             </div>
           </div>
           <div className="overflow-auto flex-1 min-h-0">
@@ -1475,13 +1778,33 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
               </thead>
               <tbody className="divide-y divide-dark-700">
                 {(() => {
-                  const invoicedBookings = allBookings
+                  let invoicedBookings = allBookings
                     .filter(b => b.invoice_id !== null)
                     .filter(b => {
                       if (selectedTenantFilter === 'all') return true;
                       if (b.booking_type === 'tenant') return b.tenant_id === selectedTenantFilter;
                       return b.external_customer_id === selectedTenantFilter;
                     });
+
+                  if (searchQuery.trim()) {
+                    const q = searchQuery.toLowerCase();
+                    invoicedBookings = invoicedBookings.filter(b => {
+                      const tenantName = b.tenants?.name?.toLowerCase() || '';
+                      const tenantCompany = b.tenants?.company_name?.toLowerCase() || '';
+                      const externalName = b.external_customers?.contact_name?.toLowerCase() || '';
+                      const externalCompany = b.external_customers?.company_name?.toLowerCase() || '';
+                      const spaceNumber = b.office_spaces?.space_number?.toLowerCase() || '';
+                      return tenantName.includes(q) || tenantCompany.includes(q) || externalName.includes(q) || externalCompany.includes(q) || spaceNumber.includes(q);
+                    });
+                  }
+
+                  if (dateRange.from) {
+                    invoicedBookings = invoicedBookings.filter(b => b.booking_date >= dateRange.from);
+                  }
+                  if (dateRange.to) {
+                    invoicedBookings = invoicedBookings.filter(b => b.booking_date <= dateRange.to);
+                  }
+
                   if (invoicedBookings.length === 0) {
                     return (
                       <tr>
@@ -1494,7 +1817,9 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                       </tr>
                     );
                   }
-                  return invoicedBookings.map((booking) => (
+                  const invStartIndex = (currentPage - 1) * pageSize;
+                  const paginatedInvoicedBookings = invoicedBookings.slice(invStartIndex, invStartIndex + pageSize);
+                  return paginatedInvoicedBookings.map((booking) => (
                     <tr key={booking.id} className="hover:bg-dark-800/50 transition-colors">
                       <td className="px-4 py-3">
                         <div className="text-sm text-gray-200 font-medium">
@@ -1568,6 +1893,73 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
               </tbody>
             </table>
           </div>
+          {(() => {
+            const invoicedBookingsForCount = allBookings
+              .filter(b => b.invoice_id !== null)
+              .filter(b => {
+                if (selectedTenantFilter === 'all') return true;
+                if (b.booking_type === 'tenant') return b.tenant_id === selectedTenantFilter;
+                return b.external_customer_id === selectedTenantFilter;
+              });
+            const totalCount = invoicedBookingsForCount.length;
+            if (totalCount === 0) return null;
+            const totalPages = Math.ceil(totalCount / pageSize);
+            const startIndex = (currentPage - 1) * pageSize;
+            const endIndex = Math.min(startIndex + pageSize, totalCount);
+            const startPage = Math.max(1, currentPage - 2);
+            const endPage = Math.min(totalPages, startPage + 4);
+            const pages = Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
+            return (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-dark-700 bg-dark-800">
+                <div className="text-sm text-gray-400">
+                  Toon {startIndex + 1} tot {endIndex} van {totalCount} boekingen
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    className="p-1.5 rounded-lg bg-dark-700 text-gray-300 hover:bg-dark-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+                  {pages.map(page => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
+                        page === currentPage
+                          ? 'bg-gold-500 text-white'
+                          : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                    className="p-1.5 rounded-lg bg-dark-700 text-gray-300 hover:bg-dark-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    className="px-2 py-1.5 bg-dark-700 border border-dark-600 text-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+                  >
+                    {[10, 25, 50, 100].map(size => (
+                      <option key={size} value={size}>{size}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
 
