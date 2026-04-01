@@ -81,8 +81,8 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
   const [meetingRooms, setMeetingRooms] = useState<Space[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [selectedView, setSelectedView] = useState<'list' | 'calendar'>('list');
-  const [selectedFilter, setSelectedFilter] = useState<'all' | 'internal' | 'external' | 'upcoming' | 'invoiced'>('all');
+  const [selectedView, setSelectedView] = useState<'list' | 'calendar' | 'invoiced'>('list');
+  const [selectedFilter, setSelectedFilter] = useState<'upcoming' | 'internal' | 'external' | 'all'>('upcoming');
   const [selectedTenantFilter, setSelectedTenantFilter] = useState<string>('all');
   const [selectedTab, setSelectedTab] = useState<'tenant' | 'external'>('tenant');
   const [bookingType, setBookingType] = useState<'tenant' | 'external'>('tenant');
@@ -195,22 +195,18 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     setLoading(false);
   };
 
-  const applyFilter = (bookingsList: Booking[], filter: 'all' | 'internal' | 'external' | 'upcoming' | 'invoiced', tenantFilter?: string) => {
+  const applyFilter = (bookingsList: Booking[], filter: 'upcoming' | 'internal' | 'external' | 'all', tenantFilter?: string) => {
     const today = new Date();
     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
-    let filtered = bookingsList;
+    let filtered = bookingsList.filter(b => !b.invoice_id);
 
-    if (filter === 'all') {
-      filtered = bookingsList.filter(b => !b.invoice_id);
-    } else if (filter === 'internal') {
-      filtered = bookingsList.filter(b => b.booking_type === 'tenant');
+    if (filter === 'internal') {
+      filtered = filtered.filter(b => b.booking_type === 'tenant');
     } else if (filter === 'external') {
-      filtered = bookingsList.filter(b => b.booking_type === 'external');
+      filtered = filtered.filter(b => b.booking_type === 'external');
     } else if (filter === 'upcoming') {
-      filtered = bookingsList.filter(b => b.booking_date >= todayStr && !b.invoice_id);
-    } else if (filter === 'invoiced') {
-      filtered = bookingsList.filter(b => b.invoice_id !== null);
+      filtered = filtered.filter(b => b.booking_date >= todayStr);
     }
 
     const currentTenantFilter = tenantFilter !== undefined ? tenantFilter : selectedTenantFilter;
@@ -818,6 +814,17 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
               <CalendarDays size={18} />
               Kalender
             </button>
+            <button
+              onClick={() => setSelectedView('invoiced')}
+              className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
+                selectedView === 'invoiced'
+                  ? 'bg-gold-500 text-white'
+                  : 'text-gray-300 hover:bg-dark-800'
+              }`}
+            >
+              <CheckCircle size={18} />
+              Gefactureerd
+            </button>
           </div>
         </div>
       </div>
@@ -1086,7 +1093,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
         </div>
       )}
 
-      {selectedView === 'calendar' ? (
+      {selectedView === 'calendar' && (
         <div>
           <BookingCalendar
             loggedInTenantId={loggedInTenantId}
@@ -1147,7 +1154,9 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
           }
         }} />
         </div>
-      ) : (
+      )}
+
+      {selectedView === 'list' && (
         <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 overflow-hidden">
           <div className="flex-shrink-0 flex justify-between items-center px-4 py-3 bg-dark-800 border-b border-amber-500">
             <h2 className="text-lg font-bold text-gray-100">
@@ -1181,16 +1190,16 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
               <div className="flex gap-2">
                 <button
                   onClick={() => {
-                    setSelectedFilter('all');
-                    applyFilter(allBookings, 'all');
+                    setSelectedFilter('upcoming');
+                    applyFilter(allBookings, 'upcoming');
                   }}
                   className={`px-3 py-1.5 rounded-lg transition-colors text-sm ${
-                    selectedFilter === 'all'
+                    selectedFilter === 'upcoming'
                       ? 'bg-gold-600 text-white'
                       : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
                   }`}
                 >
-                  Alle
+                  Aankomend
                 </button>
                 <button
                   onClick={() => {
@@ -1220,29 +1229,16 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                 </button>
                 <button
                   onClick={() => {
-                    setSelectedFilter('upcoming');
-                    applyFilter(allBookings, 'upcoming');
+                    setSelectedFilter('all');
+                    applyFilter(allBookings, 'all');
                   }}
                   className={`px-3 py-1.5 rounded-lg transition-colors text-sm ${
-                    selectedFilter === 'upcoming'
+                    selectedFilter === 'all'
                       ? 'bg-gold-600 text-white'
                       : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
                   }`}
                 >
-                  Aankomend
-                </button>
-                <button
-                  onClick={() => {
-                    setSelectedFilter('invoiced');
-                    applyFilter(allBookings, 'invoiced');
-                  }}
-                  className={`px-3 py-1.5 rounded-lg transition-colors text-sm ${
-                    selectedFilter === 'invoiced'
-                      ? 'bg-gold-600 text-white'
-                      : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
-                  }`}
-                >
-                  Gefactureerd
+                  Alle
                 </button>
               </div>
             </div>
@@ -1429,6 +1425,150 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
           </table>
         </div>
       </div>
+      )}
+
+      {selectedView === 'invoiced' && (
+        <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 overflow-hidden">
+          <div className="flex-shrink-0 flex justify-between items-center px-4 py-3 bg-dark-800 border-b border-amber-500">
+            <h2 className="text-lg font-bold text-gray-100">
+              Gefactureerde Boekingen
+            </h2>
+            <div className="flex items-center gap-2">
+              <Filter size={16} className="text-gray-400" />
+              <select
+                value={selectedTenantFilter}
+                onChange={(e) => {
+                  setSelectedTenantFilter(e.target.value);
+                }}
+                className="px-3 py-1.5 bg-dark-700 border border-dark-600 text-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
+              >
+                <option value="all">Alle klanten</option>
+                <optgroup label="Huurders">
+                  {tenants.map((tenant) => (
+                    <option key={tenant.id} value={tenant.id}>
+                      {tenant.company_name || tenant.name}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Externe klanten">
+                  {externalCustomers.map((customer) => (
+                    <option key={customer.id} value={customer.id}>
+                      {customer.company_name}
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full table-fixed min-w-[1000px]">
+              <thead className="sticky top-0 z-10">
+                <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
+                  <th className="text-left px-4 py-3 font-semibold w-[14%]">Datum & Tijd</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[10%]">Ruimte</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[18%]">Klant</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[10%]">Duur</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[10%]">Status</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[14%]">Bedrag</th>
+                  <th className="text-center px-4 py-3 font-semibold w-[12%]">Acties</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-dark-700">
+                {(() => {
+                  const invoicedBookings = allBookings
+                    .filter(b => b.invoice_id !== null)
+                    .filter(b => {
+                      if (selectedTenantFilter === 'all') return true;
+                      if (b.booking_type === 'tenant') return b.tenant_id === selectedTenantFilter;
+                      return b.external_customer_id === selectedTenantFilter;
+                    });
+                  if (invoicedBookings.length === 0) {
+                    return (
+                      <tr>
+                        <td colSpan={7} className="px-4 py-12">
+                          <div className="flex flex-col items-center">
+                            <CheckCircle size={48} className="text-green-500 mb-4" />
+                            <p className="text-gray-400">Geen gefactureerde boekingen gevonden</p>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  }
+                  return invoicedBookings.map((booking) => (
+                    <tr key={booking.id} className="hover:bg-dark-800/50 transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="text-sm text-gray-200 font-medium">
+                          Week {getWeekNumber(new Date(booking.booking_date + 'T00:00:00'))} - {new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </div>
+                        <div className="text-xs text-gray-400 mt-0.5">
+                          {booking.start_time.substring(0, 5)} - {booking.end_time.substring(0, 5)}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="text-sm font-medium text-gray-200">
+                          {booking.office_spaces?.space_number}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        {booking.booking_type === 'external' ? (
+                          <>
+                            <div className="text-sm text-gray-200">{booking.external_customers?.contact_name}</div>
+                            <div className="text-xs text-gray-400 mt-0.5">{booking.external_customers?.company_name}</div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="text-sm text-gray-200">{booking.tenants?.name}</div>
+                            {booking.tenants?.company_name && (
+                              <div className="text-xs text-gray-400 mt-0.5">{booking.tenants.company_name}</div>
+                            )}
+                          </>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="text-sm text-gray-200">{booking.total_hours.toFixed(1)} uur</div>
+                        <div className="text-xs text-gray-400 mt-0.5">
+                          {booking.rate_type ? getRateLabel(booking.rate_type) : `€${booking.hourly_rate}/uur`}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full ${
+                          booking.status === 'completed'
+                            ? 'bg-green-900/50 text-green-300 border border-green-700/50'
+                            : booking.status === 'confirmed'
+                            ? 'bg-blue-900/50 text-blue-300 border border-blue-700/50'
+                            : 'bg-gray-800/50 text-gray-400 border border-gray-700/50'
+                        }`}>
+                          {booking.status === 'completed' ? 'Voltooid' : booking.status === 'confirmed' ? 'Bevestigd' : booking.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="text-sm font-medium text-gray-200">
+                          {new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(booking.total_amount)}
+                        </div>
+                        {booking.discount_percentage && booking.discount_percentage > 0 && (
+                          <div className="text-xs text-gray-400 mt-0.5">
+                            {booking.discount_percentage}% korting
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-center gap-3">
+                          <button
+                            onClick={() => confirmDelete(booking.id)}
+                            className="p-2 bg-gray-700 hover:bg-red-600 text-gray-300 hover:text-white rounded-lg transition-colors"
+                            title="Verwijder boeking"
+                          >
+                            <Trash2 size={20} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ));
+                })()}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
 
       {deleteConfirmId && (
