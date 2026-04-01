@@ -536,9 +536,12 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
           const customerDiscountPct = item.customerDiscountPct || 0;
           let totalBeforeDiscount = 0;
           bookings.forEach((b: any) => {
+            const rate = typeof b.applied_rate === 'string' ? parseFloat(b.applied_rate) : (b.applied_rate || 0);
+            const hours = typeof b.total_hours === 'string' ? parseFloat(b.total_hours) : (b.total_hours || 0);
             const amt = typeof b.total_amount === 'string' ? parseFloat(b.total_amount) : (b.total_amount || 0);
             const disc = typeof b.discount_amount === 'string' ? parseFloat(b.discount_amount) : (b.discount_amount || 0);
-            totalBeforeDiscount += amt + disc;
+            const gross = rate > 0 && hours > 0 ? rate * hours : amt + disc;
+            totalBeforeDiscount += gross;
           });
           const totalDiscountAmount = customerDiscountPct > 0
             ? Math.round(totalBeforeDiscount * (customerDiscountPct / 100) * 100) / 100
@@ -565,9 +568,11 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
               rateDesc = b.rate_type === 'half_day' ? 'dagdeel' : (b.rate_type === 'full_day' ? 'hele dag' : `${Math.round(b.total_hours)}u`);
             }
             const label = b.booking_type === 'flex' ? 'Flexplek' : 'Vergaderruimte';
+            const bRate = typeof b.applied_rate === 'string' ? parseFloat(b.applied_rate) : (b.applied_rate || 0);
+            const bHours = typeof b.total_hours === 'string' ? parseFloat(b.total_hours) : (b.total_hours || 0);
             const totalAmt = typeof b.total_amount === 'string' ? parseFloat(b.total_amount) : (b.total_amount || 0);
             const discAmt = typeof b.discount_amount === 'string' ? parseFloat(b.discount_amount) : (b.discount_amount || 0);
-            const amt = totalAmt + discAmt;
+            const amt = bRate > 0 && bHours > 0 ? bRate * bHours : totalAmt + discAmt;
             const start = b.start_time?.substring(0, 5) || '--:--';
             const end = b.end_time?.substring(0, 5) || '--:--';
             notesLines.push(`- ${b.space?.space_number || label} - ${new Date(b.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${start}-${end} (${rateDesc}) = \u20AC${amt.toFixed(2)}`);
@@ -592,9 +597,11 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
           if (invErr || !newInvoice) { failCount++; continue; }
 
           const lineItems = bookings.map((b: any) => {
+            const bRate = typeof b.applied_rate === 'string' ? parseFloat(b.applied_rate) : (b.applied_rate || 0);
+            const bHours = typeof b.total_hours === 'string' ? parseFloat(b.total_hours) : (b.total_hours || 0);
             const totalAmt = typeof b.total_amount === 'string' ? parseFloat(b.total_amount) : (b.total_amount || 0);
             const discAmt = typeof b.discount_amount === 'string' ? parseFloat(b.discount_amount) : (b.discount_amount || 0);
-            const amt = totalAmt + discAmt;
+            const amt = bRate > 0 && bHours > 0 ? bRate * bHours : totalAmt + discAmt;
             const label = b.booking_type === 'flex' ? 'Flexplek' : 'Vergaderruimte';
             const category = b.booking_type === 'flex' ? 'flexplek' : 'vergaderruimte';
             return {
