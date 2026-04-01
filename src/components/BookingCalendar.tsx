@@ -667,6 +667,30 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
       totalAmount = appliedRate;
     }
 
+    let discountPercentage = 0;
+    if (formBookingType === 'tenant') {
+      const tenantIdToUse = loggedInTenantId || formData.tenant_id;
+      if (tenantIdToUse) {
+        const { data: tenantData } = await supabase
+          .from('tenants')
+          .select('meeting_discount_percentage')
+          .eq('id', tenantIdToUse)
+          .maybeSingle();
+        discountPercentage = Number(tenantData?.meeting_discount_percentage) || 0;
+      }
+    } else {
+      if (formData.external_customer_id) {
+        const { data: customerData } = await supabase
+          .from('external_customers')
+          .select('meeting_discount_percentage')
+          .eq('id', formData.external_customer_id)
+          .maybeSingle();
+        discountPercentage = Number(customerData?.meeting_discount_percentage) || 0;
+      }
+    }
+    const discountAmount = (totalAmount * discountPercentage) / 100;
+    const finalAmount = totalAmount - discountAmount;
+
     const insertData: any = {
       space_id: selectedRoomForBooking.id,
       booking_type: formBookingType,
@@ -675,7 +699,9 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
       end_time: endTime,
       hourly_rate: selectedRoomForBooking.hourly_rate || 25,
       total_hours: totalHours,
-      total_amount: totalAmount,
+      total_amount: finalAmount,
+      discount_percentage: discountPercentage,
+      discount_amount: discountAmount,
       rate_type: rateType,
       applied_rate: appliedRate,
       status: 'pending'
