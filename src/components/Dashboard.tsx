@@ -100,6 +100,7 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
   const [unbilledExpanded, setUnbilledExpanded] = useState(false);
   const [overdueExpanded, setOverdueExpanded] = useState(false);
   const [outstandingExpanded, setOutstandingExpanded] = useState(false);
+  const [draftExpanded, setDraftExpanded] = useState(false);
 
   useEffect(() => {
     loadDashboardStats();
@@ -621,18 +622,51 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
             )}
 
             {draftInvoices.length > 0 && (
-              <div
-                onClick={() => onNavigateToDebtors?.('facturen')}
-                className="flex items-center justify-between px-3 py-2.5 bg-amber-900/15 border border-amber-800/40 rounded-lg cursor-pointer hover:bg-amber-900/25 transition-colors"
-              >
-                <div className="flex items-center gap-2.5">
-                  <FileText className="text-amber-400" size={16} />
-                  <span className="text-sm font-medium text-amber-300">Concept</span>
-                  <span className="text-xs font-medium text-amber-400 bg-amber-900/60 px-1.5 py-0.5 rounded">{draftInvoices.length}</span>
-                </div>
-                <span className="text-sm font-semibold text-amber-400">
-                  {'\u20AC'}{draftAmount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
+              <div className="bg-amber-900/15 border border-amber-800/40 rounded-lg overflow-hidden">
+                <button
+                  onClick={() => setDraftExpanded(!draftExpanded)}
+                  className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-amber-900/25 transition-colors"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <FileText className="text-amber-400" size={16} />
+                    <span className="text-sm font-medium text-amber-300">Concept</span>
+                    <span className="text-xs font-medium text-amber-400 bg-amber-900/60 px-1.5 py-0.5 rounded">{draftInvoices.length}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-amber-400">
+                      {'\u20AC'}{draftAmount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                    {draftExpanded
+                      ? <ChevronUp size={14} className="text-gray-500" />
+                      : <ChevronDown size={14} className="text-gray-500" />
+                    }
+                  </div>
+                </button>
+                {draftExpanded && (
+                  <div className="border-t border-amber-800/30 divide-y divide-dark-700/20">
+                    {draftInvoices.map((inv) => {
+                      const customerName = inv.tenant_id
+                        ? (inv.tenants?.company_name || 'Onbekende huurder')
+                        : (inv.external_customers?.company_name || 'Externe klant');
+                      return (
+                        <div
+                          key={inv.invoice_number}
+                          onClick={() => onNavigateToDebtors?.('facturen')}
+                          className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-amber-900/20 transition-colors"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <FileText size={12} className="text-amber-400" />
+                            <span className="text-xs text-gray-300">{inv.invoice_number}</span>
+                            <span className="text-xs text-gray-400">{customerName}</span>
+                          </div>
+                          <span className="text-xs font-medium text-amber-400">
+                            {'\u20AC'}{Number(inv.amount).toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 
