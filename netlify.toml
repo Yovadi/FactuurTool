@@ -1,16 +1,13 @@
 [build]
-publish = "dist"
-command = "npm run build"
-
-[build.environment]
-NODE_VERSION = "20"
+publish = "public"
+command = "echo 'Publishing booking calendar only'"
 
 [[redirects]]
-from = "/booking.html"
+from = "/"
 to = "/booking.html"
 status = 200
 
 [[redirects]]
 from = "/*"
-to = "/index.html"
+to = "/booking.html"
 status = 200
