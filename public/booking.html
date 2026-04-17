@@ -701,6 +701,20 @@
             opacity: 0.5;
         }
 
+        .booking-block.past-booking {
+            opacity: 0.5;
+            filter: grayscale(30%);
+        }
+
+        .booking-block.completed-booking {
+            opacity: 0.6;
+        }
+
+        .booking-block.pending-booking {
+            opacity: 0.8;
+            box-shadow: 0 0 0 1px #FB923C, 0 2px 8px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+        }
+
         .booking-badge {
             font-size: 0.625rem;
             text-transform: uppercase;
@@ -2454,11 +2468,20 @@
             timeSlots.forEach(time => {
                 const slot = document.createElement('div');
                 slot.className = 'time-slot';
-                const isWholeHour = time.endsWith(':00');
-                slot.textContent = isWholeHour ? time : '';
                 slot.style.height = `${CELL_HEIGHT}px`;
+                slot.style.position = 'relative';
+                slot.style.lineHeight = '';
+                const isWholeHour = time.endsWith(':00');
                 if (isWholeHour) {
-                    slot.style.lineHeight = `${CELL_HEIGHT * 2}px`;
+                    const label = document.createElement('span');
+                    label.textContent = time;
+                    label.style.position = 'absolute';
+                    label.style.right = '8px';
+                    label.style.top = '0';
+                    label.style.transform = 'translateY(-50%)';
+                    label.style.fontSize = '10px';
+                    label.style.lineHeight = '1';
+                    slot.appendChild(label);
                 }
                 timeColumn.appendChild(slot);
             });
@@ -2500,14 +2523,6 @@
                     const height = bookingHeightSlots * CELL_HEIGHT - 2;
                     const colors = getTenantColor(booking.tenant_id);
 
-                    const block = document.createElement('div');
-                    block.className = 'booking-block';
-                    block.style.top = `${startIdx * CELL_HEIGHT + 1}px`;
-                    block.style.height = `${height}px`;
-                    block.style.backgroundColor = colors.bg;
-                    block.style.borderLeftColor = colors.border;
-                    block.style.color = colors.text;
-
                     const displayName = booking.tenant_id
                         ? (booking.tenants?.company_name || booking.tenants?.name || '')
                         : booking.external_customers?.company_name || '';
@@ -2518,7 +2533,22 @@
                     );
                     const isPending = booking.status === 'pending';
                     const isConfirmed = booking.status === 'confirmed';
-                    const canDelete = isOwnBooking && (isPending || isConfirmed);
+                    const isCompleted = booking.status === 'completed';
+                    const bookingEndDateTime = new Date(`${booking.booking_date}T${normalizeTime(booking.end_time)}:00`);
+                    const isPastBooking = bookingEndDateTime.getTime() < Date.now();
+                    const canDelete = isOwnBooking && (isPending || isConfirmed) && !isPastBooking;
+
+                    const block = document.createElement('div');
+                    let blockClass = 'booking-block';
+                    if (isCompleted) blockClass += ' completed-booking';
+                    else if (isPending) blockClass += ' pending-booking';
+                    else if (isPastBooking) blockClass += ' past-booking';
+                    block.className = blockClass;
+                    block.style.top = `${startIdx * CELL_HEIGHT + 1}px`;
+                    block.style.height = `${height}px`;
+                    block.style.backgroundColor = colors.bg;
+                    block.style.borderLeftColor = colors.border;
+                    block.style.color = colors.text;
 
                     let badges = '';
                     if (booking.external_customer_id) badges += '<div class="booking-badge">EXTERN</div>';
