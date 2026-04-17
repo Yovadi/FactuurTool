@@ -1459,10 +1459,17 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                 return (
                   <div
                     key={time}
-                    className={`text-[10px] text-gray-500 pr-2 text-right ${isWholeHour ? 'border-b border-dark-700/40' : ''}`}
-                    style={{ height: `${CELL_HEIGHT}px`, lineHeight: `${CELL_HEIGHT}px` }}
+                    className="relative"
+                    style={{ height: `${CELL_HEIGHT}px` }}
                   >
-                    {isWholeHour ? time : ''}
+                    {isWholeHour && (
+                      <span
+                        className="absolute right-2 text-[10px] text-gray-500"
+                        style={{ top: 0, transform: 'translateY(-50%)' }}
+                      >
+                        {time}
+                      </span>
+                    )}
                   </div>
                 );
               })}
@@ -1566,7 +1573,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                     return (
                       <div
                         key={time}
-                        className={`flex ${isWholeHour ? 'border-b border-dark-700/40' : ''} ${isSelected ? (isTouchDevice ? 'bg-yellow-500/50 border border-yellow-300' : 'bg-yellow-200/20 border border-yellow-500/50') : ''} ${!isWorkHours ? 'bg-dark-950/20' : ''}`}
+                        className={`flex ${isWholeHour ? 'border-t border-dark-700/40' : ''} ${isSelected ? (isTouchDevice ? 'bg-yellow-500/50 border border-yellow-300' : 'bg-yellow-200/20 border border-yellow-500/50') : ''} ${!isWorkHours ? 'bg-dark-950/20' : ''}`}
                         style={{ height: `${CELL_HEIGHT}px` }}
                       >
                         {meetingRooms.map((room, roomIdx) => {
@@ -1624,7 +1631,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                     return (
                       <div
                         key={time}
-                        className={`relative ${isWholeHour ? 'border-b border-dark-700/40' : ''} ${
+                        className={`relative ${isWholeHour ? 'border-t border-dark-700/40' : ''} ${
                           !hasBookingHere ? 'cursor-pointer hover:bg-dark-700/20' : ''
                         } ${isSelected ? (isTouchDevice ? 'bg-yellow-500/50 border border-yellow-300' : 'bg-yellow-200/20 border border-yellow-500/50') : ''} ${!isWorkHours ? 'bg-dark-950/20' : ''} ${isDraggingBooking && !hasBookingHere ? 'bg-green-900/10' : ''} ${isTouchDevice && !hasBookingHere ? 'active:bg-yellow-500/20 transition-colors' : ''}`}
                         style={{ height: `${CELL_HEIGHT}px` }}
