@@ -1494,7 +1494,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
               return (
                 <div
                   key={booking.id}
-                  className={`absolute left-0.5 right-0.5 ${colors.bg} border-l-[3px] ${colors.border} rounded-sm shadow-md px-1.5 z-10 cursor-move hover:shadow-lg hover:brightness-110 transition-all select-none flex flex-col justify-center ${isBeingDragged ? 'opacity-50' : isCompleted ? 'opacity-60' : isPending ? 'opacity-80 ring-1 ring-orange-400' : isPastBooking ? 'opacity-50 grayscale-[30%]' : ''}`}
+                  className={`absolute left-0.5 right-0.5 ${colors.bg} border-l-[3px] ${colors.border} rounded-sm shadow-md px-1.5 z-10 cursor-move hover:shadow-lg hover:brightness-110 transition-all select-none flex flex-col justify-center ${isBeingDragged ? 'opacity-50' : isPastBooking ? 'opacity-30 grayscale-[60%]' : isPending ? 'opacity-80 ring-1 ring-orange-400' : isCompleted ? 'opacity-60' : ''}`}
                   style={{
                     height: `${bookingHeight}px`,
                     top: '1px',
