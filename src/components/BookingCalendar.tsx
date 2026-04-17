@@ -1460,7 +1460,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                   <div
                     key={time}
                     className={`text-[10px] text-gray-500 pr-2 text-right ${isWholeHour ? 'border-b border-dark-700/40' : ''}`}
-                    style={{ height: `${CELL_HEIGHT}px`, lineHeight: isWholeHour ? `${CELL_HEIGHT * 2}px` : `${CELL_HEIGHT}px` }}
+                    style={{ height: `${CELL_HEIGHT}px`, lineHeight: `${CELL_HEIGHT}px` }}
                   >
                     {isWholeHour ? time : ''}
                   </div>
