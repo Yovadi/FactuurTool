@@ -415,7 +415,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
     const combinedAllBookings = [
       ...(allBookingsRes.data || []).map(b => ({ ...b, booking_type: 'meeting_room' as const })),
       ...(allFlexBookingsRes.data || []).map(b => ({ ...b, booking_type: 'flex' as const }))
-    ];
+    ].filter(b => b.status !== 'cancelled');
     setAllBookings(combinedAllBookings);
     setExternalCustomers(customersRes.data || []);
 
@@ -428,7 +428,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
       // Combine meeting room and flex bookings for this day
       const meetingRoomBookings = (bookingsRes.data || []).map(b => ({ ...b, booking_type: 'meeting_room' as const }));
       const flexBookings = (flexBookingsRes.data || []).map(b => ({ ...b, booking_type: 'flex' as const }));
-      const dayBookings = [...meetingRoomBookings, ...flexBookings].filter(b => b.booking_date === dateStr);
+      const dayBookings = [...meetingRoomBookings, ...flexBookings].filter(b => b.booking_date === dateStr && b.status !== 'cancelled');
 
       days.push({
         date,
