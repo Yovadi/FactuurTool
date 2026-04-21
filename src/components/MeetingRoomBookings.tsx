@@ -83,7 +83,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [selectedView, setSelectedView] = useState<'list' | 'calendar' | 'invoiced'>('list');
-  const [selectedFilter, setSelectedFilter] = useState<'upcoming' | 'internal' | 'external' | 'all'>('upcoming');
+  const [selectedFilter, setSelectedFilter] = useState<'upcoming' | 'internal' | 'external' | 'all' | 'cancelled'>('upcoming');
   const [selectedTenantFilter, setSelectedTenantFilter] = useState<string>('all');
   const [selectedTab, setSelectedTab] = useState<'tenant' | 'external'>('tenant');
   const [bookingType, setBookingType] = useState<'tenant' | 'external'>('tenant');
@@ -206,18 +206,23 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     setLoading(false);
   };
 
-  const applyFilter = (bookingsList: Booking[], filter: 'upcoming' | 'internal' | 'external' | 'all', tenantFilter?: string) => {
+  const applyFilter = (bookingsList: Booking[], filter: 'upcoming' | 'internal' | 'external' | 'all' | 'cancelled', tenantFilter?: string) => {
     const today = new Date();
     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
     let filtered = bookingsList.filter(b => !b.invoice_id);
 
-    if (filter === 'internal') {
-      filtered = filtered.filter(b => b.booking_type === 'tenant');
-    } else if (filter === 'external') {
-      filtered = filtered.filter(b => b.booking_type === 'external');
-    } else if (filter === 'upcoming') {
-      filtered = filtered.filter(b => b.booking_date >= todayStr);
+    if (filter === 'cancelled') {
+      filtered = filtered.filter(b => b.status === 'cancelled');
+    } else {
+      filtered = filtered.filter(b => b.status !== 'cancelled');
+      if (filter === 'internal') {
+        filtered = filtered.filter(b => b.booking_type === 'tenant');
+      } else if (filter === 'external') {
+        filtered = filtered.filter(b => b.booking_type === 'external');
+      } else if (filter === 'upcoming') {
+        filtered = filtered.filter(b => b.booking_date >= todayStr);
+      }
     }
 
     const currentTenantFilter = tenantFilter !== undefined ? tenantFilter : selectedTenantFilter;
@@ -574,11 +579,11 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       return;
     }
 
-    // Update state to reflect status change or remove if cancelled
-    if (newStatus === 'cancelled') {
-      setBookings(prev => prev.filter(b => b.id !== bookingId));
-      setAllBookings(prev => prev.filter(b => b.id !== bookingId));
+    const updatedAllBookings = allBookings.map(b => b.id === bookingId ? { ...b, status: newStatus, invoice_id: newStatus === 'cancelled' ? null : b.invoice_id } : b);
+    setAllBookings(updatedAllBookings);
+    applyFilter(updatedAllBookings, selectedFilter);
 
+    if (newStatus === 'cancelled') {
       const customerName = booking.tenant_id
         ? (booking.tenants?.company_name || 'Onbekende huurder')
         : (booking.external_customers?.company_name || 'Onbekende klant');
@@ -594,13 +599,61 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
         booking.tenant_id || undefined,
         booking.external_customer_id || undefined
       );
-    } else {
-      setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: newStatus } : b));
-      setAllBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: newStatus } : b));
     }
 
     const statusText = newStatus === 'confirmed' ? 'bevestigd' : newStatus === 'cancelled' ? 'geannuleerd' : 'voltooid';
     showNotification(`Boeking is ${statusText}.`, 'success');
+  };
+
+  const handleReopen = async (bookingId: string) => {
+    const booking = allBookings.find(b => b.id === bookingId);
+    if (!booking) {
+      showNotification('Boeking niet gevonden.', 'error');
+      return;
+    }
+
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const newStatus: 'confirmed' | 'completed' = booking.booking_date < todayStr ? 'completed' : 'confirmed';
+
+    const { data: existingBookings } = await supabase
+      .from('meeting_room_bookings')
+      .select('id, start_time, end_time')
+      .eq('space_id', booking.space_id)
+      .eq('booking_date', booking.booking_date)
+      .neq('status', 'cancelled')
+      .neq('id', bookingId);
+
+    if (existingBookings && existingBookings.length > 0) {
+      const newStart = booking.start_time;
+      const newEnd = booking.end_time;
+      const hasOverlap = existingBookings.some((b: any) => (
+        (newStart >= b.start_time && newStart < b.end_time) ||
+        (newEnd > b.start_time && newEnd <= b.end_time) ||
+        (newStart <= b.start_time && newEnd >= b.end_time)
+      ));
+      if (hasOverlap) {
+        showNotification('Kan niet heropenen: de ruimte is al geboekt op deze tijd.', 'error');
+        return;
+      }
+    }
+
+    const { error } = await supabase
+      .from('meeting_room_bookings')
+      .update({ status: newStatus })
+      .eq('id', bookingId);
+
+    if (error) {
+      console.error('Error reopening booking:', error.message);
+      showNotification('Fout bij het heropenen van de boeking.', 'error');
+      return;
+    }
+
+    const updatedAllBookings = allBookings.map(b => b.id === bookingId ? { ...b, status: newStatus } : b);
+    setAllBookings(updatedAllBookings);
+    applyFilter(updatedAllBookings, selectedFilter);
+
+    showNotification(`Boeking is heropend als ${newStatus === 'completed' ? 'voltooid' : 'bevestigd'}.`, 'success');
   };
 
   const confirmDelete = (bookingId: string) => {
@@ -1413,6 +1466,19 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                 >
                   Alle
                 </button>
+                <button
+                  onClick={() => {
+                    setSelectedFilter('cancelled');
+                    applyFilter(allBookings, 'cancelled');
+                  }}
+                  className={`px-3 py-1.5 rounded-lg transition-colors text-sm ${
+                    selectedFilter === 'cancelled'
+                      ? 'bg-red-600 text-white'
+                      : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
+                  }`}
+                >
+                  Geannuleerd
+                </button>
               </div>
             </div>
           </div>
@@ -1606,6 +1672,15 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                             title="Annuleer boeking"
                           >
                             <AlertCircle size={20} />
+                          </button>
+                        )}
+                        {booking.status === 'cancelled' && (
+                          <button
+                            onClick={() => handleReopen(booking.id)}
+                            className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                            title="Heropen boeking"
+                          >
+                            <RotateCcw size={20} />
                           </button>
                         )}
                         <button
