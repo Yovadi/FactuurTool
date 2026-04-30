@@ -80,8 +80,10 @@ export function useUnbilledItems() {
         const leaseStart = (lease as any).start_date?.substring(0, 7) || lookbackStart;
         const customerName = (lease as any).tenants?.company_name || 'Onbekende huurder';
 
+        const leaseEnd = (lease as any).end_date?.substring(0, 7);
         for (const month of pastMonths) {
           if (month < leaseStart) continue;
+          if (leaseEnd && month > leaseEnd) continue;
           const alreadyInvoiced = (allInvoices || []).some(
             (inv: any) => inv.lease_id === lease.id && inv.invoice_month === month
           );

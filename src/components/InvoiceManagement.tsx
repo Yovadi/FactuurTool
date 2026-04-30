@@ -108,6 +108,23 @@ function getLocalCategory(spaceType?: string, bookingType?: string): string | nu
   }
 }
 
+function isLeaseActiveInMonth(lease: { start_date?: string | null; end_date?: string | null }, invoiceMonth: string): boolean {
+  if (!invoiceMonth) return true;
+  const [y, m] = invoiceMonth.split('-').map(Number);
+  if (!y || !m) return true;
+  const monthStart = new Date(y, m - 1, 1);
+  const monthEnd = new Date(y, m, 0);
+  if (lease.start_date) {
+    const startDate = new Date(lease.start_date);
+    if (startDate > monthEnd) return false;
+  }
+  if (lease.end_date) {
+    const endDate = new Date(lease.end_date);
+    if (endDate < monthStart) return false;
+  }
+  return true;
+}
+
 export type InvoiceTypeFilter = 'all' | 'huur' | 'vergaderruimte' | 'flex' | 'handmatig';
 
 export interface InvoiceManagementRef {
@@ -593,7 +610,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       supabase.from('external_customers').select('*').order('company_name'),
       supabase.from('leases').select(`
         *, tenant:tenants(*), lease_spaces:lease_spaces(*, space:office_spaces(*))
-      `).eq('status', 'active').order('created_at', { ascending: false }),
+      `).eq('status', 'active'),
       supabase.from('invoices').select(`
         *, lease:leases(*, tenant:tenants(*), lease_spaces:lease_spaces(*, space:office_spaces(*))),
         tenant:tenants(*), external_customer:external_customers(*), line_items:invoice_line_items(*)
@@ -617,7 +634,11 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     setCompanySettings(companyData);
     setTenants(tenantsData || []);
     setExternalCustomers(externalCustomersData || []);
-    setLeases(leasesData as LeaseWithDetails[] || []);
+    setLeases(((leasesData as LeaseWithDetails[]) || []).slice().sort((a, b) => {
+      const an = (a.tenant?.company_name || a.tenant?.name || '').toLowerCase();
+      const bn = (b.tenant?.company_name || b.tenant?.name || '').toLowerCase();
+      return an.localeCompare(bn, 'nl');
+    }));
     setInvoices(invoicesData as InvoiceWithDetails[] || []);
     setMeetingRoomBookings(bookingsData || []);
     setGrootboekMappings(mappingsData || []);
@@ -798,6 +819,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     if (!invoiceMonth || !showGenerateModal) return;
 
     const leasesToGenerate = leases.filter(lease => {
+      if (!isLeaseActiveInMonth(lease, invoiceMonth)) return false;
       const existingInvoice = invoices.find(
         inv => inv.lease_id === lease.id && inv.invoice_month === invoiceMonth
       );
@@ -2053,6 +2075,11 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     for (const lease of leasesToProcess) {
       try {
         console.log('Processing lease:', lease.id, 'Tenant:', lease.tenant?.company_name);
+
+        if (!isLeaseActiveInMonth(lease, targetMonth)) {
+          console.log('Skipping - lease not active in', targetMonth, 'for', lease.tenant?.company_name);
+          continue;
+        }
 
         const existingInvoice = invoices.find(
           inv => inv.lease_id === lease.id && inv.invoice_month === targetMonth
@@ -3950,6 +3977,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         };
 
         const allLeasesToGenerate = targetMonth ? leases.filter(lease => {
+          if (!isLeaseActiveInMonth(lease, targetMonth)) return false;
           const existingInvoice = invoices.find(
             inv => inv.lease_id === lease.id && inv.invoice_month === targetMonth
           );

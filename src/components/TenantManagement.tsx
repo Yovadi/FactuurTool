@@ -79,7 +79,7 @@ export function TenantManagement() {
       { data: settingsData },
       localPath,
     ] = await Promise.all([
-      supabase.from('tenants').select(`*, leases(id, status, lease_type)`).order('name'),
+      supabase.from('tenants').select(`*, leases(id, status, lease_type)`).order('company_name', { ascending: true, nullsFirst: false }).order('name'),
       supabase.from('external_customers').select('*').order('company_name'),
       supabase.from('company_settings').select('*').order('updated_at', { ascending: false }).limit(1).maybeSingle(),
       getLocalRootFolderPath(),
@@ -95,7 +95,7 @@ export function TenantManagement() {
   };
 
   const loadTenants = async () => {
-    const { data } = await supabase.from('tenants').select(`*, leases(id, status, lease_type)`).order('name');
+    const { data } = await supabase.from('tenants').select(`*, leases(id, status, lease_type)`).order('company_name', { ascending: true, nullsFirst: false }).order('name');
     if (data) setTenants(data);
   };
 

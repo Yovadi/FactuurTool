@@ -95,7 +95,7 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
       { data: unbilledMeetings },
       { data: unbilledFlex }
     ] = await Promise.all([
-      supabase.from('leases').select('id, tenant_id').eq('status', 'active'),
+      supabase.from('leases').select('id, tenant_id, start_date, end_date').eq('status', 'active'),
       supabase.from('invoices').select('lease_id, invoice_month'),
       supabase.from('meeting_room_bookings').select('id, booking_date')
         .in('status', ['confirmed', 'completed']).is('invoice_id', null),
@@ -111,7 +111,9 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
 
       let leaseCount = 0;
       if (activeLeases && month >= '2026-02') {
-        for (const lease of activeLeases) {
+        for (const lease of activeLeases as any[]) {
+          if (lease.start_date && lease.start_date > endDate) continue;
+          if (lease.end_date && lease.end_date < startDate) continue;
           const alreadyInvoiced = (allInvoices || []).some(
             (inv: any) => inv.lease_id === lease.id && inv.invoice_month === month
           );
@@ -219,6 +221,8 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
     const newItems: InvoiceItem[] = [];
 
     for (const lease of leases) {
+      if ((lease as any).start_date && (lease as any).start_date > endDateStr) continue;
+      if ((lease as any).end_date && (lease as any).end_date < startDateStr) continue;
       const hasExisting = invoices.some(inv => inv.lease_id === lease.id && inv.invoice_month === invoiceMonth);
       if (hasExisting) continue;
 

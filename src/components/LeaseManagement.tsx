@@ -107,13 +107,18 @@ export function LeaseManagement() {
           )
         `)
         .order('created_at', { ascending: false }),
-      supabase.from('tenants').select('*').order('name'),
+      supabase.from('tenants').select('*').order('company_name', { ascending: true, nullsFirst: false }).order('name'),
       supabase.from('office_spaces').select('*').order('space_number'),
       supabase.from('space_type_rates').select('*'),
       supabase.from('company_settings').select('*').maybeSingle(),
     ]);
 
-    setLeases(leasesData as LeaseWithDetails[] || []);
+    const sortedLeases = ((leasesData as LeaseWithDetails[]) || []).slice().sort((a, b) => {
+      const an = (a.tenant?.company_name || a.tenant?.name || '').toLowerCase();
+      const bn = (b.tenant?.company_name || b.tenant?.name || '').toLowerCase();
+      return an.localeCompare(bn, 'nl');
+    });
+    setLeases(sortedLeases);
     setTenants(tenantsData || []);
     setSpaces(spacesData || []);
     setSpaceTypeRates(ratesData || []);
