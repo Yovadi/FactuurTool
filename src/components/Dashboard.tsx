@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { AlertCircle, Calendar, Clock, CalendarClock, FileText, DollarSign, CheckCircle, Check, XCircle, AlertTriangle, Home, Zap, ChevronDown, ChevronUp, ArrowRight, TrendingUp, TrendingDown, Wallet, FileCheck } from 'lucide-react';
+import { AlertCircle, Calendar, Clock, CalendarClock, FileText, DollarSign, CheckCircle, Check, XCircle, AlertTriangle, Home, ChevronDown, ChevronUp, ArrowRight, TrendingUp, TrendingDown, Wallet, FileCheck } from 'lucide-react';
 import { SkeletonDashboard } from './SkeletonLoader';
 import { createAdminNotification } from '../utils/notificationHelper';
 import { useUnbilledItems } from './UnbilledItemsReminder';
@@ -11,9 +11,7 @@ type DashboardStats = {
   totalReceivable: number;
   overdueReceivable: number;
   todayMeetingBookings: number;
-  todayFlexBookings: number;
   weekMeetingBookings: number;
-  weekFlexBookings: number;
   activeLeases: number;
   expiringLeases: number;
   expiredLeases: number;
@@ -24,9 +22,7 @@ type PendingBooking = {
   booking_date: string;
   start_time: string;
   end_time?: string;
-  is_half_day?: boolean;
-  half_day_period?: 'morning' | 'afternoon';
-  booking_type: 'meeting_room' | 'flex_workspace';
+  booking_type: 'meeting_room';
   tenant_id?: string | null;
   external_customer_id?: string | null;
   space: {
@@ -77,9 +73,7 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
     totalReceivable: 0,
     overdueReceivable: 0,
     todayMeetingBookings: 0,
-    todayFlexBookings: 0,
     weekMeetingBookings: 0,
-    weekFlexBookings: 0,
     activeLeases: 0,
     expiringLeases: 0,
     expiredLeases: 0
@@ -116,20 +110,8 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
       })
       .subscribe();
 
-    const flexChannel = supabase
-      .channel('dashboard-flex-bookings')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'flex_day_bookings'
-      }, () => {
-        loadDashboardStats();
-      })
-      .subscribe();
-
     return () => {
       supabase.removeChannel(meetingChannel);
-      supabase.removeChannel(flexChannel);
     };
   }, []);
 
@@ -139,10 +121,8 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
   };
 
   const handleStatusChange = async (booking: PendingBooking, newStatus: 'confirmed' | 'cancelled') => {
-    const tableName = booking.booking_type === 'meeting_room' ? 'meeting_room_bookings' : 'flex_day_bookings';
-
     const { error } = await supabase
-      .from(tableName)
+      .from('meeting_room_bookings')
       .update({ status: newStatus })
       .eq('id', booking.id);
 
@@ -153,15 +133,11 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
     }
 
     if (newStatus === 'cancelled') {
-      const customerName = booking.booking_type === 'meeting_room'
-        ? (booking.tenant_id ? (booking.tenants?.company_name || 'Onbekende huurder') : (booking.external_customers?.company_name || 'Onbekende klant'))
+      const customerName = booking.tenant_id
+        ? (booking.tenants?.company_name || 'Onbekende huurder')
         : (booking.external_customers?.company_name || 'Onbekende klant');
 
-      const bookingDetails = booking.booking_type === 'meeting_room'
-        ? `${booking.space.space_number} op ${new Date(booking.booking_date).toLocaleDateString('nl-NL')} ${booking.start_time.substring(0, 5)}-${booking.end_time?.substring(0, 5)}`
-        : booking.start_time && booking.end_time
-        ? `${booking.space.space_number} op ${new Date(booking.booking_date).toLocaleDateString('nl-NL')} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)}`
-        : `${booking.space.space_number} op ${new Date(booking.booking_date).toLocaleDateString('nl-NL')} ${booking.is_half_day ? (booking.half_day_period === 'morning' ? 'Ochtend' : 'Middag') : 'Hele dag'}`;
+      const bookingDetails = `${booking.space.space_number} op ${new Date(booking.booking_date).toLocaleDateString('nl-NL')} ${booking.start_time.substring(0, 5)}-${booking.end_time?.substring(0, 5)}`;
 
       await createAdminNotification(
         'booking_cancelled',
@@ -169,8 +145,8 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
         booking.id,
         customerName,
         bookingDetails,
-        booking.booking_type === 'meeting_room' ? booking.tenant_id || undefined : undefined,
-        booking.booking_type === 'meeting_room' ? booking.external_customer_id || undefined : booking.external_customer_id || undefined
+        booking.tenant_id || undefined,
+        booking.external_customer_id || undefined
       );
     }
 
@@ -202,10 +178,7 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
       { data: prevMonthInvoices },
       { count: todayMeetingCount },
       { count: weekMeetingCount },
-      { count: todayFlexCount },
-      { count: weekFlexCount },
       { data: pendingMeetingRooms },
-      { data: pendingFlexBookings },
     ] = await Promise.all([
       supabase.from('leases').select('id, end_date, status, tenant_id, tenants(name)').eq('status', 'active'),
       supabase.from('invoices').select(`
@@ -216,8 +189,6 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
       supabase.from('invoices').select('amount').gte('created_at', prevMonthStart).lte('created_at', prevMonthEnd + 'T23:59:59'),
       supabase.from('meeting_room_bookings').select('*', { count: 'exact', head: true }).eq('booking_date', todayStr).neq('status', 'cancelled'),
       supabase.from('meeting_room_bookings').select('*', { count: 'exact', head: true }).gte('booking_date', todayStr).lte('booking_date', sevenDaysStr).neq('status', 'cancelled'),
-      supabase.from('flex_day_bookings').select('*', { count: 'exact', head: true }).eq('booking_date', todayStr).neq('status', 'cancelled'),
-      supabase.from('flex_day_bookings').select('*', { count: 'exact', head: true }).gte('booking_date', todayStr).lte('booking_date', sevenDaysStr).neq('status', 'cancelled'),
       supabase
         .from('meeting_room_bookings')
         .select(`
@@ -228,20 +199,10 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
         .order('booking_date', { ascending: true })
         .order('start_time', { ascending: true })
         .limit(10),
-      supabase
-        .from('flex_day_bookings')
-        .select(`
-          id, booking_date, start_time, end_time, is_half_day, half_day_period, external_customer_id,
-          space:office_spaces(space_number), external_customers(company_name)
-        `)
-        .eq('status', 'pending')
-        .order('booking_date', { ascending: true })
-        .limit(10),
     ]);
 
     const allPendingBookings: PendingBooking[] = [
       ...(pendingMeetingRooms || []).map(b => ({ ...b, booking_type: 'meeting_room' as const })),
-      ...(pendingFlexBookings || []).map(b => ({ ...b, booking_type: 'flex_workspace' as const }))
     ].sort((a, b) => new Date(a.booking_date).getTime() - new Date(b.booking_date).getTime());
 
     const expiringLeasesData = activeLeases?.filter(
@@ -279,9 +240,7 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
       totalReceivable: outstandingAmt + overdueAmt,
       overdueReceivable: overdueAmt,
       todayMeetingBookings: todayMeetingCount || 0,
-      todayFlexBookings: todayFlexCount || 0,
       weekMeetingBookings: weekMeetingCount || 0,
-      weekFlexBookings: weekFlexCount || 0,
       activeLeases: activeLeases?.length || 0,
       expiringLeases: expiringLeasesData.length,
       expiredLeases: expiredLeasesData.length
@@ -294,8 +253,8 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
     ? ((stats.revenueThisMonth - stats.revenuePreviousMonth) / stats.revenuePreviousMonth * 100)
     : (stats.revenueThisMonth > 0 ? 100 : 0);
 
-  const todayTotalBookings = stats.todayMeetingBookings + stats.todayFlexBookings;
-  const weekTotalBookings = stats.weekMeetingBookings + stats.weekFlexBookings;
+  const todayTotalBookings = stats.todayMeetingBookings;
+  const weekTotalBookings = stats.weekMeetingBookings;
 
   if (loading) {
     return <SkeletonDashboard />;
@@ -380,9 +339,6 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
                   {stats.todayMeetingBookings > 0 && (
                     <span className="text-xs bg-blue-900/40 text-blue-400 px-2 py-0.5 rounded">{stats.todayMeetingBookings} vergader</span>
                   )}
-                  {stats.todayFlexBookings > 0 && (
-                    <span className="text-xs bg-teal-900/40 text-teal-400 px-2 py-0.5 rounded">{stats.todayFlexBookings} flex</span>
-                  )}
                 </div>
               )}
             </div>
@@ -440,15 +396,11 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
               >
                 <div className="flex items-center justify-between gap-4 flex-wrap">
                   <div className="flex items-center gap-4 min-w-0 flex-1">
-                    <span className={`shrink-0 px-2.5 py-1 rounded text-xs font-semibold ${
-                      booking.booking_type === 'meeting_room' ? 'bg-blue-900/60 text-blue-400' : 'bg-teal-900/60 text-teal-400'
-                    }`}>
-                      {booking.booking_type === 'meeting_room' ? 'Vergader' : 'Flex'}
+                    <span className="shrink-0 px-2.5 py-1 rounded text-xs font-semibold bg-blue-900/60 text-blue-400">
+                      Vergader
                     </span>
                     <span className="text-gray-100 font-semibold truncate">
-                      {booking.booking_type === 'meeting_room'
-                        ? (booking.tenant_id ? booking.tenants?.company_name : booking.external_customers?.company_name)
-                        : booking.external_customers?.company_name}
+                      {booking.tenant_id ? booking.tenants?.company_name : booking.external_customers?.company_name}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -482,13 +434,7 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
                   </div>
                   <div className="flex items-center gap-1.5">
                     <Clock size={14} className="text-gold-500" />
-                    {booking.booking_type === 'meeting_room'
-                      ? `${booking.start_time.substring(0, 5)} - ${booking.end_time?.substring(0, 5)}`
-                      : booking.start_time && booking.end_time
-                      ? `${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)}`
-                      : booking.is_half_day
-                      ? (booking.half_day_period === 'morning' ? 'Ochtend' : 'Middag')
-                      : 'Hele dag'}
+                    {`${booking.start_time.substring(0, 5)} - ${booking.end_time?.substring(0, 5)}`}
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="text-gray-300 font-medium">{booking.space.space_number}</span>
@@ -718,14 +664,12 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
                               <div className="flex items-center gap-2.5">
                                 {item.type === 'huur' && <Home size={12} className="text-emerald-400" />}
                                 {item.type === 'vergaderruimte' && <Calendar size={12} className="text-blue-400" />}
-                                {item.type === 'flexplek' && <Zap size={12} className="text-teal-400" />}
                                 <span className="text-xs text-gray-300">{item.customerName}</span>
                                 <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
                                   item.type === 'huur' ? 'bg-emerald-900/40 text-emerald-400' :
-                                  item.type === 'vergaderruimte' ? 'bg-blue-900/40 text-blue-400' :
-                                  'bg-teal-900/40 text-teal-400'
+                                  'bg-blue-900/40 text-blue-400'
                                 }`}>
-                                  {item.type === 'huur' ? 'Huur' : item.type === 'vergaderruimte' ? 'Vergader' : 'Flex'}
+                                  {item.type === 'huur' ? 'Huur' : 'Vergader'}
                                 </span>
                               </div>
                               <span className="text-xs text-gray-400">

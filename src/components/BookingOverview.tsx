@@ -25,26 +25,7 @@ type MeetingRoomBooking = {
   type: 'meeting_room';
 };
 
-type FlexBooking = {
-  id: string;
-  booking_date: string;
-  start_time?: string;
-  end_time?: string;
-  is_half_day: boolean;
-  half_day_period?: 'morning' | 'afternoon';
-  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
-  invoice_id: string | null;
-  external_customer_id: string;
-  space: {
-    space_number: string;
-  };
-  external_customers?: {
-    company_name: string;
-  };
-  type: 'flex_workspace';
-};
-
-type Booking = MeetingRoomBooking | FlexBooking;
+type Booking = MeetingRoomBooking;
 
 type BookingOverviewProps = {
   customerId: string;
@@ -96,41 +77,16 @@ export function BookingOverview({ customerId, customerType, customerName, onClos
       meetingRoomQuery.eq('external_customer_id', customerId).eq('booking_type', 'external');
     }
 
-    const flexQuery = customerType === 'external'
-      ? supabase
-          .from('flex_day_bookings')
-          .select(`
-            id,
-            booking_date,
-            start_time,
-            end_time,
-            is_half_day,
-            half_day_period,
-            status,
-            invoice_id,
-            external_customer_id,
-            space:office_spaces(space_number),
-            external_customers(company_name)
-          `)
-          .eq('external_customer_id', customerId)
-          .order('booking_date', { ascending: false })
-      : null;
-
-    const [meetingRoomResult, flexResult] = await Promise.all([
+    const [meetingRoomResult] = await Promise.all([
       meetingRoomQuery,
-      flexQuery,
     ]);
 
     if (meetingRoomResult.error) {
       console.error('Error loading meeting room bookings:', meetingRoomResult.error);
     }
-    if (flexResult?.error) {
-      console.error('Error loading flex bookings:', flexResult.error);
-    }
 
     const allBookings: Booking[] = [
       ...(meetingRoomResult.data || []).map(b => ({ ...b, type: 'meeting_room' as const })),
-      ...(flexResult?.data || []).map(b => ({ ...b, type: 'flex_workspace' as const }))
     ].sort((a, b) => new Date(b.booking_date).getTime() - new Date(a.booking_date).getTime());
 
     setBookings(allBookings);
@@ -138,10 +94,8 @@ export function BookingOverview({ customerId, customerType, customerName, onClos
   };
 
   const handleStatusChange = async (booking: Booking, newStatus: 'confirmed' | 'cancelled') => {
-    const tableName = booking.type === 'meeting_room' ? 'meeting_room_bookings' : 'flex_day_bookings';
-
     const { error } = await supabase
-      .from(tableName)
+      .from('meeting_room_bookings')
       .update({ status: newStatus })
       .eq('id', booking.id);
 
@@ -152,17 +106,13 @@ export function BookingOverview({ customerId, customerType, customerName, onClos
     }
 
     if (newStatus === 'cancelled') {
-      const customerName = booking.type === 'meeting_room'
-        ? (booking.tenant_id ? (booking.tenants?.company_name || 'Onbekende huurder') : (booking.external_customers?.company_name || 'Onbekende klant'))
+      const customerName = booking.tenant_id
+        ? (booking.tenants?.company_name || 'Onbekende huurder')
         : (booking.external_customers?.company_name || 'Onbekende klant');
 
       const spaceNumber = booking.space?.space_number || 'Onbekende ruimte';
       const bookingDate = new Date(booking.booking_date).toLocaleDateString('nl-NL');
-      const bookingDetails = booking.type === 'meeting_room'
-        ? `${spaceNumber} op ${bookingDate} ${booking.start_time?.substring(0, 5) || '--:--'}-${booking.end_time?.substring(0, 5) || '--:--'}`
-        : booking.start_time && booking.end_time
-        ? `${spaceNumber} op ${bookingDate} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)}`
-        : `${spaceNumber} op ${bookingDate} ${booking.is_half_day ? (booking.half_day_period === 'morning' ? 'Ochtend' : 'Middag') : 'Hele dag'}`;
+      const bookingDetails = `${spaceNumber} op ${bookingDate} ${booking.start_time?.substring(0, 5) || '--:--'}-${booking.end_time?.substring(0, 5) || '--:--'}`;
 
       await createAdminNotification(
         'booking_cancelled',
@@ -170,8 +120,8 @@ export function BookingOverview({ customerId, customerType, customerName, onClos
         booking.id,
         customerName,
         bookingDetails,
-        booking.type === 'meeting_room' ? booking.tenant_id || undefined : undefined,
-        booking.type === 'meeting_room' ? booking.external_customer_id || undefined : booking.external_customer_id
+        booking.tenant_id || undefined,
+        booking.external_customer_id || undefined
       );
     }
 
@@ -212,17 +162,7 @@ export function BookingOverview({ customerId, customerType, customerName, onClos
   };
 
   const getTimeDisplay = (booking: Booking) => {
-    if (booking.type === 'meeting_room') {
-      return `${booking.start_time || '--:--'} - ${booking.end_time || '--:--'}`;
-    } else {
-      if (booking.start_time && booking.end_time) {
-        return `${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)}`;
-      } else if (booking.is_half_day) {
-        return booking.half_day_period === 'morning' ? 'Ochtend' : 'Middag';
-      } else {
-        return 'Hele dag';
-      }
-    }
+    return `${booking.start_time || '--:--'} - ${booking.end_time || '--:--'}`;
   };
 
   if (loading) {
@@ -353,10 +293,8 @@ export function BookingOverview({ customerId, customerType, customerName, onClos
                       className="border-b border-dark-700 hover:bg-dark-700 transition-colors"
                     >
                       <td className="px-4 py-3">
-                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                          booking.type === 'meeting_room' ? 'bg-blue-900 text-blue-400' : 'bg-purple-900 text-purple-400'
-                        }`}>
-                          {booking.type === 'meeting_room' ? 'Vergader' : 'Flex'}
+                        <span className="inline-block px-2 py-1 rounded text-xs font-medium bg-blue-900 text-blue-400">
+                          Vergader
                         </span>
                       </td>
                       <td className="px-4 py-3">

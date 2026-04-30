@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { UpdateDialog } from './components/UpdateDialog';
-import { LayoutDashboard, Users, Building, Settings, CalendarClock, Calendar, FileText, Building2, Calculator, Euro, UserCheck, UserMinus, Loader2, Menu, X, Database, Mail, CheckCircle, RefreshCw } from 'lucide-react';
+import { LayoutDashboard, Users, Building, Settings, CalendarClock, FileText, Building2, Calculator, Euro, UserCheck, UserMinus, Loader2, Menu, X, Database, Mail, CheckCircle, RefreshCw } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { syncInvoicePDFs, syncLeaseContractPDFs, syncCreditNotePDFs, startPeriodicSync, type SyncResult } from './utils/invoicePdfSync';
 import { getEffectiveRootFolderPath } from './utils/localSettings';
@@ -13,13 +13,12 @@ const SpaceTypeRates = lazy(() => import('./components/SpaceTypeRates').then(m =
 const VerhuurderTabs = lazy(() => import('./components/VerhuurderTabs').then(m => ({ default: m.VerhuurderTabs })));
 const InstellingenTabs = lazy(() => import('./components/InstellingenTabs').then(m => ({ default: m.InstellingenTabs })));
 const MeetingRoomBookings = lazy(() => import('./components/MeetingRoomBookings').then(m => ({ default: m.MeetingRoomBookings })));
-const FlexWorkspaceBookings = lazy(() => import('./components/FlexWorkspaceBookings').then(m => ({ default: m.FlexWorkspaceBookings })));
 const DebiteurenTabs = lazy(() => import('./components/DebiteurenTabs').then(m => ({ default: m.DebiteurenTabs })));
 const CrediteurenTabs = lazy(() => import('./components/CrediteurenTabs').then(m => ({ default: m.CrediteurenTabs })));
 const EBoekhoudenDashboard = lazy(() => import('./components/EBoekhoudenDashboard').then(m => ({ default: m.EBoekhoudenDashboard })));
 const EmailTab = lazy(() => import('./components/EmailTab').then(m => ({ default: m.EmailTab })));
 
-type Tab = 'dashboard' | 'tenants' | 'spaces-spaces' | 'spaces-rates' | 'contracts' | 'bookings' | 'flex-bookings' | 'financial-debtors' | 'financial-creditors' | 'eboekhouden' | 'email' | 'verhuurder' | 'settings';
+type Tab = 'dashboard' | 'tenants' | 'spaces-spaces' | 'spaces-rates' | 'contracts' | 'bookings' | 'financial-debtors' | 'financial-creditors' | 'eboekhouden' | 'email' | 'verhuurder' | 'settings';
 
 type MenuSection = {
   id: string;
@@ -359,7 +358,6 @@ function App() {
     },
     { id: 'contracts', label: 'Contracten', icon: FileText },
     { id: 'bookings', label: 'Vergaderruimte', icon: CalendarClock },
-    { id: 'flex-bookings', label: 'Flexplekken', icon: Calendar },
     {
       id: 'financial',
       label: 'Facturatie',
@@ -694,9 +692,6 @@ function App() {
               </div>
               <div className="h-full" style={tabStyle('bookings')}>
                 {visitedTabs.has('bookings') && <MeetingRoomBookings />}
-              </div>
-              <div className="h-full" style={tabStyle('flex-bookings')}>
-                {visitedTabs.has('flex-bookings') && <FlexWorkspaceBookings />}
               </div>
               <div className="h-full" style={tabStyle('financial-debtors')}>
                 {visitedTabs.has('financial-debtors') && (

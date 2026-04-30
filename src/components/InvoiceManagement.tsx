@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { supabase, type Invoice, type Lease, type Tenant, type ExternalCustomer, type LeaseSpace, type OfficeSpace, type InvoiceLineItem } from '../lib/supabase';
-import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, CreditCard as Edit, Search, CreditCard as Edit2, AlertCircle, AlertTriangle, CheckSquare, Square, Check, X, Home, Zap, RefreshCw, CheckCircle2, Loader2, Filter, RotateCcw } from 'lucide-react';
+import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, CreditCard as Edit, Search, CreditCard as Edit2, AlertCircle, AlertTriangle, CheckSquare, Square, Check, X, Home, RefreshCw, CheckCircle2, Loader2, Filter, RotateCcw } from 'lucide-react';
 import { syncInvoiceToEBoekhouden, checkInvoicePaymentStatuses } from '../lib/eboekhoudenSync';
 import { generateInvoicePDF, generateInvoicePDFBase64 } from '../utils/pdfGenerator';
 import { isEmailConfigured, sendEmail, getActiveEmailMethodLabel } from '../utils/emailSender';
@@ -51,9 +51,6 @@ function convertLineItemsToSpaces(items: InvoiceLineItem[]) {
       isKnownSpaceType = true;
     } else if (item.description.toLowerCase().includes('vergader') || item.description.toLowerCase().includes('meeting')) {
       isMeetingRoom = true;
-    } else if (item.description.toLowerCase().includes('flexplek') || item.description.toLowerCase().includes('flex')) {
-      spaceType = 'flex';
-      isKnownSpaceType = true;
     }
 
     let squareFootage: number | undefined = undefined;
@@ -97,12 +94,10 @@ function convertLineItemsToSpaces(items: InvoiceLineItem[]) {
 
 function getLocalCategory(spaceType?: string, bookingType?: string): string | null {
   if (bookingType === 'meeting_room') return 'vergaderruimte';
-  if (bookingType === 'flex') return 'flexplek';
   switch (spaceType) {
     case 'kantoor': return 'huur_kantoor';
     case 'bedrijfsruimte': return 'huur_bedrijfsruimte';
     case 'buitenterrein': return 'huur_buitenterrein';
-    case 'flexplek': return 'flexplek';
     case 'diversen': return 'diversen';
     default: return null;
   }
@@ -125,7 +120,7 @@ function isLeaseActiveInMonth(lease: { start_date?: string | null; end_date?: st
   return true;
 }
 
-export type InvoiceTypeFilter = 'all' | 'huur' | 'vergaderruimte' | 'flex' | 'handmatig';
+export type InvoiceTypeFilter = 'all' | 'huur' | 'vergaderruimte' | 'handmatig';
 
 export interface InvoiceManagementRef {
   openGenerateModal: () => Promise<void>;
@@ -180,7 +175,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   const [selectedLeases, setSelectedLeases] = useState<Set<string>>(new Set());
   const [selectedCustomers, setSelectedCustomers] = useState<Set<string>>(new Set());
   const [meetingRoomBookings, setMeetingRoomBookings] = useState<any[]>([]);
-  const [flexDayBookings, setFlexDayBookings] = useState<any[]>([]);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [generateModalType, setGenerateModalType] = useState<'all' | 'huur' | 'bookings'>('all');
   const [showDetailSelection, setShowDetailSelection] = useState(true);
@@ -291,7 +285,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       const result = `${nextYear}-${String(finalMonth + 1).padStart(2, '0')}`;
       console.log('Default month for rent (next month):', result);
       return result;
-    } else if (type === 'vergaderruimte' || type === 'flex') {
+    } else if (type === 'vergaderruimte') {
       const result = `${year}-${String(month + 1).padStart(2, '0')}`;
       console.log('Default month for bookings (current month):', result);
       return result;
@@ -334,29 +328,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       meetingQuery = meetingQuery.eq('external_customer_id', customerId);
     }
 
-    let flexQuery = supabase
-      .from('flex_day_bookings')
-      .select(`
-        id, booking_date, start_time, end_time, total_hours, total_amount, hourly_rate,
-        is_half_day, half_day_period, status, invoice_id, lease_id, external_customer_id,
-        leases(tenant_id), office_spaces(space_number)
-      `)
-      .gte('booking_date', startDateStr)
-      .lte('booking_date', endDateStr)
-      .in('status', ['pending', 'confirmed', 'completed'])
-      .is('invoice_id', null);
-
-    if (customerType === 'tenant') {
-      flexQuery = flexQuery.not('lease_id', 'is', null);
-    } else {
-      flexQuery = flexQuery.not('external_customer_id', 'is', null).eq('external_customer_id', customerId);
-    }
-
-    const [{ data: meetingBookings }, { data: flexBookings }] = await Promise.all([meetingQuery, flexQuery]);
-
-    const filteredFlexBookings = customerType === 'tenant'
-      ? (flexBookings || []).filter(booking => booking.leases?.tenant_id === customerId)
-      : flexBookings || [];
+    const [{ data: meetingBookings }] = await Promise.all([meetingQuery]);
 
     return [
       ...(meetingBookings || []).map(booking => ({
@@ -364,66 +336,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         space: booking.office_spaces,
         booking_type: 'meeting_room'
       })),
-      ...(filteredFlexBookings).map(booking => ({
-        ...booking,
-        space: booking.office_spaces,
-        status: 'completed',
-        booking_type: 'flex'
-      }))
     ];
-  };
-
-  const fetchFlexDayBookings = async (customerId: string, customerType: 'tenant' | 'external', year: number, month: number) => {
-    const startDateStr = `${year}-${String(month).padStart(2, '0')}-01`;
-    const lastDay = new Date(year, month, 0).getDate();
-    const endDateStr = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-
-    let query = supabase
-      .from('flex_day_bookings')
-      .select(`
-        id,
-        booking_date,
-        start_time,
-        end_time,
-        total_hours,
-        total_amount,
-        hourly_rate,
-        is_half_day,
-        half_day_period,
-        status,
-        invoice_id,
-        lease_id,
-        external_customer_id,
-        leases(tenant_id),
-        office_spaces(space_number)
-      `)
-      .gte('booking_date', startDateStr)
-      .lte('booking_date', endDateStr)
-      .in('status', ['confirmed', 'completed'])
-      .is('invoice_id', null);
-
-    if (customerType === 'tenant') {
-      query = query.not('lease_id', 'is', null);
-    } else {
-      query = query.not('external_customer_id', 'is', null).eq('external_customer_id', customerId);
-    }
-
-    const { data: bookings, error } = await query;
-
-    if (error) {
-      console.error('Error fetching flex day bookings:', error);
-      return [];
-    }
-
-    const filteredBookings = customerType === 'tenant'
-      ? (bookings || []).filter(booking => booking.leases?.tenant_id === customerId)
-      : bookings || [];
-
-    return filteredBookings.map(booking => ({
-      ...booking,
-      space: booking.office_spaces,
-      status: booking.status
-    }));
   };
 
   const [formData, setFormData] = useState({
@@ -447,7 +360,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     quantity?: string;
     space_type?: string;
     bookingId?: string;
-    bookingType?: 'meeting_room' | 'flex';
+    bookingType?: 'meeting_room';
     local_category?: string | null;
     grootboek_id?: number | null;
   }>>([]);
@@ -599,9 +512,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       { data: leasesData },
       { data: invoicesData },
       { data: pastConfirmedMeetings },
-      { data: pastConfirmedFlex },
       { data: bookingsData },
-      { data: flexBookingsData },
       { data: mappingsData },
     ] = await Promise.all([
       supabase.from('company_settings').select('*').maybeSingle(),
@@ -616,14 +527,9 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         tenant:tenants(*), external_customer:external_customers(*), line_items:invoice_line_items(*)
       `).order('created_at', { ascending: false }),
       supabase.from('meeting_room_bookings').select('id').eq('status', 'confirmed').lt('booking_date', todayStr),
-      supabase.from('flex_day_bookings').select('id').eq('status', 'confirmed').lt('booking_date', todayStr),
       supabase.from('meeting_room_bookings').select(`
         id, booking_date, start_time, end_time, total_hours, total_amount, status, invoice_id,
         tenant_id, external_customer_id, space:office_spaces(space_number)
-      `).in('status', ['pending', 'confirmed', 'completed']).order('booking_date', { ascending: false }),
-      supabase.from('flex_day_bookings').select(`
-        id, booking_date, start_time, end_time, total_hours, total_amount, status, invoice_id,
-        external_customer_id, lease_id, leases(tenant_id), space:office_spaces(space_number)
       `).in('status', ['pending', 'confirmed', 'completed']).order('booking_date', { ascending: false }),
       supabase.from('eboekhouden_grootboek_mapping').select('*').order('local_category'),
     ]);
@@ -643,21 +549,10 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     setMeetingRoomBookings(bookingsData || []);
     setGrootboekMappings(mappingsData || []);
 
-    const flexWithTenantId = (flexBookingsData || []).map((b: any) => ({
-      ...b,
-      tenant_id: b.leases?.tenant_id || null
-    }));
-    setFlexDayBookings(flexWithTenantId);
-
     const updatePromises: Promise<any>[] = [];
     if (pastConfirmedMeetings && pastConfirmedMeetings.length > 0) {
       updatePromises.push(
         supabase.from('meeting_room_bookings').update({ status: 'completed' }).in('id', pastConfirmedMeetings.map(b => b.id))
-      );
-    }
-    if (pastConfirmedFlex && pastConfirmedFlex.length > 0) {
-      updatePromises.push(
-        supabase.from('flex_day_bookings').update({ status: 'completed' }).in('id', pastConfirmedFlex.map(b => b.id))
       );
     }
     if (updatePromises.length > 0) {
@@ -843,19 +738,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         return isForSelectedMonth && isUnbilled && isInvoiceable && isForCustomer;
       });
 
-      const flexBookings = flexDayBookings.filter(booking => {
-        const [y, m] = booking.booking_date.split('-');
-        const bookingYearMonth = `${y}-${m}`;
-        const isForSelectedMonth = bookingYearMonth === invoiceMonth;
-        const isUnbilled = !booking.invoice_id;
-        const isInvoiceable = booking.status === 'completed' || booking.status === 'confirmed' || booking.status === 'pending';
-        const isForCustomer = (customer as any).isExternal
-          ? booking.external_customer_id === customer.id
-          : booking.tenant_id === customer.id;
-        return isForSelectedMonth && isUnbilled && isInvoiceable && isForCustomer;
-      });
-
-      if (meetingBookings.length === 0 && flexBookings.length === 0) return false;
+      if (meetingBookings.length === 0) return false;
 
       const existingDraftInvoice = invoices.find(inv => {
         const matchesCustomer = (customer as any).isExternal
@@ -870,7 +753,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     setSelectedLeases(new Set(leasesToGenerate.map(l => l.id)));
     setSelectedCustomers(new Set(customersWithBookingsIds));
     setShowDetailSelection(false);
-  }, [invoiceMonth, showGenerateModal, leases, invoices, tenants, externalCustomers, meetingRoomBookings, flexDayBookings]);
+  }, [invoiceMonth, showGenerateModal, leases, invoices, tenants, externalCustomers, meetingRoomBookings]);
 
   const startEditInvoice = async (invoice: InvoiceWithDetails) => {
     const { data: items } = await supabase
@@ -1105,16 +988,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
         if (meetingBookingError) {
           console.error('Error linking meeting room bookings to invoice:', meetingBookingError);
-        }
-
-        // Update flex day bookings
-        const { error: flexBookingError } = await supabase
-          .from('flex_day_bookings')
-          .update({ invoice_id: newInvoice.id })
-          .in('id', allBookingIds);
-
-        if (flexBookingError) {
-          console.error('Error linking flex day bookings to invoice:', flexBookingError);
         }
       }
 
@@ -1980,11 +1853,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
             .from('meeting_room_bookings')
             .update({ invoice_id: newInvoice.id })
             .in('id', allBookingIds);
-
-          await supabase
-            .from('flex_day_bookings')
-            .update({ invoice_id: newInvoice.id })
-            .in('id', allBookingIds);
         }
 
         successCount++;
@@ -2105,52 +1973,10 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         let rentAmount = 0;
         const lineItemsToInsert = [];
 
-        if (lease.lease_type === 'flex') {
-          if (lease.flex_pricing_model === 'monthly_unlimited') {
-            rentAmount = lease.flex_monthly_rate || 0;
-            lineItemsToInsert.push({
-              invoice_id: '',
-              description: 'Flexplek - Maandelijks tarief (onbeperkt)',
-              quantity: 1,
-              unit_price: rentAmount,
-              amount: rentAmount,
-              local_category: 'flexplek'
-            });
-          } else if (lease.flex_pricing_model === 'daily') {
-            const [year, month] = targetMonth.split('-').map(Number);
-            const daysInMonth = new Date(year, month, 0).getDate();
-            const workingDays = Math.round(daysInMonth * (5/7));
-            rentAmount = (lease.flex_daily_rate || 0) * workingDays;
-            lineItemsToInsert.push({
-              invoice_id: '',
-              description: `Flexplek - Dagelijks tarief (${workingDays} werkdagen)`,
-              quantity: workingDays,
-              unit_price: lease.flex_daily_rate || 0,
-              amount: rentAmount,
-              quantity_label: 'dagen',
-              local_category: 'flexplek'
-            });
-          } else if (lease.flex_pricing_model === 'credit_based') {
-            const creditsPerWeek = (lease as any).credits_per_week || 0;
-            const weeksInMonth = 4.33;
-            const monthlyCredits = Math.round(creditsPerWeek * weeksInMonth);
-            rentAmount = monthlyCredits * (lease.flex_credit_rate || 0);
-            lineItemsToInsert.push({
-              invoice_id: '',
-              description: `Flexplek - ${creditsPerWeek} ${lease.flex_day_type === 'half_day' ? 'halve ' : ''}dagen/week`,
-              quantity: monthlyCredits,
-              unit_price: lease.flex_credit_rate || 0,
-              amount: rentAmount,
-              quantity_label: 'dagen',
-              local_category: 'flexplek'
-            });
-          }
-        } else {
-          rentAmount = lease.lease_spaces.reduce((sum, ls) => {
-            const monthlyRent = typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent;
-            return sum + monthlyRent;
-          }, 0);
-        }
+        rentAmount = lease.lease_spaces.reduce((sum, ls) => {
+          const monthlyRent = typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent;
+          return sum + monthlyRent;
+        }, 0);
 
         const vatRate = typeof lease.vat_rate === 'string' ? parseFloat(lease.vat_rate) : lease.vat_rate;
         const securityDeposit = typeof lease.security_deposit === 'string' ? parseFloat(lease.security_deposit) : lease.security_deposit;
@@ -2208,59 +2034,53 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           continue;
         }
 
-        if (lease.lease_type !== 'flex') {
-          for (const ls of lease.lease_spaces) {
-            const spaceName = ls.space.space_number;
-            const spaceType = ls.space.space_type;
-            const squareFootage = typeof ls.space.square_footage === 'string' ? parseFloat(ls.space.square_footage) : ls.space.square_footage;
-            const diversenCalc = (ls.space as any).diversen_calculation;
-            const pricePerSqm = typeof ls.price_per_sqm === 'string' ? parseFloat(ls.price_per_sqm) : ls.price_per_sqm;
-            const monthlyRent = typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent;
+        for (const ls of lease.lease_spaces) {
+          const spaceName = ls.space.space_number;
+          const spaceType = ls.space.space_type;
+          const squareFootage = typeof ls.space.square_footage === 'string' ? parseFloat(ls.space.square_footage) : ls.space.square_footage;
+          const diversenCalc = (ls.space as any).diversen_calculation;
+          const pricePerSqm = typeof ls.price_per_sqm === 'string' ? parseFloat(ls.price_per_sqm) : ls.price_per_sqm;
+          const monthlyRent = typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent;
 
-            console.log('Processing lease space:', {
-              spaceName,
-              spaceType,
-              squareFootage,
-              diversenCalc,
-              pricePerSqm,
-              monthlyRent,
-              square_footage_raw: ls.space.square_footage
-            });
+          console.log('Processing lease space:', {
+            spaceName,
+            spaceType,
+            squareFootage,
+            diversenCalc,
+            pricePerSqm,
+            monthlyRent,
+            square_footage_raw: ls.space.square_footage
+          });
 
-            let displayName = spaceName;
-            if (spaceType === 'bedrijfsruimte') {
-              const numOnly = spaceName.replace(/^(Bedrijfsruimte|Hal)\s*/i, '').trim();
-              if (/^\d+/.test(numOnly)) {
-                displayName = `Hal ${numOnly}`;
-              }
+          let displayName = spaceName;
+          if (spaceType === 'bedrijfsruimte') {
+            const numOnly = spaceName.replace(/^(Bedrijfsruimte|Hal)\s*/i, '').trim();
+            if (/^\d+/.test(numOnly)) {
+              displayName = `Hal ${numOnly}`;
             }
-
-            const isDiversenFixed = spaceType === 'diversen' && (!diversenCalc || diversenCalc === 'fixed');
-            let quantity = 1;
-
-            if (isDiversenFixed) {
-              quantity = 1;
-            } else if (squareFootage && !isNaN(squareFootage) && squareFootage > 0) {
-              quantity = squareFootage;
-            } else {
-              quantity = 1;
-              console.warn('Square footage is invalid for', spaceName, '- using quantity 1');
-            }
-
-            console.log('Final quantity for', displayName, ':', quantity);
-
-            lineItemsToInsert.push({
-              invoice_id: newInvoice.id,
-              description: displayName,
-              quantity: quantity,
-              unit_price: pricePerSqm,
-              amount: monthlyRent,
-              local_category: getLocalCategory(spaceType)
-            });
           }
-        } else {
-          lineItemsToInsert.forEach(item => {
-            item.invoice_id = newInvoice.id;
+
+          const isDiversenFixed = spaceType === 'diversen' && (!diversenCalc || diversenCalc === 'fixed');
+          let quantity = 1;
+
+          if (isDiversenFixed) {
+            quantity = 1;
+          } else if (squareFootage && !isNaN(squareFootage) && squareFootage > 0) {
+            quantity = squareFootage;
+          } else {
+            quantity = 1;
+            console.warn('Square footage is invalid for', spaceName, '- using quantity 1');
+          }
+
+          console.log('Final quantity for', displayName, ':', quantity);
+
+          lineItemsToInsert.push({
+            invoice_id: newInvoice.id,
+            description: displayName,
+            quantity: quantity,
+            unit_price: pricePerSqm,
+            amount: monthlyRent,
+            local_category: getLocalCategory(spaceType)
           });
         }
 
@@ -2475,37 +2295,20 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           const finalAmount = totalBeforeDiscount - totalDiscountAmount;
           const { subtotal, vatAmount, total } = calculateVAT(finalAmount, 21, false);
 
-          const hasMeetingBookings = bookings.some(b => b.booking_type === 'meeting_room');
-          const hasFlexBookings = bookings.some(b => b.booking_type === 'flex');
           let notesHeader = 'Vergaderruimte boekingen:';
-          if (hasFlexBookings && !hasMeetingBookings) {
-            notesHeader = 'Flex werkplek boekingen:';
-          } else if (hasFlexBookings && hasMeetingBookings) {
-            notesHeader = 'Vergaderruimte & Flex werkplek boekingen:';
-          }
 
           const notesLines = [notesHeader];
           bookings.forEach(booking => {
             let rateDescription = '';
-            if (booking.booking_type === 'flex') {
-              if (booking.is_half_day) {
-                rateDescription = 'dagdeel';
-              } else if (booking.total_hours > 0 && booking.total_hours < 8) {
-                rateDescription = `${Math.round(booking.total_hours)}u`;
-              } else {
-                rateDescription = 'hele dag';
-              }
+            if (booking.rate_type === 'half_day') {
+              rateDescription = 'dagdeel';
+            } else if (booking.rate_type === 'full_day') {
+              rateDescription = 'hele dag';
             } else {
-              if (booking.rate_type === 'half_day') {
-                rateDescription = 'dagdeel';
-              } else if (booking.rate_type === 'full_day') {
-                rateDescription = 'hele dag';
-              } else {
-                rateDescription = `${Math.round(booking.total_hours)}u`;
-              }
+              rateDescription = `${Math.round(booking.total_hours)}u`;
             }
 
-            const defaultLabel = booking.booking_type === 'flex' ? 'Flexplek' : 'Vergaderruimte';
+            const defaultLabel = 'Vergaderruimte';
             const bookingAmount = booking.total_amount || 0;
             const bookingDiscount = booking.discount_amount || 0;
             const beforeDiscountAmount = bookingAmount + bookingDiscount;
@@ -2551,8 +2354,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
             const bookingAmount = booking.total_amount || 0;
             const bookingDiscount = booking.discount_amount || 0;
             const beforeDiscountAmount = bookingAmount + bookingDiscount;
-            const defaultLabel = booking.booking_type === 'flex' ? 'Flexplek' : 'Vergaderruimte';
-            const category = booking.booking_type === 'flex' ? 'flexplek' : 'vergaderruimte';
+            const defaultLabel = 'Vergaderruimte';
+            const category = 'vergaderruimte';
 
             return {
               invoice_id: newInvoice.id,
@@ -2560,7 +2363,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
               quantity: booking.total_hours,
               unit_price: booking.hourly_rate,
               amount: beforeDiscountAmount,
-              booking_id: booking.booking_type === 'meeting_room' ? booking.id : null,
+              booking_id: booking.id,
               local_category: category
             };
           });
@@ -2591,21 +2394,13 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
             continue;
           }
 
-          const meetingBookingIds = bookings.filter(b => b.booking_type === 'meeting_room').map(b => b.id);
-          const flexBookingIds = bookings.filter(b => b.booking_type === 'flex').map(b => b.id);
+          const meetingBookingIds = bookings.map(b => b.id);
 
           if (meetingBookingIds.length > 0) {
             await supabase
               .from('meeting_room_bookings')
               .update({ invoice_id: newInvoice.id })
               .in('id', meetingBookingIds);
-          }
-
-          if (flexBookingIds.length > 0) {
-            await supabase
-              .from('flex_day_bookings')
-              .update({ invoice_id: newInvoice.id })
-              .in('id', flexBookingIds);
           }
 
           meetingSuccess++;
@@ -2689,10 +2484,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   };
 
   const getInvoiceType = (inv: InvoiceWithDetails): InvoiceTypeFilter => {
-    if (inv.lease_id !== null && inv.lease?.lease_type === 'flex') return 'flex';
     if (inv.lease_id !== null) return 'huur';
-    if (inv.notes?.includes('Flex werkplek boekingen')) return 'flex';
-    if (inv.notes?.includes('Vergaderruimte gebruik') || inv.notes?.includes('Vergaderruimte boekingen') || inv.notes?.includes('Vergaderruimte & Flex werkplek boekingen')) return 'vergaderruimte';
+    if (inv.notes?.includes('Vergaderruimte gebruik') || inv.notes?.includes('Vergaderruimte boekingen')) return 'vergaderruimte';
     if (inv.line_items && inv.line_items.some((item: any) => item.booking_id !== null)) {
       return 'vergaderruimte';
     }
@@ -2704,7 +2497,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     switch (type) {
       case 'huur': return 'text-green-500';
       case 'vergaderruimte': return 'text-blue-500';
-      case 'flex': return 'text-teal-500';
       case 'handmatig': return 'text-orange-500';
       default: return 'text-gray-400';
     }
@@ -3548,7 +3340,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
             switch (type) {
               case 'huur': return 'Huur';
               case 'vergaderruimte': return 'Vergaderruimte';
-              case 'flex': return 'Flex';
               case 'handmatig': return 'Handmatig';
               default: return '';
             }
@@ -3589,7 +3380,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                   <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
                     getInvoiceType(invoice) === 'huur' ? 'bg-green-900/50 text-green-400' :
                     getInvoiceType(invoice) === 'vergaderruimte' ? 'bg-blue-900/50 text-blue-400' :
-                    getInvoiceType(invoice) === 'flex' ? 'bg-teal-900/50 text-teal-400' :
                     'bg-amber-900/50 text-amber-400'
                   }`}>
                     {getInvoiceTypeLabel(getInvoiceType(invoice))}
@@ -3696,7 +3486,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                   <option value="all">Alle types</option>
                   <option value="huur">Huur</option>
                   <option value="vergaderruimte">Vergaderruimte</option>
-                  <option value="flex">Flex</option>
                   <option value="handmatig">Handmatig</option>
                 </select>
                 <select
@@ -3959,23 +3748,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       {showGenerateModal && (() => {
         const targetMonth = invoiceMonth;
 
-        const calculateFlexAmount = (lease: any, month: string) => {
-          if (lease.flex_pricing_model === 'monthly_unlimited') {
-            return lease.flex_monthly_rate || 0;
-          } else if (lease.flex_pricing_model === 'daily') {
-            const [year, monthNum] = month.split('-').map(Number);
-            const daysInMonth = new Date(year, monthNum, 0).getDate();
-            const workingDays = Math.round(daysInMonth * (5/7));
-            return (lease.flex_daily_rate || 0) * workingDays;
-          } else if (lease.flex_pricing_model === 'credit_based') {
-            const creditsPerWeek = lease.credits_per_week || 0;
-            const weeksInMonth = 4.33;
-            const monthlyCredits = Math.round(creditsPerWeek * weeksInMonth);
-            return monthlyCredits * (lease.flex_credit_rate || 0);
-          }
-          return 0;
-        };
-
         const allLeasesToGenerate = targetMonth ? leases.filter(lease => {
           if (!isLeaseActiveInMonth(lease, targetMonth)) return false;
           const existingInvoice = invoices.find(
@@ -3984,8 +3756,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           return !existingInvoice;
         }) : [];
 
-        const regularLeasesToGenerate = allLeasesToGenerate.filter(l => l.lease_type !== 'flex');
-        const flexLeasesToGenerate = allLeasesToGenerate.filter(l => l.lease_type === 'flex');
+        const regularLeasesToGenerate = allLeasesToGenerate;
 
         const allCustomers = [...tenants, ...externalCustomers.map(ec => ({
           ...ec,
@@ -4006,7 +3777,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           };
           return {
             meeting: meetingRoomBookings.filter(bookingFilter),
-            flex: flexDayBookings.filter(bookingFilter)
           };
         };
 
@@ -4025,14 +3795,9 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           return meeting.length > 0;
         }) : [];
 
-        const customersWithFlexBookings = targetMonth ? allCustomers.filter(customer => {
-          const { flex } = getCustomerBookings(customer);
-          return flex.length > 0;
-        }) : [];
-
         const customersWithBookings = targetMonth ? allCustomers.filter(customer => {
-          const { meeting, flex } = getCustomerBookings(customer);
-          return meeting.length > 0 || flex.length > 0;
+          const { meeting } = getCustomerBookings(customer);
+          return meeting.length > 0;
         }) : [];
 
         return (
@@ -4058,13 +3823,12 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
               <div className="overflow-y-auto flex-1 p-6 space-y-4">
                 {invoiceMonth && (
-                  (generateModalType === 'huur' && (regularLeasesToGenerate.length > 0 || flexLeasesToGenerate.length > 0)) ||
-                  (generateModalType === 'bookings' && (customersWithFlexBookings.length > 0 || customersWithMeetingBookings.length > 0)) ||
+                  (generateModalType === 'huur' && regularLeasesToGenerate.length > 0) ||
+                  (generateModalType === 'bookings' && customersWithMeetingBookings.length > 0) ||
                   (generateModalType === 'all' && (
                     (invoiceTypeFilter === 'huur' && regularLeasesToGenerate.length > 0) ||
-                    (invoiceTypeFilter === 'flex' && (flexLeasesToGenerate.length > 0 || customersWithFlexBookings.length > 0)) ||
                     (invoiceTypeFilter === 'vergaderruimte' && customersWithMeetingBookings.length > 0) ||
-                    (invoiceTypeFilter === 'all' && (regularLeasesToGenerate.length > 0 || flexLeasesToGenerate.length > 0 || customersWithBookings.length > 0)) ||
+                    (invoiceTypeFilter === 'all' && (regularLeasesToGenerate.length > 0 || customersWithBookings.length > 0)) ||
                     (invoiceTypeFilter === 'handmatig')
                   ))
                 ) ? (
@@ -4091,7 +3855,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                             )}
                             {(generateModalType === 'all' || generateModalType === 'bookings') && (
                               <p className="text-xs text-blue-400">
-                                Vergaderruimte & Flex worden achteraf gefactureerd
+                                Vergaderruimte wordt achteraf gefactureerd
                               </p>
                             )}
                           </div>
@@ -4129,28 +3893,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                             </div>
                             <div className="text-2xl font-bold text-gray-100">{Array.from(selectedLeases).filter(id => regularLeasesToGenerate.some(l => l.id === id)).length}</div>
                             <div className="text-xs text-gray-400">van {regularLeasesToGenerate.length} beschikbaar</div>
-                          </div>
-                        )}
-
-                        {(generateModalType === 'huur' || generateModalType === 'all') && (invoiceTypeFilter === 'flex' || invoiceTypeFilter === 'all') && flexLeasesToGenerate.length > 0 && (
-                          <div className="bg-dark-700 rounded-lg p-3">
-                            <div className="flex items-center gap-2 text-teal-500 mb-1">
-                              <Zap size={16} />
-                              <span className="text-sm font-medium">Flex contracten</span>
-                            </div>
-                            <div className="text-2xl font-bold text-gray-100">{Array.from(selectedLeases).filter(id => flexLeasesToGenerate.some(l => l.id === id)).length}</div>
-                            <div className="text-xs text-gray-400">van {flexLeasesToGenerate.length} beschikbaar</div>
-                          </div>
-                        )}
-
-                        {(generateModalType === 'bookings' || generateModalType === 'all') && (invoiceTypeFilter === 'flex' || invoiceTypeFilter === 'all') && customersWithFlexBookings.length > 0 && (
-                          <div className="bg-dark-700 rounded-lg p-3">
-                            <div className="flex items-center gap-2 text-teal-500 mb-1">
-                              <Zap size={16} />
-                              <span className="text-sm font-medium">Flex boekingen</span>
-                            </div>
-                            <div className="text-2xl font-bold text-gray-100">{Array.from(selectedCustomers).filter(id => customersWithFlexBookings.some(c => c.id === id)).length}</div>
-                            <div className="text-xs text-gray-400">van {customersWithFlexBookings.length} beschikbaar</div>
                           </div>
                         )}
 
@@ -4220,132 +3962,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                                       </div>
                                       <div className="text-xs text-gray-400">
                                         {lease.lease_spaces.length} ruimte(s)
-                                      </div>
-                                    </div>
-                                    <div className="text-sm font-medium text-gray-200 flex-shrink-0">
-                                      €{total.toFixed(2)}
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Flex contracten */}
-                        {(generateModalType === 'huur' || generateModalType === 'all') && (invoiceTypeFilter === 'flex' || invoiceTypeFilter === 'all') && flexLeasesToGenerate.length > 0 && (
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between">
-                              <h4 className="text-sm font-medium text-gray-300 flex items-center gap-2">
-                                <Zap size={16} className="text-teal-500" />
-                                Flex contracten ({flexLeasesToGenerate.length})
-                              </h4>
-                            </div>
-                            <div className="flex gap-2 text-xs">
-                              <button
-                                onClick={() => selectAllLeases(flexLeasesToGenerate.map(l => l.id))}
-                                className="text-gold-500 hover:text-gold-400"
-                              >
-                                Alles
-                              </button>
-                              <span className="text-gray-600">|</span>
-                              <button
-                                onClick={() => setSelectedLeases(new Set(Array.from(selectedLeases).filter(id => !flexLeasesToGenerate.some(l => l.id === id))))}
-                                className="text-gray-500 hover:text-gray-400"
-                              >
-                                Niets
-                              </button>
-                            </div>
-                            <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
-                              {flexLeasesToGenerate.map(lease => {
-                                const rentAmount = calculateFlexAmount(lease, targetMonth);
-                                const total = Math.round((rentAmount + lease.security_deposit) * 100) / 100;
-
-                                return (
-                                  <div
-                                    key={lease.id}
-                                    onClick={() => toggleLeaseSelection(lease.id)}
-                                    className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-all ${
-                                      selectedLeases.has(lease.id)
-                                        ? 'bg-teal-900/20 border-teal-700'
-                                        : 'bg-dark-800 border-dark-700 hover:border-dark-600'
-                                    }`}
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={selectedLeases.has(lease.id)}
-                                      onChange={() => {}}
-                                      className="w-4 h-4 rounded border-dark-600 text-teal-600 focus:ring-teal-500 flex-shrink-0"
-                                    />
-                                    <div className="flex-1 min-w-0">
-                                      <div className="text-sm font-medium text-gray-200 truncate">
-                                        {lease.tenant?.company_name}
-                                      </div>
-                                      <div className="text-xs text-gray-400">
-                                        Flexplek
-                                      </div>
-                                    </div>
-                                    <div className="text-sm font-medium text-gray-200 flex-shrink-0">
-                                      €{total.toFixed(2)}
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Flex boekingen */}
-                        {(generateModalType === 'bookings' || generateModalType === 'all') && (invoiceTypeFilter === 'flex' || invoiceTypeFilter === 'all') && customersWithFlexBookings.length > 0 && (
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between">
-                              <h4 className="text-sm font-medium text-gray-300 flex items-center gap-2">
-                                <Zap size={16} className="text-teal-500" />
-                                Flex boekingen ({customersWithFlexBookings.length})
-                              </h4>
-                            </div>
-                            <div className="flex gap-2 text-xs">
-                              <button
-                                onClick={() => selectAllCustomers(customersWithFlexBookings.map(c => c.id))}
-                                className="text-gold-500 hover:text-gold-400"
-                              >
-                                Alles
-                              </button>
-                              <span className="text-gray-600">|</span>
-                              <button
-                                onClick={() => deselectAllCustomers()}
-                                className="text-gray-500 hover:text-gray-400"
-                              >
-                                Niets
-                              </button>
-                            </div>
-                            <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
-                              {customersWithFlexBookings.map(customer => {
-                                const { flex: customerFlexBookings } = getCustomerBookings(customer);
-                                const total = customerFlexBookings.reduce((sum, booking) => sum + booking.total_amount, 0);
-
-                                return (
-                                  <div
-                                    key={customer.id}
-                                    onClick={() => toggleCustomerSelection(customer.id)}
-                                    className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-all ${
-                                      selectedCustomers.has(customer.id)
-                                        ? 'bg-teal-900/20 border-teal-700'
-                                        : 'bg-dark-800 border-dark-700 hover:border-dark-600'
-                                    }`}
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={selectedCustomers.has(customer.id)}
-                                      onChange={() => {}}
-                                      className="w-4 h-4 rounded border-dark-600 text-teal-600 focus:ring-teal-500 flex-shrink-0"
-                                    />
-                                    <div className="flex-1 min-w-0">
-                                      <div className="text-sm font-medium text-gray-200 truncate">
-                                        {customer.company_name}
-                                      </div>
-                                      <div className="text-xs text-gray-400">
-                                        {customerFlexBookings.length} boeking{customerFlexBookings.length > 1 ? 'en' : ''}
                                       </div>
                                     </div>
                                     <div className="text-sm font-medium text-gray-200 flex-shrink-0">

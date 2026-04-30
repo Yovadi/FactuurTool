@@ -5,10 +5,8 @@ import { resyncInvoiceToEBoekhouden } from '../lib/eboekhoudenSync';
 import { Pagination } from './Pagination';
 
 const getInvoiceTypeColor = (invoice: any): string => {
-  if (invoice.lease_id !== null && invoice.lease?.lease_type === 'flex') return 'text-teal-500';
   if (invoice.lease_id !== null) return 'text-green-500';
-  if (invoice.notes?.includes('Flex werkplek boekingen')) return 'text-teal-500';
-  if (invoice.notes?.includes('Vergaderruimte gebruik') || invoice.notes?.includes('Vergaderruimte boekingen') || invoice.notes?.includes('Vergaderruimte & Flex werkplek boekingen')) return 'text-blue-500';
+  if (invoice.notes?.includes('Vergaderruimte gebruik') || invoice.notes?.includes('Vergaderruimte boekingen')) return 'text-blue-500';
   if (invoice.invoice_line_items?.some((item: any) => item.booking_id !== null)) return 'text-blue-500';
   return 'text-orange-500';
 };
@@ -692,10 +690,6 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                       <div className="flex items-center gap-1.5">
                         <div className="w-3 h-3 rounded-full bg-blue-500"></div>
                         <span className="text-gray-400">Vergaderruimte</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-3 h-3 rounded-full bg-purple-500"></div>
-                        <span className="text-gray-400">Flex werkplek</span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <div className="w-3 h-3 rounded-full bg-orange-500"></div>

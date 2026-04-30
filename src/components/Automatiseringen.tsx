@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import {
   Loader2, RefreshCw, CheckCircle2, Clock, FileText,
-  Receipt, Link2, Users, Calendar, ChevronDown, ChevronUp, Play, DoorOpen, Armchair,
+  Receipt, Link2, Users, Calendar, ChevronDown, ChevronUp, Play, DoorOpen,
   AlertTriangle, TrendingUp, CalendarCheck, Monitor, LayoutPanelLeft
 } from 'lucide-react';
 
@@ -39,14 +39,6 @@ const JOB_META: Record<string, {
     interval: 'Maandelijks (1e van de maand)',
     category: 'facturatie',
   },
-  generate_flex_invoices: {
-    label: 'Flexplek facturen aanmaken',
-    description: 'Genereert automatisch facturen voor alle bevestigde en voltooide flexwerkplek boekingen van de vorige maand die nog niet zijn gefactureerd. Boekingen worden per klant gegroepeerd op één factuur.',
-    icon: <Armchair size={18} />,
-    accentColor: 'teal',
-    interval: 'Maandelijks (1e van de maand)',
-    category: 'facturatie',
-  },
   check_expiring_leases: {
     label: 'Verlopen contracten signaleren',
     description: 'Controleert dagelijks of huurcontracten binnen 30 of 60 dagen aflopen en maakt een melding aan in het notificatiecentrum. Per contract wordt maximaal één keer per week een melding gestuurd.',
@@ -65,7 +57,7 @@ const JOB_META: Record<string, {
   },
   complete_past_bookings: {
     label: 'Verlopen boekingen afronden',
-    description: 'Zet vergaderruimte- en flexplekboekingen die in het verleden liggen maar nog op "bevestigd" staan automatisch op "voltooid". Zo blijft het boekingenoverzicht netjes en kloppen de statistieken.',
+    description: 'Zet vergaderruimteboekingen die in het verleden liggen maar nog op "bevestigd" staan automatisch op "voltooid". Zo blijft het boekingenoverzicht netjes en kloppen de statistieken.',
     icon: <CalendarCheck size={18} />,
     accentColor: 'amber',
     interval: 'Dagelijks (elke 24 uur)',

@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 type BookingNotificationType = 'booking_cancelled' | 'booking_pending';
 type LeaseNotificationType = 'lease_expiring_30' | 'lease_expiring_60' | 'rent_indexation_applied';
 type NotificationType = BookingNotificationType | LeaseNotificationType;
-type BookingType = 'meeting_room' | 'flex_workspace';
+type BookingType = 'meeting_room';
 
 export async function createAdminNotification(
   type: BookingNotificationType,

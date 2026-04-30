@@ -29,15 +29,6 @@ export function LeaseManagement() {
     vat_rate: '21',
     vat_inclusive: false,
     status: 'active' as 'active' | 'expired' | 'terminated',
-    lease_type: 'full_time' as 'full_time' | 'flex',
-    daily_rate: '',
-    days_per_week: '5',
-    selected_days: [] as string[],
-    flex_pricing_model: 'credit_based' as 'credit_based',
-    credits_per_week: '',
-    flex_credit_rate: '',
-    flex_day_type: 'full_day' as 'full_day' | 'half_day',
-    selected_rate_id: ''
   });
 
   const [selectedSpaces, setSelectedSpaces] = useState<Array<{
@@ -45,46 +36,21 @@ export function LeaseManagement() {
     price_per_sqm: string;
   }>>([]);
 
-  const [flexDefaultSchedule, setFlexDefaultSchedule] = useState({
-    space_id: '',
-    monday: false,
-    tuesday: false,
-    wednesday: false,
-    thursday: false,
-    friday: false
-  });
-
   const [previewLease, setPreviewLease] = useState<LeaseWithDetails | null>(null);
   const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
 
   const [regularPage, setRegularPage] = useState(1);
   const [regularPageSize, setRegularPageSize] = useState(10);
-  const [flexPage, setFlexPage] = useState(1);
-  const [flexPageSize, setFlexPageSize] = useState(10);
 
   useEffect(() => {
     loadData();
   }, []);
 
   useEffect(() => {
-    if (showForm && !editingLease && selectedSpaces.length === 0 && formData.lease_type === 'full_time') {
+    if (showForm && !editingLease && selectedSpaces.length === 0) {
       setSelectedSpaces([{ space_id: '', price_per_sqm: '' }]);
     }
-  }, [showForm, editingLease, formData.lease_type]);
-
-  useEffect(() => {
-    // Wanneer flex type geselecteerd wordt en er is al een ruimte gekozen, vul tarief in
-    if (formData.lease_type === 'flex' && !editingLease && flexDefaultSchedule.space_id && !formData.flex_credit_rate) {
-      const rate = getRateById(flexDefaultSchedule.space_id);
-      if (rate) {
-        setFormData(prev => ({
-          ...prev,
-          flex_credit_rate: rate,
-          selected_rate_id: flexDefaultSchedule.space_id
-        }));
-      }
-    }
-  }, [formData.lease_type, flexDefaultSchedule.space_id, spaces]);
+  }, [showForm, editingLease]);
 
   const loadData = async () => {
     setLoading(true);
@@ -129,31 +95,9 @@ export function LeaseManagement() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Voor full_time leases is een ruimte verplicht, voor flex niet
-    if (formData.lease_type === 'full_time' && selectedSpaces.length === 0) {
+    if (selectedSpaces.length === 0) {
       alert('Selecteer minimaal één ruimte');
       return;
-    }
-
-    if (formData.lease_type === 'flex') {
-      if (!formData.credits_per_week || !formData.flex_credit_rate) {
-        alert('Vul het aantal dagen en prijs per dag in voor de strippenkaart');
-        return;
-      }
-
-      if (!flexDefaultSchedule.space_id) {
-        alert('Selecteer een flex-ruimte voor de vaste weekindeling');
-        return;
-      }
-
-      const hasAtLeastOneDay = flexDefaultSchedule.monday || flexDefaultSchedule.tuesday ||
-                                flexDefaultSchedule.wednesday || flexDefaultSchedule.thursday ||
-                                flexDefaultSchedule.friday;
-
-      if (!hasAtLeastOneDay) {
-        alert('Selecteer minimaal één dag voor de vaste weekindeling');
-        return;
-      }
     }
 
     const leaseData: any = {
@@ -164,17 +108,8 @@ export function LeaseManagement() {
       vat_rate: parseFloat(formData.vat_rate),
       vat_inclusive: formData.vat_inclusive,
       status: formData.status,
-      lease_type: formData.lease_type
+      lease_type: 'full_time'
     };
-
-    if (formData.lease_type === 'flex') {
-      leaseData.flex_pricing_model = 'credit_based';
-      leaseData.flex_daily_rate = null;
-      leaseData.flex_monthly_rate = null;
-      leaseData.credits_per_week = parseInt(formData.credits_per_week);
-      leaseData.flex_credit_rate = parseFloat(formData.flex_credit_rate);
-      leaseData.flex_day_type = formData.flex_day_type;
-    }
 
     if (editingLease) {
       const { error } = await supabase
@@ -193,30 +128,7 @@ export function LeaseManagement() {
         .delete()
         .eq('lease_id', editingLease.id);
 
-      await supabase
-        .from('flex_schedules')
-        .delete()
-        .eq('lease_id', editingLease.id);
-
-      if (formData.lease_type === 'flex' && flexDefaultSchedule.space_id) {
-        const { error: scheduleError } = await supabase
-          .from('flex_schedules')
-          .insert([{
-            lease_id: editingLease.id,
-            space_id: flexDefaultSchedule.space_id,
-            monday: flexDefaultSchedule.monday,
-            tuesday: flexDefaultSchedule.tuesday,
-            wednesday: flexDefaultSchedule.wednesday,
-            thursday: flexDefaultSchedule.thursday,
-            friday: flexDefaultSchedule.friday
-          }]);
-
-        if (scheduleError) {
-          console.error('Error updating flex schedule:', scheduleError);
-          alert('Fout bij het bijwerken van de vaste weekindeling: ' + scheduleError.message);
-          return;
-        }
-      } else if (formData.lease_type !== 'flex') {
+      {
         const leaseSpacesData = selectedSpaces.map(space => {
           const officeSpace = spaces.find(s => s.id === space.space_id);
           let monthlyRent = 0;
@@ -298,7 +210,7 @@ export function LeaseManagement() {
         return;
       }
 
-      if (formData.lease_type !== 'flex') {
+      {
         const leaseSpacesData = selectedSpaces.map(space => {
           const officeSpace = spaces.find(s => s.id === space.space_id);
           let monthlyRent = 0;
@@ -359,24 +271,6 @@ export function LeaseManagement() {
             }
           }
         }
-      } else if (formData.lease_type === 'flex' && flexDefaultSchedule.space_id) {
-        const { error: scheduleError } = await supabase
-          .from('flex_schedules')
-          .insert([{
-            lease_id: newLease.id,
-            space_id: flexDefaultSchedule.space_id,
-            monday: flexDefaultSchedule.monday,
-            tuesday: flexDefaultSchedule.tuesday,
-            wednesday: flexDefaultSchedule.wednesday,
-            thursday: flexDefaultSchedule.thursday,
-            friday: flexDefaultSchedule.friday
-          }]);
-
-        if (scheduleError) {
-          console.error('Error creating flex schedule:', scheduleError);
-          alert('Fout bij het aanmaken van de vaste weekindeling: ' + scheduleError.message);
-          return;
-        }
       }
 
       resetForm();
@@ -387,16 +281,6 @@ export function LeaseManagement() {
   const handleEdit = async (lease: LeaseWithDetails) => {
     setEditingLease(lease);
 
-    let selectedRateId = '';
-    if ((lease as any).lease_type === 'flex' && (lease as any).flex_credit_rate) {
-      const matchingSpace = getFlexRates().find(s =>
-        s.daily_rate && Math.abs(s.daily_rate - (lease as any).flex_credit_rate) < 0.01
-      );
-      if (matchingSpace) {
-        selectedRateId = matchingSpace.id;
-      }
-    }
-
     setFormData({
       tenant_id: lease.tenant_id,
       start_date: lease.start_date,
@@ -405,39 +289,11 @@ export function LeaseManagement() {
       vat_rate: lease.vat_rate.toString(),
       vat_inclusive: lease.vat_inclusive,
       status: lease.status,
-      lease_type: (lease as any).lease_type || 'full_time',
-      daily_rate: (lease as any).daily_rate?.toString() || '',
-      days_per_week: (lease as any).days_per_week?.toString() || '5',
-      selected_days: (lease as any).selected_days || [],
-      flex_pricing_model: 'credit_based' as 'credit_based',
-      credits_per_week: (lease as any).credits_per_week?.toString() || '',
-      flex_credit_rate: (lease as any).flex_credit_rate?.toString() || '',
-      flex_day_type: (lease as any).flex_day_type || 'full_day',
-      selected_rate_id: selectedRateId
     });
     setSelectedSpaces(lease.lease_spaces.map(ls => ({
       space_id: ls.space_id,
       price_per_sqm: ls.price_per_sqm.toString()
     })));
-
-    if ((lease as any).lease_type === 'flex') {
-      const { data: schedule } = await supabase
-        .from('flex_schedules')
-        .select('*')
-        .eq('lease_id', lease.id)
-        .maybeSingle();
-
-      if (schedule) {
-        setFlexDefaultSchedule({
-          space_id: schedule.space_id,
-          monday: schedule.monday,
-          tuesday: schedule.tuesday,
-          wednesday: schedule.wednesday,
-          thursday: schedule.thursday,
-          friday: schedule.friday
-        });
-      }
-    }
 
     setShowForm(true);
   };
@@ -486,24 +342,6 @@ export function LeaseManagement() {
 
   const removeSpace = (index: number) => {
     setSelectedSpaces(selectedSpaces.filter((_, i) => i !== index));
-  };
-
-  const getFlexRates = () => {
-    return spaces.filter(s => s.space_type === 'Flexplek' && s.daily_rate && s.daily_rate > 0);
-  };
-
-  const getFlexRate = (): string => {
-    const flexSpaces = getFlexRates();
-    if (flexSpaces.length > 0 && flexSpaces[0].daily_rate) {
-      return flexSpaces[0].daily_rate.toFixed(2);
-    }
-    return '';
-  };
-
-  const getRateById = (spaceId: string): string => {
-    const space = spaces.find(s => s.id === spaceId);
-    if (!space || !space.daily_rate) return '';
-    return space.daily_rate.toFixed(2);
   };
 
   const getDefaultRate = (spaceId: string): string => {
@@ -590,18 +428,9 @@ export function LeaseManagement() {
   };
 
   const getTotalMonthlyRent = () => {
-    let spacesTotal = 0;
-
-    if (formData.lease_type === 'flex') {
-      if (formData.credits_per_week && formData.flex_credit_rate) {
-        const weeksPerMonth = 4.33;
-        spacesTotal = parseInt(formData.credits_per_week) * parseFloat(formData.flex_credit_rate) * weeksPerMonth;
-      }
-    } else {
-      spacesTotal = selectedSpaces.reduce((sum, space) => {
-        return sum + calculateSpaceRent(space.space_id, space.price_per_sqm);
-      }, 0);
-    }
+    const spacesTotal = selectedSpaces.reduce((sum, space) => {
+      return sum + calculateSpaceRent(space.space_id, space.price_per_sqm);
+    }, 0);
 
     const securityDeposit = parseFloat(formData.security_deposit) || 0;
     return spacesTotal + securityDeposit;
@@ -632,7 +461,7 @@ export function LeaseManagement() {
       tenant_country: lease.tenant.country || undefined,
       tenant_email: lease.tenant.email || undefined,
       tenant_phone: lease.tenant.phone || undefined,
-      lease_type: lease.lease_type,
+      lease_type: 'full_time',
       start_date: lease.start_date,
       end_date: lease.end_date,
       vat_rate: lease.vat_rate,
@@ -648,17 +477,6 @@ export function LeaseManagement() {
       company,
     };
 
-    if (lease.lease_type === 'flex') {
-      const flexLease = lease as any;
-      const flexSpace = lease.lease_spaces.length > 0 ? lease.lease_spaces[0].space : null;
-      contractData.flex = {
-        credits_per_week: flexLease.credits_per_week || 0,
-        flex_credit_rate: flexLease.flex_credit_rate || 0,
-        flex_day_type: flexLease.flex_day_type || 'full_day',
-        space_number: flexSpace?.space_number,
-      };
-    }
-
     return contractData;
   };
 
@@ -671,25 +489,8 @@ export function LeaseManagement() {
       vat_rate: '21',
       vat_inclusive: false,
       status: 'active',
-      lease_type: 'full_time',
-      daily_rate: '',
-      days_per_week: '5',
-      selected_days: [],
-      flex_pricing_model: 'credit_based',
-      credits_per_week: '',
-      flex_credit_rate: '',
-      flex_day_type: 'full_day',
-      selected_rate_id: ''
     });
     setSelectedSpaces([]);
-    setFlexDefaultSchedule({
-      space_id: '',
-      monday: false,
-      tuesday: false,
-      wednesday: false,
-      thursday: false,
-      friday: false
-    });
     setEditingLease(null);
     setShowForm(false);
   };
@@ -708,26 +509,17 @@ export function LeaseManagement() {
   };
 
   const calculateLeaseTotal = (lease: LeaseWithDetails) => {
-    if (lease.lease_type === 'flex') {
-      const flexLease = lease as any;
-      if (flexLease.credits_per_week && flexLease.flex_credit_rate) {
-        const weeksPerMonth = 4.33;
-        return Math.round(flexLease.credits_per_week * flexLease.flex_credit_rate * weeksPerMonth * 100) / 100;
-      }
-    }
     return lease.lease_spaces.reduce((sum, ls) => sum + ls.monthly_rent, 0);
   };
 
-  const { activeLeases, expiredLeases, currentLeases, regularLeases, flexLeases } = useMemo(() => {
+  const { activeLeases, expiredLeases, regularLeases } = useMemo(() => {
     const active = leases.filter(l => l.status === 'active');
     const expired = leases.filter(l => l.status === 'expired' || l.status === 'terminated');
     const current = activeTab === 'active' ? active : expired;
     return {
       activeLeases: active,
       expiredLeases: expired,
-      currentLeases: current,
-      regularLeases: current.filter(l => (l as any).lease_type !== 'flex'),
-      flexLeases: current.filter(l => (l as any).lease_type === 'flex'),
+      regularLeases: current,
     };
   }, [leases, activeTab]);
 
@@ -740,7 +532,7 @@ export function LeaseManagement() {
       <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2 mb-6">
         <div className="flex gap-2">
           <button
-            onClick={() => { setActiveTab('active'); setRegularPage(1); setFlexPage(1); }}
+            onClick={() => { setActiveTab('active'); setRegularPage(1); }}
             className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
               activeTab === 'active'
                 ? 'bg-gold-500 text-white'
@@ -751,7 +543,7 @@ export function LeaseManagement() {
             Actief ({activeLeases.length})
           </button>
           <button
-            onClick={() => { setActiveTab('expired'); setRegularPage(1); setFlexPage(1); }}
+            onClick={() => { setActiveTab('expired'); setRegularPage(1); }}
             className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
               activeTab === 'expired'
                 ? 'bg-gold-500 text-white'
@@ -801,228 +593,18 @@ export function LeaseManagement() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-200 mb-1">
-                  Huurtype
-                </label>
-                <select
-                  value={formData.lease_type}
-                  onChange={(e) => setFormData({ ...formData, lease_type: e.target.value as 'full_time' | 'flex' })}
-                  className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                >
-                  <option value="full_time">Voltijd (alle dagen)</option>
-                  <option value="flex">Flexplek</option>
-                </select>
-              </div>
-
-              {formData.lease_type === 'flex' && (
-                <>
-                <div className="bg-dark-950 p-4 rounded-lg space-y-4">
-                  <div>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-200 mb-2">
-                          Flex-ruimte *
-                        </label>
-                        <select
-                          value={flexDefaultSchedule.space_id}
-                          onChange={(e) => {
-                            const spaceId = e.target.value;
-                            setFlexDefaultSchedule({ ...flexDefaultSchedule, space_id: spaceId });
-
-                            // Automatisch het tarief instellen op basis van de geselecteerde ruimte
-                            if (spaceId) {
-                              const rate = getRateById(spaceId);
-                              setFormData({
-                                ...formData,
-                                selected_rate_id: spaceId,
-                                flex_credit_rate: rate || formData.flex_credit_rate
-                              });
-                            }
-                          }}
-                          className="w-full px-3 py-2 bg-dark-800 border border-dark-700 rounded-lg text-gray-200 focus:outline-none focus:border-gold-500"
-                          required
-                        >
-                          <option value="">Selecteer een flex-ruimte</option>
-                          {spaces.filter(s => s.space_type === 'Flexplek').map(space => (
-                            <option key={space.id} value={space.id}>
-                              {space.space_number} - €{space.daily_rate?.toFixed(2) || '0.00'}/dag
-                              {space.is_furnished && ' (gemeubileerd)'}
-                            </option>
-                          ))}
-                        </select>
-                        <p className="text-xs text-gray-400 mt-1">
-                          Het tarief wordt automatisch ingesteld op basis van de gekozen ruimte
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="border-t border-dark-700 pt-4">
-                    <h4 className="text-sm font-medium text-gray-200 mb-3">
-                      Strippenkaart systeem
-                    </h4>
-
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-200 mb-2">
-                          Type dag
-                        </label>
-                        <div className="flex gap-4">
-                          <label className="flex items-center gap-2 cursor-pointer">
-                            <input
-                              type="radio"
-                              name="flex_day_type"
-                              value="full_day"
-                              checked={formData.flex_day_type === 'full_day'}
-                              onChange={(e) => setFormData({ ...formData, flex_day_type: e.target.value as 'full_day' | 'half_day' })}
-                              className="w-4 h-4 text-gold-500 focus:ring-gold-500"
-                            />
-                            <span className="text-gray-300">Hele dag</span>
-                          </label>
-                          <label className="flex items-center gap-2 cursor-pointer">
-                            <input
-                              type="radio"
-                              name="flex_day_type"
-                              value="half_day"
-                              checked={formData.flex_day_type === 'half_day'}
-                              onChange={(e) => setFormData({ ...formData, flex_day_type: e.target.value as 'full_day' | 'half_day' })}
-                              className="w-4 h-4 text-gold-500 focus:ring-gold-500"
-                            />
-                            <span className="text-gray-300">Halve dag</span>
-                          </label>
-                        </div>
-                        {formData.flex_day_type === 'half_day' && (
-                          <p className="text-xs text-gray-400 mt-1">
-                            Bij halve dagen betaalt de flexer per halve dag. 1 dag = 2 halve dagen.
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-200 mb-1">
-                            Aantal {formData.flex_day_type === 'half_day' ? 'halve' : 'hele'} dagen per week
-                          </label>
-                          <input
-                            type="number"
-                            required
-                            min="1"
-                            placeholder="Bijv. 3"
-                            value={formData.credits_per_week}
-                            onChange={(e) => setFormData({ ...formData, credits_per_week: e.target.value })}
-                            className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-200 mb-1">
-                            Prijs per {formData.flex_day_type === 'half_day' ? 'halve' : 'hele'} dag
-                          </label>
-                          <div className="relative">
-                            <input
-                              type="text"
-                              inputMode="decimal"
-                              required
-                              placeholder="Bijv. 45"
-                              value={formData.flex_credit_rate}
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                                  setFormData({ ...formData, flex_credit_rate: value, selected_rate_id: '' });
-                                }
-                              }}
-                              className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                              disabled={!!flexDefaultSchedule.space_id && !!formData.flex_credit_rate}
-                            />
-                            {flexDefaultSchedule.space_id && (
-                              <div className="text-xs text-emerald-500 flex items-center gap-1 mt-1">
-                                <CheckCircle size={12} />
-                                {(() => {
-                                  const selectedSpace = spaces.find(s => s.id === flexDefaultSchedule.space_id);
-                                  return selectedSpace ? `Tarief van ${selectedSpace.space_number}` : 'Standaardtarief';
-                                })()}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {formData.credits_per_week && formData.flex_credit_rate && (
-                        <div className="pt-2 border-t border-dark-700 space-y-1">
-                          <div className="text-sm text-gray-300">
-                            Weekhuur: €{parseFloat(formData.flex_credit_rate).toFixed(2)} × {formData.credits_per_week} {formData.flex_day_type === 'half_day' ? 'halve dagen' : 'dagen'} =
-                            <span className="font-bold text-gold-500 ml-1">
-                              €{(parseFloat(formData.flex_credit_rate) * parseInt(formData.credits_per_week)).toFixed(2)}/week
-                            </span>
-                          </div>
-                          <div className="text-sm text-gray-300">
-                            Maandhuur: €{(parseFloat(formData.flex_credit_rate) * parseInt(formData.credits_per_week)).toFixed(2)}/week × 4.33 weken/maand =
-                            <span className="font-bold text-blue-400 ml-1">
-                              €{(parseFloat(formData.flex_credit_rate) * parseInt(formData.credits_per_week) * 4.33).toFixed(2)}/maand
-                            </span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="border-t border-dark-700 pt-4">
-                    <h4 className="text-sm font-medium text-gray-200 mb-3">
-                      Vaste weekindeling *
-                    </h4>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-200 mb-2">
-                          Vaste dagen *
-                        </label>
-                        <div className="flex gap-2">
-                          {[
-                            { key: 'monday', label: 'Ma' },
-                            { key: 'tuesday', label: 'Di' },
-                            { key: 'wednesday', label: 'Wo' },
-                            { key: 'thursday', label: 'Do' },
-                            { key: 'friday', label: 'Vr' }
-                          ].map(({ key, label }) => (
-                            <button
-                              key={key}
-                              type="button"
-                              onClick={() => setFlexDefaultSchedule({
-                                ...flexDefaultSchedule,
-                                [key]: !(flexDefaultSchedule as any)[key]
-                              })}
-                              className={`flex-1 py-2 rounded-lg font-medium transition-colors ${
-                                (flexDefaultSchedule as any)[key]
-                                  ? 'bg-gold-500 text-white'
-                                  : 'bg-dark-800 text-gray-400 hover:bg-dark-700'
-                              }`}
-                            >
-                              {label}
-                            </button>
-                          ))}
-                        </div>
-                        <p className="text-xs text-gray-400 mt-2">
-                          Selecteer de dagen waarop deze flexer standaard de ruimte gebruikt
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-sm font-medium text-gray-200">
+                    Ruimtes
+                  </label>
+                  <button
+                    type="button"
+                    onClick={addSpace}
+                    className="text-sm text-gold-500 hover:text-gold-400"
+                  >
+                    + Ruimte Toevoegen
+                  </button>
                 </div>
-                </>
-              )}
-
-              {formData.lease_type === 'full_time' && (
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <label className="block text-sm font-medium text-gray-200">
-                      Ruimtes
-                    </label>
-                    <button
-                      type="button"
-                      onClick={addSpace}
-                      className="text-sm text-gold-500 hover:text-gold-400"
-                    >
-                      + Ruimte Toevoegen
-                    </button>
-                  </div>
                 <div className="space-y-3">
                   {selectedSpaces.map((space, index) => {
                     const availableSpaces = getAvailableSpaces(index);
@@ -1124,8 +706,7 @@ export function LeaseManagement() {
                     </div>
                   )}
                 </div>
-                </div>
-              )}
+              </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -1365,137 +946,7 @@ export function LeaseManagement() {
           </div>
         )}
 
-        {flexLeases.length > 0 && (
-          <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden flex flex-col">
-            <div className="flex justify-between items-center px-4 py-3 bg-dark-800 border-b border-amber-500">
-              <h2 className="text-lg font-bold text-gray-100">
-                Flexcontracten
-              </h2>
-              {regularLeases.length === 0 && (
-                <button
-                  onClick={() => setShowForm(true)}
-                  className="flex items-center gap-2 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors"
-                  disabled={tenants.length === 0 || spaces.length === 0}
-                >
-                  <Plus size={20} />
-                  Huurcontract Aanmaken
-                </button>
-              )}
-            </div>
-            <div className="overflow-x-auto flex-1 min-h-0">
-              <table className="w-full table-fixed min-w-[1000px]">
-                <thead>
-                  <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
-                    <th className="text-left px-4 py-3 font-semibold w-[15%]">Huurder</th>
-                    <th className="text-left px-4 py-3 font-semibold w-[20%]">Flexplek</th>
-                    <th className="text-right px-4 py-3 font-semibold w-[12%]">Maandhuur</th>
-                    <th className="text-left px-4 py-3 font-semibold w-[10%]">BTW</th>
-                    <th className="text-left px-4 py-3 font-semibold w-[18%]">Periode</th>
-                    <th className="text-center px-4 py-3 font-semibold w-[12%]">Status</th>
-                    <th className="text-right px-4 py-3 font-semibold w-[13%]">Acties</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {flexLeases.slice((flexPage - 1) * flexPageSize, flexPage * flexPageSize).map((lease) => {
-                    const totalRent = calculateLeaseTotal(lease);
-                    return (
-                      <tr
-                        key={lease.id}
-                        className="border-b border-dark-800 hover:bg-dark-800 transition-colors"
-                      >
-                        <td className="px-4 py-3 text-gray-100 font-medium">{lease.tenant.company_name}</td>
-                        <td className="px-4 py-3">
-                          <div className="space-y-1">
-                            <div className="text-xs text-gray-300">
-                              <div className="flex items-center gap-2">
-                                {lease.lease_spaces.length > 0 && (
-                                  <span className="font-medium">{lease.lease_spaces[0].space.space_number}</span>
-                                )}
-                                <span className="text-blue-500 font-medium">Flexplek</span>
-                              </div>
-                              <div className="text-gray-400 mt-1">
-                                {(() => {
-                                  const flexLease = lease as any;
-                                  const dayType = flexLease.flex_day_type === 'half_day' ? 'halve dagen' : 'dagen';
-                                  const perType = flexLease.flex_day_type === 'half_day' ? 'halve dag' : 'dag';
-                                  return `Strippenkaart: ${flexLease.credits_per_week} ${dayType} × €${flexLease.flex_credit_rate?.toFixed(2)}/${perType}`;
-                                })()}
-                              </div>
-                            </div>
-                            {lease.security_deposit > 0 && (
-                              <div className="text-xs text-green-400">
-                                + Voorschot G/W/E
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="text-gray-100 font-medium">
-                            €{(totalRent + lease.security_deposit).toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </div>
-                          <div className="text-xs text-gray-400">
-                            (€{totalRent.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            {lease.security_deposit > 0 && ` + €${lease.security_deposit.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`})
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-gray-300 text-sm">
-                          {lease.vat_inclusive ? 'Inclusief' : 'Exclusief'} ({lease.vat_rate}%)
-                        </td>
-                        <td className="px-4 py-3 text-gray-300 text-xs">
-                          <div className="flex items-center gap-1">
-                            <Calendar size={14} className="text-gold-500" />
-                            <div>
-                              <div>{new Date(lease.start_date).toLocaleDateString('nl-NL')}</div>
-                              <div className="text-gray-400">t/m {new Date(lease.end_date).toLocaleDateString('nl-NL')}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          {getStatusBadge(lease.status)}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex gap-1 justify-end">
-                            <button
-                              onClick={() => setPreviewLease(lease)}
-                              className="text-blue-400 hover:text-blue-300 transition-colors p-1.5 rounded hover:bg-dark-700"
-                              title="Contract PDF bekijken"
-                            >
-                              <FileText size={18} />
-                            </button>
-                            <button
-                              onClick={() => handleEdit(lease)}
-                              className="text-gold-500 hover:text-gold-400 transition-colors p-1.5 rounded hover:bg-dark-700"
-                              title="Bewerken"
-                            >
-                              <Edit2 size={18} />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(lease)}
-                              className="text-red-500 hover:text-red-400 transition-colors p-1.5 rounded hover:bg-dark-700"
-                              title="Verwijderen"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            <Pagination
-              currentPage={flexPage}
-              totalItems={flexLeases.length}
-              pageSize={flexPageSize}
-              onPageChange={(page) => { setFlexPage(page); }}
-              onPageSizeChange={(size) => { setFlexPageSize(size); setFlexPage(1); }}
-              label="flexcontracten"
-            />
-          </div>
-        )}
-
-        {regularLeases.length === 0 && flexLeases.length === 0 && (
+        {regularLeases.length === 0 && (
           <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
             <div className="flex justify-between items-center px-4 py-3 bg-dark-800 border-b border-amber-500">
               <h2 className="text-lg font-bold text-gray-100">

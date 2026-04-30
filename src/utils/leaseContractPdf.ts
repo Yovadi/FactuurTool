@@ -10,7 +10,7 @@ export interface LeaseContractData {
   tenant_country?: string;
   tenant_email?: string;
   tenant_phone?: string;
-  lease_type: 'full_time' | 'flex';
+  lease_type: 'full_time';
   start_date: string;
   end_date: string;
   vat_rate: number;
@@ -23,12 +23,6 @@ export interface LeaseContractData {
     price_per_sqm: number;
     monthly_rent: number;
   }>;
-  flex?: {
-    credits_per_week: number;
-    flex_credit_rate: number;
-    flex_day_type: 'full_day' | 'half_day';
-    space_number?: string;
-  };
   company?: {
     name: string;
     address: string;
@@ -58,7 +52,6 @@ function getSpaceTypeLabel(spaceType: string): string {
     buitenterrein: 'Buitenterrein',
     diversen: 'Overig',
     meeting_room: 'Vergaderruimte',
-    Flexplek: 'Flexplek',
   };
   return labels[spaceType] || spaceType;
 }
@@ -88,7 +81,7 @@ async function buildLeaseContractPDF(pdf: jsPDF, data: LeaseContractData) {
   pdf.setFont('helvetica', 'normal');
   pdf.setTextColor(100, 100, 100);
   pdf.text(
-    data.lease_type === 'flex' ? 'Flexcontract' : 'Huurcontract kantoorruimte',
+    'Huurcontract kantoorruimte',
     margin,
     y
   );
@@ -220,7 +213,7 @@ async function buildLeaseContractPDF(pdf: jsPDF, data: LeaseContractData) {
     'BTW:',
     `${data.vat_rate}% (${data.vat_inclusive ? 'inclusief' : 'exclusief'})`
   );
-  addField('Type:', data.lease_type === 'flex' ? 'Flexplek' : 'Voltijd');
+  addField('Type:', 'Voltijd');
 
   y += 4;
 
@@ -236,44 +229,7 @@ async function buildLeaseContractPDF(pdf: jsPDF, data: LeaseContractData) {
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(255, 255, 255);
 
-  if (data.lease_type === 'flex') {
-    pdf.text('FLEXPLEK DETAILS', margin + 3, y + 5.5);
-    y += 14;
-
-    if (data.flex) {
-      pdf.setFontSize(9);
-      pdf.setTextColor(60, 60, 60);
-
-      const dayLabel =
-        data.flex.flex_day_type === 'half_day' ? 'halve dag' : 'hele dag';
-      const daysLabel =
-        data.flex.flex_day_type === 'half_day' ? 'halve dagen' : 'dagen';
-
-      if (data.flex.space_number) {
-        addField('Flex-ruimte:', data.flex.space_number);
-      }
-      addField('Dagen per week:', `${data.flex.credits_per_week} ${daysLabel}`);
-      addField(
-        `Tarief per ${dayLabel}:`,
-        `\u20AC ${data.flex.flex_credit_rate.toFixed(2)}`
-      );
-
-      const weeklyRent =
-        data.flex.credits_per_week * data.flex.flex_credit_rate;
-      const monthlyRent = weeklyRent * 4.33;
-
-      addField('Weekhuur:', `\u20AC ${weeklyRent.toFixed(2)}`);
-
-      y += 2;
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(10);
-      pdf.setTextColor(40, 40, 40);
-      pdf.text('Maandelijkse huurprijs:', margin, y);
-      pdf.text(`\u20AC ${monthlyRent.toFixed(2)}`, margin + 50, y);
-      y += 8;
-      pdf.setFontSize(9);
-    }
-  } else {
+  {
     pdf.text('GEHUURDE RUIMTE(S)', margin + 3, y + 5.5);
     y += 12;
 

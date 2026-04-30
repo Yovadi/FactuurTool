@@ -3,12 +3,7 @@ import { supabase, type CompanySettings, type EBoekhoudenSyncLog, type EBoekhoud
 import { testConnection, getLedgerAccounts, getInvoiceTemplates, diagnoseConnection } from '../lib/eboekhouden';
 import { syncRelationToEBoekhouden, syncInvoiceToEBoekhouden, syncPurchaseInvoiceToEBoekhouden, checkInvoicePaymentStatuses, checkPurchaseInvoicePaymentStatuses, verifyInvoiceSyncStatus, verifyRelationsInEBoekhouden, type VerificationResult } from '../lib/eboekhoudenSync';
 import type { ScheduledJob } from '../utils/scheduledJobs';
-import {
-  Link2, CheckCircle2, XCircle, Loader2, RefreshCw,
-  BookOpen, Users, UserPlus, FileText, ArrowUpRight, ArrowDownRight,
-  Clock, AlertTriangle, Activity, Database, Settings2, Plus, Trash2, Edit2, Upload,
-  TrendingDown, TrendingUp, ShieldCheck
-} from 'lucide-react';
+import { Link2, CheckCircle2, XCircle, Loader2, RefreshCw, BookOpen, Users, UserPlus, FileText, ArrowUpRight, ArrowDownRight, Clock, AlertTriangle, Activity, Database, Settings2, Plus, Trash2, CreditCard as Edit2, Upload, TrendingDown, TrendingUp, ShieldCheck } from 'lucide-react';
 import { DebtorsOverview } from './DebtorsOverview';
 import { CrediteurenEBoekhouden } from './CrediteurenEBoekhouden';
 
@@ -1118,7 +1113,6 @@ export function EBoekhoudenDashboard() {
                       <option value="huur_buitenterrein">Huur - Buitenterrein</option>
                       <option value="diversen">Diversen</option>
                       <option value="vergaderruimte">Vergaderruimte</option>
-                      <option value="flexplek">Flexplek</option>
                       <option disabled>--- Inkoop ---</option>
                       <option value="inkoop_default">Inkoop - Standaard</option>
                       <option value="inkoop_onderhoud">Inkoop - Onderhoud</option>
@@ -1574,7 +1568,6 @@ function formatCategory(cat: string): string {
     'huur_buitenterrein': 'Huur - Buitenterrein',
     'diversen': 'Diversen',
     'vergaderruimte': 'Vergaderruimte',
-    'flexplek': 'Flexplek',
     'inkoop_default': 'Inkoop - Standaard',
     'inkoop_onderhoud': 'Inkoop - Onderhoud',
     'inkoop_kantoorbenodigdheden': 'Inkoop - Kantoorbenodigdheden',
