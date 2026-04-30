@@ -269,8 +269,7 @@ export async function syncLeaseContractPDFs(onProgress?: ProgressCallback): Prom
   const { data: leases } = await supabase
     .from('leases')
     .select(`
-      id, start_date, end_date, vat_rate, vat_inclusive, security_deposit, lease_type,
-      credits_per_week, flex_credit_rate, flex_day_type,
+      id, start_date, end_date, vat_rate, vat_inclusive, security_deposit,
       tenant:tenants(id, name, company_name, email, phone, street, postal_code, city, country),
       lease_spaces:lease_spaces(
         id, price_per_sqm, monthly_rent,
@@ -337,7 +336,7 @@ export async function syncLeaseContractPDFs(onProgress?: ProgressCallback): Prom
         tenant_country: tenant.country || undefined,
         tenant_email: tenant.email || undefined,
         tenant_phone: tenant.phone || undefined,
-        lease_type: lease.lease_type || 'full_time',
+        lease_type: 'full_time',
         start_date: lease.start_date,
         end_date: lease.end_date,
         vat_rate: lease.vat_rate,
@@ -356,16 +355,6 @@ export async function syncLeaseContractPDFs(onProgress?: ProgressCallback): Prom
           phone: settings.phone || undefined,
         } : undefined,
       };
-
-      if (lease.lease_type === 'flex') {
-        const flexSpace = leaseSpaces.length > 0 ? leaseSpaces[0] : null;
-        contractData.flex = {
-          credits_per_week: lease.credits_per_week || 0,
-          flex_credit_rate: lease.flex_credit_rate || 0,
-          flex_day_type: lease.flex_day_type || 'full_day',
-          space_number: flexSpace?.space_number,
-        };
-      }
 
       const pdf = await generateLeaseContractPDF(contractData, true);
       const pdfBuffer = pdf.output('arraybuffer');

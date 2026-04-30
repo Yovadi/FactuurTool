@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 
 export type UnbilledItem = {
-  type: 'huur' | 'vergaderruimte' | 'flexplek';
+  type: 'huur' | 'vergaderruimte';
   month: string;
   monthLabel: string;
   customerName: string;
@@ -33,12 +33,10 @@ export function useUnbilledItems() {
     const [
       { data: activeLeases },
       { data: allInvoices },
-      { data: unbilledMeetings },
-      { data: unbilledFlex }
+      { data: unbilledMeetings }
     ] = await Promise.all([
       supabase.from('leases').select(`
-        id, lease_type, tenant_id,
-        flex_pricing_model, flex_monthly_rate, flex_daily_rate, flex_credit_rate, credits_per_week,
+        id, tenant_id,
         security_deposit, start_date,
         lease_spaces:lease_spaces(monthly_rent),
         tenants(company_name)
@@ -47,13 +45,6 @@ export function useUnbilledItems() {
       supabase.from('meeting_room_bookings').select(`
         id, booking_date, total_amount, tenant_id, external_customer_id,
         tenants(company_name), external_customers(company_name)
-      `)
-        .lt('booking_date', currentMonthStart)
-        .in('status', ['confirmed', 'completed'])
-        .is('invoice_id', null),
-      supabase.from('flex_day_bookings').select(`
-        id, booking_date, total_amount, external_customer_id,
-        external_customers(company_name)
       `)
         .lt('booking_date', currentMonthStart)
         .in('status', ['confirmed', 'completed'])
@@ -90,25 +81,12 @@ export function useUnbilledItems() {
           if (alreadyInvoiced) continue;
 
           let amt = 0;
-          if (lease.lease_type === 'flex') {
-            if (lease.flex_pricing_model === 'monthly_unlimited') {
-              amt = lease.flex_monthly_rate || 0;
-            } else if (lease.flex_pricing_model === 'daily') {
-              const [y, m] = month.split('-').map(Number);
-              const workingDays = Math.round(new Date(y, m, 0).getDate() * (5 / 7));
-              amt = (lease.flex_daily_rate || 0) * workingDays;
-            } else if (lease.flex_pricing_model === 'credit_based') {
-              const monthlyCredits = Math.round((lease.credits_per_week || 0) * 4.33);
-              amt = monthlyCredits * (lease.flex_credit_rate || 0);
-            }
-          } else {
-            amt = ((lease as any).lease_spaces || []).reduce((sum: number, ls: any) => {
-              const rent = typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent;
-              return sum + rent;
-            }, 0);
-            const deposit = typeof lease.security_deposit === 'string' ? parseFloat(lease.security_deposit as any) : lease.security_deposit;
-            amt += deposit || 0;
-          }
+          amt = ((lease as any).lease_spaces || []).reduce((sum: number, ls: any) => {
+            const rent = typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent;
+            return sum + rent;
+          }, 0);
+          const deposit = typeof lease.security_deposit === 'string' ? parseFloat(lease.security_deposit as any) : lease.security_deposit;
+          amt += deposit || 0;
 
           allItems.push({
             type: 'huur',
@@ -132,18 +110,6 @@ export function useUnbilledItems() {
         month,
         monthLabel: getMonthLabel(month),
         customerName: name,
-        amount: b.total_amount || 0
-      });
-    });
-
-    (unbilledFlex || []).forEach((b: any) => {
-      const month = b.booking_date.substring(0, 7);
-      if (month >= currentMonth) return;
-      allItems.push({
-        type: 'flexplek',
-        month,
-        monthLabel: getMonthLabel(month),
-        customerName: b.external_customers?.company_name || 'Externe klant',
         amount: b.total_amount || 0
       });
     });

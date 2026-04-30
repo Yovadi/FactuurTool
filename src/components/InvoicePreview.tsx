@@ -358,7 +358,7 @@ export function InvoicePreview({
               <div>
                 <span className="text-gray-400">Contract type: </span>
                 <span className="text-gray-100">
-                  {contractType === 'flex' ? 'Flex contract' : contractType === 'regular' ? 'Vast contract' : contractType}
+                  {contractType === 'regular' ? 'Vast contract' : contractType}
                 </span>
               </div>
             )}

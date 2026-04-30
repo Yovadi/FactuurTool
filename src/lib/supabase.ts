@@ -53,14 +53,12 @@ export type OfficeSpace = {
   base_rent: number;
   is_available: boolean;
   is_furnished: boolean | null;
-  space_type: 'bedrijfsruimte' | 'kantoor' | 'buitenterrein' | 'diversen' | 'Meeting Room' | 'Flexplek';
+  space_type: 'bedrijfsruimte' | 'kantoor' | 'buitenterrein' | 'diversen' | 'Meeting Room';
   hourly_rate?: number | null;
   half_day_rate?: number | null;
   full_day_rate?: number | null;
   rate_per_sqm?: number | null;
   daily_rate?: number | null;
-  is_flex_space?: boolean;
-  flex_capacity?: number;
   diversen_calculation?: string | null;
   diversen_quantity?: number | null;
   diversen_unit_price?: number | null;
@@ -76,12 +74,7 @@ export type Lease = {
   status: 'active' | 'expired' | 'terminated';
   vat_rate: number;
   vat_inclusive: boolean;
-  lease_type: 'full_time' | 'flex';
-  flex_pricing_model: 'daily' | 'monthly_unlimited' | 'credit_based' | null;
-  flex_daily_rate: number | null;
-  flex_monthly_rate: number | null;
-  credits_per_week: number | null;
-  flex_credit_rate: number | null;
+  lease_type: 'full_time';
   created_at: string;
 };
 

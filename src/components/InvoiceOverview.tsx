@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase, type Tenant, type ExternalCustomer, type Lease, type LeaseSpace, type OfficeSpace } from '../lib/supabase';
-import { Home, Zap, Calendar, CheckSquare, Square, Loader2, AlertCircle, AlertTriangle, ChevronDown, ChevronRight, ChevronLeft, RefreshCw } from 'lucide-react';
+import { Home, Calendar, CheckSquare, Square, Loader2, AlertTriangle, ChevronDown, ChevronRight, ChevronLeft, RefreshCw } from 'lucide-react';
 import { Toast } from './Toast';
 
 type LeaseWithDetails = Lease & {
@@ -10,7 +10,7 @@ type LeaseWithDetails = Lease & {
 
 type InvoiceItem = {
   id: string;
-  type: 'huur' | 'flex_contract' | 'meeting_booking' | 'flex_booking';
+  type: 'huur' | 'meeting_booking';
   customerId: string;
   customerName: string;
   isExternal: boolean;
@@ -27,7 +27,6 @@ type InvoiceItem = {
 
 function getLocalCategory(spaceType?: string, bookingType?: string): string | null {
   if (bookingType === 'meeting_room') return 'vergaderruimte';
-  if (bookingType === 'flex') return 'flexplek';
   switch (spaceType) {
     case 'kantoor': return 'huur_kantoor';
     case 'bedrijfsruimte': return 'huur_bedrijfsruimte';
@@ -63,7 +62,7 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
   const [generating, setGenerating] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [toasts, setToasts] = useState<{ id: number; message: string; type: 'success' | 'error' | 'info' }[]>([]);
-  const [pastDueBookings, setPastDueBookings] = useState<{ meetingCount: number; flexCount: number; months: string[] }>({ meetingCount: 0, flexCount: 0, months: [] });
+  const [pastDueBookings, setPastDueBookings] = useState<{ meetingCount: number; months: string[] }>({ meetingCount: 0, months: [] });
   const [monthIndicators, setMonthIndicators] = useState<Record<string, { hasLeases: boolean; hasBookings: boolean; count: number }>>({});
   const [visibleMonths, setVisibleMonths] = useState<string[]>([]);
 
@@ -93,14 +92,11 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
       { data: activeLeases },
       { data: allInvoices },
       { data: unbilledMeetings },
-      { data: unbilledFlex }
     ] = await Promise.all([
       supabase.from('leases').select('id, tenant_id, start_date, end_date').eq('status', 'active'),
       supabase.from('invoices').select('lease_id, invoice_month'),
       supabase.from('meeting_room_bookings').select('id, booking_date')
         .in('status', ['confirmed', 'completed']).is('invoice_id', null),
-      supabase.from('flex_day_bookings').select('id, booking_date')
-        .in('status', ['confirmed', 'completed']).is('invoice_id', null)
     ]);
 
     for (const month of months) {
@@ -124,10 +120,7 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
       const meetingsInMonth = (unbilledMeetings || []).filter(
         (b: any) => b.booking_date >= startDate && b.booking_date <= endDate
       );
-      const flexInMonth = (unbilledFlex || []).filter(
-        (b: any) => b.booking_date >= startDate && b.booking_date <= endDate
-      );
-      const bookingCount = meetingsInMonth.length + flexInMonth.length;
+      const bookingCount = meetingsInMonth.length;
 
       indicators[month] = {
         hasLeases: leaseCount > 0,
@@ -162,9 +155,7 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
       { data: tenantsData },
       { data: externalData },
       { data: meetingData },
-      { data: flexData },
       { data: pastMeetingData },
-      { data: pastFlexData }
     ] = await Promise.all([
       supabase.from('leases').select(`
         *, tenant:tenants(*),
@@ -179,23 +170,13 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
         tenant_id, external_customer_id, office_spaces(space_number)
       `).gte('booking_date', startDateStr).lte('booking_date', endDateStr)
         .in('status', ['confirmed', 'completed']).is('invoice_id', null),
-      supabase.from('flex_day_bookings').select(`
-        id, booking_date, start_time, end_time, total_hours, total_amount, hourly_rate,
-        is_half_day, half_day_period, status, invoice_id, lease_id, external_customer_id,
-        leases(tenant_id), office_spaces(space_number)
-      `).gte('booking_date', startDateStr).lte('booking_date', endDateStr)
-        .in('status', ['confirmed', 'completed']).is('invoice_id', null),
       supabase.from('meeting_room_bookings').select('id, booking_date')
         .lt('booking_date', startDateStr)
         .in('status', ['confirmed', 'completed']).is('invoice_id', null),
-      supabase.from('flex_day_bookings').select('id, booking_date')
-        .lt('booking_date', startDateStr)
-        .in('status', ['confirmed', 'completed']).is('invoice_id', null)
     ]);
 
     const allPastDue = [
       ...(pastMeetingData || []).map((b: any) => b.booking_date),
-      ...(pastFlexData || []).map((b: any) => b.booking_date)
     ];
     const pastMonthsSet = new Set<string>();
     allPastDue.forEach(d => {
@@ -204,7 +185,6 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
     });
     setPastDueBookings({
       meetingCount: (pastMeetingData || []).length,
-      flexCount: (pastFlexData || []).length,
       months: Array.from(pastMonthsSet).sort()
     });
 
@@ -213,10 +193,6 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
     const tenants = (tenantsData || []) as Tenant[];
     const externals = (externalData || []) as ExternalCustomer[];
     const meetings = (meetingData || []).map((b: any) => ({ ...b, space: b.office_spaces, booking_type: 'meeting_room' }));
-    const flex = (flexData || []).map((b: any) => ({
-      ...b, space: b.office_spaces, booking_type: 'flex',
-      tenant_id: b.leases?.tenant_id || null
-    }));
 
     const newItems: InvoiceItem[] = [];
 
@@ -229,72 +205,40 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
       let amount = 0;
       const details: string[] = [];
 
-      if (lease.lease_type === 'flex') {
-        if (lease.flex_pricing_model === 'monthly_unlimited') {
-          amount = lease.flex_monthly_rate || 0;
-          details.push('Maandelijks tarief (onbeperkt)');
-        } else if (lease.flex_pricing_model === 'daily') {
-          const daysInMonth = new Date(year, month, 0).getDate();
-          const workingDays = Math.round(daysInMonth * (5 / 7));
-          amount = (lease.flex_daily_rate || 0) * workingDays;
-          details.push(`${workingDays} werkdagen x ${(lease.flex_daily_rate || 0).toFixed(2)}`);
-        } else if (lease.flex_pricing_model === 'credit_based') {
-          const creditsPerWeek = lease.credits_per_week || 0;
-          const monthlyCredits = Math.round(creditsPerWeek * 4.33);
-          amount = monthlyCredits * (lease.flex_credit_rate || 0);
-          details.push(`${monthlyCredits} credits x ${(lease.flex_credit_rate || 0).toFixed(2)}`);
+      amount = lease.lease_spaces.reduce((sum, ls) => {
+        const rent = typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent;
+        return sum + rent;
+      }, 0);
+      const deposit = typeof lease.security_deposit === 'string' ? parseFloat(lease.security_deposit) : lease.security_deposit;
+      amount += deposit;
+
+      lease.lease_spaces.forEach(ls => {
+        let name = ls.space.space_number;
+        if (ls.space.space_type === 'bedrijfsruimte') {
+          const numOnly = name.replace(/^(Bedrijfsruimte|Hal)\s*/i, '').trim();
+          if (/^\d+/.test(numOnly)) name = `Hal ${numOnly}`;
         }
-
-        newItems.push({
-          id: `flex_contract_${lease.id}`,
-          type: 'flex_contract',
-          customerId: lease.tenant_id,
-          customerName: lease.tenant?.company_name || lease.tenant?.name || 'Onbekend',
-          isExternal: false,
-          leaseId: lease.id,
-          description: `Flex contract`,
-          amount,
-          vatRate: lease.vat_rate,
-          vatInclusive: lease.vat_inclusive,
-          lease,
-          details
-        });
-      } else {
-        amount = lease.lease_spaces.reduce((sum, ls) => {
-          const rent = typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent;
-          return sum + rent;
-        }, 0);
-        const deposit = typeof lease.security_deposit === 'string' ? parseFloat(lease.security_deposit) : lease.security_deposit;
-        amount += deposit;
-
-        lease.lease_spaces.forEach(ls => {
-          let name = ls.space.space_number;
-          if (ls.space.space_type === 'bedrijfsruimte') {
-            const numOnly = name.replace(/^(Bedrijfsruimte|Hal)\s*/i, '').trim();
-            if (/^\d+/.test(numOnly)) name = `Hal ${numOnly}`;
-          }
-          const rent = typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent;
-          details.push(`${name}: ${rent.toFixed(2)}`);
-        });
-        if (deposit > 0) {
-          details.push(`Voorschot GWE: ${deposit.toFixed(2)}`);
-        }
-
-        newItems.push({
-          id: `huur_${lease.id}`,
-          type: 'huur',
-          customerId: lease.tenant_id,
-          customerName: lease.tenant?.company_name || lease.tenant?.name || 'Onbekend',
-          isExternal: false,
-          leaseId: lease.id,
-          description: `Huurcontract`,
-          amount,
-          vatRate: lease.vat_rate,
-          vatInclusive: lease.vat_inclusive,
-          lease,
-          details
-        });
+        const rent = typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent;
+        details.push(`${name}: ${rent.toFixed(2)}`);
+      });
+      if (deposit > 0) {
+        details.push(`Voorschot GWE: ${deposit.toFixed(2)}`);
       }
+
+      newItems.push({
+        id: `huur_${lease.id}`,
+        type: 'huur',
+        customerId: lease.tenant_id,
+        customerName: lease.tenant?.company_name || lease.tenant?.name || 'Onbekend',
+        isExternal: false,
+        leaseId: lease.id,
+        description: `Huurcontract`,
+        amount,
+        vatRate: lease.vat_rate,
+        vatInclusive: lease.vat_inclusive,
+        lease,
+        details
+      });
     }
 
     const allCustomers = [
@@ -306,10 +250,7 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
       const customerMeetings = meetings.filter((b: any) =>
         customer.isExternal ? b.external_customer_id === customer.id : b.tenant_id === customer.id
       );
-      const customerFlex = flex.filter((b: any) =>
-        customer.isExternal ? b.external_customer_id === customer.id : b.tenant_id === customer.id
-      );
-      const allBookings = [...customerMeetings, ...customerFlex];
+      const allBookings = [...customerMeetings];
 
       if (allBookings.length === 0) continue;
 
@@ -318,22 +259,18 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
 
       allBookings.forEach((b: any) => {
         totalAmount += b.total_amount || 0;
-        const spaceName = b.space?.space_number || (b.booking_type === 'flex' ? 'Flexplek' : 'Vergaderruimte');
+        const spaceName = b.space?.space_number || 'Vergaderruimte';
         const date = new Date(b.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit' });
         const start = b.start_time?.substring(0, 5) || '--:--';
         const end = b.end_time?.substring(0, 5) || '--:--';
         details.push(`${spaceName} - ${date} ${start}-${end}: ${(b.total_amount || 0).toFixed(2)}`);
       });
 
-      const hasMeeting = customerMeetings.length > 0;
-      const hasFlex = customerFlex.length > 0;
-      let typeLabel = 'Vergaderruimte';
-      if (hasFlex && !hasMeeting) typeLabel = 'Flex werkplek';
-      else if (hasFlex && hasMeeting) typeLabel = 'Vergader & Flex';
+      const typeLabel = 'Vergaderruimte';
 
       newItems.push({
         id: `bookings_${customer.id}`,
-        type: hasMeeting ? 'meeting_booking' : 'flex_booking',
+        type: 'meeting_booking',
         customerId: customer.id,
         customerName: customer.name,
         isExternal: customer.isExternal,
@@ -348,7 +285,7 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
     }
 
     newItems.sort((a, b) => {
-      const typeOrder = { huur: 0, flex_contract: 1, meeting_booking: 2, flex_booking: 3 };
+      const typeOrder = { huur: 0, meeting_booking: 1 };
       if (typeOrder[a.type] !== typeOrder[b.type]) return typeOrder[a.type] - typeOrder[b.type];
       return a.customerName.localeCompare(b.customerName);
     });
@@ -432,59 +369,33 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
         const { data: invoiceNumber, error: numError } = await supabase.rpc('generate_invoice_number');
         if (numError || !invoiceNumber) { failCount++; continue; }
 
-        if (item.type === 'huur' || item.type === 'flex_contract') {
+        if (item.type === 'huur') {
           const lease = item.lease!;
           let rentAmount = 0;
           const lineItemsToInsert: any[] = [];
 
-          if (lease.lease_type === 'flex') {
-            if (lease.flex_pricing_model === 'monthly_unlimited') {
-              rentAmount = lease.flex_monthly_rate || 0;
-              lineItemsToInsert.push({
-                description: 'Flexplek - Maandelijks tarief (onbeperkt)',
-                quantity: 1, unit_price: rentAmount, amount: rentAmount, local_category: 'flexplek'
-              });
-            } else if (lease.flex_pricing_model === 'daily') {
-              const [y, m] = invoiceMonth.split('-').map(Number);
-              const workingDays = Math.round(new Date(y, m, 0).getDate() * (5 / 7));
-              rentAmount = (lease.flex_daily_rate || 0) * workingDays;
-              lineItemsToInsert.push({
-                description: `Flexplek - Dagelijks tarief (${workingDays} werkdagen)`,
-                quantity: workingDays, unit_price: lease.flex_daily_rate || 0, amount: rentAmount, local_category: 'flexplek'
-              });
-            } else if (lease.flex_pricing_model === 'credit_based') {
-              const creditsPerWeek = lease.credits_per_week || 0;
-              const monthlyCredits = Math.round(creditsPerWeek * 4.33);
-              rentAmount = monthlyCredits * (lease.flex_credit_rate || 0);
-              lineItemsToInsert.push({
-                description: `Flexplek - ${creditsPerWeek} dagen/week`,
-                quantity: monthlyCredits, unit_price: lease.flex_credit_rate || 0, amount: rentAmount, local_category: 'flexplek'
-              });
-            }
-          } else {
-            rentAmount = lease.lease_spaces.reduce((sum, ls) => {
-              return sum + (typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent);
-            }, 0);
+          rentAmount = lease.lease_spaces.reduce((sum, ls) => {
+            return sum + (typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent);
+          }, 0);
 
-            for (const ls of lease.lease_spaces) {
-              let displayName = ls.space.space_number;
-              if (ls.space.space_type === 'bedrijfsruimte') {
-                const numOnly = displayName.replace(/^(Bedrijfsruimte|Hal)\s*/i, '').trim();
-                if (/^\d+/.test(numOnly)) displayName = `Hal ${numOnly}`;
-              }
-              const sqft = typeof ls.space.square_footage === 'string' ? parseFloat(ls.space.square_footage) : ls.space.square_footage;
-              const diversenCalc = (ls.space as any).diversen_calculation;
-              const isDiversenFixed = ls.space.space_type === 'diversen' && (!diversenCalc || diversenCalc === 'fixed');
-              let quantity = 1;
-              if (!isDiversenFixed && sqft && !isNaN(sqft) && sqft > 0) quantity = sqft;
-              const pricePerSqm = typeof ls.price_per_sqm === 'string' ? parseFloat(ls.price_per_sqm) : ls.price_per_sqm;
-              const monthlyRent = typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent;
-
-              lineItemsToInsert.push({
-                description: displayName, quantity, unit_price: pricePerSqm,
-                amount: monthlyRent, local_category: getLocalCategory(ls.space.space_type)
-              });
+          for (const ls of lease.lease_spaces) {
+            let displayName = ls.space.space_number;
+            if (ls.space.space_type === 'bedrijfsruimte') {
+              const numOnly = displayName.replace(/^(Bedrijfsruimte|Hal)\s*/i, '').trim();
+              if (/^\d+/.test(numOnly)) displayName = `Hal ${numOnly}`;
             }
+            const sqft = typeof ls.space.square_footage === 'string' ? parseFloat(ls.space.square_footage) : ls.space.square_footage;
+            const diversenCalc = (ls.space as any).diversen_calculation;
+            const isDiversenFixed = ls.space.space_type === 'diversen' && (!diversenCalc || diversenCalc === 'fixed');
+            let quantity = 1;
+            if (!isDiversenFixed && sqft && !isNaN(sqft) && sqft > 0) quantity = sqft;
+            const pricePerSqm = typeof ls.price_per_sqm === 'string' ? parseFloat(ls.price_per_sqm) : ls.price_per_sqm;
+            const monthlyRent = typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent;
+
+            lineItemsToInsert.push({
+              description: displayName, quantity, unit_price: pricePerSqm,
+              amount: monthlyRent, local_category: getLocalCategory(ls.space.space_type)
+            });
           }
 
           const vatRate = typeof lease.vat_rate === 'string' ? parseFloat(lease.vat_rate) : lease.vat_rate;
@@ -557,21 +468,10 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
           const finalAmount = totalBeforeDiscount - totalDiscountAmount;
           const { subtotal, vatAmount, total } = calculateVAT(finalAmount, 21, false);
 
-          const hasMeeting = bookings.some((b: any) => b.booking_type === 'meeting_room');
-          const hasFlex = bookings.some((b: any) => b.booking_type === 'flex');
-          let notesHeader = 'Vergaderruimte boekingen:';
-          if (hasFlex && !hasMeeting) notesHeader = 'Flex werkplek boekingen:';
-          else if (hasFlex && hasMeeting) notesHeader = 'Vergaderruimte & Flex werkplek boekingen:';
-
-          const notesLines = [notesHeader];
+          const notesLines = ['Vergaderruimte boekingen:'];
           bookings.forEach((b: any) => {
-            let rateDesc = '';
-            if (b.booking_type === 'flex') {
-              rateDesc = b.is_half_day ? 'dagdeel' : (b.total_hours > 0 && b.total_hours < 8 ? `${Math.round(b.total_hours)}u` : 'hele dag');
-            } else {
-              rateDesc = b.rate_type === 'half_day' ? 'dagdeel' : (b.rate_type === 'full_day' ? 'hele dag' : `${Math.round(b.total_hours)}u`);
-            }
-            const label = b.booking_type === 'flex' ? 'Flexplek' : 'Vergaderruimte';
+            const rateDesc = b.rate_type === 'half_day' ? 'dagdeel' : (b.rate_type === 'full_day' ? 'hele dag' : `${Math.round(b.total_hours)}u`);
+            const label = 'Vergaderruimte';
             const bRate = typeof b.applied_rate === 'string' ? parseFloat(b.applied_rate) : (b.applied_rate || 0);
             const bHours = typeof b.total_hours === 'string' ? parseFloat(b.total_hours) : (b.total_hours || 0);
             const totalAmt = typeof b.total_amount === 'string' ? parseFloat(b.total_amount) : (b.total_amount || 0);
@@ -606,13 +506,13 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
             const totalAmt = typeof b.total_amount === 'string' ? parseFloat(b.total_amount) : (b.total_amount || 0);
             const discAmt = typeof b.discount_amount === 'string' ? parseFloat(b.discount_amount) : (b.discount_amount || 0);
             const amt = bRate > 0 && bHours > 0 ? bRate * bHours : totalAmt + discAmt;
-            const label = b.booking_type === 'flex' ? 'Flexplek' : 'Vergaderruimte';
-            const category = b.booking_type === 'flex' ? 'flexplek' : 'vergaderruimte';
+            const label = 'Vergaderruimte';
+            const category = 'vergaderruimte';
             return {
               invoice_id: newInvoice.id,
               description: `${b.space?.space_number || label} - ${new Date(b.booking_date).toLocaleDateString('nl-NL')} ${b.start_time}-${b.end_time}`,
               quantity: b.total_hours, unit_price: b.hourly_rate, amount: amt,
-              booking_id: b.booking_type === 'meeting_room' ? b.id : null,
+              booking_id: b.id,
               local_category: category
             };
           });
@@ -632,13 +532,9 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
             failCount++; continue;
           }
 
-          const meetingIds = bookings.filter((b: any) => b.booking_type === 'meeting_room').map((b: any) => b.id);
-          const flexIds = bookings.filter((b: any) => b.booking_type === 'flex').map((b: any) => b.id);
+          const meetingIds = bookings.map((b: any) => b.id);
           if (meetingIds.length > 0) {
             await supabase.from('meeting_room_bookings').update({ invoice_id: newInvoice.id }).in('id', meetingIds);
-          }
-          if (flexIds.length > 0) {
-            await supabase.from('flex_day_bookings').update({ invoice_id: newInvoice.id }).in('id', flexIds);
           }
           successCount++;
         }
@@ -659,35 +555,22 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
     }
   };
 
-  const getTypeIcon = (type: InvoiceItem['type']) => {
-    switch (type) {
-      case 'huur': return <Home size={16} className="text-emerald-400" />;
-      case 'flex_contract': return <Zap size={16} className="text-teal-400" />;
-      case 'meeting_booking': return <Calendar size={16} className="text-blue-400" />;
-      case 'flex_booking': return <Zap size={16} className="text-teal-400" />;
-    }
-  };
-
   const getTypeLabel = (type: InvoiceItem['type']) => {
     switch (type) {
       case 'huur': return 'Huur';
-      case 'flex_contract': return 'Flex contract';
       case 'meeting_booking': return 'Vergaderruimte';
-      case 'flex_booking': return 'Flex boekingen';
     }
   };
 
   const getTypeBadgeColor = (type: InvoiceItem['type']) => {
     switch (type) {
       case 'huur': return 'bg-emerald-900/50 text-emerald-400 border-emerald-700/50';
-      case 'flex_contract': return 'bg-teal-900/50 text-teal-400 border-teal-700/50';
       case 'meeting_booking': return 'bg-blue-900/50 text-blue-400 border-blue-700/50';
-      case 'flex_booking': return 'bg-teal-900/50 text-teal-400 border-teal-700/50';
     }
   };
 
-  const huurItems = items.filter(i => i.type === 'huur' || i.type === 'flex_contract');
-  const bookingItems = items.filter(i => i.type === 'meeting_booking' || i.type === 'flex_booking');
+  const huurItems = items.filter(i => i.type === 'huur');
+  const bookingItems = items.filter(i => i.type === 'meeting_booking');
 
   const selectedCount = items.filter(i => selected.has(i.id)).length;
   const selectedTotal = items.filter(i => selected.has(i.id)).reduce((sum, i) => {
@@ -903,12 +786,12 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
           </div>
         ) : (
           <div className="space-y-4">
-          {(pastDueBookings.meetingCount + pastDueBookings.flexCount) > 0 && (
+          {pastDueBookings.meetingCount > 0 && (
             <div className="bg-amber-900/20 border border-amber-700/50 rounded-lg px-4 py-3 flex items-start gap-3">
               <AlertTriangle size={20} className="text-amber-400 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-amber-200 font-medium text-sm">
-                  Er zijn {pastDueBookings.meetingCount + pastDueBookings.flexCount} ongefactureerde boekingen uit eerdere maanden
+                  Er zijn {pastDueBookings.meetingCount} ongefactureerde boekingen uit eerdere maanden
                 </p>
                 <p className="text-amber-300/70 text-xs mt-1">
                   {pastDueBookings.months.join(', ')} - Selecteer de betreffende maand om deze boekingen te factureren.
@@ -918,7 +801,7 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
           )}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              {renderSection('Huur & Flex contracten', <Home size={18} className="text-emerald-400" />, huurItems, 'text-emerald-400', 'Geen huurcontracten te factureren voor deze maand.')}
+              {renderSection('Huurcontracten', <Home size={18} className="text-emerald-400" />, huurItems, 'text-emerald-400', 'Geen huurcontracten te factureren voor deze maand.')}
             </div>
             <div>
               {renderSection('Boekingen', <Calendar size={18} className="text-blue-400" />, bookingItems, 'text-blue-400', 'Geen boekingen te factureren voor deze maand.')}
