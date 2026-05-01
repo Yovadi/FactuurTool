@@ -843,14 +843,17 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
         .maybeSingle();
 
       if (!existingItems) {
+        const isFlatRate = booking.rate_type === 'half_day' || booking.rate_type === 'full_day';
+        const qty = isFlatRate ? 1 : booking.total_hours;
+        const unitPrice = isFlatRate ? booking.total_amount : (booking.applied_rate || booking.hourly_rate);
         await supabase
           .from('invoice_line_items')
           .insert({
             invoice_id: selectedInvoiceId,
             booking_id: booking.id,
             description,
-            quantity: booking.total_hours,
-            unit_price: booking.hourly_rate,
+            quantity: qty,
+            unit_price: unitPrice,
             amount: booking.total_amount,
             calculation_type: 'quantity_price',
             local_category: 'vergaderruimte'

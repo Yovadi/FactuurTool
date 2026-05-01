@@ -1797,12 +1797,15 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           const description = `${booking.space?.space_number || 'Vergaderruimte'} - ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${startTime}-${endTime} (${rateDescription})`;
 
           const beforeDiscountAmount = (booking.total_amount || 0) + (booking.discount_amount || 0);
+          const isFlatRate = booking.rate_type === 'half_day' || booking.rate_type === 'full_day';
+          const qty = isFlatRate ? 1 : booking.total_hours;
+          const unitPrice = isFlatRate ? beforeDiscountAmount : (booking.applied_rate || booking.hourly_rate);
 
           const items: any[] = [{
             invoice_id: newInvoice.id,
             description: description,
-            quantity: booking.total_hours,
-            unit_price: booking.applied_rate || booking.hourly_rate,
+            quantity: qty,
+            unit_price: unitPrice,
             amount: beforeDiscountAmount,
             booking_id: booking.id,
             local_category: 'vergaderruimte'
@@ -2356,12 +2359,15 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
             const beforeDiscountAmount = bookingAmount + bookingDiscount;
             const defaultLabel = 'Vergaderruimte';
             const category = 'vergaderruimte';
+            const isFlatRate = booking.rate_type === 'half_day' || booking.rate_type === 'full_day';
+            const qty = isFlatRate ? 1 : booking.total_hours;
+            const unitPrice = isFlatRate ? beforeDiscountAmount : (booking.applied_rate || booking.hourly_rate);
 
             return {
               invoice_id: newInvoice.id,
               description: `${booking.space?.space_number || defaultLabel} - ${new Date(booking.booking_date).toLocaleDateString('nl-NL')} ${booking.start_time}-${booking.end_time}`,
-              quantity: booking.total_hours,
-              unit_price: booking.hourly_rate,
+              quantity: qty,
+              unit_price: unitPrice,
               amount: beforeDiscountAmount,
               booking_id: booking.id,
               local_category: category

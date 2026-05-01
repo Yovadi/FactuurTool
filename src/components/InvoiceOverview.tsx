@@ -451,12 +451,9 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
           const customerDiscountPct = item.customerDiscountPct || 0;
           let totalBeforeDiscount = 0;
           bookings.forEach((b: any) => {
-            const rate = typeof b.applied_rate === 'string' ? parseFloat(b.applied_rate) : (b.applied_rate || 0);
-            const hours = typeof b.total_hours === 'string' ? parseFloat(b.total_hours) : (b.total_hours || 0);
             const amt = typeof b.total_amount === 'string' ? parseFloat(b.total_amount) : (b.total_amount || 0);
             const disc = typeof b.discount_amount === 'string' ? parseFloat(b.discount_amount) : (b.discount_amount || 0);
-            const gross = rate > 0 && hours > 0 ? rate * hours : amt + disc;
-            totalBeforeDiscount += gross;
+            totalBeforeDiscount += amt + disc;
           });
           const totalDiscountAmount = customerDiscountPct > 0
             ? Math.round(totalBeforeDiscount * (customerDiscountPct / 100) * 100) / 100
@@ -472,11 +469,9 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
           bookings.forEach((b: any) => {
             const rateDesc = b.rate_type === 'half_day' ? 'dagdeel' : (b.rate_type === 'full_day' ? 'hele dag' : `${Math.round(b.total_hours)}u`);
             const label = 'Vergaderruimte';
-            const bRate = typeof b.applied_rate === 'string' ? parseFloat(b.applied_rate) : (b.applied_rate || 0);
-            const bHours = typeof b.total_hours === 'string' ? parseFloat(b.total_hours) : (b.total_hours || 0);
             const totalAmt = typeof b.total_amount === 'string' ? parseFloat(b.total_amount) : (b.total_amount || 0);
             const discAmt = typeof b.discount_amount === 'string' ? parseFloat(b.discount_amount) : (b.discount_amount || 0);
-            const amt = bRate > 0 && bHours > 0 ? bRate * bHours : totalAmt + discAmt;
+            const amt = totalAmt + discAmt;
             const start = b.start_time?.substring(0, 5) || '--:--';
             const end = b.end_time?.substring(0, 5) || '--:--';
             notesLines.push(`- ${b.space?.space_number || label} - ${new Date(b.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${start}-${end} (${rateDesc}) = \u20AC${amt.toFixed(2)}`);
@@ -501,17 +496,21 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
           if (invErr || !newInvoice) { failCount++; continue; }
 
           const lineItems = bookings.map((b: any) => {
-            const bRate = typeof b.applied_rate === 'string' ? parseFloat(b.applied_rate) : (b.applied_rate || 0);
-            const bHours = typeof b.total_hours === 'string' ? parseFloat(b.total_hours) : (b.total_hours || 0);
             const totalAmt = typeof b.total_amount === 'string' ? parseFloat(b.total_amount) : (b.total_amount || 0);
             const discAmt = typeof b.discount_amount === 'string' ? parseFloat(b.discount_amount) : (b.discount_amount || 0);
-            const amt = bRate > 0 && bHours > 0 ? bRate * bHours : totalAmt + discAmt;
+            const bHours = typeof b.total_hours === 'string' ? parseFloat(b.total_hours) : (b.total_hours || 0);
+            const bAppliedRate = typeof b.applied_rate === 'string' ? parseFloat(b.applied_rate) : (b.applied_rate || 0);
+            const bHourlyRate = typeof b.hourly_rate === 'string' ? parseFloat(b.hourly_rate) : (b.hourly_rate || 0);
+            const amt = totalAmt + discAmt;
+            const isFlatRate = b.rate_type === 'half_day' || b.rate_type === 'full_day';
+            const quantity = isFlatRate ? 1 : bHours;
+            const unitPrice = isFlatRate ? amt : (bAppliedRate || bHourlyRate);
             const label = 'Vergaderruimte';
             const category = 'vergaderruimte';
             return {
               invoice_id: newInvoice.id,
               description: `${b.space?.space_number || label} - ${new Date(b.booking_date).toLocaleDateString('nl-NL')} ${b.start_time}-${b.end_time}`,
-              quantity: b.total_hours, unit_price: b.hourly_rate, amount: amt,
+              quantity, unit_price: unitPrice, amount: amt,
               booking_id: b.id,
               local_category: category
             };
