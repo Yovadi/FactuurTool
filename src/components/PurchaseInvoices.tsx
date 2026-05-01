@@ -333,16 +333,18 @@ export function PurchaseInvoices() {
       const data = result.data;
       const items: LineItem[] = (data.line_items || []).map((item: any) => ({
         description: item.description || '',
-        quantity: item.quantity || 1,
-        unit_price: item.unit_price || 0,
-        amount: item.amount || 0,
-        vat_rate: item.vat_rate || data.vat_rate || 21,
+        quantity: Number(item.quantity) || 1,
+        unit_price: Number(item.unit_price) || 0,
+        amount: Number(item.amount) || 0,
+        vat_rate: Number(item.vat_rate) || Number(data.vat_rate) || 21,
       }));
 
       const subtotal = items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-      const vatRate = data.vat_rate || 21;
-      const vatAmount = Math.round((subtotal * vatRate) / 100 * 100) / 100;
-      const total = subtotal + vatAmount;
+      const vatRate = Number(data.vat_rate) || 21;
+      const vatAmount = Math.round(
+        items.reduce((sum, item) => sum + ((Number(item.amount) || 0) * (Number(item.vat_rate) || vatRate)) / 100, 0) * 100
+      ) / 100;
+      const total = Math.round((subtotal + vatAmount) * 100) / 100;
 
       const { error: updateError } = await supabase
         .from('purchase_invoices')
@@ -376,10 +378,10 @@ export function PurchaseInvoices() {
         const itemsToInsert = items.map(item => ({
           purchase_invoice_id: invoice.id,
           description: item.description,
-          quantity: item.quantity,
-          unit_price: item.unit_price,
-          amount: item.amount,
-          vat_rate: item.vat_rate,
+          quantity: Number(item.quantity) || 0,
+          unit_price: Number(item.unit_price) || 0,
+          amount: Number(item.amount) || 0,
+          vat_rate: Number(item.vat_rate) || 21,
         }));
         await supabase.from('purchase_invoice_line_items').insert(itemsToInsert);
       }
@@ -392,7 +394,7 @@ export function PurchaseInvoices() {
     } finally {
       setProcessingIds(prev => {
         const next = new Set(prev);
-        next.forEach(id => next.delete(id));
+        next.delete(invoice.id);
         return next;
       });
     }
@@ -421,8 +423,14 @@ export function PurchaseInvoices() {
 
   const calculateTotals = () => {
     const subtotal = lineItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-    const vatAmount = Math.round((subtotal * formData.vat_rate) / 100 * 100) / 100;
-    const total = subtotal + vatAmount;
+    const vatAmount = Math.round(
+      lineItems.reduce((sum, item) => {
+        const amt = Number(item.amount) || 0;
+        const rate = Number(item.vat_rate ?? formData.vat_rate) || 0;
+        return sum + (amt * rate) / 100;
+      }, 0) * 100
+    ) / 100;
+    const total = Math.round((subtotal + vatAmount) * 100) / 100;
     return { subtotal, vatAmount, total };
   };
 
@@ -451,10 +459,11 @@ export function PurchaseInvoices() {
         const itemsToInsert = lineItems.map((item) => ({
           purchase_invoice_id: editingId,
           description: item.description,
-          quantity: item.quantity,
-          unit_price: item.unit_price,
-          amount: item.amount,
+          quantity: Number(item.quantity) || 0,
+          unit_price: Number(item.unit_price) || 0,
+          amount: Number(item.amount) || 0,
           vat_rate: item.vat_rate,
+          grootboek_id: item.grootboek_id ?? null,
         }));
 
         const { error: itemsError } = await supabase.from('purchase_invoice_line_items').insert(itemsToInsert);
@@ -480,10 +489,11 @@ export function PurchaseInvoices() {
         const itemsToInsert = lineItems.map((item) => ({
           purchase_invoice_id: invoice.id,
           description: item.description,
-          quantity: item.quantity,
-          unit_price: item.unit_price,
-          amount: item.amount,
+          quantity: Number(item.quantity) || 0,
+          unit_price: Number(item.unit_price) || 0,
+          amount: Number(item.amount) || 0,
           vat_rate: item.vat_rate,
+          grootboek_id: item.grootboek_id ?? null,
         }));
 
         const { error: itemsError } = await supabase.from('purchase_invoice_line_items').insert(itemsToInsert);
@@ -529,10 +539,11 @@ export function PurchaseInvoices() {
     setLineItems(
       invoice.purchase_invoice_line_items?.map((item) => ({
         description: item.description,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        amount: item.amount,
+        quantity: Number(item.quantity) || 0,
+        unit_price: Number(item.unit_price) || 0,
+        amount: Number(item.amount) || 0,
         vat_rate: item.vat_rate || 21,
+        grootboek_id: (item as any).grootboek_id ?? null,
       })) || [{ description: '', quantity: 1, unit_price: 0, amount: 0, vat_rate: 21 }]
     );
     setAiExtracted(invoice.ai_extracted);
@@ -568,9 +579,10 @@ export function PurchaseInvoices() {
 
   const markAsPaid = async (id: string) => {
     try {
+      const nowIso = new Date().toISOString();
       const { error } = await supabase
         .from('purchase_invoices')
-        .update({ status: 'paid', updated_at: new Date().toISOString() })
+        .update({ status: 'paid', paid_at: nowIso, updated_at: nowIso })
         .eq('id', id);
       if (error) throw error;
       setPreviewInvoice(null);
