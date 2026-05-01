@@ -3,7 +3,7 @@ import { Upload, FileText, X, AlertCircle, Sparkles, PenLine } from 'lucide-reac
 
 type PurchaseInvoiceUploadProps = {
   hasApiKey: boolean;
-  onManualEntry: (fileName: string) => void;
+  onManualEntry: (fileName: string, file?: File) => void;
   onSaveAndProcess: (file: File, fileName: string) => void;
   onCancel: () => void;
 };
@@ -195,7 +195,7 @@ export function PurchaseInvoiceUpload({ hasApiKey, onManualEntry, onSaveAndProce
           {file && (
             <>
               <button
-                onClick={() => onManualEntry(file.name)}
+                onClick={() => onManualEntry(file.name, file)}
                 className="flex items-center gap-2 px-4 py-2.5 bg-dark-700 text-gray-200 rounded-lg hover:bg-dark-600 transition-colors text-sm font-medium border border-dark-600"
               >
                 <PenLine size={16} />

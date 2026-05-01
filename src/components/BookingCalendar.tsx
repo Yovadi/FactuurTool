@@ -118,6 +118,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
     external_customer_id: ''
   });
   const [rateType, setRateType] = useState<'hourly' | 'half_day' | 'full_day'>('hourly');
+  const [discountOverride, setDiscountOverride] = useState<string>('');
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteOption, setDeleteOption] = useState<'single' | 'all'>('single');
@@ -605,7 +606,13 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
     }
 
     let discountPercentage = 0;
-    if (formBookingType === 'tenant') {
+    const overrideTrimmed = discountOverride.trim();
+    if (overrideTrimmed !== '') {
+      const parsed = Number(overrideTrimmed);
+      if (!Number.isNaN(parsed) && parsed >= 0 && parsed <= 100) {
+        discountPercentage = parsed;
+      }
+    } else if (formBookingType === 'tenant') {
       const tenantIdToUse = loggedInTenantId || formData.tenant_id;
       if (tenantIdToUse) {
         const { data: tenantData } = await supabase
@@ -710,6 +717,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
       external_customer_id: ''
     });
     setRateType('hourly');
+    setDiscountOverride('');
     if (onBookingChange) {
       onBookingChange('created', newBooking.id);
     }
@@ -1621,6 +1629,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                   setShowForm(false);
                   setSelectedCells([]);
                   setRateType('hourly');
+    setDiscountOverride('');
                 }}
                 className="text-gray-400 hover:text-gray-200"
               >
@@ -1806,6 +1815,27 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                 );
               })()}
 
+              {!loggedInTenantId && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-200 mb-2">
+                    Korting % (optioneel)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step="0.01"
+                    value={discountOverride}
+                    onChange={(e) => setDiscountOverride(e.target.value)}
+                    placeholder="Standaard klantkorting gebruiken"
+                    className="w-full px-4 py-2 border border-dark-600 rounded-lg bg-dark-900 text-gray-100 focus:ring-2 focus:ring-gold-500 focus:border-transparent"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Leeg laten voor automatische korting op basis van klantinstellingen.
+                  </p>
+                </div>
+              )}
+
               {formBookingType === 'tenant' && loggedInTenantId ? (
                 <div>
                   <label className="block text-sm font-medium text-gray-200 mb-2">
@@ -1868,6 +1898,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                       external_customer_id: ''
                     });
                     setRateType('hourly');
+    setDiscountOverride('');
                   }}
                   className="px-6 py-2 border border-dark-600 rounded-lg text-gray-300 hover:bg-dark-700 transition-colors"
                 >

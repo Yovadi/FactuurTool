@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import type { CompanySettings } from '../lib/supabase';
-import { Plus, Search, Eye, CreditCard as Edit2, Trash2, Upload, FileText, CheckCircle, Clock, AlertCircle, Sparkles, X, Filter, Loader2, RefreshCw, Link2 } from 'lucide-react';
+import { Plus, Search, Eye, CreditCard as Edit2, Trash2, Upload, FileText, CheckCircle, Clock, AlertCircle, Sparkles, X, Loader2, RefreshCw, Link2 } from 'lucide-react';
 import { PurchaseInvoiceUpload } from './PurchaseInvoiceUpload';
 import { PurchaseInvoicePreview } from './PurchaseInvoicePreview';
 import { ConfirmModal } from './ConfirmModal';
@@ -42,6 +42,7 @@ type PurchaseInvoice = {
   category: string;
   notes: string;
   original_file_name: string;
+  original_file_url: string | null;
   ai_extracted: boolean;
   ai_confidence: number;
   eboekhouden_factuur_id: number | null;
@@ -141,16 +142,10 @@ export function PurchaseInvoices() {
   const [aiExtracted, setAiExtracted] = useState(false);
   const [aiConfidence, setAiConfidence] = useState(0);
   const [originalFileName, setOriginalFileName] = useState('');
+  const [pendingUploadFile, setPendingUploadFile] = useState<File | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
   const [syncingIds, setSyncingIds] = useState<Set<string>>(new Set());
-  const [grootboekMappings, setGrootboekMappings] = useState<Array<{
-    id: string;
-    local_category: string;
-    grootboek_code: string;
-    grootboek_id: number;
-    grootboek_omschrijving: string;
-  }>>([]);
   const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
   const [aiNotification, setAiNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const notificationTimerRef = useRef<ReturnType<typeof setTimeout>>();
@@ -180,21 +175,17 @@ export function PurchaseInvoices() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [invoicesRes, settingsRes, mappingsRes] = await Promise.all([
+      const [invoicesRes, settingsRes] = await Promise.all([
         supabase
           .from('purchase_invoices')
           .select('*, purchase_invoice_line_items(*)')
-          .order('invoice_number', { ascending: true }),
+          .order('invoice_date', { ascending: false }),
         supabase
           .from('company_settings')
           .select('*')
           .order('updated_at', { ascending: false })
           .limit(1)
           .maybeSingle(),
-        supabase
-          .from('eboekhouden_grootboek_mapping')
-          .select('*')
-          .order('local_category'),
       ]);
 
       if (invoicesRes.data) setInvoices(invoicesRes.data);
@@ -202,7 +193,6 @@ export function PurchaseInvoices() {
         setCompanySettings(settingsRes.data);
         if (settingsRes.data.openai_api_key) setOpenaiApiKey(settingsRes.data.openai_api_key);
       }
-      if (mappingsRes.data) setGrootboekMappings(mappingsRes.data);
 
       const url = import.meta.env.VITE_SUPABASE_URL || 'https://qlvndvpxhqmjljjpehkn.supabase.co';
       setSupabaseUrl(url);
@@ -282,18 +272,34 @@ export function PurchaseInvoices() {
     });
   };
 
-  const handleManualEntry = (fileName: string) => {
+  const handleManualEntry = (fileName: string, file?: File) => {
     resetForm();
     setOriginalFileName(fileName);
+    setPendingUploadFile(file ?? null);
     setShowUpload(false);
     setShowForm(true);
+  };
+
+  const uploadInvoiceFile = async (file: File, invoiceId: string): Promise<string | null> => {
+    const ext = file.name.includes('.') ? file.name.split('.').pop() : 'pdf';
+    const path = `${invoiceId}/${Date.now()}.${ext}`;
+    const { error: uploadError } = await supabase.storage
+      .from('purchase-invoices')
+      .upload(path, file, { upsert: true, contentType: file.type });
+    if (uploadError) {
+      console.error('Error uploading file to storage:', uploadError);
+      return null;
+    }
+    const { data: urlData } = supabase.storage.from('purchase-invoices').getPublicUrl(path);
+    return urlData?.publicUrl || null;
   };
 
   const handleSaveAndProcess = async (file: File, fileName: string) => {
     setShowUpload(false);
 
+    let invoice: any;
     try {
-      const { data: invoice, error } = await supabase
+      const { data: createdInvoice, error } = await supabase
         .from('purchase_invoices')
         .insert({
           invoice_number: '',
@@ -307,6 +313,15 @@ export function PurchaseInvoices() {
         .single();
 
       if (error) throw error;
+      invoice = createdInvoice;
+
+      const fileUrl = await uploadInvoiceFile(file, invoice.id);
+      if (fileUrl) {
+        await supabase
+          .from('purchase_invoices')
+          .update({ original_file_url: fileUrl })
+          .eq('id', invoice.id);
+      }
 
       await loadData();
 
@@ -367,7 +382,6 @@ export function PurchaseInvoices() {
           total_amount: total,
           category: data.category || '',
           ai_extracted: true,
-          ai_confidence: 85,
           updated_at: new Date().toISOString(),
         })
         .eq('id', invoice.id);
@@ -392,11 +406,13 @@ export function PurchaseInvoices() {
       const message = err instanceof Error ? err.message : 'Onbekende fout';
       showNotification('error', `AI herkenning mislukt: ${message}. U kunt de factuur handmatig bewerken.`);
     } finally {
-      setProcessingIds(prev => {
-        const next = new Set(prev);
-        next.delete(invoice.id);
-        return next;
-      });
+      if (invoice?.id) {
+        setProcessingIds(prev => {
+          const next = new Set(prev);
+          next.delete(invoice.id);
+          return next;
+        });
+      }
     }
   };
 
@@ -486,6 +502,16 @@ export function PurchaseInvoices() {
 
         if (error) throw error;
 
+        if (pendingUploadFile) {
+          const fileUrl = await uploadInvoiceFile(pendingUploadFile, invoice.id);
+          if (fileUrl) {
+            await supabase
+              .from('purchase_invoices')
+              .update({ original_file_url: fileUrl })
+              .eq('id', invoice.id);
+          }
+        }
+
         const itemsToInsert = lineItems.map((item) => ({
           purchase_invoice_id: invoice.id,
           description: item.description,
@@ -514,6 +540,7 @@ export function PurchaseInvoices() {
     setAiExtracted(false);
     setAiConfidence(0);
     setOriginalFileName('');
+    setPendingUploadFile(null);
     setShowForm(false);
   };
 
@@ -554,6 +581,12 @@ export function PurchaseInvoices() {
 
   const handleDelete = async (id: string) => {
     try {
+      const { data: files } = await supabase.storage.from('purchase-invoices').list(id);
+      if (files && files.length > 0) {
+        await supabase.storage
+          .from('purchase-invoices')
+          .remove(files.map(f => `${id}/${f.name}`));
+      }
       const { error } = await supabase.from('purchase_invoices').delete().eq('id', id);
       if (error) throw error;
       setPreviewInvoice(null);
@@ -688,11 +721,11 @@ export function PurchaseInvoices() {
     }
   };
 
+  const isUnpaid = (s: string) => s === 'pending' || s === 'overdue' || s === 'draft';
   const totalStats = {
     total: invoices.length,
-    pending: invoices.filter((i) => i.status === 'pending').length,
-    paid: invoices.filter((i) => i.status === 'paid').length,
-    totalAmount: invoices.filter((i) => i.status === 'pending').reduce((sum, i) => sum + i.total_amount, 0),
+    pending: invoices.filter((i) => isUnpaid(i.status)).length,
+    totalAmount: invoices.filter((i) => isUnpaid(i.status)).reduce((sum, i) => sum + Number(i.total_amount || 0), 0),
   };
 
   const { subtotal, vatAmount, total } = calculateTotals();
@@ -918,6 +951,9 @@ export function PurchaseInvoices() {
                             {CATEGORIES.map((cat) => (
                               <option key={cat.value} value={cat.value} className="bg-dark-900 text-gray-200">{cat.label}</option>
                             ))}
+                            {inv.category && !CATEGORIES.some((c) => c.value === inv.category) && (
+                              <option value={inv.category} className="bg-dark-900 text-gray-200">{inv.category}</option>
+                            )}
                           </select>
                         </td>
                         <td className="px-4 py-3 text-right text-gray-100 font-semibold">{formatCurrency(inv.total_amount)}</td>
@@ -1124,6 +1160,9 @@ export function PurchaseInvoices() {
                       {CATEGORIES.map((cat) => (
                         <option key={cat.value} value={cat.value}>{cat.label}</option>
                       ))}
+                      {formData.category && !CATEGORIES.some((c) => c.value === formData.category) && (
+                        <option value={formData.category}>{formData.category}</option>
+                      )}
                     </select>
                   </div>
                   <div>

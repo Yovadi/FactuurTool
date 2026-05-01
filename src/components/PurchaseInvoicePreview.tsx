@@ -1,4 +1,4 @@
-import { X, Download, Edit2, Trash2, CheckCircle, Clock, AlertCircle, Sparkles } from 'lucide-react';
+import { X, CreditCard as Edit2, Trash2, CheckCircle, Clock, AlertCircle, Sparkles } from 'lucide-react';
 
 type LineItem = {
   id?: string;
@@ -31,6 +31,7 @@ type PurchaseInvoice = {
   category: string;
   notes: string;
   original_file_name: string;
+  original_file_url?: string | null;
   ai_extracted: boolean;
   ai_confidence: number;
   purchase_invoice_line_items?: LineItem[];
@@ -87,7 +88,7 @@ export function PurchaseInvoicePreview({ invoice, onClose, onEdit, onDelete, onM
           </div>
           <div className="flex items-center gap-2">
             {invoice.ai_extracted && (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gold-500/10 rounded-lg" title={`AI confidence: ${invoice.ai_confidence}%`}>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gold-500/10 rounded-lg" title="Met AI herkend">
                 <Sparkles size={14} className="text-gold-500" />
                 <span className="text-gold-500 text-xs font-medium">AI</span>
               </div>
@@ -170,7 +171,18 @@ export function PurchaseInvoicePreview({ invoice, onClose, onEdit, onDelete, onM
                   {invoice.original_file_name && (
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">Bestand</span>
-                      <span className="text-gray-200 truncate ml-4 max-w-[200px]">{invoice.original_file_name}</span>
+                      {invoice.original_file_url ? (
+                        <a
+                          href={invoice.original_file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-gold-500 hover:text-gold-400 underline truncate ml-4 max-w-[200px]"
+                        >
+                          {invoice.original_file_name}
+                        </a>
+                      ) : (
+                        <span className="text-gray-200 truncate ml-4 max-w-[200px]">{invoice.original_file_name}</span>
+                      )}
                     </div>
                   )}
                 </div>
