@@ -110,8 +110,18 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
 
-  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
-    console.error('Failed to load:', errorCode, errorDescription);
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+    console.error('Failed to load:', errorCode, errorDescription, validatedURL);
+    try { mainWindow.webContents.openDevTools({ mode: 'detach' }); } catch (_) {}
+  });
+
+  mainWindow.webContents.on('render-process-gone', (event, details) => {
+    console.error('Renderer process gone:', details);
+    try { mainWindow.webContents.openDevTools({ mode: 'detach' }); } catch (_) {}
+  });
+
+  mainWindow.webContents.on('preload-error', (event, preloadPath, error) => {
+    console.error('Preload error at', preloadPath, error);
   });
 
   mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
