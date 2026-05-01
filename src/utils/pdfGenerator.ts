@@ -337,12 +337,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
     } else if (space.square_footage && space.space_type !== 'voorschot') {
       const sqm = typeof space.square_footage === 'string' ? parseFloat(space.square_footage) : space.square_footage;
       if (!isNaN(sqm) && sqm > 0) {
-        if (space.space_type === 'flex') {
-          quantity = `${sqm.toFixed(0)} dagen`;
-          if (space.price_per_sqm && space.price_per_sqm > 0) {
-            rate = `€ ${space.price_per_sqm.toFixed(2)} / dag`;
-          }
-        } else if (space.space_type === 'diversen') {
+        if (space.space_type === 'diversen') {
           const isDiversenFixed = space.price_per_sqm && Math.abs(sqm - space.price_per_sqm) < 0.01;
           if (isDiversenFixed) {
             quantity = '1';
