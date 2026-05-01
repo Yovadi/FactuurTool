@@ -2556,7 +2556,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
             invoice: enrichedInvoice,
             tenant: tenant || { name: '', company_name: '', email: '' },
             spaces,
-            contractType: invoice.lease?.lease_type,
             invoiceTypeColor: getInvoiceTypeColor(invoice),
             company: companySettings ? {
               name: companySettings.company_name,
@@ -2600,7 +2599,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       tenant_city: tenant?.city || undefined,
       tenant_country: tenant?.country || undefined,
       invoice_month: previewInvoice.invoice.invoice_month || undefined,
-      contract_type: previewInvoice.invoice.lease?.lease_type || undefined,
       notes: previewInvoice.invoice.notes || undefined,
       spaces: previewInvoice.spaces,
       security_deposit: 0,
@@ -3256,7 +3254,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
               email: ''
             }}
             spaces={previewInvoice.spaces}
-            contractType={previewInvoice.invoice.lease?.lease_type}
             company={companySettings ? {
               name: companySettings.company_name,
               address: companySettings.address,

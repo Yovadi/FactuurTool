@@ -45,7 +45,6 @@ interface InvoiceData {
   tenant_city?: string;
   tenant_country?: string;
   invoice_month?: string;
-  contract_type?: string;
   notes?: string;
   spaces: Array<{
     space_name: string;

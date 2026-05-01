@@ -51,7 +51,6 @@ interface InvoicePreviewProps {
     country?: string;
   };
   spaces: InvoiceSpace[];
-  contractType?: string;
   company?: {
     name: string;
     address: string;
@@ -80,7 +79,6 @@ export function InvoicePreview({
   invoice,
   tenant,
   spaces,
-  contractType,
   company,
   invoiceTypeColor,
   onClose,
@@ -161,7 +159,6 @@ export function InvoicePreview({
       tenant_city: tenant.city || undefined,
       tenant_country: tenant.country || undefined,
       invoice_month: invoice.invoice_month || undefined,
-      contract_type: contractType || undefined,
       notes: invoice.notes || undefined,
       spaces: spaces.map(s => ({
         space_name: s.space_name,
@@ -193,7 +190,7 @@ export function InvoicePreview({
       pdfLoadingRef.current = false;
       setPdfLoading(false);
     });
-  }, [invoice?.id, invoice, tenant, spaces, contractType, company]);
+  }, [invoice?.id, invoice, tenant, spaces, company]);
 
   if (!invoice || !tenant) {
     if (inline) {

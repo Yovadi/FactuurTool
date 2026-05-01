@@ -116,7 +116,6 @@ export function SpaceManagement() {
     });
 
     const spacesWithTenants: SpaceWithTenant[] = (spacesData || [])
-      .filter((space: any) => space.space_type !== 'Flexplek')
       .map(space => {
         const tenant = tenantBySpaceId.get(space.id);
         return tenant

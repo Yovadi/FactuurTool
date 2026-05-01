@@ -180,7 +180,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
     try {
       const { data: invoices, error } = await supabase
         .from('invoices')
-        .select('id, invoice_number, invoice_date, due_date, amount, status, lease_id, notes, lease:leases(lease_type), invoice_line_items(booking_id)')
+        .select('id, invoice_number, invoice_date, due_date, amount, status, lease_id, notes, invoice_line_items(booking_id)')
         .or(`tenant_id.eq.${debtorId},external_customer_id.eq.${debtorId}`)
         .not('status', 'in', '(paid,credited)')
         .order('invoice_date', { ascending: false });
@@ -201,7 +201,6 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
           id, invoice_number, invoice_date, due_date, amount, subtotal,
           vat_amount, vat_rate, vat_inclusive, status, invoice_month, notes,
           lease_id, tenant_id, external_customer_id, applied_credit,
-          lease:leases(lease_type),
           tenants(id, name, company_name, email),
           external_customers(id, company_name, contact_name, email),
           invoice_line_items(id, description, quantity, unit_price, amount, booking_id)

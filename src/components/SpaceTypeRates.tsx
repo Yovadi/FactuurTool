@@ -61,7 +61,7 @@ export function SpaceTypeRates() {
       return;
     }
 
-    setRates((data || []).filter((r: any) => r.space_type !== 'Flexplek'));
+    setRates(data || []);
     setLoading(false);
   };
 
