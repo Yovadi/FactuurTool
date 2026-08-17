@@ -74,6 +74,9 @@ contextBridge.exposeInMainWorld('electron', {
     const handler = (_, action, data) => callback(action, data);
     ipcRenderer.on('preview-action', handler);
     return () => ipcRenderer.removeListener('preview-action', handler);
+  },
+  showBookingNotification: (payload) => {
+    return ipcRenderer.invoke('show-booking-notification', payload);
   }
 });
 
@@ -151,5 +154,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const handler = (_, action, data) => callback(action, data);
     ipcRenderer.on('preview-action', handler);
     return () => ipcRenderer.removeListener('preview-action', handler);
+  },
+  showBookingNotification: (payload) => {
+    return ipcRenderer.invoke('show-booking-notification', payload);
   }
 });

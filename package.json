@@ -21,7 +21,8 @@
     "electron:publish": "npm run build && node scripts/publish.js",
     "db:backup": "node scripts/backup-database.mjs",
     "db:restore": "node scripts/restore-database.mjs",
-    "test:db": "node --test scripts/db-tables.test.mjs"
+    "test:db": "node --test scripts/db-tables.test.mjs",
+    "test:invites": "bash -c 'cd src/utils && node --experimental-strip-types --test bookingInvite.test.ts'"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",

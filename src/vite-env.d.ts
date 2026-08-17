@@ -18,6 +18,7 @@ interface ElectronAPI {
   moveAllFolders: (oldRootPath: string, newRootPath: string) => Promise<{ success: boolean; moved?: string[]; failed?: Array<{ name: string; error: string }>; error?: string; notFound?: boolean }>;
   getAppVersion: () => Promise<string>;
   checkForUpdates: () => Promise<{ success: boolean; message?: string; error?: string; updateInfo?: any; details?: any }>;
+  showBookingNotification?: (payload: { title: string; body: string }) => Promise<void>;
 }
 
 interface Window {
