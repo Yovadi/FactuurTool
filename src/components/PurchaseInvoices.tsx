@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, edgeFunctionUrl } from '../lib/supabase';
 import type { CompanySettings } from '../lib/supabase';
 import { Plus, Search, Eye, CreditCard as Edit2, Trash2, Upload, FileText, CheckCircle, Clock, AlertCircle, Sparkles, X, Loader2, RefreshCw, Link2 } from 'lucide-react';
 import { PurchaseInvoiceUpload } from './PurchaseInvoiceUpload';
@@ -134,7 +134,6 @@ export function PurchaseInvoices() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [openaiApiKey, setOpenaiApiKey] = useState('');
-  const [supabaseUrl, setSupabaseUrl] = useState('');
   const [formData, setFormData] = useState<FormData>({ ...emptyForm });
   const [lineItems, setLineItems] = useState<LineItem[]>([
     { description: '', quantity: 1, unit_price: 0, amount: 0, vat_rate: 21 },
@@ -193,9 +192,6 @@ export function PurchaseInvoices() {
         setCompanySettings(settingsRes.data);
         if (settingsRes.data.openai_api_key) setOpenaiApiKey(settingsRes.data.openai_api_key);
       }
-
-      const url = import.meta.env.VITE_SUPABASE_URL || 'https://qlvndvpxhqmjljjpehkn.supabase.co';
-      setSupabaseUrl(url);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -329,7 +325,7 @@ export function PurchaseInvoices() {
 
       const base64 = await fileToBase64(file);
 
-      const response = await fetch(`${supabaseUrl}/functions/v1/parse-invoice`, {
+      const response = await fetch(edgeFunctionUrl('parse-invoice'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

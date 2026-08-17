@@ -1,6 +1,4 @@
-const FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/eboekhouden-proxy`;
-
-const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+import { edgeFunctionHeaders, edgeFunctionUrl } from './supabase';
 
 interface EBoekhoudenResponse<T = unknown> {
   success: boolean;
@@ -14,12 +12,9 @@ async function callProxy<T = unknown>(
   action: string,
   params?: Record<string, unknown>
 ): Promise<EBoekhoudenResponse<T>> {
-  const res = await fetch(FUNCTION_URL, {
+  const res = await fetch(edgeFunctionUrl('eboekhouden-proxy'), {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${ANON_KEY}`,
-    },
+    headers: edgeFunctionHeaders(),
     body: JSON.stringify({
       api_token: apiToken,
       action,

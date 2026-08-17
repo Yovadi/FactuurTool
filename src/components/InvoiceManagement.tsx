@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { supabase, type Invoice, type Lease, type Tenant, type ExternalCustomer, type LeaseSpace, type OfficeSpace, type InvoiceLineItem } from '../lib/supabase';
+import { supabase, edgeFunctionHeaders, edgeFunctionUrl, type Invoice, type Lease, type Tenant, type ExternalCustomer, type LeaseSpace, type OfficeSpace, type InvoiceLineItem } from '../lib/supabase';
 import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, CreditCard as Edit, Search, CreditCard as Edit2, AlertCircle, AlertTriangle, CheckSquare, Square, Check, X, Home, RefreshCw, CheckCircle2, Loader2, Filter, RotateCcw } from 'lucide-react';
 import { syncInvoiceToEBoekhouden, checkInvoicePaymentStatuses } from '../lib/eboekhoudenSync';
 import { generateInvoicePDF, generateInvoicePDFBase64 } from '../utils/pdfGenerator';
@@ -1400,15 +1400,9 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
             ? `${invoice.invoice_number}_${customerName}.pdf`
             : `${invoice.invoice_number}.pdf`;
 
-          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-          const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-          const response = await fetch(`${supabaseUrl}/functions/v1/onedrive-upload`, {
+          const response = await fetch(edgeFunctionUrl('onedrive-upload'), {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${supabaseAnonKey}`,
-            },
+            headers: edgeFunctionHeaders(),
             body: JSON.stringify({
               action: 'upload',
               graph: {

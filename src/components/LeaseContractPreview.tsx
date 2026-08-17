@@ -6,7 +6,7 @@ import {
   generateLeaseContractPDFBase64,
   type LeaseContractData,
 } from '../utils/leaseContractPdf';
-import { supabase, type CompanySettings } from '../lib/supabase';
+import { supabase, edgeFunctionHeaders, edgeFunctionUrl, type CompanySettings } from '../lib/supabase';
 import { getLocalRootFolderPath } from '../utils/localSettings';
 
 interface LeaseContractPreviewProps {
@@ -110,31 +110,22 @@ export function LeaseContractPreview({
         const basePath = companySettings.onedrive_folder_path || 'Facturen';
         const folderPath = `${basePath}/Huurders/${sanitizedName}/1. Huurcontract`;
 
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-        const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-        const response = await fetch(
-          `${supabaseUrl}/functions/v1/onedrive-upload`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${supabaseAnonKey}`,
+        const response = await fetch(edgeFunctionUrl('onedrive-upload'), {
+          method: 'POST',
+          headers: edgeFunctionHeaders(),
+          body: JSON.stringify({
+            action: 'upload',
+            graph: {
+              tenant_id: companySettings.graph_tenant_id,
+              client_id: companySettings.graph_client_id,
+              client_secret: companySettings.graph_client_secret,
             },
-            body: JSON.stringify({
-              action: 'upload',
-              graph: {
-                tenant_id: companySettings.graph_tenant_id,
-                client_id: companySettings.graph_client_id,
-                client_secret: companySettings.graph_client_secret,
-              },
-              user_email: companySettings.onedrive_user_email,
-              folder_path: folderPath,
-              file_name: fileName,
-              file_content_base64: pdfBase64,
-            }),
-          }
-        );
+            user_email: companySettings.onedrive_user_email,
+            folder_path: folderPath,
+            file_name: fileName,
+            file_content_base64: pdfBase64,
+          }),
+        });
 
         const result = await response.json();
         if (result.success) {

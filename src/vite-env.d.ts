@@ -1,5 +1,14 @@
 /// <reference types="vite/client" />
 
+interface ImportMetaEnv {
+  readonly VITE_SUPABASE_URL: string;
+  readonly VITE_SUPABASE_ANON_KEY: string;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
+
 interface ElectronAPI {
   sendEmailWithPDF: (pdfBuffer: ArrayBuffer, to: string, subject: string, body: string) => Promise<{ success: boolean; error?: string; warning?: string }>;
   selectFolder: () => Promise<{ success: boolean; path?: string; canceled?: boolean; error?: string }>;
