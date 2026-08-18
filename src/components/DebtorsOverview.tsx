@@ -467,10 +467,6 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
   };
 
   const filteredPaidInvoices = getFilteredPaidInvoices();
-  const paidLogTotal = filteredPaidInvoices.reduce(
-    (sum, invoice) => sum + Number(invoice.amount || 0),
-    0
-  );
 
   if (loading) {
     return (
@@ -809,7 +805,6 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                   pageSizeOptions={[25, 50, 100, 200]}
                   label="facturen"
                   alwaysShow
-                  summary={`Totaal ${formatCurrency(paidLogTotal)}`}
                 />
               </div>
             )}

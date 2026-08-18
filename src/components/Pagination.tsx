@@ -9,7 +9,6 @@ type PaginationProps = {
   pageSizeOptions?: number[];
   label?: string;
   alwaysShow?: boolean;
-  summary?: string;
 };
 
 export function Pagination({
@@ -21,7 +20,6 @@ export function Pagination({
   pageSizeOptions = [10, 25, 50, 100],
   label = 'items',
   alwaysShow = false,
-  summary,
 }: PaginationProps) {
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const startItem = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
@@ -63,7 +61,6 @@ export function Pagination({
     <div className="flex items-center justify-between gap-3 flex-wrap px-4 py-3 border-t border-dark-700 bg-dark-800 flex-shrink-0">
       <div className="text-sm text-gray-400">
         Toon {startItem} tot {endItem} van {totalItems} {label}
-        {summary && <span className="ml-3 text-gray-100 font-semibold">{summary}</span>}
       </div>
       <div className="flex items-center gap-1">
         <button
