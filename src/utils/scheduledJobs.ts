@@ -1,7 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { checkInvoicePaymentStatuses, checkPurchaseInvoicePaymentStatuses, verifyInvoiceSyncStatus, verifyRelationsInEBoekhouden } from '../lib/eboekhoudenSync';
 import { createLeaseNotification } from './notificationHelper';
-import { calculateVAT, isLeaseActiveInMonth } from './money';
+import { calculateVAT, isLeaseActiveInMonth, localDateString } from './money';
 
 function getLocalCategory(spaceType?: string): string | null {
   switch (spaceType) {
@@ -84,7 +84,10 @@ async function advanceJobNextRun(job: ScheduledJob, intervalHours: number) {
 const runEBoekhoudenPaymentStatusCheck = async (job: ScheduledJob) => {
   try {
     const token = await getEBoekhoudenToken();
-    if (!token) return;
+    if (!token) {
+      await advanceJobNextRun(job, 24);
+      return;
+    }
     await checkInvoicePaymentStatuses(token);
     await checkPurchaseInvoicePaymentStatuses(token);
     await advanceJobNextRun(job, 24);
@@ -96,7 +99,10 @@ const runEBoekhoudenPaymentStatusCheck = async (job: ScheduledJob) => {
 const runEBoekhoudenSyncVerification = async (job: ScheduledJob) => {
   try {
     const token = await getEBoekhoudenToken();
-    if (!token) return;
+    if (!token) {
+      await advanceJobNextRun(job, 24);
+      return;
+    }
     await verifyInvoiceSyncStatus(token);
     await advanceJobNextRun(job, 24);
   } catch (error) {
@@ -107,7 +113,10 @@ const runEBoekhoudenSyncVerification = async (job: ScheduledJob) => {
 const runEBoekhoudenRelationVerification = async (job: ScheduledJob) => {
   try {
     const token = await getEBoekhoudenToken();
-    if (!token) return;
+    if (!token) {
+      await advanceJobNextRun(job, 24);
+      return;
+    }
     await verifyRelationsInEBoekhouden(token);
     await advanceJobNextRun(job, 24);
   } catch (error) {
@@ -160,6 +169,7 @@ const generateMeetingRoomInvoices = async (job: ScheduledJob) => {
 
     const invoiceDate = new Date().toISOString().split('T')[0];
     const dueDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    let anyFailed = false;
 
     for (const group of Object.values(grouped)) {
       const totalAmount = group.bookings.reduce((sum, b) => sum + Number(b.total_amount), 0);
@@ -184,10 +194,18 @@ const generateMeetingRoomInvoices = async (job: ScheduledJob) => {
         ? await existingQuery.eq('tenant_id', group.customerId).maybeSingle()
         : await existingQuery.eq('external_customer_id', group.customerId).maybeSingle();
 
-      let invoiceId: string;
-
       if (existingResult.data) {
         const existing = existingResult.data;
+        const bookingIds = group.bookings.map(b => b.id);
+        const { error: linkError } = await supabase
+          .from('meeting_room_bookings')
+          .update({ invoice_id: existing.id })
+          .in('id', bookingIds);
+        if (linkError) {
+          anyFailed = true;
+          continue;
+        }
+
         const existingBase = vatInclusive ? Number(existing.amount) : Number(existing.subtotal);
         const addedBase = vatInclusive ? totalAmount : subtotal;
         const { subtotal: newSubtotal, vatAmount: newVat, total: newTotal } = calculateVAT(
@@ -197,11 +215,13 @@ const generateMeetingRoomInvoices = async (job: ScheduledJob) => {
         );
         const updatedNotes = existing.notes ? `${existing.notes}\n${notes}` : notes;
 
-        await supabase.from('invoices').update({
+        const { error: updateError } = await supabase.from('invoices').update({
           subtotal: newSubtotal, vat_amount: newVat, amount: newTotal, notes: updatedNotes
-        }).eq('id', existing.id);
-
-        invoiceId = existing.id;
+        }).eq('id', existing.id).eq('status', 'draft');
+        if (updateError) {
+          anyFailed = true;
+          continue;
+        }
       } else {
         const { data: invoiceNumber } = await supabase.rpc('generate_invoice_number');
         const insertData: Record<string, unknown> = {
@@ -223,16 +243,26 @@ const generateMeetingRoomInvoices = async (job: ScheduledJob) => {
           insertData.external_customer_id = group.customerId;
         }
 
-        const { data: newInvoice } = await supabase.from('invoices').insert(insertData).select('id').single();
-        if (!newInvoice) continue;
-        invoiceId = newInvoice.id;
-      }
+        const { data: newInvoice, error: insertError } = await supabase.from('invoices').insert(insertData).select('id').single();
+        if (insertError || !newInvoice) {
+          anyFailed = true;
+          continue;
+        }
+        const invoiceId = newInvoice.id;
 
-      const bookingIds = group.bookings.map(b => b.id);
-      await supabase.from('meeting_room_bookings').update({ invoice_id: invoiceId }).in('id', bookingIds);
+        const bookingIds = group.bookings.map(b => b.id);
+        const { error: linkError } = await supabase.from('meeting_room_bookings').update({ invoice_id: invoiceId }).in('id', bookingIds);
+        if (linkError) {
+          await supabase.from('invoices').delete().eq('id', invoiceId).eq('status', 'draft');
+          anyFailed = true;
+          continue;
+        }
+      }
     }
 
-    await advanceJobToNextMonth(job);
+    if (!anyFailed) {
+      await advanceJobToNextMonth(job);
+    }
   } catch (error) {
     console.error('Error generating meeting room invoices:', error);
   }
@@ -241,14 +271,13 @@ const generateMeetingRoomInvoices = async (job: ScheduledJob) => {
 const checkExpiringLeases = async (job: ScheduledJob) => {
   try {
     const today = new Date();
-    const in30Days = new Date(today);
-    in30Days.setDate(in30Days.getDate() + 30);
-    const in60Days = new Date(today);
-    in60Days.setDate(in60Days.getDate() + 60);
-
-    const todayStr = today.toISOString().split('T')[0];
-    const in30Str = in30Days.toISOString().split('T')[0];
-    const in60Str = in60Days.toISOString().split('T')[0];
+    const todayStr = localDateString();
+    const in30 = new Date(today);
+    in30.setDate(in30.getDate() + 30);
+    const in60 = new Date(today);
+    in60.setDate(in60.getDate() + 60);
+    const in30Str = localDateString(in30);
+    const in60Str = localDateString(in60);
 
     const { data: leases } = await supabase
       .from('leases')
@@ -268,17 +297,20 @@ const checkExpiringLeases = async (job: ScheduledJob) => {
       const tenantName = lease.tenant?.company_name || 'Onbekende huurder';
       const endDateStr = endDate.toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
+      const notifType = diffDays <= 30 ? 'lease_expiring_30' : diffDays <= 60 ? 'lease_expiring_60' : null;
+      if (!notifType) continue;
+
       const { data: existingNotif } = await supabase
         .from('admin_notifications')
         .select('id')
         .eq('tenant_id', lease.tenant_id)
-        .in('notification_type', ['lease_expiring_30', 'lease_expiring_60'])
+        .eq('notification_type', notifType)
         .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
         .maybeSingle();
 
       if (existingNotif) continue;
 
-      if (diffDays <= 30) {
+      if (notifType === 'lease_expiring_30') {
         await createLeaseNotification(
           'lease_expiring_30',
           lease.id,
@@ -286,7 +318,7 @@ const checkExpiringLeases = async (job: ScheduledJob) => {
           `Einddatum: ${endDateStr} (nog ${diffDays} dagen)`,
           lease.tenant_id
         );
-      } else if (diffDays <= 60) {
+      } else {
         await createLeaseNotification(
           'lease_expiring_60',
           lease.id,
@@ -384,7 +416,7 @@ const applyRentIndexation = async (job: ScheduledJob) => {
 
 const completePastBookings = async (job: ScheduledJob) => {
   try {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = localDateString();
 
     await supabase
       .from('meeting_room_bookings')

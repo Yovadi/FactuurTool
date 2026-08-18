@@ -2237,6 +2237,31 @@
             return `${y}-${m}-${d}`;
         }
 
+        function parseLocalDate(iso) {
+            const [y, m, d] = String(iso).split('-').map(Number);
+            return new Date(y, m - 1, d);
+        }
+
+        function bookingTimesOverlap(startA, endA, startB, endB) {
+            const aStart = String(startA).substring(0, 5);
+            const aEnd = String(endA).substring(0, 5);
+            const bStart = String(startB).substring(0, 5);
+            const bEnd = String(endB).substring(0, 5);
+            return (aStart >= bStart && aStart < bEnd) ||
+                (aEnd > bStart && aEnd <= bEnd) ||
+                (aStart <= bStart && aEnd >= bEnd);
+        }
+
+        async function roomHasOverlap(roomId, bookingDate, startTime, endTime) {
+            const { data } = await sb
+                .from('meeting_room_bookings')
+                .select('id, start_time, end_time')
+                .eq('space_id', roomId)
+                .eq('booking_date', bookingDate)
+                .neq('status', 'cancelled');
+            return (data || []).some(b => bookingTimesOverlap(startTime, endTime, b.start_time, b.end_time));
+        }
+
         function getWeekStart(date) {
             const d = new Date(date);
             d.setHours(0, 0, 0, 0);
@@ -2951,6 +2976,11 @@
                 bookingData.external_customer_id = authenticatedUser.id;
             }
 
+            if (await roomHasOverlap(roomId, bookingDate, startTime, endTime)) {
+                showToast('Er is al een boeking op dit tijdstip', 'error');
+                return;
+            }
+
             console.log('Booking data being inserted:', bookingData);
 
             const { error } = await sb.from('meeting_room_bookings').insert(bookingData);
@@ -3150,8 +3180,10 @@
 
         async function generateBookingsFromPattern(pattern) {
             const bookings = [];
-            const startDate = new Date(pattern.start_date);
-            const endDate = pattern.end_date ? new Date(pattern.end_date) : new Date(startDate.getTime() + 365 * 24 * 60 * 60 * 1000);
+            const startDate = parseLocalDate(pattern.start_date);
+            const endDate = pattern.end_date
+                ? parseLocalDate(pattern.end_date)
+                : new Date(startDate.getFullYear() + 1, startDate.getMonth(), startDate.getDate());
 
             const space = meetingRooms.find(s => s.id === pattern.space_id);
             if (!space) return;
@@ -3186,6 +3218,7 @@
             const finalAmount = totalAmount - discountAmount;
 
             let currentDate = new Date(startDate);
+            const candidateDates = [];
 
             while (currentDate <= endDate) {
                 let shouldBook = false;
@@ -3200,30 +3233,52 @@
                 }
 
                 if (shouldBook) {
-                    bookings.push({
-                        space_id: pattern.space_id,
-                        tenant_id: pattern.tenant_id,
-                        external_customer_id: null,
-                        booking_date: currentDate.toISOString().split('T')[0],
-                        start_time: pattern.start_time,
-                        end_time: pattern.end_time,
-                        hourly_rate: space.hourly_rate || 25,
-                        total_hours: totalHours,
-                        total_amount: finalAmount,
-                        discount_percentage: discountPercentage,
-                        discount_amount: discountAmount,
-                        rate_type: rateType,
-                        applied_rate: appliedRate,
-                        status: 'pending',
-                        notes: pattern.notes || '',
-                        recurring_pattern_id: pattern.id,
-                        is_exception: false,
-                        booking_type: 'tenant'
-                    });
+                    candidateDates.push(formatDate(currentDate));
                 }
 
                 currentDate.setDate(currentDate.getDate() + 1);
             }
+
+            const conflictingDates = new Set();
+            for (let i = 0; i < candidateDates.length; i += 100) {
+                const batch = candidateDates.slice(i, i + 100);
+                const { data: existingBookings } = await sb
+                    .from('meeting_room_bookings')
+                    .select('booking_date, start_time, end_time')
+                    .eq('space_id', pattern.space_id)
+                    .neq('status', 'cancelled')
+                    .in('booking_date', batch);
+
+                (existingBookings || []).forEach(existing => {
+                    if (bookingTimesOverlap(pattern.start_time, pattern.end_time, existing.start_time, existing.end_time)) {
+                        conflictingDates.add(existing.booking_date);
+                    }
+                });
+            }
+
+            candidateDates.forEach(bookingDate => {
+                if (conflictingDates.has(bookingDate)) return;
+                bookings.push({
+                    space_id: pattern.space_id,
+                    tenant_id: pattern.tenant_id,
+                    external_customer_id: null,
+                    booking_date: bookingDate,
+                    start_time: pattern.start_time,
+                    end_time: pattern.end_time,
+                    hourly_rate: space.hourly_rate || 25,
+                    total_hours: totalHours,
+                    total_amount: finalAmount,
+                    discount_percentage: discountPercentage,
+                    discount_amount: discountAmount,
+                    rate_type: rateType,
+                    applied_rate: appliedRate,
+                    status: 'pending',
+                    notes: pattern.notes || '',
+                    recurring_pattern_id: pattern.id,
+                    is_exception: false,
+                    booking_type: 'tenant'
+                });
+            });
 
             if (bookings.length > 0) {
                 const { error } = await sb
@@ -3231,6 +3286,10 @@
                     .insert(bookings);
 
                 if (error) throw error;
+            }
+
+            if (conflictingDates.size > 0 && bookings.length === 0) {
+                throw new Error('Alle data in dit patroon overlappen met bestaande boekingen');
             }
         }
 

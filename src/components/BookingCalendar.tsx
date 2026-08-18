@@ -3,6 +3,8 @@ import { supabase } from '../lib/supabase';
 import { ChevronLeft, ChevronRight, X, CheckCircle, XCircle, Info, Repeat } from 'lucide-react';
 import { RecurringBookingModal } from './RecurringBookingModal';
 import { bookingTimesOverlap } from '../utils/bookingOverlap';
+import { unlinkBookingFromDraftInvoice } from '../utils/bookingInvoice';
+import { localDateString } from '../utils/money';
 
 type NotificationType = 'success' | 'error' | 'info';
 
@@ -827,8 +829,24 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
       return;
     }
 
+    const unlinkIfDraft = async (booking: { id: string; invoice_id?: string | null }) => {
+      if (!booking.invoice_id) return true;
+      const { data: fullBooking } = await supabase
+        .from('meeting_room_bookings')
+        .select('id, invoice_id, booking_date, start_time, end_time, total_amount, discount_percentage, discount_amount, rate_type, applied_rate, hourly_rate, office_spaces(space_number)')
+        .eq('id', booking.id)
+        .maybeSingle();
+      if (!fullBooking) return false;
+      const result = await unlinkBookingFromDraftInvoice(fullBooking as any);
+      if (!result.ok) {
+        showToast(result.error || 'Gefactureerde boeking kan niet worden geannuleerd', 'error');
+        return false;
+      }
+      return true;
+    };
+
     if (selectedBooking.recurring_pattern_id && deleteOption === 'all') {
-      const today = new Date().toISOString().split('T')[0];
+      const today = localDateString();
 
       const { error: patternError } = await supabase
         .from('recurring_booking_patterns')
@@ -841,20 +859,39 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
         return;
       }
 
-      const { error: bookingsError } = await supabase
+      const { data: futureBookings } = await supabase
         .from('meeting_room_bookings')
-        .update({ status: 'cancelled' })
+        .select('id, invoice_id')
         .eq('recurring_pattern_id', selectedBooking.recurring_pattern_id)
-        .gte('booking_date', today);
+        .gte('booking_date', today)
+        .neq('status', 'cancelled');
 
-      if (bookingsError) {
-        console.error('Error cancelling future bookings:', bookingsError);
-        showToast('Fout bij het annuleren van toekomstige boekingen', 'error');
+      const cancellableIds: string[] = [];
+      for (const booking of futureBookings || []) {
+        if (await unlinkIfDraft(booking)) {
+          cancellableIds.push(booking.id);
+        }
+      }
+
+      if (cancellableIds.length > 0) {
+        const { error: bookingsError } = await supabase
+          .from('meeting_room_bookings')
+          .update({ status: 'cancelled' })
+          .in('id', cancellableIds);
+
+        if (bookingsError) {
+          console.error('Error cancelling future bookings:', bookingsError);
+          showToast('Fout bij het annuleren van toekomstige boekingen', 'error');
+          return;
+        }
+      }
+
+      showToast('Toekomstige boekingen geannuleerd. Verzonden facturen zijn niet gewijzigd.', 'success');
+    } else {
+      if (!(await unlinkIfDraft(selectedBooking))) {
         return;
       }
 
-      showToast('Alle toekomstige boekingen succesvol geannuleerd', 'success');
-    } else {
       const updateData: any = { status: 'cancelled' };
 
       if (selectedBooking.recurring_pattern_id) {
@@ -888,12 +925,22 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
 
   const handleBookingDragStart = (booking: Booking, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (booking.invoice_id) {
+      showToast('Gefactureerde boekingen kunnen niet worden verplaatst', 'error');
+      return;
+    }
     setDraggedBooking(booking);
     setIsDraggingBooking(true);
   };
 
   const handleBookingDrop = async (dateStr: string, time: string, roomId?: string) => {
     if (!draggedBooking || !isDraggingBooking) return;
+    if (draggedBooking.invoice_id) {
+      showToast('Gefactureerde boekingen kunnen niet worden verplaatst', 'error');
+      setDraggedBooking(null);
+      setIsDraggingBooking(false);
+      return;
+    }
 
     const startTime = normalizeTime(draggedBooking.start_time);
     const endTime = normalizeTime(draggedBooking.end_time);
@@ -1488,7 +1535,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
               return (
                 <div
                   key={booking.id}
-                  className={`absolute left-0.5 right-0.5 ${colors.bg} border-l-[3px] ${colors.border} rounded-sm shadow-md px-1.5 z-10 cursor-move hover:shadow-lg hover:brightness-110 transition-all select-none flex flex-col justify-center ${isBeingDragged ? 'opacity-50' : isCompleted ? 'opacity-60' : isPending ? 'opacity-80 ring-1 ring-orange-400' : isPastBooking ? 'opacity-50 grayscale-[30%]' : ''}`}
+                  className={`absolute left-0.5 right-0.5 ${colors.bg} border-l-[3px] ${colors.border} rounded-sm shadow-md px-1.5 z-10 ${booking.invoice_id ? 'cursor-pointer' : 'cursor-move'} hover:shadow-lg hover:brightness-110 transition-all select-none flex flex-col justify-center ${isBeingDragged ? 'opacity-50' : isCompleted ? 'opacity-60' : isPending ? 'opacity-80 ring-1 ring-orange-400' : isPastBooking ? 'opacity-50 grayscale-[30%]' : ''}`}
                   style={{
                     height: `${bookingHeight}px`,
                     top: '1px',
@@ -1496,7 +1543,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                   }}
                   title={`${booking.office_spaces?.space_number} - ${booking.external_customer_id ? `Extern: ${booking.external_customers?.company_name}` : booking.tenants?.company_name || ''} (${booking.start_time?.substring(0, 5) || '--:--'} - ${booking.end_time?.substring(0, 5) || '--:--'})${isCompleted ? ' - Voltooid' : ''}${isPending ? ' - In afwachting' : ''}${booking.invoice_id ? ' - Gefactureerd' : ''}\nKlik om te beheren, sleep om te verplaatsen`}
                   onMouseDown={(e) => {
-                    if (e.button === 0) {
+                    if (e.button === 0 && !booking.invoice_id) {
                       handleBookingDragStart(booking, e);
                     }
                   }}

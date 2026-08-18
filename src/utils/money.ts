@@ -32,3 +32,7 @@ export function isLeaseActiveInMonth(
 export function outstandingAmount(amount: number, appliedCredit?: number | null) {
   return Math.max(0, Math.round((Number(amount) - Number(appliedCredit || 0)) * 100) / 100);
 }
+
+export function localDateString(date = new Date()): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}

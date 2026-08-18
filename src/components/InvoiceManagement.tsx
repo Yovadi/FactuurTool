@@ -12,7 +12,7 @@ import { Pagination } from './Pagination';
 import { checkAndRunScheduledJobs } from '../utils/scheduledJobs';
 import { getLocalRootFolderPath } from '../utils/localSettings';
 import { syncInvoicePDFs, buildInvoiceFolderPath } from '../utils/invoicePdfSync';
-import { isLeaseActiveInMonth } from '../utils/money';
+import { isLeaseActiveInMonth, localDateString } from '../utils/money';
 
 type LeaseWithDetails = Lease & {
   tenant: Tenant;
@@ -303,7 +303,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       `)
       .gte('booking_date', startDateStr)
       .lte('booking_date', endDateStr)
-      .in('status', ['pending', 'confirmed', 'completed'])
+      .in('status', ['confirmed', 'completed'])
       .is('invoice_id', null);
 
     if (customerType === 'tenant') {
@@ -486,7 +486,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   const loadData = async () => {
     setLoading(true);
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = localDateString();
 
     const [
       { data: companyData },
@@ -714,7 +714,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         const bookingYearMonth = `${y}-${m}`;
         const isForSelectedMonth = bookingYearMonth === invoiceMonth;
         const isUnbilled = !booking.invoice_id;
-        const isInvoiceable = booking.status === 'completed' || booking.status === 'confirmed' || booking.status === 'pending';
+        const isInvoiceable = booking.status === 'completed' || booking.status === 'confirmed';
         const isForCustomer = (customer as any).isExternal
           ? booking.external_customer_id === customer.id
           : booking.tenant_id === customer.id;
@@ -823,6 +823,26 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     );
 
     if (editingInvoiceId) {
+      const { data: previousInvoice } = await supabase
+        .from('invoices')
+        .select('subtotal, vat_amount, amount, vat_rate, vat_inclusive, invoice_date, due_date, invoice_month, reference_number, payment_term_days, notes')
+        .eq('id', editingInvoiceId)
+        .maybeSingle();
+      const { data: previousLineItems } = await supabase
+        .from('invoice_line_items')
+        .select('*')
+        .eq('invoice_id', editingInvoiceId);
+
+      const restorePreviousLines = async () => {
+        if (previousInvoice) {
+          await supabase.from('invoices').update(previousInvoice).eq('id', editingInvoiceId);
+        }
+        await supabase.from('invoice_line_items').delete().eq('invoice_id', editingInvoiceId);
+        if (previousLineItems && previousLineItems.length > 0) {
+          await supabase.from('invoice_line_items').insert(previousLineItems);
+        }
+      };
+
       const { error: invoiceError } = await supabase
         .from('invoices')
         .update({
@@ -842,6 +862,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
       if (invoiceError) {
         console.error('Error updating invoice:', invoiceError);
+        showToast('Factuur kon niet worden bijgewerkt.', 'error');
         return;
       }
 
@@ -871,6 +892,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
       if (lineItemsError) {
         console.error('Error updating line items:', lineItemsError);
+        await restorePreviousLines();
+        showToast('Factuurregels konden niet worden opgeslagen. De factuur is ongewijzigd.', 'error');
         return;
       }
 
@@ -1160,7 +1183,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   const revertToDraft = async (invoiceId: string) => {
     const { error } = await supabase
       .from('invoices')
-      .update({ status: 'draft', sent_at: null })
+      .update({ status: 'draft', sent_at: null, paid_at: null })
       .eq('id', invoiceId);
 
     if (error) {
@@ -1171,7 +1194,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
     setInvoices(prev => prev.map(inv =>
       inv.id === invoiceId
-        ? { ...inv, status: 'draft' as const, sent_at: null }
+        ? { ...inv, status: 'draft' as const, sent_at: null, paid_at: null }
         : inv
     ));
     showToast('Factuur teruggezet naar concept', 'success');
@@ -3762,7 +3785,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
             const bookingYearMonth = `${y}-${m}`;
             const isForSelectedMonth = bookingYearMonth === targetMonth;
             const isUnbilled = !booking.invoice_id;
-            const isInvoiceable = booking.status === 'completed' || booking.status === 'confirmed' || booking.status === 'pending';
+            const isInvoiceable = booking.status === 'completed' || booking.status === 'confirmed';
             const isForCustomer = (customer as any).isExternal
               ? booking.external_customer_id === customer.id
               : booking.tenant_id === customer.id;

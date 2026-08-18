@@ -546,7 +546,7 @@ export async function checkInvoicePaymentStatuses(
   const { data: invoices } = await supabase
     .from('invoices')
     .select('id, eboekhouden_factuur_id, invoice_number')
-    .eq('status', 'sent')
+    .in('status', ['sent', 'overdue'])
     .not('eboekhouden_factuur_id', 'is', null);
 
   if (!invoices?.length) return { updated: 0, errors: [] };

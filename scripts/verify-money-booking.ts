@@ -1,5 +1,5 @@
 import { bookingTimesOverlap } from '../src/utils/bookingOverlap.ts';
-import { calculateVAT, isLeaseActiveInMonth, outstandingAmount } from '../src/utils/money.ts';
+import { calculateVAT, isLeaseActiveInMonth, outstandingAmount, localDateString } from '../src/utils/money.ts';
 
 function assert(condition: unknown, message: string) {
   if (!condition) {
@@ -24,6 +24,9 @@ assert(inclusive.vatAmount === 21, `inclusive vat ${inclusive.vatAmount}`);
 
 assert(outstandingAmount(100, 25) === 75, 'outstanding after credit');
 assert(outstandingAmount(100, 150) === 0, 'outstanding never negative');
+
+const local = localDateString(new Date(2026, 7, 18, 23, 30));
+assert(local === '2026-08-18', `local date ${local}`);
 
 assert(isLeaseActiveInMonth({ start_date: '2026-03-01', end_date: '2026-12-31' }, '2026-03'), 'lease starts in month');
 assert(!isLeaseActiveInMonth({ start_date: '2026-04-01', end_date: '2026-12-31' }, '2026-03'), 'lease starts after month');
