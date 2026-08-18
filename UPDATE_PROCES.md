@@ -42,7 +42,32 @@ set GH_TOKEN=jouw-github-token
 npm run electron:publish
 ```
 
-## Update Publiceren
+## Publiceren via GitHub (zonder PC)
+
+Dit is een **handmatige** GitHub Action. Er is geen automatische publish bij push of tag.
+
+### Eenmalige GitHub secrets
+
+In de repository: **Settings → Secrets and variables → Actions**. Voeg toe:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+
+Zonder deze secrets bouwt de installer een app zonder werkende databaseverbinding.
+
+### Release starten
+
+1. Ga naar **Actions → Publish Windows installer**
+2. Kies branch **main**
+3. Type `publish` in het confirm-veld
+4. Kies een version bump (`patch` is de standaard)
+5. Klik **Run workflow**
+
+De Action bouwt de Windows installer op een GitHub Windows-runner en zet hem op GitHub Releases. Geïnstalleerde apps kunnen daarna updaten zoals nu.
+
+`none` als bump gebruikt de huidige `package.json` versie. Dat faalt als die GitHub Release al bestaat.
+
+## Update Publiceren (lokaal op Windows)
 
 ### Stap 1: Versienummer Verhogen
 
