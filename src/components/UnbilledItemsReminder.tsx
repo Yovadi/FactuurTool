@@ -37,7 +37,7 @@ export function useUnbilledItems() {
     ] = await Promise.all([
       supabase.from('leases').select(`
         id, tenant_id,
-        security_deposit, start_date,
+        security_deposit, start_date, end_date,
         lease_spaces:lease_spaces(monthly_rent),
         tenants(company_name)
       `).eq('status', 'active'),

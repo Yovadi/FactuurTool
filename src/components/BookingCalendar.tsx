@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { ChevronLeft, ChevronRight, X, CheckCircle, XCircle, Info, Repeat } from 'lucide-react';
 import { RecurringBookingModal } from './RecurringBookingModal';
+import { bookingTimesOverlap } from '../utils/bookingOverlap';
 
 type NotificationType = 'success' | 'error' | 'info';
 
@@ -16,6 +17,7 @@ type Booking = {
   booking_date: string;
   start_time: string;
   end_time: string;
+  space_id?: string;
   tenant_id?: string;
   external_customer_id?: string;
   status?: 'pending' | 'confirmed' | 'cancelled' | 'completed';
@@ -127,6 +129,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationId, setNotificationId] = useState(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const dragRoomIdRef = useRef<string | null>(null);
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
   const [showRecurringModal, setShowRecurringModal] = useState(false);
   const [isProcessingTap, setIsProcessingTap] = useState(false);
@@ -313,6 +316,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
           booking_date,
           start_time,
           end_time,
+          space_id,
           tenant_id,
           external_customer_id,
           status,
@@ -449,8 +453,37 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
     });
   };
 
-  const handleCellMouseDown = (dateStr: string, time: string) => {
-    if (hasBooking(dateStr, time)) return;
+  const getBookingAtTimeForRoom = (dateStr: string, time: string, roomSpaceNumber: string) => {
+    const day = weekDays.find(d => d.dateStr === dateStr);
+    if (!day) return null;
+
+    const slotIdx = timeSlots.indexOf(time);
+    return day.bookings.find(b => {
+      const startTime = normalizeTime(b.start_time);
+      return getSlotIndex(startTime) === slotIdx && b.office_spaces?.space_number === roomSpaceNumber;
+    });
+  };
+
+  const hasBookingForRoom = (dateStr: string, time: string, roomSpaceNumber: string) => {
+    const day = weekDays.find(d => d.dateStr === dateStr);
+    if (!day) return false;
+
+    return day.bookings.some(b => {
+      const startTime = normalizeTime(b.start_time);
+      const endTime = normalizeTime(b.end_time);
+      return time >= startTime && time < endTime && b.office_spaces?.space_number === roomSpaceNumber;
+    });
+  };
+
+  const handleCellMouseDown = (dateStr: string, time: string, roomId?: string) => {
+    if (roomId) {
+      const room = meetingRooms.find(r => r.id === roomId);
+      if (room && hasBookingForRoom(dateStr, time, room.space_number)) return;
+      dragRoomIdRef.current = roomId;
+      setFormData(prev => ({ ...prev, room_id: roomId }));
+    } else if (hasBooking(dateStr, time)) {
+      return;
+    }
 
     const slotIndex = timeSlots.indexOf(time);
     setIsDragging(true);
@@ -458,9 +491,16 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
     setSelectedCells([{ date: dateStr, time, slotIndex }]);
   };
 
-  const handleCellTap = (dateStr: string, time: string) => {
+  const handleCellTap = (dateStr: string, time: string, roomId?: string) => {
     if (isProcessingTap) return;
-    if (hasBooking(dateStr, time)) return;
+    if (roomId) {
+      const room = meetingRooms.find(r => r.id === roomId);
+      if (room && hasBookingForRoom(dateStr, time, room.space_number)) return;
+      dragRoomIdRef.current = roomId;
+      setFormData(prev => ({ ...prev, room_id: roomId }));
+    } else if (hasBooking(dateStr, time)) {
+      return;
+    }
 
     setIsProcessingTap(true);
     const slotIndex = timeSlots.indexOf(time);
@@ -509,7 +549,11 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
 
         for (let i = newMinIndex; i <= newMaxIndex; i++) {
           const t = timeSlots[i];
-          if (hasBooking(dateStr, t)) {
+          const room = roomId ? meetingRooms.find(r => r.id === roomId) : selectedRoom;
+          const blocked = room
+            ? hasBookingForRoom(dateStr, t, room.space_number)
+            : hasBooking(dateStr, t);
+          if (blocked) {
             showToast('Selecteer alleen aaneengesloten tijdslots', 'error');
             setIsProcessingTap(false);
             return;
@@ -527,18 +571,24 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
     });
   };
 
-  const handleCellMouseEnter = (dateStr: string, time: string) => {
+  const handleCellMouseEnter = (dateStr: string, time: string, roomId?: string) => {
     if (!isDragging || !dragStart || dragStart.date !== dateStr) return;
+    if (roomId && dragRoomIdRef.current && roomId !== dragRoomIdRef.current) return;
 
     const startIndex = dragStart.slotIndex;
     const currentIndex = timeSlots.indexOf(time);
     const minIndex = Math.min(startIndex, currentIndex);
     const maxIndex = Math.max(startIndex, currentIndex);
+    const activeRoomId = roomId || dragRoomIdRef.current;
+    const room = activeRoomId ? meetingRooms.find(r => r.id === activeRoomId) : selectedRoom;
 
     const cells: SelectedCell[] = [];
     for (let i = minIndex; i <= maxIndex; i++) {
       const t = timeSlots[i];
-      if (!hasBooking(dateStr, t)) {
+      const blocked = room
+        ? hasBookingForRoom(dateStr, t, room.space_number)
+        : hasBooking(dateStr, t);
+      if (!blocked) {
         cells.push({ date: dateStr, time: t, slotIndex: i });
       }
     }
@@ -635,10 +685,23 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
     const discountAmount = (totalAmount * discountPercentage) / 100;
     const finalAmount = totalAmount - discountAmount;
 
+    const bookingDate = selectedCells[0].date;
+    const { data: existingBookings } = await supabase
+      .from('meeting_room_bookings')
+      .select('id, start_time, end_time')
+      .eq('space_id', selectedRoomForBooking.id)
+      .eq('booking_date', bookingDate)
+      .neq('status', 'cancelled');
+
+    if (existingBookings?.some(b => bookingTimesOverlap(startTime, endTime, b.start_time, b.end_time))) {
+      showToast('Deze ruimte is al geboekt voor de geselecteerde tijd. Kies een andere tijd of ruimte.', 'error');
+      return;
+    }
+
     const insertData: any = {
       space_id: selectedRoomForBooking.id,
       booking_type: formBookingType,
-      booking_date: selectedCells[0].date,
+      booking_date: bookingDate,
       start_time: startTime,
       end_time: endTime,
       hourly_rate: selectedRoomForBooking.hourly_rate || 25,
@@ -668,6 +731,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
         booking_date,
         start_time,
         end_time,
+        space_id,
         tenant_id,
         external_customer_id,
         status,
@@ -828,15 +892,8 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
     setIsDraggingBooking(true);
   };
 
-  const handleBookingDrop = async (dateStr: string, time: string) => {
+  const handleBookingDrop = async (dateStr: string, time: string, roomId?: string) => {
     if (!draggedBooking || !isDraggingBooking) return;
-
-    if (hasBooking(dateStr, time)) {
-      showToast('Er is al een boeking op dit tijdstip', 'error');
-      setDraggedBooking(null);
-      setIsDraggingBooking(false);
-      return;
-    }
 
     const startTime = normalizeTime(draggedBooking.start_time);
     const endTime = normalizeTime(draggedBooking.end_time);
@@ -857,14 +914,39 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
 
     const newStartTime = timeSlots[newStartIndex];
     const newEndTime = timeSlots[newEndIndex];
+    const targetRoomId = roomId || draggedBooking.space_id || selectedRoom?.id || formData.room_id;
+
+    let overlapQuery = supabase
+      .from('meeting_room_bookings')
+      .select('id, start_time, end_time')
+      .eq('booking_date', dateStr)
+      .neq('status', 'cancelled')
+      .neq('id', draggedBooking.id);
+
+    if (targetRoomId) {
+      overlapQuery = overlapQuery.eq('space_id', targetRoomId);
+    }
+
+    const { data: existingBookings } = await overlapQuery;
+    if (existingBookings?.some(b => bookingTimesOverlap(newStartTime, newEndTime, b.start_time, b.end_time))) {
+      showToast('Er is al een boeking op dit tijdstip', 'error');
+      setDraggedBooking(null);
+      setIsDraggingBooking(false);
+      return;
+    }
+
+    const updatePayload: { booking_date: string; start_time: string; end_time: string; space_id?: string } = {
+      booking_date: dateStr,
+      start_time: newStartTime,
+      end_time: newEndTime
+    };
+    if (targetRoomId && targetRoomId !== draggedBooking.space_id) {
+      updatePayload.space_id = targetRoomId;
+    }
 
     const { error } = await supabase
       .from('meeting_room_bookings')
-      .update({
-        booking_date: dateStr,
-        start_time: newStartTime,
-        end_time: newEndTime
-      })
+      .update(updatePayload)
       .eq('id', draggedBooking.id);
 
     if (error) {
@@ -880,7 +962,11 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
       ...draggedBooking,
       booking_date: dateStr,
       start_time: newStartTime,
-      end_time: newEndTime
+      end_time: newEndTime,
+      space_id: targetRoomId || draggedBooking.space_id,
+      office_spaces: targetRoomId
+        ? { space_number: meetingRooms.find(r => r.id === targetRoomId)?.space_number || draggedBooking.office_spaces?.space_number || '' }
+        : draggedBooking.office_spaces
     };
 
     setWeekDays(prev => prev.map(day => {
@@ -945,31 +1031,6 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
 
   // Determine if we should show multi-room sub-columns
   const showMultiRoom = !selectedRoom && meetingRooms.length >= 2;
-
-  // Get bookings for a specific room on a specific date at a specific time slot
-  const getBookingAtTimeForRoom = (dateStr: string, time: string, roomSpaceNumber: string) => {
-    const day = weekDays.find(d => d.dateStr === dateStr);
-    if (!day) return null;
-
-    const slotIdx = timeSlots.indexOf(time);
-    return day.bookings.find(b => {
-      const startTime = normalizeTime(b.start_time);
-      return getSlotIndex(startTime) === slotIdx && b.office_spaces?.space_number === roomSpaceNumber;
-    });
-  };
-
-  // Check if a specific room has a booking at a given time
-  const hasBookingForRoom = (dateStr: string, time: string, roomSpaceNumber: string) => {
-    const day = weekDays.find(d => d.dateStr === dateStr);
-    if (!day) return false;
-
-    return day.bookings.some(b => {
-      const startTime = normalizeTime(b.start_time);
-      const endTime = normalizeTime(b.end_time);
-      return time >= startTime && time < endTime && b.office_spaces?.space_number === roomSpaceNumber;
-    });
-  };
-
 
   // Generate month calendar data
   const generateMonthDays = () => {
@@ -1519,22 +1580,22 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                               style={{ height: `${CELL_HEIGHT}px` }}
                               onMouseDown={() => {
                                 if (!isDraggingBooking && !isTouchDevice && !hasBookingInRoom) {
-                                  handleCellMouseDown(day.dateStr, time);
+                                  handleCellMouseDown(day.dateStr, time, room.id);
                                 }
                               }}
                               onMouseEnter={() => {
                                 if (!isDraggingBooking && !isTouchDevice) {
-                                  handleCellMouseEnter(day.dateStr, time);
+                                  handleCellMouseEnter(day.dateStr, time, room.id);
                                 }
                               }}
                               onMouseUp={() => {
                                 if (isDraggingBooking && !hasBookingInRoom) {
-                                  handleBookingDrop(day.dateStr, time);
+                                  handleBookingDrop(day.dateStr, time, room.id);
                                 }
                               }}
                               onClick={() => {
                                 if (isTouchDevice && !isDraggingBooking && !hasBookingInRoom) {
-                                  handleCellTap(day.dateStr, time);
+                                  handleCellTap(day.dateStr, time, room.id);
                                 }
                               }}
                             >
@@ -1565,22 +1626,22 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                         style={{ height: `${CELL_HEIGHT}px` }}
                         onMouseDown={() => {
                           if (!isDraggingBooking && !isTouchDevice) {
-                            handleCellMouseDown(day.dateStr, time);
+                            handleCellMouseDown(day.dateStr, time, selectedRoom?.id);
                           }
                         }}
                         onMouseEnter={() => {
                           if (!isDraggingBooking && !isTouchDevice) {
-                            handleCellMouseEnter(day.dateStr, time);
+                            handleCellMouseEnter(day.dateStr, time, selectedRoom?.id);
                           }
                         }}
                         onMouseUp={() => {
                           if (isDraggingBooking && !hasBookingHere) {
-                            handleBookingDrop(day.dateStr, time);
+                            handleBookingDrop(day.dateStr, time, selectedRoom?.id);
                           }
                         }}
                         onClick={() => {
                           if (isTouchDevice && !isDraggingBooking && !hasBookingHere) {
-                            handleCellTap(day.dateStr, time);
+                            handleCellTap(day.dateStr, time, selectedRoom?.id);
                           }
                         }}
                       >

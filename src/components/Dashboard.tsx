@@ -39,6 +39,7 @@ type PendingBooking = {
 type Invoice = {
   invoice_number: string;
   amount: number;
+  applied_credit?: number;
   status: string;
   due_date: string;
   tenant_id?: string | null;
@@ -182,7 +183,7 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
     ] = await Promise.all([
       supabase.from('leases').select('id, end_date, status, tenant_id, tenants(name)').eq('status', 'active'),
       supabase.from('invoices').select(`
-        invoice_number, amount, status, due_date, tenant_id, external_customer_id,
+        invoice_number, amount, applied_credit, status, due_date, tenant_id, external_customer_id,
         tenants(company_name), external_customers(company_name)
       `).in('status', ['draft', 'sent', 'overdue']),
       supabase.from('invoices').select('amount').gte('created_at', thisMonthStart).lte('created_at', thisMonthEnd + 'T23:59:59'),
@@ -218,9 +219,17 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
     const outstandingInvoicesData = (invoices?.filter(inv => inv.status === 'sent' && inv.due_date >= todayStr) || []).sort(sortByInvoiceNumber);
     const overdueInvoicesData = (invoices?.filter(inv => inv.status !== 'paid' && inv.status !== 'credited' && inv.due_date < todayStr) || []).sort(sortByInvoiceNumber);
 
-    const overdueAmt = overdueInvoicesData.reduce((sum, inv) => sum + Number(inv.amount), 0);
+    const overdueAmt = overdueInvoicesData.reduce((sum, inv) => {
+      const amount = Number(inv.amount) || 0;
+      const credit = Number(inv.applied_credit) || 0;
+      return sum + Math.max(0, amount - credit);
+    }, 0);
     const draftAmt = draftInvoicesData.reduce((sum, inv) => sum + Number(inv.amount), 0);
-    const outstandingAmt = outstandingInvoicesData.reduce((sum, inv) => sum + Number(inv.amount), 0);
+    const outstandingAmt = outstandingInvoicesData.reduce((sum, inv) => {
+      const amount = Number(inv.amount) || 0;
+      const credit = Number(inv.applied_credit) || 0;
+      return sum + Math.max(0, amount - credit);
+    }, 0);
 
     const revenueThisMonth = (thisMonthInvoices || []).reduce((sum, inv) => sum + Number(inv.amount), 0);
     const revenuePrevMonth = (prevMonthInvoices || []).reduce((sum, inv) => sum + Number(inv.amount), 0);

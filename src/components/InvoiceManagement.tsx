@@ -12,6 +12,7 @@ import { Pagination } from './Pagination';
 import { checkAndRunScheduledJobs } from '../utils/scheduledJobs';
 import { getLocalRootFolderPath } from '../utils/localSettings';
 import { syncInvoicePDFs, buildInvoiceFolderPath } from '../utils/invoicePdfSync';
+import { isLeaseActiveInMonth } from '../utils/money';
 
 type LeaseWithDetails = Lease & {
   tenant: Tenant;
@@ -101,23 +102,6 @@ function getLocalCategory(spaceType?: string, bookingType?: string): string | nu
     case 'diversen': return 'diversen';
     default: return null;
   }
-}
-
-function isLeaseActiveInMonth(lease: { start_date?: string | null; end_date?: string | null }, invoiceMonth: string): boolean {
-  if (!invoiceMonth) return true;
-  const [y, m] = invoiceMonth.split('-').map(Number);
-  if (!y || !m) return true;
-  const monthStart = new Date(y, m - 1, 1);
-  const monthEnd = new Date(y, m, 0);
-  if (lease.start_date) {
-    const startDate = new Date(lease.start_date);
-    if (startDate > monthEnd) return false;
-  }
-  if (lease.end_date) {
-    const endDate = new Date(lease.end_date);
-    if (endDate < monthStart) return false;
-  }
-  return true;
 }
 
 export type InvoiceTypeFilter = 'all' | 'huur' | 'vergaderruimte' | 'handmatig';
@@ -764,8 +748,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     if (items) {
       setLineItems(items.map(item => ({
         description: item.description,
-        unit_price: item.amount.toString(),
-        quantity: '1',
+        unit_price: (item.unit_price ?? item.amount).toString(),
+        quantity: item.quantity != null ? String(item.quantity) : '1',
         bookingId: item.booking_id || undefined,
         grootboek_id: item.grootboek_id || undefined,
         local_category: item.local_category || undefined
@@ -972,6 +956,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
       if (lineItemsError) {
         console.error('Error creating line items:', lineItemsError);
+        await supabase.from('invoices').delete().eq('id', newInvoice.id);
+        showToast('Factuurregels konden niet worden aangemaakt. De factuur is niet opgeslagen.', 'error');
         return;
       }
 
@@ -2711,9 +2697,13 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     const idsToUpdate = Array.from(selectedInvoices);
 
     for (const id of idsToUpdate) {
+      const updatePayload: { status: string; paid_at?: string } = { status: newStatus };
+      if (newStatus === 'paid') {
+        updatePayload.paid_at = new Date().toISOString();
+      }
       await supabase
         .from('invoices')
-        .update({ status: newStatus })
+        .update(updatePayload)
         .eq('id', id);
     }
 

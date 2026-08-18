@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { outstandingAmount } from '../utils/money';
 import { Euro, Calendar, AlertCircle, CheckCircle, FileText, Trash2, Eye, Filter, RefreshCw, Loader2, Database, XCircle, Square, CheckSquare, AlertTriangle } from 'lucide-react';
 import { resyncInvoiceToEBoekhouden } from '../lib/eboekhoudenSync';
 import { Pagination } from './Pagination';
@@ -28,6 +29,7 @@ type Invoice = {
   invoice_date: string;
   due_date: string;
   amount: number;
+  applied_credit?: number;
   status: string;
 };
 
@@ -103,6 +105,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
           invoice_date,
           due_date,
           amount,
+          applied_credit,
           status,
           tenant_id,
           external_customer_id,
@@ -153,14 +156,15 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
         }
 
         const debtor = debtorMap.get(customer.id)!;
-        debtor.total_outstanding += parseFloat(invoice.amount);
+        const openAmount = outstandingAmount(invoice.amount, invoice.applied_credit);
+        debtor.total_outstanding += openAmount;
         debtor.invoice_count += 1;
         if (invoice.status === 'overdue') debtor.overdue_count += 1;
         if (invoice.invoice_date < debtor.oldest_invoice_date) {
           debtor.oldest_invoice_date = invoice.invoice_date;
         }
 
-        total += parseFloat(invoice.amount);
+        total += openAmount;
       });
 
       const debtorsList = Array.from(debtorMap.values())
@@ -180,7 +184,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
     try {
       const { data: invoices, error } = await supabase
         .from('invoices')
-        .select('id, invoice_number, invoice_date, due_date, amount, status, lease_id, notes, invoice_line_items(booking_id)')
+        .select('id, invoice_number, invoice_date, due_date, amount, applied_credit, status, lease_id, notes, invoice_line_items(booking_id)')
         .or(`tenant_id.eq.${debtorId},external_customer_id.eq.${debtorId}`)
         .not('status', 'in', '(paid,credited)')
         .order('invoice_date', { ascending: false });
@@ -582,7 +586,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                           <div className="text-right">
                             <div className="font-bold text-yellow-500 flex items-center gap-1">
                               <Euro size={16} />
-                              {formatCurrency(invoice.amount)}
+                              {formatCurrency(outstandingAmount(invoice.amount, invoice.applied_credit))}
                             </div>
                             {isOverdue && (
                               <div className="text-xs text-red-400 font-semibold flex items-center gap-1 justify-end mt-1">

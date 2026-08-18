@@ -120,6 +120,15 @@ export function CreditNoteApplications({ creditNote, onClose, onApplied }: Credi
       return;
     }
 
+    const selectedInvoice = customerInvoices.find(inv => inv.id === linkFormData.invoice_id);
+    const remainingOnInvoice = selectedInvoice
+      ? Math.max(0, Number(selectedInvoice.amount) - Number(selectedInvoice.applied_credit || 0))
+      : 0;
+    if (linkFormData.amount > remainingOnInvoice) {
+      alert('Bedrag kan niet hoger zijn dan het openstaande factuurbedrag');
+      return;
+    }
+
     const { error } = await supabase
       .from('credit_note_applications')
       .insert({
@@ -254,6 +263,13 @@ export function CreditNoteApplications({ creditNote, onClose, onApplied }: Credi
   };
 
   const customerName = creditNote.tenants?.company_name || creditNote.external_customers?.company_name || 'Onbekend';
+  const selectedLinkInvoice = customerInvoices.find(inv => inv.id === linkFormData.invoice_id);
+  const maxLinkAmount = Math.min(
+    availableCredit,
+    selectedLinkInvoice
+      ? Math.max(0, selectedLinkInvoice.amount - (selectedLinkInvoice.applied_credit || 0))
+      : availableCredit
+  );
 
   if (loading) {
     return (
@@ -389,11 +405,14 @@ export function CreditNoteApplications({ creditNote, onClose, onApplied }: Credi
                   required
                 >
                   <option value="">Selecteer een factuur</option>
-                  {customerInvoices.map((invoice) => (
+                  {customerInvoices.map((invoice) => {
+                    const remaining = Math.max(0, invoice.amount - (invoice.applied_credit || 0));
+                    return (
                     <option key={invoice.id} value={invoice.id}>
-                      {invoice.invoice_number} - {formatCurrency(invoice.amount - (invoice.applied_credit || 0))} openstaand
+                      {invoice.invoice_number} - {formatCurrency(remaining)} openstaand
                     </option>
-                  ))}
+                    );
+                  })}
                 </select>
               </div>
               <div>
@@ -404,13 +423,13 @@ export function CreditNoteApplications({ creditNote, onClose, onApplied }: Credi
                   type="number"
                   step="0.01"
                   min="0.01"
-                  max={availableCredit}
+                  max={maxLinkAmount}
                   value={linkFormData.amount || ''}
                   onChange={(e) => setLinkFormData({ ...linkFormData, amount: parseFloat(e.target.value) || 0 })}
                   className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                 />
-                <p className="text-xs text-gray-400 mt-1">Max: {formatCurrency(availableCredit)}</p>
+                <p className="text-xs text-gray-400 mt-1">Max: {formatCurrency(maxLinkAmount)}</p>
               </div>
               <div className="flex gap-2 pt-2">
                 <button

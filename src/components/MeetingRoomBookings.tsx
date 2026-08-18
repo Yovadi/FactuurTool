@@ -6,6 +6,8 @@ import { InlineDatePicker } from './InlineDatePicker';
 import { SkeletonTable } from './SkeletonLoader';
 import { Pagination } from './Pagination';
 import { createAdminNotification } from '../utils/notificationHelper';
+import { bookingTimesOverlap } from '../utils/bookingOverlap';
+import { calculateVAT } from '../utils/money';
 
 type NotificationType = 'success' | 'error' | 'info';
 
@@ -356,24 +358,8 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
         return;
       }
     } else {
-      if (!formData.external_company_name) {
-        showNotification('Vul een bedrijfsnaam in.', 'error');
-        return;
-      }
-      if (!formData.external_contact_name) {
-        showNotification('Vul een contactpersoon in.', 'error');
-        return;
-      }
-      if (!formData.external_street) {
-        showNotification('Vul een straat en huisnummer in.', 'error');
-        return;
-      }
-      if (!formData.external_postal_code) {
-        showNotification('Vul een postcode in.', 'error');
-        return;
-      }
-      if (!formData.external_city) {
-        showNotification('Vul een plaats in.', 'error');
+      if (!formData.external_customer_id) {
+        showNotification('Selecteer een externe klant.', 'error');
         return;
       }
     }
@@ -395,16 +381,9 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       const newStart = formData.start_time;
       const newEnd = formData.end_time;
 
-      const hasOverlap = existingBookings.some(booking => {
-        const existingStart = booking.start_time;
-        const existingEnd = booking.end_time;
-
-        return (
-          (newStart >= existingStart && newStart < existingEnd) ||
-          (newEnd > existingStart && newEnd <= existingEnd) ||
-          (newStart <= existingStart && newEnd >= existingEnd)
-        );
-      });
+      const hasOverlap = existingBookings.some(booking =>
+        bookingTimesOverlap(newStart, newEnd, booking.start_time, booking.end_time)
+      );
 
       if (hasOverlap) {
         showNotification('Deze ruimte is al geboekt voor de geselecteerde tijd. Kies een andere tijd of ruimte.', 'error');
@@ -858,6 +837,24 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
             calculation_type: 'quantity_price',
             local_category: 'vergaderruimte'
           });
+      }
+
+      const { data: invoice } = await supabase
+        .from('invoices')
+        .select('id, status, subtotal, amount, vat_rate, vat_inclusive')
+        .eq('id', selectedInvoiceId)
+        .maybeSingle();
+
+      if (invoice?.status === 'draft') {
+        const bookingAmount = Number(booking.total_amount) || 0;
+        const vatRate = Number(invoice.vat_rate) || 21;
+        const vatInclusive = !!invoice.vat_inclusive;
+        const existingBase = vatInclusive ? Number(invoice.amount) : Number(invoice.subtotal);
+        const { subtotal, vatAmount, total } = calculateVAT(existingBase + bookingAmount, vatRate, vatInclusive);
+        await supabase
+          .from('invoices')
+          .update({ subtotal, vat_amount: vatAmount, amount: total })
+          .eq('id', invoice.id);
       }
 
       showNotification('Boeking succesvol gekoppeld aan factuur', 'success');
