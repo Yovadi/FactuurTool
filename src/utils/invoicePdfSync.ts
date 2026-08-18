@@ -409,7 +409,7 @@ export async function syncCreditNotePDFs(onProgress?: ProgressCallback): Promise
   const { data: creditNotes } = await supabase
     .from('credit_notes')
     .select('id, credit_note_number, credit_date, reason, subtotal, vat_amount, vat_rate, total_amount, notes, status, tenant_id, external_customer_id')
-    .in('status', ['issued', 'applied']);
+    .in('status', ['sent', 'paid']);
 
   if (!creditNotes || creditNotes.length === 0) {
     return { total: 0, synced: 0, skipped: 0, failed: 0, errors: [] };

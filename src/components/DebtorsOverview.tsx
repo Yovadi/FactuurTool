@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { outstandingAmount } from '../utils/money';
 import { Euro, Calendar, AlertCircle, CheckCircle, FileText, Trash2, Eye, Filter, RefreshCw, Loader2, Database, XCircle, Square, CheckSquare, AlertTriangle } from 'lucide-react';
 import { resyncInvoiceToEBoekhouden } from '../lib/eboekhoudenSync';
 import { Pagination } from './Pagination';
@@ -29,7 +28,6 @@ type Invoice = {
   invoice_date: string;
   due_date: string;
   amount: number;
-  applied_credit?: number;
   status: string;
 };
 
@@ -61,7 +59,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
   const [debtorsPage, setDebtorsPage] = useState(1);
   const [debtorsPageSize, setDebtorsPageSize] = useState(25);
   const [paidPage, setPaidPage] = useState(1);
-  const [paidPageSize, setPaidPageSize] = useState(50);
+  const [paidPageSize, setPaidPageSize] = useState(25);
   const [syncPage, setSyncPage] = useState(1);
   const [syncPageSize, setSyncPageSize] = useState(25);
 
@@ -105,7 +103,6 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
           invoice_date,
           due_date,
           amount,
-          applied_credit,
           status,
           tenant_id,
           external_customer_id,
@@ -156,15 +153,14 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
         }
 
         const debtor = debtorMap.get(customer.id)!;
-        const openAmount = outstandingAmount(invoice.amount, invoice.applied_credit);
-        debtor.total_outstanding += openAmount;
+        debtor.total_outstanding += parseFloat(invoice.amount);
         debtor.invoice_count += 1;
         if (invoice.status === 'overdue') debtor.overdue_count += 1;
         if (invoice.invoice_date < debtor.oldest_invoice_date) {
           debtor.oldest_invoice_date = invoice.invoice_date;
         }
 
-        total += openAmount;
+        total += parseFloat(invoice.amount);
       });
 
       const debtorsList = Array.from(debtorMap.values())
@@ -184,7 +180,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
     try {
       const { data: invoices, error } = await supabase
         .from('invoices')
-        .select('id, invoice_number, invoice_date, due_date, amount, applied_credit, status, lease_id, notes, invoice_line_items(booking_id)')
+        .select('id, invoice_number, invoice_date, due_date, amount, status, lease_id, notes, invoice_line_items(booking_id)')
         .or(`tenant_id.eq.${debtorId},external_customer_id.eq.${debtorId}`)
         .not('status', 'in', '(paid,credited)')
         .order('invoice_date', { ascending: false });
@@ -210,9 +206,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
           invoice_line_items(id, description, quantity, unit_price, amount, booking_id)
         `)
         .in('status', ['paid', 'credited'])
-        .order('invoice_date', { ascending: false })
-        .order('invoice_number', { ascending: false })
-        .limit(1000);
+        .order('invoice_number', { ascending: true });
 
       if (error) throw error;
 
@@ -438,9 +432,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
     }
 
     filtered.sort((a, b) => {
-      const dateCmp = (b.invoice_date || '').localeCompare(a.invoice_date || '');
-      if (dateCmp !== 0) return dateCmp;
-      return (b.invoice_number || '').localeCompare(a.invoice_number || '');
+      return (a.invoice_number || '').localeCompare(b.invoice_number || '');
     });
 
     return filtered;
@@ -466,8 +458,6 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
     return [...new Set(periods)].sort().reverse();
   };
 
-  const filteredPaidInvoices = getFilteredPaidInvoices();
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -478,8 +468,8 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
 
   return (
     <div className="h-full flex flex-col bg-dark-950 overflow-hidden">
-      {activeTab === 'open' && (
-        <div className="flex-shrink-0 mb-6">
+      <div className="flex-shrink-0 mb-6">
+        {activeTab === 'open' && (
           <div className="flex items-center gap-4">
             <div className="bg-dark-900 px-4 py-2 rounded-lg">
               <div className="text-sm text-gray-400">Totaal Openstaand</div>
@@ -490,8 +480,8 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
               <div className="text-2xl font-bold text-gray-100">{debtors.length}</div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {activeTab === 'open' && (
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 overflow-hidden">
@@ -592,7 +582,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                           <div className="text-right">
                             <div className="font-bold text-yellow-500 flex items-center gap-1">
                               <Euro size={16} />
-                              {formatCurrency(outstandingAmount(invoice.amount, invoice.applied_credit))}
+                              {formatCurrency(invoice.amount)}
                             </div>
                             {isOverdue && (
                               <div className="text-xs text-red-400 font-semibold flex items-center gap-1 justify-end mt-1">
@@ -613,21 +603,19 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
       )}
 
       {activeTab === 'log' && (
-        <div className="flex-1 min-h-0 flex flex-col bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
+        <div className="flex flex-col bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
             <h2 className="text-lg font-bold text-gray-100 px-4 py-3 bg-dark-800 border-b border-amber-500 flex-shrink-0">
               Facturen Logboek (Betaald & Gecrediteerd)
             </h2>
             {paidInvoices.length === 0 ? (
-              <div className="flex-1 flex items-center justify-center p-8 text-center">
-                <div>
-                  <CheckCircle size={48} className="text-green-500 mx-auto mb-4" />
-                  <p className="text-gray-400">Geen betaalde of gecrediteerde facturen gevonden</p>
-                </div>
+              <div className="bg-dark-900 rounded-lg p-8 text-center">
+                <CheckCircle size={48} className="text-green-500 mx-auto mb-4" />
+                <p className="text-gray-400">Geen betaalde of gecrediteerde facturen gevonden</p>
               </div>
             ) : (
-              <div className="flex-1 min-h-0 flex flex-col">
-                <div className="px-4 py-2 bg-dark-800 border-b border-dark-700 flex-shrink-0">
-                  <div className="flex items-center gap-4 flex-wrap">
+              <div className="flex flex-col">
+                <div className="px-4 py-3 bg-dark-800 border-b border-dark-700">
+                  <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
                       <Filter size={16} className="text-gray-400" />
                       <span className="text-sm text-gray-400 font-medium">Filteren:</span>
@@ -677,29 +665,39 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                           setFilterPeriod('');
                           setPaidPage(1);
                         }}
-                        className="text-sm text-gold-400 hover:text-gold-300 underline"
+                        className="text-sm text-gold-400 hover:text-gold-300 underline ml-auto"
                       >
                         Filters wissen
                       </button>
                     )}
+                  </div>
 
-                    <div className="flex items-center gap-3 text-xs ml-auto">
+                  <div className="text-xs text-gray-500 mt-2">
+                    {getFilteredPaidInvoices().length} van {paidInvoices.length} facturen
+                  </div>
+
+                  <div className="mt-3 p-3 bg-dark-700/50 rounded-lg border border-dark-600">
+                    <div className="flex items-center gap-2 mb-2">
+                      <FileText size={14} className="text-gray-400" />
+                      <span className="text-xs font-semibold text-gray-300 uppercase">Legende Factuurnummers</span>
+                    </div>
+                    <div className="flex flex-wrap gap-3 text-xs">
                       <div className="flex items-center gap-1.5">
-                        <div className="w-2.5 h-2.5 rounded-full bg-green-500"></div>
+                        <div className="w-3 h-3 rounded-full bg-green-500"></div>
                         <span className="text-gray-400">Huurcontract</span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div>
+                        <div className="w-3 h-3 rounded-full bg-blue-500"></div>
                         <span className="text-gray-400">Vergaderruimte</span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <div className="w-2.5 h-2.5 rounded-full bg-orange-500"></div>
+                        <div className="w-3 h-3 rounded-full bg-orange-500"></div>
                         <span className="text-gray-400">Handmatig</span>
                       </div>
                     </div>
                   </div>
                 </div>
-                <div className="flex-1 min-h-0 overflow-auto">
+                <div className="overflow-auto" style={{ maxHeight: 'calc(100vh - 320px)' }}>
                   <table className="w-full table-fixed min-w-[1100px]">
                     <thead>
                       <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
@@ -714,7 +712,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredPaidInvoices.slice((paidPage - 1) * paidPageSize, paidPage * paidPageSize).map((invoice: any) => {
+                      {getFilteredPaidInvoices().slice((paidPage - 1) * paidPageSize, paidPage * paidPageSize).map((invoice: any) => {
                       const customer = invoice.tenant_id && invoice.tenants
                         ? invoice.tenants
                         : invoice.external_customer_id && invoice.external_customers
@@ -798,13 +796,11 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                 </div>
                 <Pagination
                   currentPage={paidPage}
-                  totalItems={filteredPaidInvoices.length}
+                  totalItems={getFilteredPaidInvoices().length}
                   pageSize={paidPageSize}
                   onPageChange={(page) => { setPaidPage(page); }}
                   onPageSizeChange={(size) => { setPaidPageSize(size); setPaidPage(1); }}
-                  pageSizeOptions={[25, 50, 100, 200]}
                   label="facturen"
-                  alwaysShow
                 />
               </div>
             )}

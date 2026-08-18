@@ -7,8 +7,6 @@ import { SkeletonTable } from './SkeletonLoader';
 import { Pagination } from './Pagination';
 import { createAdminNotification } from '../utils/notificationHelper';
 import { bookingTimesOverlap } from '../utils/bookingOverlap';
-import { calculateVAT, localDateString } from '../utils/money';
-import { unlinkBookingFromDraftInvoice } from '../utils/bookingInvoice';
 
 type NotificationType = 'success' | 'error' | 'info';
 
@@ -182,7 +180,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       });
     }
 
-    const todayAutoStr = localDateString();
+    const todayAutoStr = new Date().toISOString().split('T')[0];
     const pastConfirmed = (bookingsData || []).filter(
       (b: any) => b.status === 'confirmed' && b.booking_date < todayAutoStr
     );
@@ -210,7 +208,8 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
   };
 
   const applyFilter = (bookingsList: Booking[], filter: 'upcoming' | 'internal' | 'external' | 'all' | 'cancelled', tenantFilter?: string) => {
-    const todayStr = localDateString();
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
     let filtered = bookingsList.filter(b => !b.invoice_id);
 
@@ -223,7 +222,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       } else if (filter === 'external') {
         filtered = filtered.filter(b => b.booking_type === 'external');
       } else if (filter === 'upcoming') {
-        filtered = filtered.filter(b => b.booking_date >= todayStr || b.status === 'completed' || b.status === 'confirmed');
+        filtered = filtered.filter(b => b.booking_date >= todayStr);
       }
     }
 
@@ -358,8 +357,24 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
         return;
       }
     } else {
-      if (!formData.external_customer_id) {
-        showNotification('Selecteer een externe klant.', 'error');
+      if (!formData.external_company_name) {
+        showNotification('Vul een bedrijfsnaam in.', 'error');
+        return;
+      }
+      if (!formData.external_contact_name) {
+        showNotification('Vul een contactpersoon in.', 'error');
+        return;
+      }
+      if (!formData.external_street) {
+        showNotification('Vul een straat en huisnummer in.', 'error');
+        return;
+      }
+      if (!formData.external_postal_code) {
+        showNotification('Vul een postcode in.', 'error');
+        return;
+      }
+      if (!formData.external_city) {
+        showNotification('Vul een plaats in.', 'error');
         return;
       }
     }
@@ -381,9 +396,16 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       const newStart = formData.start_time;
       const newEnd = formData.end_time;
 
-      const hasOverlap = existingBookings.some(booking =>
-        bookingTimesOverlap(newStart, newEnd, booking.start_time, booking.end_time)
-      );
+      const hasOverlap = existingBookings.some(booking => {
+        const existingStart = booking.start_time;
+        const existingEnd = booking.end_time;
+
+        return (
+          (newStart >= existingStart && newStart < existingEnd) ||
+          (newEnd > existingStart && newEnd <= existingEnd) ||
+          (newStart <= existingStart && newEnd >= existingEnd)
+        );
+      });
 
       if (hasOverlap) {
         showNotification('Deze ruimte is al geboekt voor de geselecteerde tijd. Kies een andere tijd of ruimte.', 'error');
@@ -535,19 +557,16 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
 
   const handleStatusChange = async (bookingId: string, newStatus: 'confirmed' | 'cancelled' | 'completed') => {
     // Haal de boeking op voordat we de status wijzigen
-    const booking = allBookings.find(b => b.id === bookingId) || bookings.find(b => b.id === bookingId);
+    const booking = bookings.find(b => b.id === bookingId);
 
     if (!booking) {
       showNotification('Boeking niet gevonden.', 'error');
       return;
     }
 
+    // Als de status verandert naar cancelled, update de factuur
     if (newStatus === 'cancelled' && booking.invoice_id) {
-      const result = await unlinkBookingFromDraftInvoice(booking);
-      if (!result.ok) {
-        showNotification(result.error || 'Boeking kan niet worden geannuleerd.', 'error');
-        return;
-      }
+      await removeBookingFromInvoice(booking);
     }
 
     const { error } = await supabase
@@ -594,7 +613,8 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       return;
     }
 
-    const todayStr = localDateString();
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     const newStatus: 'confirmed' | 'completed' = booking.booking_date < todayStr ? 'completed' : 'confirmed';
 
     const { data: existingBookings } = await supabase
@@ -643,19 +663,16 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     setDeleteConfirmId(null);
 
     // Haal de boeking op voordat we deze verwijderen
-    const booking = allBookings.find(b => b.id === bookingId) || bookings.find(b => b.id === bookingId);
+    const booking = bookings.find(b => b.id === bookingId);
 
     if (!booking) {
       showNotification('Boeking niet gevonden.', 'error');
       return;
     }
 
+    // Als de boeking aan een factuur is gekoppeld, update de factuur
     if (booking.invoice_id) {
-      const result = await unlinkBookingFromDraftInvoice(booking);
-      if (!result.ok) {
-        showNotification(result.error || 'Boeking kan niet worden verwijderd.', 'error');
-        return;
-      }
+      await removeBookingFromInvoice(booking);
     }
 
     const { error } = await supabase
@@ -674,6 +691,107 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     setAllBookings(prev => prev.filter(b => b.id !== bookingId));
 
     showNotification('Boeking succesvol verwijderd.', 'success');
+  };
+
+  const removeBookingFromInvoice = async (booking: Booking) => {
+    if (!booking.invoice_id) {
+      return;
+    }
+
+    // Haal de factuur op
+    const { data: invoice, error: invoiceError } = await supabase
+      .from('invoices')
+      .select('*')
+      .eq('id', booking.invoice_id)
+      .single();
+
+    if (invoiceError || !invoice) {
+      console.error('Error fetching invoice:', invoiceError);
+      return;
+    }
+
+    // Alleen draft facturen kunnen worden aangepast
+    if (invoice.status !== 'draft') {
+      showNotification('Deze factuur is al verstuurd en kan niet meer worden gewijzigd.', 'error');
+      return;
+    }
+
+    const vatRate = invoice.vat_rate;
+
+    // Bereken nieuwe bedragen zonder deze boeking
+    const newSubtotal = Math.max(0, parseFloat(invoice.subtotal) - booking.total_amount);
+    const newVatAmount = newSubtotal * (vatRate / 100);
+    const newTotal = newSubtotal + newVatAmount;
+
+    // Verwijder de boeking uit de notes
+    let rateDescription = '';
+    if (booking.rate_type === 'half_day') {
+      rateDescription = `dagdeel tarief €${(booking.applied_rate || 0).toFixed(2)}`;
+    } else if (booking.rate_type === 'full_day') {
+      rateDescription = `hele dag tarief €${(booking.applied_rate || 0).toFixed(2)}`;
+    } else {
+      const hourlyRate = booking.applied_rate || (booking.hourly_rate || 0);
+      rateDescription = `${booking.total_hours}u × €${hourlyRate.toFixed(2)}`;
+    }
+
+    // Calculate original amount (before discount)
+    const originalAmount = booking.total_amount + (booking.discount_amount || 0);
+
+    // Create booking line without discount note (show original amount)
+    const bookingLine = `- ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)} (${rateDescription}) = €${originalAmount.toFixed(2)}`;
+
+    // Create discount line if applicable
+    const hasDiscount = booking.discount_percentage && booking.discount_percentage > 0 && booking.discount_amount && booking.discount_amount > 0;
+    const discountLine = hasDiscount
+      ? `- Korting ${booking.discount_percentage}% huurderkorting = €${booking.discount_amount.toFixed(2)}`
+      : '';
+
+    let updatedNotes = invoice.notes || '';
+    const lines = updatedNotes.split('\n');
+    // Filter out both the booking line and the discount line
+    const filteredLines = lines.filter(line => {
+      const trimmedLine = line.trim();
+      return trimmedLine !== bookingLine.trim() && trimmedLine !== discountLine.trim();
+    });
+    updatedNotes = filteredLines.join('\n').trim();
+
+    // Als er geen boekingen meer zijn, verwijder de factuur
+    const remainingBookingLines = filteredLines.filter(line => line.startsWith('-')).length;
+
+    if (remainingBookingLines === 0) {
+      const { error: deleteError } = await supabase
+        .from('invoices')
+        .delete()
+        .eq('id', booking.invoice_id);
+
+      if (deleteError) {
+        console.error('Error deleting invoice:', deleteError);
+        showNotification('Fout bij het verwijderen van de factuur.', 'error');
+        return;
+      }
+
+      showNotification('Factuur is verwijderd omdat er geen boekingen meer zijn.', 'info');
+      return;
+    }
+
+    // Update de factuur
+    const { error: updateError } = await supabase
+      .from('invoices')
+      .update({
+        subtotal: newSubtotal,
+        vat_amount: newVatAmount,
+        amount: newTotal,
+        notes: updatedNotes || null
+      })
+      .eq('id', booking.invoice_id);
+
+    if (updateError) {
+      console.error('Error updating invoice:', updateError);
+      showNotification('Fout bij het bijwerken van de factuur.', 'error');
+      return;
+    }
+
+    showNotification('Factuur is bijgewerkt.', 'info');
   };
 
   const handleLinkToInvoice = async (booking: Booking) => {
@@ -737,24 +855,6 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
             calculation_type: 'quantity_price',
             local_category: 'vergaderruimte'
           });
-      }
-
-      const { data: invoice } = await supabase
-        .from('invoices')
-        .select('id, status, subtotal, amount, vat_rate, vat_inclusive')
-        .eq('id', selectedInvoiceId)
-        .maybeSingle();
-
-      if (invoice?.status === 'draft') {
-        const bookingAmount = Number(booking.total_amount) || 0;
-        const vatRate = Number(invoice.vat_rate) || 21;
-        const vatInclusive = !!invoice.vat_inclusive;
-        const existingBase = vatInclusive ? Number(invoice.amount) : Number(invoice.subtotal);
-        const { subtotal, vatAmount, total } = calculateVAT(existingBase + bookingAmount, vatRate, vatInclusive);
-        await supabase
-          .from('invoices')
-          .update({ subtotal, vat_amount: vatAmount, amount: total })
-          .eq('id', invoice.id);
       }
 
       showNotification('Boeking succesvol gekoppeld aan factuur', 'success');

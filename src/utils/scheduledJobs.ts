@@ -1,7 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { checkInvoicePaymentStatuses, checkPurchaseInvoicePaymentStatuses, verifyInvoiceSyncStatus, verifyRelationsInEBoekhouden } from '../lib/eboekhoudenSync';
 import { createLeaseNotification } from './notificationHelper';
-import { calculateVAT, isLeaseActiveInMonth, localDateString } from './money';
 
 function getLocalCategory(spaceType?: string): string | null {
   switch (spaceType) {
@@ -81,6 +80,18 @@ async function advanceJobNextRun(job: ScheduledJob, intervalHours: number) {
     .eq('id', job.id);
 }
 
+function calculateVAT(amount: number, vatRate: number, vatInclusive: boolean) {
+  if (vatInclusive) {
+    const subtotal = Math.round((amount / (1 + vatRate / 100)) * 100) / 100;
+    const vatAmount = Math.round((amount - subtotal) * 100) / 100;
+    return { subtotal, vatAmount, total: Math.round(amount * 100) / 100 };
+  } else {
+    const subtotal = Math.round(amount * 100) / 100;
+    const vatAmount = Math.round((amount * (vatRate / 100)) * 100) / 100;
+    return { subtotal, vatAmount, total: Math.round((subtotal + vatAmount) * 100) / 100 };
+  }
+}
+
 const runEBoekhoudenPaymentStatusCheck = async (job: ScheduledJob) => {
   try {
     const token = await getEBoekhoudenToken();
@@ -135,7 +146,7 @@ const generateMeetingRoomInvoices = async (job: ScheduledJob) => {
     const { data: rates } = await supabase
       .from('space_type_rates')
       .select('vat_inclusive')
-      .eq('space_type', 'Meeting Room')
+      .eq('space_type', 'vergaderruimte')
       .maybeSingle();
     const vatInclusive = rates?.vat_inclusive ?? false;
     const defaultVatRate = 21;
@@ -206,18 +217,14 @@ const generateMeetingRoomInvoices = async (job: ScheduledJob) => {
           continue;
         }
 
-        const existingBase = vatInclusive ? Number(existing.amount) : Number(existing.subtotal);
-        const addedBase = vatInclusive ? totalAmount : subtotal;
-        const { subtotal: newSubtotal, vatAmount: newVat, total: newTotal } = calculateVAT(
-          existingBase + addedBase,
-          vatRate,
-          vatInclusive
-        );
+        const newSubtotal = Math.round((Number(existing.subtotal) + subtotal) * 100) / 100;
+        const newVat = Math.round((newSubtotal * vatRate / 100) * 100) / 100;
+        const newTotal = Math.round((newSubtotal + newVat) * 100) / 100;
         const updatedNotes = existing.notes ? `${existing.notes}\n${notes}` : notes;
 
         const { error: updateError } = await supabase.from('invoices').update({
           subtotal: newSubtotal, vat_amount: newVat, amount: newTotal, notes: updatedNotes
-        }).eq('id', existing.id).eq('status', 'draft');
+        }).eq('id', existing.id);
         if (updateError) {
           anyFailed = true;
           continue;
@@ -248,12 +255,11 @@ const generateMeetingRoomInvoices = async (job: ScheduledJob) => {
           anyFailed = true;
           continue;
         }
-        const invoiceId = newInvoice.id;
 
         const bookingIds = group.bookings.map(b => b.id);
-        const { error: linkError } = await supabase.from('meeting_room_bookings').update({ invoice_id: invoiceId }).in('id', bookingIds);
+        const { error: linkError } = await supabase.from('meeting_room_bookings').update({ invoice_id: newInvoice.id }).in('id', bookingIds);
         if (linkError) {
-          await supabase.from('invoices').delete().eq('id', invoiceId).eq('status', 'draft');
+          await supabase.from('invoices').delete().eq('id', newInvoice.id).eq('status', 'draft');
           anyFailed = true;
           continue;
         }
@@ -271,13 +277,14 @@ const generateMeetingRoomInvoices = async (job: ScheduledJob) => {
 const checkExpiringLeases = async (job: ScheduledJob) => {
   try {
     const today = new Date();
-    const todayStr = localDateString();
-    const in30 = new Date(today);
-    in30.setDate(in30.getDate() + 30);
-    const in60 = new Date(today);
-    in60.setDate(in60.getDate() + 60);
-    const in30Str = localDateString(in30);
-    const in60Str = localDateString(in60);
+    const in30Days = new Date(today);
+    in30Days.setDate(in30Days.getDate() + 30);
+    const in60Days = new Date(today);
+    in60Days.setDate(in60Days.getDate() + 60);
+
+    const todayStr = today.toISOString().split('T')[0];
+    const in30Str = in30Days.toISOString().split('T')[0];
+    const in60Str = in60Days.toISOString().split('T')[0];
 
     const { data: leases } = await supabase
       .from('leases')
@@ -297,20 +304,17 @@ const checkExpiringLeases = async (job: ScheduledJob) => {
       const tenantName = lease.tenant?.company_name || 'Onbekende huurder';
       const endDateStr = endDate.toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
-      const notifType = diffDays <= 30 ? 'lease_expiring_30' : diffDays <= 60 ? 'lease_expiring_60' : null;
-      if (!notifType) continue;
-
       const { data: existingNotif } = await supabase
         .from('admin_notifications')
         .select('id')
         .eq('tenant_id', lease.tenant_id)
-        .eq('notification_type', notifType)
+        .in('notification_type', ['lease_expiring_30', 'lease_expiring_60'])
         .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
         .maybeSingle();
 
       if (existingNotif) continue;
 
-      if (notifType === 'lease_expiring_30') {
+      if (diffDays <= 30) {
         await createLeaseNotification(
           'lease_expiring_30',
           lease.id,
@@ -318,7 +322,7 @@ const checkExpiringLeases = async (job: ScheduledJob) => {
           `Einddatum: ${endDateStr} (nog ${diffDays} dagen)`,
           lease.tenant_id
         );
-      } else {
+      } else if (diffDays <= 60) {
         await createLeaseNotification(
           'lease_expiring_60',
           lease.id,
@@ -416,7 +420,7 @@ const applyRentIndexation = async (job: ScheduledJob) => {
 
 const completePastBookings = async (job: ScheduledJob) => {
   try {
-    const todayStr = localDateString();
+    const todayStr = new Date().toISOString().split('T')[0];
 
     await supabase
       .from('meeting_room_bookings')
@@ -444,18 +448,13 @@ const generateMonthlyInvoices = async (job: ScheduledJob) => {
       `)
       .eq('status', 'active');
 
-    if (!leases || leases.length === 0) {
-      await advanceJobToNextMonth(job);
-      return;
-    }
+    if (!leases || leases.length === 0) return;
 
     const invoiceMonth = new Date().toISOString().slice(0, 7);
     const invoiceDate = new Date().toISOString().split('T')[0];
     const dueDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
     for (const lease of leases) {
-      if (!isLeaseActiveInMonth(lease, invoiceMonth)) continue;
-
       const existingInvoice = await supabase
         .from('invoices')
         .select('id')
@@ -467,14 +466,9 @@ const generateMonthlyInvoices = async (job: ScheduledJob) => {
 
       const { data: invoiceNumber } = await supabase.rpc('generate_invoice_number');
 
-      let rentAmount = Math.round(lease.lease_spaces.reduce((sum: number, ls: any) => sum + Number(ls.monthly_rent), 0) * 100) / 100;
-      const securityDeposit = Number(lease.security_deposit || 0);
-      const discountPercentage = Number(lease.tenant?.lease_discount_percentage || 0);
-      const discountAmount = discountPercentage > 0
-        ? Math.round(rentAmount * (discountPercentage / 100) * 100) / 100
-        : 0;
+      let baseAmount = Math.round(lease.lease_spaces.reduce((sum: number, ls: any) => sum + ls.monthly_rent, 0) * 100) / 100;
 
-      const baseAmount = Math.round((rentAmount - discountAmount + securityDeposit) * 100) / 100;
+      baseAmount = Math.round((baseAmount + (lease.security_deposit || 0)) * 100) / 100;
 
       const { subtotal, vatAmount, total } = calculateVAT(baseAmount, lease.vat_rate, lease.vat_inclusive);
 
@@ -527,33 +521,18 @@ const generateMonthlyInvoices = async (job: ScheduledJob) => {
         });
       }
 
-      if (discountAmount > 0) {
-        lineItemsToInsert.push({
-          invoice_id: newInvoice.id,
-          description: `Korting verhuur (${discountPercentage}%)`,
-          quantity: 1,
-          unit_price: -discountAmount,
-          amount: -discountAmount,
-          local_category: null
-        });
-      }
-
-      if (securityDeposit > 0) {
+      if (lease.security_deposit > 0) {
         lineItemsToInsert.push({
           invoice_id: newInvoice.id,
           description: 'Voorschot Gas, Water & Electra',
           quantity: 1,
-          unit_price: securityDeposit,
-          amount: securityDeposit,
+          unit_price: lease.security_deposit,
+          amount: lease.security_deposit,
           local_category: 'diversen'
         });
       }
 
-      const { error: lineItemsError } = await supabase.from('invoice_line_items').insert(lineItemsToInsert);
-      if (lineItemsError) {
-        console.error('Error creating line items for scheduled invoice:', lineItemsError);
-        await supabase.from('invoices').delete().eq('id', newInvoice.id);
-      }
+      await supabase.from('invoice_line_items').insert(lineItemsToInsert);
     }
 
     await advanceJobToNextMonth(job);

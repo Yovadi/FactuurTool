@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { outstandingAmount } from '../utils/money';
 import { Euro, FileText, AlertTriangle, CheckCircle, Clock, TrendingUp, Loader2 } from 'lucide-react';
 
 type SummaryStats = {
@@ -36,7 +35,7 @@ export function QuickSummaryPanel() {
     const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 
     const [invoicesResult, creditNotesResult, purchaseResult] = await Promise.all([
-      supabase.from('invoices').select('status, amount, paid_at, applied_credit'),
+      supabase.from('invoices').select('status, amount, paid_at'),
       supabase.from('credit_notes').select('status, total_amount'),
       supabase.from('purchase_invoices').select('status, total_amount'),
     ]);
@@ -59,9 +58,9 @@ export function QuickSummaryPanel() {
       draftCount: draft.length,
       draftAmount: draft.reduce((s, i) => s + (i.amount || 0), 0),
       openCount: open.length,
-      openAmount: open.reduce((s, i) => s + outstandingAmount(i.amount, i.applied_credit), 0),
+      openAmount: open.reduce((s, i) => s + (i.amount || 0), 0),
       overdueCount: overdue.length,
-      overdueAmount: overdue.reduce((s, i) => s + outstandingAmount(i.amount, i.applied_credit), 0),
+      overdueAmount: overdue.reduce((s, i) => s + (i.amount || 0), 0),
       paidThisMonth: paidThisMonth.length,
       paidThisMonthAmount: paidThisMonth.reduce((s, i) => s + (i.amount || 0), 0),
       creditNotesOpen: openCredits.length,

@@ -12,7 +12,6 @@ import { Pagination } from './Pagination';
 import { checkAndRunScheduledJobs } from '../utils/scheduledJobs';
 import { getLocalRootFolderPath } from '../utils/localSettings';
 import { syncInvoicePDFs, buildInvoiceFolderPath } from '../utils/invoicePdfSync';
-import { isLeaseActiveInMonth, localDateString } from '../utils/money';
 
 type LeaseWithDetails = Lease & {
   tenant: Tenant;
@@ -102,6 +101,23 @@ function getLocalCategory(spaceType?: string, bookingType?: string): string | nu
     case 'diversen': return 'diversen';
     default: return null;
   }
+}
+
+function isLeaseActiveInMonth(lease: { start_date?: string | null; end_date?: string | null }, invoiceMonth: string): boolean {
+  if (!invoiceMonth) return true;
+  const [y, m] = invoiceMonth.split('-').map(Number);
+  if (!y || !m) return true;
+  const monthStart = new Date(y, m - 1, 1);
+  const monthEnd = new Date(y, m, 0);
+  if (lease.start_date) {
+    const startDate = new Date(lease.start_date);
+    if (startDate > monthEnd) return false;
+  }
+  if (lease.end_date) {
+    const endDate = new Date(lease.end_date);
+    if (endDate < monthStart) return false;
+  }
+  return true;
 }
 
 export type InvoiceTypeFilter = 'all' | 'huur' | 'vergaderruimte' | 'handmatig';
@@ -303,7 +319,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       `)
       .gte('booking_date', startDateStr)
       .lte('booking_date', endDateStr)
-      .in('status', ['confirmed', 'completed'])
+      .in('status', ['pending', 'confirmed', 'completed'])
       .is('invoice_id', null);
 
     if (customerType === 'tenant') {
@@ -486,7 +502,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   const loadData = async () => {
     setLoading(true);
 
-    const todayStr = localDateString();
+    const todayStr = new Date().toISOString().split('T')[0];
 
     const [
       { data: companyData },
@@ -714,7 +730,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         const bookingYearMonth = `${y}-${m}`;
         const isForSelectedMonth = bookingYearMonth === invoiceMonth;
         const isUnbilled = !booking.invoice_id;
-        const isInvoiceable = booking.status === 'completed' || booking.status === 'confirmed';
+        const isInvoiceable = booking.status === 'completed' || booking.status === 'confirmed' || booking.status === 'pending';
         const isForCustomer = (customer as any).isExternal
           ? booking.external_customer_id === customer.id
           : booking.tenant_id === customer.id;
@@ -748,8 +764,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     if (items) {
       setLineItems(items.map(item => ({
         description: item.description,
-        unit_price: (item.unit_price ?? item.amount).toString(),
-        quantity: item.quantity != null ? String(item.quantity) : '1',
+        unit_price: item.amount.toString(),
+        quantity: '1',
         bookingId: item.booking_id || undefined,
         grootboek_id: item.grootboek_id || undefined,
         local_category: item.local_category || undefined
@@ -862,7 +878,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
       if (invoiceError) {
         console.error('Error updating invoice:', invoiceError);
-        showToast('Factuur kon niet worden bijgewerkt.', 'error');
         return;
       }
 
@@ -893,7 +908,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       if (lineItemsError) {
         console.error('Error updating line items:', lineItemsError);
         await restorePreviousLines();
-        showToast('Factuurregels konden niet worden opgeslagen. De factuur is ongewijzigd.', 'error');
         return;
       }
 
@@ -980,7 +994,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       if (lineItemsError) {
         console.error('Error creating line items:', lineItemsError);
         await supabase.from('invoices').delete().eq('id', newInvoice.id);
-        showToast('Factuurregels konden niet worden aangemaakt. De factuur is niet opgeslagen.', 'error');
         return;
       }
 
@@ -1183,7 +1196,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   const revertToDraft = async (invoiceId: string) => {
     const { error } = await supabase
       .from('invoices')
-      .update({ status: 'draft', sent_at: null, paid_at: null })
+      .update({ status: 'draft', sent_at: null })
       .eq('id', invoiceId);
 
     if (error) {
@@ -1194,7 +1207,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
     setInvoices(prev => prev.map(inv =>
       inv.id === invoiceId
-        ? { ...inv, status: 'draft' as const, sent_at: null, paid_at: null }
+        ? { ...inv, status: 'draft' as const, sent_at: null }
         : inv
     ));
     showToast('Factuur teruggezet naar concept', 'success');
@@ -2720,13 +2733,9 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     const idsToUpdate = Array.from(selectedInvoices);
 
     for (const id of idsToUpdate) {
-      const updatePayload: { status: string; paid_at?: string } = { status: newStatus };
-      if (newStatus === 'paid') {
-        updatePayload.paid_at = new Date().toISOString();
-      }
       await supabase
         .from('invoices')
-        .update(updatePayload)
+        .update({ status: newStatus })
         .eq('id', id);
     }
 
@@ -3785,7 +3794,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
             const bookingYearMonth = `${y}-${m}`;
             const isForSelectedMonth = bookingYearMonth === targetMonth;
             const isUnbilled = !booking.invoice_id;
-            const isInvoiceable = booking.status === 'completed' || booking.status === 'confirmed';
+            const isInvoiceable = booking.status === 'completed' || booking.status === 'confirmed' || booking.status === 'pending';
             const isForCustomer = (customer as any).isExternal
               ? booking.external_customer_id === customer.id
               : booking.tenant_id === customer.id;

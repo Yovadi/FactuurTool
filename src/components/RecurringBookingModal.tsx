@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { X, Repeat, AlertCircle } from 'lucide-react';
 import { supabase, type Tenant } from '../lib/supabase';
 import { bookingTimesOverlap } from '../utils/bookingOverlap';
-import { localDateString } from '../utils/money';
 
 type ExternalCustomerOption = {
   id: string;
@@ -56,7 +55,7 @@ export function RecurringBookingModal({
     recurrence_type: 'weekly' as RecurrenceType,
     recurrence_days: [] as string[],
     recurrence_date: 1,
-    start_date: localDateString(),
+    start_date: new Date().toISOString().split('T')[0],
     end_date: '',
     notes: ''
   });
@@ -137,14 +136,8 @@ export function RecurringBookingModal({
 
   const generateBookingsFromPattern = async (pattern: any) => {
     const candidateDates: string[] = [];
-    const [startY, startM, startD] = String(pattern.start_date).split('-').map(Number);
-    const startDate = new Date(startY, startM - 1, startD);
-    const endDate = pattern.end_date
-      ? (() => {
-          const [y, m, d] = String(pattern.end_date).split('-').map(Number);
-          return new Date(y, m - 1, d);
-        })()
-      : new Date(startDate.getFullYear() + 1, startDate.getMonth(), startDate.getDate());
+    const startDate = new Date(pattern.start_date);
+    const endDate = pattern.end_date ? new Date(pattern.end_date) : new Date(startDate.getTime() + 365 * 24 * 60 * 60 * 1000);
 
     const space = spaces.find(s => s.id === pattern.space_id);
     if (!space) return;
@@ -208,7 +201,7 @@ export function RecurringBookingModal({
       }
 
       if (shouldBook) {
-        candidateDates.push(localDateString(currentDate));
+        candidateDates.push(currentDate.toISOString().split('T')[0]);
       }
 
       currentDate.setDate(currentDate.getDate() + 1);
@@ -299,7 +292,7 @@ export function RecurringBookingModal({
       recurrence_type: 'weekly',
       recurrence_days: [],
       recurrence_date: 1,
-      start_date: localDateString(),
+      start_date: new Date().toISOString().split('T')[0],
       end_date: '',
       notes: ''
     });
