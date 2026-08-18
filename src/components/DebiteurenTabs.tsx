@@ -91,7 +91,11 @@ export function DebiteurenTabs({ initialTab, onInitialTabConsumed, onCreateCredi
             />
           </div>
         )}
-        {activeTab === 'log' && <DebtorsOverview initialTab="log" />}
+        {activeTab === 'log' && (
+          <div className="h-full">
+            <DebtorsOverview initialTab="log" />
+          </div>
+        )}
       </div>
     </div>
   );

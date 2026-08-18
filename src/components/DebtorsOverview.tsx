@@ -61,7 +61,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
   const [debtorsPage, setDebtorsPage] = useState(1);
   const [debtorsPageSize, setDebtorsPageSize] = useState(25);
   const [paidPage, setPaidPage] = useState(1);
-  const [paidPageSize, setPaidPageSize] = useState(25);
+  const [paidPageSize, setPaidPageSize] = useState(50);
   const [syncPage, setSyncPage] = useState(1);
   const [syncPageSize, setSyncPageSize] = useState(25);
 
@@ -210,7 +210,9 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
           invoice_line_items(id, description, quantity, unit_price, amount, booking_id)
         `)
         .in('status', ['paid', 'credited'])
-        .order('invoice_number', { ascending: true });
+        .order('invoice_date', { ascending: false })
+        .order('invoice_number', { ascending: false })
+        .limit(1000);
 
       if (error) throw error;
 
@@ -436,7 +438,9 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
     }
 
     filtered.sort((a, b) => {
-      return (a.invoice_number || '').localeCompare(b.invoice_number || '');
+      const dateCmp = (b.invoice_date || '').localeCompare(a.invoice_date || '');
+      if (dateCmp !== 0) return dateCmp;
+      return (b.invoice_number || '').localeCompare(a.invoice_number || '');
     });
 
     return filtered;
@@ -472,8 +476,8 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
 
   return (
     <div className="h-full flex flex-col bg-dark-950 overflow-hidden">
-      <div className="flex-shrink-0 mb-6">
-        {activeTab === 'open' && (
+      {activeTab === 'open' && (
+        <div className="flex-shrink-0 mb-6">
           <div className="flex items-center gap-4">
             <div className="bg-dark-900 px-4 py-2 rounded-lg">
               <div className="text-sm text-gray-400">Totaal Openstaand</div>
@@ -484,8 +488,8 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
               <div className="text-2xl font-bold text-gray-100">{debtors.length}</div>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {activeTab === 'open' && (
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 overflow-hidden">
@@ -607,18 +611,20 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
       )}
 
       {activeTab === 'log' && (
-        <div className="flex flex-col bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
+        <div className="flex-1 min-h-0 flex flex-col bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
             <h2 className="text-lg font-bold text-gray-100 px-4 py-3 bg-dark-800 border-b border-amber-500 flex-shrink-0">
               Facturen Logboek (Betaald & Gecrediteerd)
             </h2>
             {paidInvoices.length === 0 ? (
-              <div className="bg-dark-900 rounded-lg p-8 text-center">
-                <CheckCircle size={48} className="text-green-500 mx-auto mb-4" />
-                <p className="text-gray-400">Geen betaalde of gecrediteerde facturen gevonden</p>
+              <div className="flex-1 flex items-center justify-center p-8 text-center">
+                <div>
+                  <CheckCircle size={48} className="text-green-500 mx-auto mb-4" />
+                  <p className="text-gray-400">Geen betaalde of gecrediteerde facturen gevonden</p>
+                </div>
               </div>
             ) : (
-              <div className="flex flex-col">
-                <div className="px-4 py-3 bg-dark-800 border-b border-dark-700">
+              <div className="flex-1 min-h-0 flex flex-col">
+                <div className="px-4 py-3 bg-dark-800 border-b border-dark-700 flex-shrink-0">
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
                       <Filter size={16} className="text-gray-400" />
@@ -701,7 +707,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                     </div>
                   </div>
                 </div>
-                <div className="overflow-auto" style={{ maxHeight: 'calc(100vh - 320px)' }}>
+                <div className="flex-1 min-h-0 overflow-auto">
                   <table className="w-full table-fixed min-w-[1100px]">
                     <thead>
                       <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
@@ -804,6 +810,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                   pageSize={paidPageSize}
                   onPageChange={(page) => { setPaidPage(page); }}
                   onPageSizeChange={(size) => { setPaidPageSize(size); setPaidPage(1); }}
+                  pageSizeOptions={[25, 50, 100, 200]}
                   label="facturen"
                 />
               </div>
