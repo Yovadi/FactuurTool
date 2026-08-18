@@ -466,6 +466,12 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
     return [...new Set(periods)].sort().reverse();
   };
 
+  const filteredPaidInvoices = getFilteredPaidInvoices();
+  const paidLogTotal = filteredPaidInvoices.reduce(
+    (sum, invoice) => sum + Number(invoice.amount || 0),
+    0
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -624,8 +630,8 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
               </div>
             ) : (
               <div className="flex-1 min-h-0 flex flex-col">
-                <div className="px-4 py-3 bg-dark-800 border-b border-dark-700 flex-shrink-0">
-                  <div className="flex items-center gap-4">
+                <div className="px-4 py-2 bg-dark-800 border-b border-dark-700 flex-shrink-0">
+                  <div className="flex items-center gap-4 flex-wrap">
                     <div className="flex items-center gap-2">
                       <Filter size={16} className="text-gray-400" />
                       <span className="text-sm text-gray-400 font-medium">Filteren:</span>
@@ -675,33 +681,23 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                           setFilterPeriod('');
                           setPaidPage(1);
                         }}
-                        className="text-sm text-gold-400 hover:text-gold-300 underline ml-auto"
+                        className="text-sm text-gold-400 hover:text-gold-300 underline"
                       >
                         Filters wissen
                       </button>
                     )}
-                  </div>
 
-                  <div className="text-xs text-gray-500 mt-2">
-                    {getFilteredPaidInvoices().length} van {paidInvoices.length} facturen
-                  </div>
-
-                  <div className="mt-3 p-3 bg-dark-700/50 rounded-lg border border-dark-600">
-                    <div className="flex items-center gap-2 mb-2">
-                      <FileText size={14} className="text-gray-400" />
-                      <span className="text-xs font-semibold text-gray-300 uppercase">Legende Factuurnummers</span>
-                    </div>
-                    <div className="flex flex-wrap gap-3 text-xs">
+                    <div className="flex items-center gap-3 text-xs ml-auto">
                       <div className="flex items-center gap-1.5">
-                        <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                        <div className="w-2.5 h-2.5 rounded-full bg-green-500"></div>
                         <span className="text-gray-400">Huurcontract</span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                        <div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div>
                         <span className="text-gray-400">Vergaderruimte</span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <div className="w-3 h-3 rounded-full bg-orange-500"></div>
+                        <div className="w-2.5 h-2.5 rounded-full bg-orange-500"></div>
                         <span className="text-gray-400">Handmatig</span>
                       </div>
                     </div>
@@ -722,7 +718,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                       </tr>
                     </thead>
                     <tbody>
-                      {getFilteredPaidInvoices().slice((paidPage - 1) * paidPageSize, paidPage * paidPageSize).map((invoice: any) => {
+                      {filteredPaidInvoices.slice((paidPage - 1) * paidPageSize, paidPage * paidPageSize).map((invoice: any) => {
                       const customer = invoice.tenant_id && invoice.tenants
                         ? invoice.tenants
                         : invoice.external_customer_id && invoice.external_customers
@@ -806,12 +802,14 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                 </div>
                 <Pagination
                   currentPage={paidPage}
-                  totalItems={getFilteredPaidInvoices().length}
+                  totalItems={filteredPaidInvoices.length}
                   pageSize={paidPageSize}
                   onPageChange={(page) => { setPaidPage(page); }}
                   onPageSizeChange={(size) => { setPaidPageSize(size); setPaidPage(1); }}
                   pageSizeOptions={[25, 50, 100, 200]}
                   label="facturen"
+                  alwaysShow
+                  summary={`Totaal ${formatCurrency(paidLogTotal)}`}
                 />
               </div>
             )}
