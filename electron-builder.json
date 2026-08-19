@@ -10,7 +10,7 @@
     "public/**/*"
   ],
   "win": {
-    "icon": "public/Logo.png",
+    "icon": "build/icon.png",
     "target": "nsis",
     "artifactName": "${productName}-Setup-${version}.${ext}"
   },
