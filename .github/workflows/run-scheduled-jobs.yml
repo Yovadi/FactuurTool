@@ -1,0 +1,47 @@
+name: Run scheduled jobs
+
+# Hourly background runner. Invokes the Supabase Edge Function so HAL5 jobs
+# still run when the Windows app is closed. Skips e-Boekhouden and PDF reminders.
+on:
+  schedule:
+    - cron: '15 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: run-scheduled-jobs
+  cancel-in-progress: false
+
+jobs:
+  run:
+    name: Invoke run-scheduled-jobs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+    steps:
+      - name: Check secrets
+        shell: bash
+        run: |
+          if [ -z "$VITE_SUPABASE_URL" ] || [ -z "$VITE_SUPABASE_ANON_KEY" ]; then
+            echo "::error::Add repository secrets VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY."
+            exit 1
+          fi
+
+      - name: Call Edge Function
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="${VITE_SUPABASE_URL%/}/functions/v1/run-scheduled-jobs"
+          code=$(curl -sS -o /tmp/jobs.json -w "%{http_code}" -X POST "$url" \
+            -H "Authorization: Bearer ${VITE_SUPABASE_ANON_KEY}" \
+            -H "apikey: ${VITE_SUPABASE_ANON_KEY}" \
+            -H "Content-Type: application/json" \
+            -d '{}')
+          echo "HTTP $code"
+          cat /tmp/jobs.json
+          echo
+          if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
+            echo "::error::run-scheduled-jobs failed with HTTP $code. Deploy the Edge Function if it is missing."
+            exit 1
+          fi
