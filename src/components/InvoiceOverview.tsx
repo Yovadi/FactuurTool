@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase, type Tenant, type ExternalCustomer, type Lease, type LeaseSpace, type OfficeSpace } from '../lib/supabase';
 import { Home, Calendar, CheckSquare, Square, Loader2, AlertTriangle, ChevronDown, ChevronRight, ChevronLeft, RefreshCw } from 'lucide-react';
 import { Toast } from './Toast';
+import { calculateVAT } from '../utils/invoiceMoney';
+import { getMeetingRoomVatSettings } from '../utils/invoiceBookingSync';
 
 type LeaseWithDetails = Lease & {
   tenant: Tenant;
@@ -33,20 +35,6 @@ function getLocalCategory(spaceType?: string, bookingType?: string): string | nu
     case 'buitenterrein': return 'huur_buitenterrein';
     case 'diversen': return 'diversen';
     default: return null;
-  }
-}
-
-function calculateVAT(baseAmount: number, vatRate: number, vatInclusive: boolean) {
-  if (vatInclusive) {
-    const total = Math.round(baseAmount * 100) / 100;
-    const subtotal = Math.round((baseAmount / (1 + (vatRate / 100))) * 100) / 100;
-    const vatAmount = Math.round((baseAmount - subtotal) * 100) / 100;
-    return { subtotal, vatAmount, total };
-  } else {
-    const subtotal = Math.round(baseAmount * 100) / 100;
-    const vatAmount = Math.round((baseAmount * (vatRate / 100)) * 100) / 100;
-    const total = Math.round((baseAmount + vatAmount) * 100) / 100;
-    return { subtotal, vatAmount, total };
   }
 }
 
@@ -166,7 +154,7 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
       supabase.from('external_customers').select('*'),
       supabase.from('meeting_room_bookings').select(`
         id, booking_date, start_time, end_time, total_hours, total_amount, hourly_rate,
-        discount_percentage, discount_amount, rate_type, applied_rate, status, invoice_id,
+        discount_percentage, discount_amount, rate_type, applied_rate, status, invoice_id, vat_rate,
         tenant_id, external_customer_id, office_spaces(space_number)
       `).gte('booking_date', startDateStr).lte('booking_date', endDateStr)
         .in('status', ['confirmed', 'completed']).is('invoice_id', null),
@@ -193,6 +181,7 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
     const tenants = (tenantsData || []) as Tenant[];
     const externals = (externalData || []) as ExternalCustomer[];
     const meetings = (meetingData || []).map((b: any) => ({ ...b, space: b.office_spaces, booking_type: 'meeting_room' }));
+    const meetingVat = await getMeetingRoomVatSettings(meetings);
 
     const newItems: InvoiceItem[] = [];
 
@@ -276,8 +265,8 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
         isExternal: customer.isExternal,
         description: `${typeLabel} boekingen (${allBookings.length}x)`,
         amount: totalAmount,
-        vatRate: 21,
-        vatInclusive: false,
+        vatRate: meetingVat.vatRate,
+        vatInclusive: meetingVat.vatInclusive,
         bookings: allBookings,
         details,
         customerDiscountPct: customer.discountPct
@@ -463,7 +452,7 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
               }, 0);
 
           const finalAmount = totalBeforeDiscount - totalDiscountAmount;
-          const { subtotal, vatAmount, total } = calculateVAT(finalAmount, 21, false);
+          const { subtotal, vatAmount, total } = calculateVAT(finalAmount, item.vatRate, item.vatInclusive);
 
           const notesLines = ['Vergaderruimte boekingen:'];
           bookings.forEach((b: any) => {
@@ -489,7 +478,7 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
               external_customer_id: item.isExternal ? item.customerId : null,
               invoice_date: invoiceDate, due_date: dueDate,
               subtotal, vat_amount: vatAmount, amount: total,
-              vat_rate: 21, vat_inclusive: false, status: 'draft',
+              vat_rate: item.vatRate, vat_inclusive: item.vatInclusive, status: 'draft',
               invoice_month: invoiceMonth, notes: notesLines.join('\n')
             }).select().single();
 
