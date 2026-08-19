@@ -1,3 +1,5 @@
+import { asAssignmentType } from './assignmentType';
+
 function calculateVAT(amount: number, vatRate: number, vatInclusive: boolean) {
   if (vatInclusive) {
     const subtotal = Math.round((amount / (1 + vatRate / 100)) * 100) / 100;
@@ -28,10 +30,18 @@ const skip = new Set([
   'eboekhouden_sync_verification',
   'eboekhouden_relation_verification',
   'send_invoice_reminders',
+  'generate_flex_invoices',
 ]);
 assert(skip.has('eboekhouden_payment_status_check'), 'e-Boekhouden stays skipped');
 assert(skip.has('send_invoice_reminders'), 'PDF reminders stay in the app');
+assert(skip.has('generate_flex_invoices'), 'flex invoices stay skipped');
 assert(!skip.has('generate_monthly_invoices'), 'monthly invoices run in the background');
+assert(!skip.has('generate_meeting_room_invoices'), 'meeting-room invoices run in the background');
 assert(!skip.has('settings_backup'), 'settings backup runs in the background');
+
+assert(asAssignmentType('flexplek') === 'eigen', 'leftover flexplek maps to eigen');
+assert(asAssignmentType('spreekkamer') === 'spreekkamer', 'spreekkamer stays');
+assert(asAssignmentType('huurder') === 'huurder', 'huurder stays');
+assert(asAssignmentType('eigen') === 'eigen', 'eigen stays');
 
 console.log('background jobs helper tests passed');

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase, type CompanySettings, type WifiNetwork, type PatchPort, type MeterGroup, type RcboCircuitBreaker, type Tenant } from '../lib/supabase';
 import { Home, Edit2, Wifi, Network, FileText, Info, Save, X, Eye, EyeOff, User, Zap, Download } from 'lucide-react';
 import { generateBuildingInfoPDF } from '../utils/pdfGenerator';
+import { asAssignmentType, type AssignmentType } from '../utils/assignmentType';
 
 const TENANT_COLORS = [
   '#EF4444', // red-500
@@ -19,7 +20,6 @@ const TENANT_COLORS = [
 const SPACE_COLORS = {
   eigen: '#6B7280',        // gray-500 - Eigen gebruik
   spreekkamer: '#A855F7',  // purple-500 - Spreekkamer
-  flexplek: '#22D3EE',     // cyan-400 - Flexplek
 };
 
 export function BuildingInfo() {
@@ -33,10 +33,10 @@ export function BuildingInfo() {
   const [editingSection, setEditingSection] = useState<'wifi' | 'patch' | 'meter' | 'building' | null>(null);
   const [showPasswords, setShowPasswords] = useState<{ [key: number]: boolean }>({});
 
-  const [wifiFormData, setWifiFormData] = useState<{ [key: number]: { network_name: string; password: string; tenant_id: string | null; assignment_type: 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek' } }>({});
-  const [patchFormData, setPatchFormData] = useState<{ [key: string]: { tenant_id: string | null; assignment_type: 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek'; notes: string } }>({});
-  const [meterFormData, setMeterFormData] = useState<{ [alaGroup: string]: { [groupNumber: number]: { group_number: number; tenant_id: string | null; assignment_type: 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek'; description: string } } }>({});
-  const [rcboFormData, setRcboFormData] = useState<{ [alaGroup: string]: { [key: number]: { tenant_id: string | null; assignment_type: 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek'; description: string } } }>({});
+  const [wifiFormData, setWifiFormData] = useState<{ [key: number]: { network_name: string; password: string; tenant_id: string | null; assignment_type: 'eigen' | 'huurder' | 'spreekkamer' } }>({});
+  const [patchFormData, setPatchFormData] = useState<{ [key: string]: { tenant_id: string | null; assignment_type: 'eigen' | 'huurder' | 'spreekkamer'; notes: string } }>({});
+  const [meterFormData, setMeterFormData] = useState<{ [alaGroup: string]: { [groupNumber: number]: { group_number: number; tenant_id: string | null; assignment_type: 'eigen' | 'huurder' | 'spreekkamer'; description: string } } }>({});
+  const [rcboFormData, setRcboFormData] = useState<{ [alaGroup: string]: { [key: number]: { tenant_id: string | null; assignment_type: 'eigen' | 'huurder' | 'spreekkamer'; description: string } } }>({});
   const [alaType, setAlaType] = useState<{ [alaGroup: string]: 'groups' | 'rcbo' }>({});
   const [originalAlaType, setOriginalAlaType] = useState<{ [alaGroup: string]: 'groups' | 'rcbo' }>({});
   const [buildingFormData, setBuildingFormData] = useState({
@@ -101,14 +101,14 @@ export function BuildingInfo() {
     if (error) throw error;
     setWifiNetworks(data || []);
 
-    const formData: { [key: number]: { network_name: string; password: string; tenant_id: string | null; assignment_type: 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek' } } = {};
+    const formData: { [key: number]: { network_name: string; password: string; tenant_id: string | null; assignment_type: 'eigen' | 'huurder' | 'spreekkamer' } } = {};
     for (let i = 1; i <= 9; i++) {
       const network = data?.find(n => n.network_number === i);
       formData[i] = {
         network_name: network?.network_name || '',
         password: network?.password || '',
         tenant_id: network?.tenant_id || null,
-        assignment_type: network?.assignment_type || 'eigen',
+        assignment_type: asAssignmentType(network?.assignment_type),
       };
     }
     setWifiFormData(formData);
@@ -123,14 +123,14 @@ export function BuildingInfo() {
     if (error) throw error;
     setPatchPorts(data || []);
 
-    const formData: { [key: string]: { tenant_id: string | null; assignment_type: 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek'; notes: string } } = {};
+    const formData: { [key: string]: { tenant_id: string | null; assignment_type: 'eigen' | 'huurder' | 'spreekkamer'; notes: string } } = {};
     for (let switchNum = 1; switchNum <= 2; switchNum++) {
       for (let portNum = 1; portNum <= 24; portNum++) {
         const key = `${switchNum}-${portNum}`;
         const port = data?.find(p => p.switch_number === switchNum && p.port_number === portNum);
         formData[key] = {
           tenant_id: port?.tenant_id || null,
-          assignment_type: port?.assignment_type || 'eigen',
+          assignment_type: asAssignmentType(port?.assignment_type),
           notes: port?.notes || '',
         };
       }
@@ -147,7 +147,7 @@ export function BuildingInfo() {
     if (error) throw error;
     setMeterGroups(data || []);
 
-    const formData: { [alaGroup: string]: { [groupNumber: number]: { group_number: number; tenant_id: string | null; assignment_type: 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek'; description: string } } } = {};
+    const formData: { [alaGroup: string]: { [groupNumber: number]: { group_number: number; tenant_id: string | null; assignment_type: 'eigen' | 'huurder' | 'spreekkamer'; description: string } } } = {};
     data?.forEach(group => {
       if (!formData[group.ala_group]) {
         formData[group.ala_group] = {};
@@ -155,7 +155,7 @@ export function BuildingInfo() {
       formData[group.ala_group][group.group_number] = {
         group_number: group.group_number,
         tenant_id: group.tenant_id || null,
-        assignment_type: group.assignment_type || 'eigen',
+        assignment_type: asAssignmentType(group.assignment_type),
         description: group.description || '',
       };
     });
@@ -171,7 +171,7 @@ export function BuildingInfo() {
     if (error) throw error;
     setRcboBreakers(data || []);
 
-    const formData: { [alaGroup: string]: { [key: number]: { tenant_id: string | null; assignment_type: 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek'; description: string } } } = {};
+    const formData: { [alaGroup: string]: { [key: number]: { tenant_id: string | null; assignment_type: 'eigen' | 'huurder' | 'spreekkamer'; description: string } } } = {};
     const types: { [alaGroup: string]: 'groups' | 'rcbo' } = {};
 
     for (let alaNum = 1; alaNum <= 10; alaNum++) {
@@ -187,7 +187,7 @@ export function BuildingInfo() {
         const breaker = alaRcbos.find(b => b.rcbo_number === i);
         formData[alaGroup][i] = {
           tenant_id: breaker?.tenant_id || null,
-          assignment_type: breaker?.assignment_type || 'eigen',
+          assignment_type: asAssignmentType(breaker?.assignment_type),
           description: breaker?.description || '',
         };
       }
@@ -442,16 +442,14 @@ export function BuildingInfo() {
     return TENANT_COLORS[tenantIndex % TENANT_COLORS.length];
   };
 
-  const getAssignmentColor = (assignmentType: 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek', tenantId: string | null) => {
+  const getAssignmentColor = (assignmentType: AssignmentType, tenantId: string | null) => {
     if (assignmentType === 'spreekkamer') return SPACE_COLORS.spreekkamer;
-    if (assignmentType === 'flexplek') return SPACE_COLORS.flexplek;
     if (assignmentType === 'huurder' && tenantId) return getTenantColor(tenantId);
     return SPACE_COLORS.eigen;
   };
 
-  const getAssignmentLabel = (assignmentType: 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek', tenantId: string | null) => {
+  const getAssignmentLabel = (assignmentType: AssignmentType, tenantId: string | null) => {
     if (assignmentType === 'spreekkamer') return 'Spreekkamer';
-    if (assignmentType === 'flexplek') return 'Flexplek';
     if (assignmentType === 'huurder' && tenantId) return getTenantName(tenantId);
     return 'Eigen gebruik';
   };
@@ -550,10 +548,6 @@ export function BuildingInfo() {
               <div className="w-6 h-6 rounded border-2 border-dark-700 flex-shrink-0" style={{ backgroundColor: SPACE_COLORS.spreekkamer }} />
               <span className="text-sm text-gray-200">Spreekkamer</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded border-2 border-dark-700 flex-shrink-0" style={{ backgroundColor: SPACE_COLORS.flexplek }} />
-              <span className="text-sm text-gray-200">Flexplek</span>
-            </div>
             {tenants.map((tenant, index) => (
               <div key={tenant.id} className="flex items-center gap-2">
                 <div
@@ -631,7 +625,7 @@ export function BuildingInfo() {
                           <select
                             value={formValues.assignment_type}
                             onChange={(e) => {
-                              const newType = e.target.value as 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek';
+                              const newType = asAssignmentType(e.target.value);
                               setWifiFormData({
                                 ...wifiFormData,
                                 [num]: {
@@ -645,7 +639,6 @@ export function BuildingInfo() {
                           >
                             <option value="eigen">Eigen gebruik</option>
                             <option value="spreekkamer">Spreekkamer</option>
-                            <option value="flexplek">Flexplek</option>
                             <option value="huurder">Huurder</option>
                           </select>
                         </div>
@@ -700,7 +693,7 @@ export function BuildingInfo() {
               {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => {
                 const network = wifiNetworks.find(n => n.network_number === num);
                 const hasData = network && (network.network_name || network.password);
-                const assignmentType = network?.assignment_type || 'eigen';
+                const assignmentType = asAssignmentType(network?.assignment_type);
                 const assignmentLabel = network ? getAssignmentLabel(assignmentType, network.tenant_id) : 'Eigen gebruik';
                 const borderColor = network ? getAssignmentColor(assignmentType, network.tenant_id) : SPACE_COLORS.eigen;
 
@@ -794,7 +787,7 @@ export function BuildingInfo() {
                             <select
                               value={formValues.assignment_type}
                               onChange={(e) => {
-                                const newType = e.target.value as 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek';
+                                const newType = asAssignmentType(e.target.value);
                                 setPatchFormData({
                                   ...patchFormData,
                                   [key]: {
@@ -808,7 +801,6 @@ export function BuildingInfo() {
                             >
                               <option value="eigen">Eigen gebruik</option>
                               <option value="spreekkamer">Spreekkamer</option>
-                              <option value="flexplek">Flexplek</option>
                               <option value="huurder">Huurder</option>
                             </select>
 
@@ -891,7 +883,7 @@ export function BuildingInfo() {
                           <div key={row} className="grid grid-cols-12 gap-1.5 overflow-visible">
                             {Array.from({ length: 12 }, (_, i) => row * 12 + i + 1).map((portNum) => {
                               const port = patchPorts.find(p => p.switch_number === switchNum && p.port_number === portNum);
-                              const assignmentType = port?.assignment_type || 'eigen';
+                              const assignmentType = asAssignmentType(port?.assignment_type);
                               const color = port ? getAssignmentColor(assignmentType, port.tenant_id) : SPACE_COLORS.eigen;
                               const label = port ? getAssignmentLabel(assignmentType, port.tenant_id) : 'Eigen gebruik';
                               const hasInfo = port && (port.assignment_type !== 'eigen' || port.tenant_id || port.notes);
@@ -1022,7 +1014,7 @@ export function BuildingInfo() {
                           <select
                             value={assignmentType}
                             onChange={(e) => {
-                              const newType = e.target.value as 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek';
+                              const newType = asAssignmentType(e.target.value);
                               setMeterFormData({
                                 ...meterFormData,
                                 [selectedAla]: {
@@ -1039,7 +1031,6 @@ export function BuildingInfo() {
                           >
                             <option value="eigen">Eigen gebruik</option>
                             <option value="spreekkamer">Spreekkamer</option>
-                            <option value="flexplek">Flexplek</option>
                             <option value="huurder">Huurder</option>
                           </select>
 
@@ -1112,7 +1103,7 @@ export function BuildingInfo() {
                           <select
                             value={assignmentType}
                             onChange={(e) => {
-                              const newType = e.target.value as 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek';
+                              const newType = asAssignmentType(e.target.value);
                               setRcboFormData({
                                 ...rcboFormData,
                                 [selectedAla]: {
@@ -1129,7 +1120,6 @@ export function BuildingInfo() {
                           >
                             <option value="eigen">Eigen gebruik</option>
                             <option value="spreekkamer">Spreekkamer</option>
-                            <option value="flexplek">Flexplek</option>
                             <option value="huurder">Huurder</option>
                           </select>
 
@@ -1221,7 +1211,7 @@ export function BuildingInfo() {
                           <div className="p-4">
                             <div className="flex flex-wrap gap-2">
                               {sortedRcbos.map(breaker => {
-                                const assignmentType = breaker.assignment_type || 'eigen';
+                                const assignmentType = asAssignmentType(breaker.assignment_type);
                                 const displayLabel = getAssignmentLabel(assignmentType, breaker.tenant_id);
                                 const color = getAssignmentColor(assignmentType, breaker.tenant_id);
                                 return (
@@ -1263,7 +1253,7 @@ export function BuildingInfo() {
                           <div className="p-4">
                             <div className="flex flex-wrap gap-2">
                               {sortedGroups.map(group => {
-                                const assignmentType = group.assignment_type || 'eigen';
+                                const assignmentType = asAssignmentType(group.assignment_type);
                                 const displayLabel = getAssignmentLabel(assignmentType, group.tenant_id);
                                 const color = getAssignmentColor(assignmentType, group.tenant_id);
                                 const globalK = getGlobalKNumber(alaGroup, group.group_number);
