@@ -66,6 +66,8 @@ interface InvoicePreviewProps {
   invoiceTypeColor?: string;
   onClose: () => void;
   onDownload?: () => void;
+  onDownloadUbl?: () => void;
+  onSendReminder?: () => void;
   onSend?: () => void;
   onEdit?: () => void;
   onMarkAsPaid?: () => void;
@@ -83,6 +85,8 @@ export function InvoicePreview({
   invoiceTypeColor,
   onClose,
   onDownload,
+  onDownloadUbl,
+  onSendReminder,
   onSend,
   onEdit,
   onMarkAsPaid,
@@ -256,7 +260,27 @@ export function InvoicePreview({
           title="Download PDF"
         >
           <Download size={16} />
-          <span className="text-sm font-medium">Download</span>
+          <span className="text-sm font-medium">PDF</span>
+        </button>
+      )}
+      {onDownloadUbl && (
+        <button
+          onClick={onDownloadUbl}
+          className="flex items-center gap-1.5 bg-dark-700 hover:bg-dark-600 text-gray-100 transition-colors px-3 py-1.5 rounded-lg border border-dark-500"
+          title="Download UBL XML"
+        >
+          <FileText size={16} />
+          <span className="text-sm font-medium">UBL</span>
+        </button>
+      )}
+      {onSendReminder && (
+        <button
+          onClick={onSendReminder}
+          className="flex items-center gap-1.5 bg-amber-600 hover:bg-amber-500 text-white transition-colors px-3 py-1.5 rounded-lg"
+          title="Herinnering e-mailen met PDF"
+        >
+          <Send size={16} />
+          <span className="text-sm font-medium">Herinnering</span>
         </button>
       )}
       {onSend && (

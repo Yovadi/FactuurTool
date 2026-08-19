@@ -52,7 +52,7 @@ export function ActivityLogPanel() {
   }, []);
 
   const loadActivities = async () => {
-    const [emailsResult, notificationsResult, invoicesResult] = await Promise.all([
+    const [emailsResult, notificationsResult, invoicesResult, auditResult] = await Promise.all([
       supabase
         .from('email_logs')
         .select('id, to_email, to_name, subject, status, method, sent_at')
@@ -69,6 +69,11 @@ export function ActivityLogPanel() {
         .in('status', ['paid', 'sent', 'credited'])
         .order('updated_at', { ascending: false })
         .limit(10),
+      supabase
+        .from('audit_log')
+        .select('id, action, entity_type, entity_id, details, created_at')
+        .order('created_at', { ascending: false })
+        .limit(20),
     ]);
 
     const items: ActivityItem[] = [];
@@ -113,6 +118,18 @@ export function ActivityLogPanel() {
         timestamp: inv.updated_at,
         icon: statusIcon,
         color: statusColor,
+      });
+    });
+
+    (auditResult.data || []).forEach(entry => {
+      items.push({
+        id: `audit-${entry.id}`,
+        type: 'notification',
+        title: entry.action.replace(/_/g, ' '),
+        description: [entry.entity_type, entry.entity_id, entry.details].filter(Boolean).join(' · '),
+        timestamp: entry.created_at,
+        icon: <FileText size={14} />,
+        color: 'text-gray-300',
       });
     });
 

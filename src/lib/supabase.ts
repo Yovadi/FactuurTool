@@ -111,6 +111,8 @@ export type Invoice = {
   eboekhouden_synced_at: string | null;
   created_at: string;
   paid_at: string | null;
+  last_reminder_sent_at?: string | null;
+  reminder_count?: number;
 };
 
 export type InvoiceLineItem = {
@@ -187,6 +189,8 @@ export type CompanySettings = {
   email_template_credit_note: string | null;
   email_subject_reminder: string | null;
   email_subject_credit_note: string | null;
+  staff_pin_code: string | null;
+  calendar_sync_enabled: boolean;
   created_at: string;
   updated_at: string;
 };

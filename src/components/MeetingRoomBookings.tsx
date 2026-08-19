@@ -6,6 +6,12 @@ import { InlineDatePicker } from './InlineDatePicker';
 import { SkeletonTable } from './SkeletonLoader';
 import { Pagination } from './Pagination';
 import { createAdminNotification } from '../utils/notificationHelper';
+import { suggestAlternativeSlots, type TimeSlot } from '../utils/bookingSlots';
+import { downloadIcs, bookingDateTime } from '../utils/icsExport';
+import { syncBookingToOutlook } from '../utils/calendarSync';
+import { downloadCsv } from '../utils/csvExport';
+import { logAudit } from '../utils/auditLog';
+import type { CompanySettings } from '../lib/supabase';
 
 type NotificationType = 'success' | 'error' | 'info';
 
@@ -104,6 +110,9 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     full_day_rate: null,
     vat_inclusive: false
   });
+  const [slotSuggestions, setSlotSuggestions] = useState<TimeSlot[]>([]);
+  const [showWaitlist, setShowWaitlist] = useState(false);
+  const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
 
   const getWeekNumber = (date: Date): number => {
     const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -162,12 +171,14 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       { data: spacesData },
       { data: ratesData },
       { data: bookingsData },
+      { data: settingsData },
     ] = await Promise.all([
       supabase.from('tenants').select('id, name, company_name, meeting_discount_percentage').order('name'),
       supabase.from('external_customers').select('id, company_name, contact_name, email, phone, street, postal_code, city, country, meeting_discount_percentage').order('company_name'),
       supabase.from('office_spaces').select('id, space_number').eq('space_type', 'Meeting Room').order('space_number'),
       supabase.from('space_type_rates').select('hourly_rate, half_day_rate, full_day_rate, vat_inclusive').eq('space_type', 'Meeting Room').maybeSingle(),
       bookingsQuery,
+      supabase.from('company_settings').select('*').order('updated_at', { ascending: false }).limit(1).maybeSingle(),
     ]);
 
     if (ratesData) {
@@ -178,6 +189,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
         vat_inclusive: ratesData.vat_inclusive || false
       });
     }
+    if (settingsData) setCompanySettings(settingsData as CompanySettings);
 
     const todayAutoStr = new Date().toISOString().split('T')[0];
     const pastConfirmed = (bookingsData || []).filter(
@@ -407,10 +419,21 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       });
 
       if (hasOverlap) {
-        showNotification('Deze ruimte is al geboekt voor de geselecteerde tijd. Kies een andere tijd of ruimte.', 'error');
+        const occupied = existingBookings.map(booking => ({
+          start: booking.start_time.slice(0, 5),
+          end: booking.end_time.slice(0, 5),
+        }));
+        setSlotSuggestions(suggestAlternativeSlots(
+          { start: newStart.slice(0, 5), end: newEnd.slice(0, 5) },
+          occupied
+        ));
+        setShowWaitlist(true);
+        showNotification('Deze ruimte is al geboekt. Kies een vrij slot of zet je op de wachtlijst.', 'error');
         return;
       }
     }
+    setSlotSuggestions([]);
+    setShowWaitlist(false);
 
     const totalHours = calculateTotalHours(formData.start_time, formData.end_time);
     console.log('Booking calculation - Hours:', totalHours, 'Rates:', {
@@ -536,6 +559,28 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
         });
         setAllBookings(updatedAllBookings);
         applyFilter(updatedAllBookings, selectedFilter);
+        await logAudit('booking_created', 'meeting_room', data.id);
+        const spaceName = data.office_spaces?.space_number || 'Vergaderruimte';
+        const customerName = data.tenants?.company_name || data.external_customers?.company_name || '';
+        downloadIcs(`boeking-${data.booking_date}.ics`, {
+          title: `${spaceName} — ${customerName}`,
+          location: spaceName,
+          start: bookingDateTime(data.booking_date, data.start_time),
+          end: bookingDateTime(data.booking_date, data.end_time),
+        });
+        if (companySettings?.calendar_sync_enabled) {
+          const sync = await syncBookingToOutlook(companySettings, {
+            id: data.id,
+            spaceName,
+            date: data.booking_date,
+            startTime: data.start_time,
+            endTime: data.end_time,
+            customerName,
+          });
+          if (sync.success && sync.eventId) {
+            await supabase.from('meeting_room_bookings').update({ outlook_event_id: sync.eventId }).eq('id', data.id);
+          }
+        }
       }
 
       showNotification('Boeking succesvol aangemaakt!', 'success');
@@ -552,6 +597,25 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       hourly_rate: 25,
       notes: ''
     });
+  };
+
+  const addCurrentSlotToWaitlist = async () => {
+    const { error } = await supabase.from('booking_waiting_list').insert({
+      space_id: formData.space_id,
+      tenant_id: bookingType === 'tenant' ? (loggedInTenantId || formData.tenant_id || null) : null,
+      external_customer_id: bookingType === 'external' ? formData.external_customer_id || null : null,
+      booking_date: formData.booking_date,
+      start_time: formData.start_time,
+      end_time: formData.end_time,
+      notes: formData.notes,
+      status: 'waiting',
+    });
+    if (error) {
+      showNotification('Wachtlijst opslaan mislukt. Voer eerst de database-migratie uit.', 'error');
+      return;
+    }
+    setShowWaitlist(false);
+    showNotification('Je staat op de wachtlijst. Bij annulering krijg je een melding.', 'success');
   };
 
   const handleStatusChange = async (bookingId: string, newStatus: 'confirmed' | 'cancelled' | 'completed') => {
@@ -599,6 +663,28 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
         booking.tenant_id || undefined,
         booking.external_customer_id || undefined
       );
+
+      const { data: waiting } = await supabase
+        .from('booking_waiting_list')
+        .select('id, tenant_id, external_customer_id')
+        .eq('space_id', booking.space_id)
+        .eq('booking_date', booking.booking_date)
+        .eq('status', 'waiting')
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (waiting) {
+        await supabase.from('booking_waiting_list').update({ status: 'notified' }).eq('id', waiting.id);
+        await createAdminNotification(
+          'booking_pending',
+          'meeting_room',
+          waiting.id,
+          customerName,
+          `Wachtlijst: ${booking.office_spaces?.space_number || 'ruimte'} is vrij op ${booking.booking_date}`,
+          waiting.tenant_id || undefined,
+          waiting.external_customer_id || undefined
+        );
+      }
     }
 
     const statusText = newStatus === 'confirmed' ? 'bevestigd' : newStatus === 'cancelled' ? 'geannuleerd' : 'voltooid';
@@ -1188,6 +1274,37 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
                     </div>
                   </div>
 
+                  {slotSuggestions.length > 0 && (
+                    <div className="mt-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 space-y-2">
+                      <p className="text-xs text-amber-300">Vrije alternatieven op deze dag:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {slotSuggestions.map(slot => (
+                          <button
+                            key={`${slot.start}-${slot.end}`}
+                            type="button"
+                            onClick={() => {
+                              setFormData({ ...formData, start_time: slot.start, end_time: slot.end });
+                              setSlotSuggestions([]);
+                              setShowWaitlist(false);
+                            }}
+                            className="px-3 py-1 text-xs rounded-full bg-dark-800 text-gray-100 border border-dark-600 hover:border-gold-500"
+                          >
+                            {slot.start}–{slot.end}
+                          </button>
+                        ))}
+                      </div>
+                      {showWaitlist && (
+                        <button
+                          type="button"
+                          onClick={addCurrentSlotToWaitlist}
+                          className="text-xs text-gold-400 hover:text-gold-300"
+                        >
+                          Zet dit tijdslot op de wachtlijst
+                        </button>
+                      )}
+                    </div>
+                  )}
+
                   {(() => {
                     const totalHours = calculateTotalHours(formData.start_time, formData.end_time);
                     const hasRates = meetingRoomRates.hourly_rate > 0;
@@ -1366,6 +1483,26 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
               Vergaderruimte Boekingen
             </h2>
             <div className="flex items-center gap-4">
+              <button
+                type="button"
+                onClick={() => downloadCsv(
+                  `boekingen-${new Date().toISOString().slice(0, 10)}.csv`,
+                  ['Datum', 'Start', 'Eind', 'Ruimte', 'Klant', 'Status', 'Bedrag'],
+                  bookings.map(b => [
+                    b.booking_date,
+                    b.start_time,
+                    b.end_time,
+                    b.office_spaces?.space_number || '',
+                    b.tenants?.company_name || b.external_customers?.company_name || '',
+                    b.status,
+                    b.total_amount,
+                  ])
+                )}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-dark-700 text-gray-200 rounded-lg border border-dark-600 hover:bg-dark-600"
+              >
+                <Download size={14} />
+                CSV
+              </button>
               <div className="relative w-56">
                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input

@@ -112,12 +112,16 @@ function createWindow() {
 
   mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
     console.error('Failed to load:', errorCode, errorDescription, validatedURL);
-    try { mainWindow.webContents.openDevTools({ mode: 'detach' }); } catch (_) {}
+    if (isDev) {
+      try { mainWindow.webContents.openDevTools({ mode: 'detach' }); } catch (_) {}
+    }
   });
 
   mainWindow.webContents.on('render-process-gone', (event, details) => {
     console.error('Renderer process gone:', details);
-    try { mainWindow.webContents.openDevTools({ mode: 'detach' }); } catch (_) {}
+    if (isDev) {
+      try { mainWindow.webContents.openDevTools({ mode: 'detach' }); } catch (_) {}
+    }
   });
 
   mainWindow.webContents.on('preload-error', (event, preloadPath, error) => {
@@ -131,7 +135,7 @@ function createWindow() {
   // Keyboard shortcut to open DevTools (F12 or Ctrl+Shift+I)
   mainWindow.webContents.on('before-input-event', (event, input) => {
     if (input.key === 'F12' || (input.control && input.shift && input.key.toLowerCase() === 'i')) {
-      if (input.type === 'keyDown') {
+      if (isDev && input.type === 'keyDown') {
         mainWindow.webContents.toggleDevTools();
       }
       event.preventDefault();

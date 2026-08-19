@@ -32,7 +32,7 @@ export interface BuildingInfoData {
   buildingNotes?: string;
 }
 
-interface InvoiceData {
+export interface InvoiceData {
   invoice_number: string;
   tenant_name?: string;
   tenant_contact_name?: string;
