@@ -1,4 +1,5 @@
 import { supabase, type CompanySettings } from '../lib/supabase';
+import { parseFunctionJson } from './integrationHelpers';
 
 export type EmailMethod = 'smtp' | 'graph' | 'resend' | 'outlook';
 
@@ -189,7 +190,7 @@ async function sendViaSMTP(
     body: JSON.stringify(body),
   });
 
-  return await response.json();
+  return await parseFunctionJson(response);
 }
 
 async function sendViaGraph(
@@ -238,7 +239,7 @@ async function sendViaGraph(
     body: JSON.stringify(body),
   });
 
-  return await response.json();
+  return await parseFunctionJson(response);
 }
 
 async function sendViaResend(
@@ -285,7 +286,7 @@ async function sendViaResend(
     body: JSON.stringify(body),
   });
 
-  return await response.json();
+  return await parseFunctionJson(response);
 }
 
 export async function loadEmailLogs(limit = 50): Promise<EmailLog[]> {

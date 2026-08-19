@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { Euro, Calendar, AlertCircle, CheckCircle, FileText, Trash2, Eye, Filter, RefreshCw, Loader2, Database, XCircle, Square, CheckSquare, AlertTriangle } from 'lucide-react';
 import { resyncInvoiceToEBoekhouden } from '../lib/eboekhoudenSync';
 import { Pagination } from './Pagination';
+import { isEBoekhoudenActive } from '../utils/integrationHelpers';
 
 const getInvoiceTypeColor = (invoice: any): string => {
   if (invoice.lease_id !== null) return 'text-green-500';
@@ -299,7 +300,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
   };
 
   const handleResyncInvoice = async (invoiceId: string) => {
-    if (!companySettings?.eboekhouden_api_token) return;
+    if (!isEBoekhoudenActive(companySettings)) return;
 
     const confirmed = confirm(
       'Weet je zeker dat je deze factuur opnieuw wilt synchroniseren?\n\n' +
@@ -325,7 +326,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
   };
 
   const handleBulkResync = async () => {
-    if (!companySettings?.eboekhouden_api_token || selectedSyncIds.size === 0) return;
+    if (!isEBoekhoudenActive(companySettings) || selectedSyncIds.size === 0) return;
 
     const confirmed = confirm(
       `Weet je zeker dat je ${selectedSyncIds.size} factuur/facturen opnieuw wilt synchroniseren?\n\n` +
@@ -813,7 +814,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
             <Database size={20} className="text-gold-500" />
             e-Boekhouden Synchronisatie
           </h2>
-          {!companySettings?.eboekhouden_connected ? (
+          {!isEBoekhoudenActive(companySettings) ? (
             <div className="flex-1 flex items-center justify-center p-8">
               <div className="text-center">
                 <Database size={48} className="text-gray-600 mx-auto mb-4" />

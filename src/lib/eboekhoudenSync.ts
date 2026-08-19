@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import type { Invoice, InvoiceLineItem, Tenant, ExternalCustomer, CompanySettings, PurchaseInvoice, PurchaseInvoiceLineItem, CreditNote, CreditNoteLineItem } from './supabase';
 import { createRelation, getRelation, updateRelation, createInvoice as ebCreateInvoice, createMutation, getInvoice as ebGetInvoice, getMutation as ebGetMutation } from './eboekhouden';
+import { isRemoteRecordMissing } from '../utils/integrationHelpers';
 
 const VAT_CODE_MAP: Record<number, string> = {
   21: 'HOOG_VERK_21',
@@ -127,9 +128,9 @@ export async function syncInvoiceToEBoekhouden(
   customer: Tenant | ExternalCustomer,
   customerType: 'tenant' | 'external',
   settings: CompanySettings
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; invoiceId?: number }> {
   if (invoice.eboekhouden_factuur_id) {
-    return { success: true };
+    return { success: true, invoiceId: invoice.eboekhouden_factuur_id };
   }
 
   const relationResult = await syncRelationToEBoekhouden(apiToken, customer, customerType);
@@ -223,7 +224,7 @@ export async function syncInvoiceToEBoekhouden(
 
   await logSync('invoice', invoice.id, 'create', 'success', factuurId, null, invoiceData, result.data);
 
-  return { success: true };
+  return { success: true, invoiceId: factuurId };
 }
 
 function getPurchaseVatCode(vatRate: number): string {
@@ -477,15 +478,18 @@ export async function verifyInvoiceSyncStatus(
     result.invoicesChecked++;
     try {
       const check = await ebGetInvoice(apiToken, inv.eboekhouden_factuur_id);
-      if (!check.success) {
-        result.invoicesNotFound++;
-        await supabase
-          .from('invoices')
-          .update({ eboekhouden_factuur_id: null, eboekhouden_synced_at: null })
-          .eq('id', inv.id);
-        await logSync('invoice', inv.id, 'verify', 'error', inv.eboekhouden_factuur_id,
-          `Factuur ${inv.invoice_number} niet gevonden in e-Boekhouden (ID: ${inv.eboekhouden_factuur_id})`, null, check.data);
+      if (check.success) continue;
+      if (!isRemoteRecordMissing(check)) {
+        result.errors.push(`Factuur ${inv.invoice_number}: verificatie mislukt (${check.error || check.status || 'onbekende fout'})`);
+        continue;
       }
+      result.invoicesNotFound++;
+      await supabase
+        .from('invoices')
+        .update({ eboekhouden_factuur_id: null, eboekhouden_synced_at: null })
+        .eq('id', inv.id);
+      await logSync('invoice', inv.id, 'verify', 'error', inv.eboekhouden_factuur_id,
+        `Factuur ${inv.invoice_number} niet gevonden in e-Boekhouden (ID: ${inv.eboekhouden_factuur_id})`, null, check.data);
     } catch {
       result.errors.push(`Factuur ${inv.invoice_number}: Fout bij verificatie`);
     }
@@ -500,15 +504,18 @@ export async function verifyInvoiceSyncStatus(
     result.creditNotesChecked++;
     try {
       const check = await ebGetInvoice(apiToken, cn.eboekhouden_id);
-      if (!check.success) {
-        result.creditNotesNotFound++;
-        await supabase
-          .from('credit_notes')
-          .update({ eboekhouden_id: null, eboekhouden_synced_at: null, eboekhouden_not_found: true })
-          .eq('id', cn.id);
-        await logSync('credit_note', cn.id, 'verify', 'error', cn.eboekhouden_id,
-          `Creditnota ${cn.credit_note_number} niet gevonden in e-Boekhouden (ID: ${cn.eboekhouden_id})`, null, check.data);
+      if (check.success) continue;
+      if (!isRemoteRecordMissing(check)) {
+        result.errors.push(`Creditnota ${cn.credit_note_number}: verificatie mislukt (${check.error || check.status || 'onbekende fout'})`);
+        continue;
       }
+      result.creditNotesNotFound++;
+      await supabase
+        .from('credit_notes')
+        .update({ eboekhouden_id: null, eboekhouden_synced_at: null, eboekhouden_not_found: true })
+        .eq('id', cn.id);
+      await logSync('credit_note', cn.id, 'verify', 'error', cn.eboekhouden_id,
+        `Creditnota ${cn.credit_note_number} niet gevonden in e-Boekhouden (ID: ${cn.eboekhouden_id})`, null, check.data);
     } catch {
       result.errors.push(`Creditnota ${cn.credit_note_number}: Fout bij verificatie`);
     }
@@ -523,15 +530,18 @@ export async function verifyInvoiceSyncStatus(
     result.purchaseInvoicesChecked++;
     try {
       const check = await ebGetInvoice(apiToken, pi.eboekhouden_factuur_id);
-      if (!check.success) {
-        result.purchaseInvoicesNotFound++;
-        await supabase
-          .from('purchase_invoices')
-          .update({ eboekhouden_factuur_id: null, eboekhouden_synced_at: null, eboekhouden_not_found: true })
-          .eq('id', pi.id);
-        await logSync('purchase_invoice', pi.id, 'verify', 'error', pi.eboekhouden_factuur_id,
-          `Inkoopfactuur ${pi.invoice_number} niet gevonden in e-Boekhouden (ID: ${pi.eboekhouden_factuur_id})`, null, check.data);
+      if (check.success) continue;
+      if (!isRemoteRecordMissing(check)) {
+        result.errors.push(`Inkoopfactuur ${pi.invoice_number}: verificatie mislukt (${check.error || check.status || 'onbekende fout'})`);
+        continue;
       }
+      result.purchaseInvoicesNotFound++;
+      await supabase
+        .from('purchase_invoices')
+        .update({ eboekhouden_factuur_id: null, eboekhouden_synced_at: null, eboekhouden_not_found: true })
+        .eq('id', pi.id);
+      await logSync('purchase_invoice', pi.id, 'verify', 'error', pi.eboekhouden_factuur_id,
+        `Inkoopfactuur ${pi.invoice_number} niet gevonden in e-Boekhouden (ID: ${pi.eboekhouden_factuur_id})`, null, check.data);
     } catch {
       result.errors.push(`Inkoopfactuur ${pi.invoice_number}: Fout bij verificatie`);
     }

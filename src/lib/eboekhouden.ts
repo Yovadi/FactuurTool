@@ -27,7 +27,21 @@ async function callProxy<T = unknown>(
     }),
   });
 
-  return res.json();
+  const text = await res.text();
+  try {
+    const parsed = text ? JSON.parse(text) as EBoekhoudenResponse<T> : null;
+    if (!parsed || typeof parsed !== 'object') {
+      return { success: false, status: res.status, data: null as T, error: 'Ongeldig antwoord van e-Boekhouden proxy' };
+    }
+    return parsed;
+  } catch {
+    return {
+      success: false,
+      status: res.status,
+      data: null as T,
+      error: text.slice(0, 200) || `Serverfout (${res.status})`,
+    };
+  }
 }
 
 export async function testConnection(apiToken: string) {
@@ -63,7 +77,7 @@ export async function getInvoices(apiToken: string, limit = 100, offset = 0) {
 }
 
 export async function getInvoice(apiToken: string, id: number) {
-  return callProxy(apiToken, 'get_invoice', { id });
+  return callProxy(apiToken, 'get_invoice', { id: Number(id) });
 }
 
 export async function createMutation(apiToken: string, data: Record<string, unknown>) {

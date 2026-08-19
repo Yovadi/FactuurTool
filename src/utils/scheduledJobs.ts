@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { checkInvoicePaymentStatuses, checkPurchaseInvoicePaymentStatuses, verifyInvoiceSyncStatus, verifyRelationsInEBoekhouden } from '../lib/eboekhoudenSync';
 import { createLeaseNotification } from './notificationHelper';
+import { isEBoekhoudenActive } from './integrationHelpers';
 
 function getLocalCategory(spaceType?: string): string | null {
   switch (spaceType) {
@@ -54,9 +55,9 @@ export const checkAndRunScheduledJobs = async () => {
 async function getEBoekhoudenToken(): Promise<string | null> {
   const { data: settings } = await supabase
     .from('company_settings')
-    .select('eboekhouden_api_token, eboekhouden_connected')
+    .select('eboekhouden_api_token, eboekhouden_connected, eboekhouden_enabled')
     .maybeSingle();
-  if (!settings?.eboekhouden_connected || !settings?.eboekhouden_api_token) return null;
+  if (!settings || !isEBoekhoudenActive(settings)) return null;
   return settings.eboekhouden_api_token;
 }
 
