@@ -421,6 +421,10 @@ export function Automatiseringen() {
           <p className="text-sm text-gray-400">
             {enabledCount} van {visibleJobs.length} automatiseringen actief
           </p>
+          <p className="text-xs text-gray-500 mt-1 max-w-2xl">
+            Facturen, backups, boekingen en contractmeldingen draaien ook als de Windows-app dicht is (Supabase, elk uur).
+            Herinneringen met PDF alleen als de app open is. e-Boekhouden-jobs blijven uit de achtergrondrun.
+          </p>
         </div>
         <button
           onClick={handleRefresh}
