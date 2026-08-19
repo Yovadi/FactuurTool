@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, Repeat, AlertCircle } from 'lucide-react';
 import { supabase, type Tenant } from '../lib/supabase';
+import { bookingTimesOverlap } from '../utils/bookingOverlap';
 
 type ExternalCustomerOption = {
   id: string;
@@ -224,7 +225,7 @@ export function RecurringBookingModal({
       if (existingBookings) {
         for (const existing of existingBookings) {
           // Check for time overlap: new start < existing end AND new end > existing start
-          if (pattern.start_time < existing.end_time && pattern.end_time > existing.start_time) {
+          if (bookingTimesOverlap(pattern.start_time, pattern.end_time, existing.start_time, existing.end_time)) {
             conflictingDatesSet.add(existing.booking_date);
           }
         }

@@ -301,6 +301,22 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
       const { subtotal, vatAmount, total } = calculateTotals();
 
       if (editingCreditNote) {
+        const previousHeader = {
+          tenant_id: editingCreditNote.tenant_id,
+          external_customer_id: editingCreditNote.external_customer_id,
+          credit_date: editingCreditNote.credit_date,
+          reason: editingCreditNote.reason,
+          subtotal: editingCreditNote.subtotal,
+          vat_amount: editingCreditNote.vat_amount,
+          vat_rate: editingCreditNote.vat_rate,
+          total_amount: editingCreditNote.total_amount,
+          notes: editingCreditNote.notes,
+        };
+        const { data: previousLines } = await supabase
+          .from('credit_note_line_items')
+          .select('*')
+          .eq('credit_note_id', editingCreditNote.id);
+
         const { error: creditNoteError } = await supabase
           .from('credit_notes')
           .update({
@@ -323,7 +339,10 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
           .delete()
           .eq('credit_note_id', editingCreditNote.id);
 
-        if (deleteError) throw deleteError;
+        if (deleteError) {
+          await supabase.from('credit_notes').update(previousHeader).eq('id', editingCreditNote.id);
+          throw deleteError;
+        }
 
         const lineItemsToInsert = lineItems.map((item) => ({
           credit_note_id: editingCreditNote.id,
@@ -337,7 +356,13 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
           .from('credit_note_line_items')
           .insert(lineItemsToInsert);
 
-        if (lineItemsError) throw lineItemsError;
+        if (lineItemsError) {
+          await supabase.from('credit_notes').update(previousHeader).eq('id', editingCreditNote.id);
+          if (previousLines && previousLines.length > 0) {
+            await supabase.from('credit_note_line_items').insert(previousLines);
+          }
+          throw lineItemsError;
+        }
       } else {
         const { data: creditNoteNumber } = await supabase.rpc('generate_credit_note_number');
 

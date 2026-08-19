@@ -839,6 +839,26 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     );
 
     if (editingInvoiceId) {
+      const { data: previousInvoice } = await supabase
+        .from('invoices')
+        .select('subtotal, vat_amount, amount, vat_rate, vat_inclusive, invoice_date, due_date, invoice_month, reference_number, payment_term_days, notes')
+        .eq('id', editingInvoiceId)
+        .maybeSingle();
+      const { data: previousLineItems } = await supabase
+        .from('invoice_line_items')
+        .select('*')
+        .eq('invoice_id', editingInvoiceId);
+
+      const restorePreviousLines = async () => {
+        if (previousInvoice) {
+          await supabase.from('invoices').update(previousInvoice).eq('id', editingInvoiceId);
+        }
+        await supabase.from('invoice_line_items').delete().eq('invoice_id', editingInvoiceId);
+        if (previousLineItems && previousLineItems.length > 0) {
+          await supabase.from('invoice_line_items').insert(previousLineItems);
+        }
+      };
+
       const { error: invoiceError } = await supabase
         .from('invoices')
         .update({
@@ -887,6 +907,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
       if (lineItemsError) {
         console.error('Error updating line items:', lineItemsError);
+        await restorePreviousLines();
         return;
       }
 
@@ -972,6 +993,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
       if (lineItemsError) {
         console.error('Error creating line items:', lineItemsError);
+        await supabase.from('invoices').delete().eq('id', newInvoice.id);
         return;
       }
 

@@ -95,7 +95,10 @@ function calculateVAT(amount: number, vatRate: number, vatInclusive: boolean) {
 const runEBoekhoudenPaymentStatusCheck = async (job: ScheduledJob) => {
   try {
     const token = await getEBoekhoudenToken();
-    if (!token) return;
+    if (!token) {
+      await advanceJobNextRun(job, 24);
+      return;
+    }
     await checkInvoicePaymentStatuses(token);
     await checkPurchaseInvoicePaymentStatuses(token);
     await advanceJobNextRun(job, 24);
@@ -107,7 +110,10 @@ const runEBoekhoudenPaymentStatusCheck = async (job: ScheduledJob) => {
 const runEBoekhoudenSyncVerification = async (job: ScheduledJob) => {
   try {
     const token = await getEBoekhoudenToken();
-    if (!token) return;
+    if (!token) {
+      await advanceJobNextRun(job, 24);
+      return;
+    }
     await verifyInvoiceSyncStatus(token);
     await advanceJobNextRun(job, 24);
   } catch (error) {
@@ -118,7 +124,10 @@ const runEBoekhoudenSyncVerification = async (job: ScheduledJob) => {
 const runEBoekhoudenRelationVerification = async (job: ScheduledJob) => {
   try {
     const token = await getEBoekhoudenToken();
-    if (!token) return;
+    if (!token) {
+      await advanceJobNextRun(job, 24);
+      return;
+    }
     await verifyRelationsInEBoekhouden(token);
     await advanceJobNextRun(job, 24);
   } catch (error) {
@@ -171,6 +180,7 @@ const generateMeetingRoomInvoices = async (job: ScheduledJob) => {
 
     const invoiceDate = new Date().toISOString().split('T')[0];
     const dueDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    let anyFailed = false;
 
     for (const group of Object.values(grouped)) {
       const totalAmount = group.bookings.reduce((sum, b) => sum + Number(b.total_amount), 0);
@@ -195,20 +205,30 @@ const generateMeetingRoomInvoices = async (job: ScheduledJob) => {
         ? await existingQuery.eq('tenant_id', group.customerId).maybeSingle()
         : await existingQuery.eq('external_customer_id', group.customerId).maybeSingle();
 
-      let invoiceId: string;
-
       if (existingResult.data) {
         const existing = existingResult.data;
+        const bookingIds = group.bookings.map(b => b.id);
+        const { error: linkError } = await supabase
+          .from('meeting_room_bookings')
+          .update({ invoice_id: existing.id })
+          .in('id', bookingIds);
+        if (linkError) {
+          anyFailed = true;
+          continue;
+        }
+
         const newSubtotal = Math.round((Number(existing.subtotal) + subtotal) * 100) / 100;
         const newVat = Math.round((newSubtotal * vatRate / 100) * 100) / 100;
         const newTotal = Math.round((newSubtotal + newVat) * 100) / 100;
         const updatedNotes = existing.notes ? `${existing.notes}\n${notes}` : notes;
 
-        await supabase.from('invoices').update({
+        const { error: updateError } = await supabase.from('invoices').update({
           subtotal: newSubtotal, vat_amount: newVat, amount: newTotal, notes: updatedNotes
         }).eq('id', existing.id);
-
-        invoiceId = existing.id;
+        if (updateError) {
+          anyFailed = true;
+          continue;
+        }
       } else {
         const { data: invoiceNumber } = await supabase.rpc('generate_invoice_number');
         const insertData: Record<string, unknown> = {
@@ -230,16 +250,25 @@ const generateMeetingRoomInvoices = async (job: ScheduledJob) => {
           insertData.external_customer_id = group.customerId;
         }
 
-        const { data: newInvoice } = await supabase.from('invoices').insert(insertData).select('id').single();
-        if (!newInvoice) continue;
-        invoiceId = newInvoice.id;
-      }
+        const { data: newInvoice, error: insertError } = await supabase.from('invoices').insert(insertData).select('id').single();
+        if (insertError || !newInvoice) {
+          anyFailed = true;
+          continue;
+        }
 
-      const bookingIds = group.bookings.map(b => b.id);
-      await supabase.from('meeting_room_bookings').update({ invoice_id: invoiceId }).in('id', bookingIds);
+        const bookingIds = group.bookings.map(b => b.id);
+        const { error: linkError } = await supabase.from('meeting_room_bookings').update({ invoice_id: newInvoice.id }).in('id', bookingIds);
+        if (linkError) {
+          await supabase.from('invoices').delete().eq('id', newInvoice.id).eq('status', 'draft');
+          anyFailed = true;
+          continue;
+        }
+      }
     }
 
-    await advanceJobToNextMonth(job);
+    if (!anyFailed) {
+      await advanceJobToNextMonth(job);
+    }
   } catch (error) {
     console.error('Error generating meeting room invoices:', error);
   }

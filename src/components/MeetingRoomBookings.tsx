@@ -6,6 +6,7 @@ import { InlineDatePicker } from './InlineDatePicker';
 import { SkeletonTable } from './SkeletonLoader';
 import { Pagination } from './Pagination';
 import { createAdminNotification } from '../utils/notificationHelper';
+import { bookingTimesOverlap } from '../utils/bookingOverlap';
 
 type NotificationType = 'success' | 'error' | 'info';
 
@@ -625,13 +626,9 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       .neq('id', bookingId);
 
     if (existingBookings && existingBookings.length > 0) {
-      const newStart = booking.start_time;
-      const newEnd = booking.end_time;
-      const hasOverlap = existingBookings.some((b: any) => (
-        (newStart >= b.start_time && newStart < b.end_time) ||
-        (newEnd > b.start_time && newEnd <= b.end_time) ||
-        (newStart <= b.start_time && newEnd >= b.end_time)
-      ));
+      const hasOverlap = existingBookings.some((b: any) =>
+        bookingTimesOverlap(booking.start_time, booking.end_time, b.start_time, b.end_time)
+      );
       if (hasOverlap) {
         showNotification('Kan niet heropenen: de ruimte is al geboekt op deze tijd.', 'error');
         return;
