@@ -737,16 +737,16 @@ export function Integrations() {
               <p className="text-xs text-gray-400 mt-0.5">Online boekhoudpakket koppeling</p>
             </div>
             <div className="flex items-center gap-3">
-              {ebEnabled && (
-                <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium ${
-                  settings?.eboekhouden_connected
-                    ? 'bg-green-500/10 text-green-400 border border-green-500/20'
-                    : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${settings?.eboekhouden_connected ? 'bg-green-400' : 'bg-amber-400'}`} />
-                  {settings?.eboekhouden_connected ? 'Verbonden' : 'Niet verbonden'}
-                </span>
-              )}
+              <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium ${
+                settings?.eboekhouden_connected
+                  ? 'bg-green-500/10 text-green-400 border border-green-500/20'
+                  : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${settings?.eboekhouden_connected ? 'bg-green-400' : 'bg-amber-400'}`} />
+                {settings?.eboekhouden_connected
+                  ? (ebEnabled ? 'Verbonden' : 'Verbonden, uitgeschakeld')
+                  : 'Niet verbonden'}
+              </span>
               <button
                 onClick={handleToggleClick}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
@@ -813,7 +813,9 @@ export function Integrations() {
 
           {!ebEnabled && (
             <div className="px-6 py-4 text-sm text-gray-500">
-              Schakel de koppeling in om de e-Boekhouden integratie te configureren en te gebruiken.
+              {settings?.eboekhouden_connected
+                ? 'De koppeling is verbonden maar uitgeschakeld. Achtergrondjobs en factuursync blijven uit tot je de koppeling inschakelt.'
+                : 'Schakel de koppeling in om de e-Boekhouden integratie te configureren en te gebruiken.'}
             </div>
           )}
         </div>
