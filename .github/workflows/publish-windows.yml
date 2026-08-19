@@ -84,6 +84,12 @@ jobs:
         shell: bash
         run: echo "PUBLISH_VERSION=$(node -p "require('./package.json').version")" >> "$GITHUB_ENV"
 
+      - name: Build web app
+        run: npm run build
+
+      - name: Build and publish Windows installer
+        run: npx electron-builder --win --publish always --config electron-builder.json
+
       - name: Commit version bump
         if: ${{ inputs.bump != 'none' }}
         shell: bash
@@ -93,9 +99,3 @@ jobs:
           git add package.json package-lock.json
           git commit -m "chore: bump version to ${PUBLISH_VERSION}"
           git push origin HEAD:main
-
-      - name: Build web app
-        run: npm run build
-
-      - name: Build and publish Windows installer
-        run: npx electron-builder --win --publish always --config electron-builder.json
