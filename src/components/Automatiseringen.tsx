@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import {
   Loader2, RefreshCw, CheckCircle2, Clock, FileText,
   Receipt, Link2, Users, Calendar, ChevronDown, ChevronUp, Play, DoorOpen,
-  AlertTriangle, TrendingUp, CalendarCheck, Monitor, LayoutPanelLeft
+  AlertTriangle, TrendingUp, CalendarCheck, Monitor, LayoutPanelLeft, Mail
 } from 'lucide-react';
 
 interface ScheduledJob {
@@ -59,6 +59,22 @@ const JOB_META: Record<string, {
     label: 'Verlopen boekingen afronden',
     description: 'Zet vergaderruimteboekingen die in het verleden liggen maar nog op "bevestigd" staan automatisch op "voltooid". Zo blijft het boekingenoverzicht netjes en kloppen de statistieken.',
     icon: <CalendarCheck size={18} />,
+    accentColor: 'amber',
+    interval: 'Dagelijks (elke 24 uur)',
+    category: 'beheer',
+  },
+  send_invoice_reminders: {
+    label: 'Betalingsherinneringen e-mailen',
+    description: 'Stuurt automatisch een herinneringsmail met de factuur-PDF voor openstaande, vervallen facturen. Maximaal één herinnering per 14 dagen. Geen betaallink, alleen e-mail met PDF.',
+    icon: <Mail size={18} />,
+    accentColor: 'teal',
+    interval: 'Dagelijks (elke 24 uur)',
+    category: 'facturatie',
+  },
+  settings_backup: {
+    label: 'Instellingen back-uppen',
+    description: 'Maakt dagelijks een kopie van bedrijfsinstellingen zonder wachtwoorden of API-sleutels.',
+    icon: <Monitor size={18} />,
     accentColor: 'amber',
     interval: 'Dagelijks (elke 24 uur)',
     category: 'beheer',

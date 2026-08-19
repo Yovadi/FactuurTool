@@ -412,7 +412,7 @@ export async function syncCreditNoteToEBoekhouden(
     date: creditNote.credit_date,
     termOfPayment: 0,
     invoiceNumber: creditNote.credit_note_number,
-    inExVat: 'EX',
+    inExVat: (creditNote as { vat_inclusive?: boolean }).vat_inclusive ? 'IN' : 'EX',
     items,
   };
 

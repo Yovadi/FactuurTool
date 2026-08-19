@@ -207,7 +207,7 @@
         .pin-display {
             display: flex;
             justify-content: center;
-            gap: 0.875rem;
+            gap: 0.5rem;
             padding: 1.125rem 1rem;
             background-color: #0F0F10;
             border: 1.5px solid #2A2A2D;
@@ -1870,13 +1870,13 @@
         </div>
         <div class="login-box">
             <h2>Welkom terug</h2>
-            <p>Voer je pincode in om door te gaan</p>
+            <p>Voer je pincode in (4 tot 8 cijfers)</p>
             <div class="pin-input-wrapper" onclick="document.getElementById('pinInput').focus()">
                 <input
                     type="password"
                     id="pinInput"
                     class="pin-input"
-                    maxlength="4"
+                    maxlength="8"
                     inputmode="numeric"
                     pattern="[0-9]*"
                     autocomplete="off"
@@ -1886,6 +1886,10 @@
                     <div class="pin-char" id="pc-1"></div>
                     <div class="pin-char" id="pc-2"></div>
                     <div class="pin-char" id="pc-3"></div>
+                    <div class="pin-char" id="pc-4"></div>
+                    <div class="pin-char" id="pc-5"></div>
+                    <div class="pin-char" id="pc-6"></div>
+                    <div class="pin-char" id="pc-7"></div>
                 </div>
             </div>
             <div id="pinError" class="error-message" style="display: none;"></div>
@@ -2285,7 +2289,7 @@
 
         // Update pin display
         function updatePinDots(length) {
-            for (let i = 0; i < 4; i++) {
+            for (let i = 0; i < 8; i++) {
                 const ch = document.getElementById('pc-' + i);
                 if (ch) ch.classList.toggle('filled', i < length);
             }
@@ -2306,17 +2310,20 @@
         });
 
         // Login
-        document.getElementById('pinInput').addEventListener('input', async function(e) {
+        let pinTimer;
+        document.getElementById('pinInput').addEventListener('input', function(e) {
+            e.target.value = e.target.value.replace(/\D/g, '').slice(0, 8);
             const pin = e.target.value;
             updatePinDots(pin.length);
             const display = document.getElementById('pinDisplay');
             if (display) display.classList.remove('error');
-            if (pin.length === 4) {
-                await attemptLogin(pin);
+            clearTimeout(pinTimer);
+            if (pin.length >= 4 && pin.length <= 8) {
+                pinTimer = setTimeout(() => attemptLogin(pin, pin.length === 8), 450);
             }
         });
 
-        async function attemptLogin(pin) {
+        async function attemptLogin(pin, clearOnFail = true) {
             const pinInput = document.getElementById('pinInput');
             const pinError = document.getElementById('pinError');
 
@@ -2342,7 +2349,7 @@
                 } else if (customersRes.data && customersRes.data.length > 0) {
                     authenticatedUser = { ...customersRes.data[0], userType: 'external' };
                     showSuccess();
-                } else {
+                } else if (clearOnFail) {
                     const pd = document.getElementById('pinDisplay');
                     if (pd) pd.classList.add('error');
                     pinError.textContent = 'Ongeldige pincode';
@@ -2987,7 +2994,26 @@
 
             if (error) {
                 console.error('Error creating booking:', error);
-                showToast('Er is een fout opgetreden bij het aanmaken van de boeking', 'error');
+                const overlap = /al geboekt|overlap|exclusion/i.test(error.message || '');
+                if (overlap && confirm('Dit tijdslot is al bezet. Op de wachtlijst zetten?')) {
+                    const wait = await sb.from('booking_waiting_list').insert({
+                        space_id: roomId,
+                        tenant_id: authenticatedUser.userType === 'tenant' ? authenticatedUser.id : null,
+                        external_customer_id: authenticatedUser.userType === 'external' ? authenticatedUser.id : null,
+                        booking_date: bookingDate,
+                        start_time: startTime,
+                        end_time: endTime,
+                        status: 'waiting',
+                    });
+                    if (wait.error) {
+                        showToast('Wachtlijst opslaan mislukt. De beheerder moet eerst de database-migratie uitvoeren.', 'error');
+                    } else {
+                        showToast('Je staat op de wachtlijst voor dit tijdslot.', 'success');
+                        closeBookingModal();
+                    }
+                    return;
+                }
+                showToast(overlap ? 'Dit tijdslot is al bezet' : 'Er is een fout opgetreden bij het aanmaken van de boeking', 'error');
                 return;
             }
 

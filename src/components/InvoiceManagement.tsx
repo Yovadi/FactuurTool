@@ -9,7 +9,10 @@ import { InvoicePreview } from './InvoicePreview';
 import { ConfirmModal } from './ConfirmModal';
 import { Toast } from './Toast';
 import { Pagination } from './Pagination';
-import { checkAndRunScheduledJobs } from '../utils/scheduledJobs';
+import { logAudit } from '../utils/auditLog';
+import { downloadCsv } from '../utils/csvExport';
+import { buildUblInvoiceXml, downloadUblXml } from '../utils/ublInvoice';
+import { sendInvoiceReminderEmails } from '../utils/invoiceReminders';
 import { getLocalRootFolderPath } from '../utils/localSettings';
 import { syncInvoicePDFs, buildInvoiceFolderPath } from '../utils/invoicePdfSync';
 
@@ -399,15 +402,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
     initializeForm();
     loadData();
-    checkAndRunScheduledJobs();
     localStorage.setItem('hal5-invoices-last-seen', new Date().toISOString());
     window.dispatchEvent(new CustomEvent('invoices-seen'));
-
-    const interval = setInterval(() => {
-      checkAndRunScheduledJobs();
-    }, 60 * 60 * 1000);
-
-    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -1347,6 +1343,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         if (!emailResult.success) {
           throw new Error(emailResult.error || 'Fout bij verzenden van e-mail');
         }
+        await logAudit('invoice_sent', 'invoice', invoice.id, tenant.email);
 
         if (window.electronAPI && companySettings.root_folder_path && window.electronAPI.savePDF) {
           const pdf = await generateInvoicePDF(invoiceData, false, true);
@@ -1508,6 +1505,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         }
       }
 
+      await logAudit('invoice_deleted', 'invoice', Array.from(selectedInvoices).join(','));
       setShowDeleteConfirm(null);
       setDeletePassword('');
       setDeleteError('');
@@ -1542,6 +1540,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         setDeleteError('Fout bij verwijderen van factuur');
         return;
       }
+
+      await logAudit('invoice_deleted', 'invoice', invoiceId);
       setShowDeleteConfirm(null);
       setDeletePassword('');
       setDeleteError('');
@@ -2630,6 +2630,73 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     }, false);
   };
 
+  const handlePreviewUbl = () => {
+    if (!previewInvoice || !companySettings) return;
+    const tenant = getInvoiceTenant(previewInvoice.invoice);
+    const xml = buildUblInvoiceXml({
+      invoiceNumber: previewInvoice.invoice.invoice_number,
+      invoiceDate: previewInvoice.invoice.invoice_date,
+      dueDate: previewInvoice.invoice.due_date,
+      supplier: {
+        name: companySettings.company_name,
+        address: companySettings.address,
+        postalCode: companySettings.postal_code,
+        city: companySettings.city,
+        kvk: companySettings.kvk_number,
+        vat: companySettings.vat_number,
+        iban: companySettings.bank_account,
+        email: companySettings.email,
+      },
+      customer: {
+        name: tenant?.company_name || '',
+        address: tenant && 'street' in tenant ? tenant.street || '' : tenant && 'billing_address' in tenant ? (tenant as { billing_address?: string }).billing_address || '' : '',
+        postalCode: tenant?.postal_code || '',
+        city: tenant?.city || '',
+        email: tenant?.email,
+      },
+      lines: previewInvoice.spaces.map(space => ({
+        description: space.space_name,
+        quantity: space.square_footage || space.hours || 1,
+        unitPrice: space.price_per_sqm || space.hourly_rate || space.monthly_rent,
+        amount: space.monthly_rent,
+      })),
+      subtotal: previewInvoice.invoice.subtotal,
+      vatAmount: previewInvoice.invoice.vat_amount,
+      vatRate: previewInvoice.invoice.vat_rate,
+      total: previewInvoice.invoice.amount,
+    });
+    downloadUblXml(`${previewInvoice.invoice.invoice_number}.xml`, xml);
+  };
+
+  const handlePreviewReminder = async () => {
+    if (!previewInvoice?.invoice.id) return;
+    const result = await sendInvoiceReminderEmails(1, previewInvoice.invoice.id);
+    if (result.sent > 0) {
+      showToast('Herinnering verzonden (e-mail met PDF)', 'success');
+    } else {
+      showToast(result.errors[0] || 'Geen herinnering verzonden. Controleer e-mailinstellingen en vervaldatum.', 'error');
+    }
+  };
+
+  const exportInvoicesCsv = () => {
+    downloadCsv(
+      `facturen-${new Date().toISOString().slice(0, 10)}.csv`,
+      ['Nummer', 'Datum', 'Vervaldatum', 'Klant', 'Status', 'Bedrag', 'BTW'],
+      invoices.map(inv => {
+        const tenant = getInvoiceTenant(inv);
+        return [
+          inv.invoice_number,
+          inv.invoice_date,
+          inv.due_date,
+          tenant?.company_name || '',
+          inv.status,
+          inv.amount,
+          inv.vat_amount,
+        ];
+      })
+    );
+  };
+
   const handlePreviewSend = async () => {
     if (!previewInvoice) return;
 
@@ -3274,6 +3341,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
             } : undefined}
             onClose={() => setPreviewInvoice(null)}
             onDownload={handlePreviewDownload}
+            onDownloadUbl={handlePreviewUbl}
+            onSendReminder={previewInvoice.invoice.status === 'sent' || previewInvoice.invoice.status === 'overdue' ? handlePreviewReminder : undefined}
             onSend={previewInvoice.invoice.status === 'draft' ? handlePreviewSend : undefined}
             onEdit={previewInvoice.invoice.status === 'draft' ? () => {
               setPreviewInvoice(null);
@@ -3511,8 +3580,15 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                   </button>
                 )}
                 <button
+                  onClick={exportInvoicesCsv}
+                  className="ml-auto flex items-center gap-2 px-3 py-1.5 bg-dark-800 text-gray-200 text-sm font-medium rounded-lg hover:bg-dark-700 transition-colors border border-dark-600"
+                >
+                  <Download size={16} />
+                  CSV
+                </button>
+                <button
                   onClick={() => setShowForm(true)}
-                  className="ml-auto flex items-center gap-2 px-3 py-1.5 bg-gold-500 text-white text-sm font-medium rounded-lg hover:bg-gold-400 transition-colors"
+                  className="flex items-center gap-2 px-3 py-1.5 bg-gold-500 text-white text-sm font-medium rounded-lg hover:bg-gold-400 transition-colors"
                 >
                   <Plus size={16} />
                   Nieuwe Factuur

@@ -352,10 +352,10 @@ export function ExternalCustomers() {
               <input
                 type="text"
                 value={formData.booking_pin_code}
-                onChange={(e) => setFormData({ ...formData, booking_pin_code: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+                onChange={(e) => setFormData({ ...formData, booking_pin_code: e.target.value.replace(/\D/g, '').slice(0, 8) })}
                 className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-100"
-                placeholder="4-cijferige pincode voor zelfstandig boeken"
-                maxLength={4}
+                placeholder="4 tot 8 cijfers voor zelfstandig boeken"
+                maxLength={8}
               />
               <p className="text-xs text-gray-400 mt-1">
                 Geef deze pincode aan de klant zodat ze zelfstandig vergaderruimtes kunnen boeken

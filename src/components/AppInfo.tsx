@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase, type CompanySettings } from '../lib/supabase';
-import { Settings, Edit2, FolderOpen, RefreshCw, Info, Package } from 'lucide-react';
+import { Settings, Edit2, FolderOpen, RefreshCw, Info, Package, Download } from 'lucide-react';
 import { getLocalRootFolderPath, setLocalRootFolderPath } from '../utils/localSettings';
+import { createSettingsBackup, downloadSettingsBackupFile } from '../utils/settingsBackup';
 
 export function AppInfo() {
   const [settings, setSettings] = useState<CompanySettings | null>(null);
@@ -16,6 +17,8 @@ export function AppInfo() {
     root_folder_path: '',
     test_mode: false,
     test_date: '',
+    staff_pin_code: '',
+    calendar_sync_enabled: false,
   });
 
   useEffect(() => {
@@ -62,6 +65,8 @@ export function AppInfo() {
         root_folder_path: localRootPath || settings.root_folder_path || '',
         test_mode: settings.test_mode || false,
         test_date: settings.test_date || '',
+        staff_pin_code: settings.staff_pin_code || '',
+        calendar_sync_enabled: settings.calendar_sync_enabled || false,
       });
     }
     setShowForm(true);
@@ -98,6 +103,15 @@ export function AppInfo() {
     } catch (error) {
       console.error('Error saving settings:', error);
       alert('Er is een fout opgetreden bij het opslaan van de gegevens');
+    }
+  };
+
+  const handleDownloadSettingsBackup = async () => {
+    if (!settings) return;
+    downloadSettingsBackupFile(settings as unknown as Record<string, unknown>);
+    const result = await createSettingsBackup();
+    if (!result.success) {
+      console.warn('Settings backup not stored:', result.error);
     }
   };
 
@@ -176,6 +190,29 @@ export function AppInfo() {
                   </p>
                 </div>
 
+                <div className="border-t border-dark-700 pt-4">
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Personeels-PIN (optioneel, max 8 cijfers)</label>
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    value={formData.staff_pin_code}
+                    onChange={(e) => setFormData({ ...formData, staff_pin_code: e.target.value.replace(/\D/g, '').slice(0, 8) })}
+                    className="w-full bg-dark-800 border border-dark-700 rounded-lg px-4 py-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-gold-500"
+                    placeholder="Leeg = geen lockscreen"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Als deze is ingevuld, vraagt de app bij het openen om deze PIN. Bestaande 4-cijferige boekingscodes blijven werken.</p>
+                </div>
+
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={formData.calendar_sync_enabled}
+                    onChange={(e) => setFormData({ ...formData, calendar_sync_enabled: e.target.checked })}
+                    className="w-4 h-4 bg-dark-800 border-dark-700 rounded"
+                  />
+                  Nieuwe boekingen naar Outlook-agenda sturen (Microsoft Graph, Calendars.ReadWrite)
+                </label>
+
                 {formData.test_mode && (
                   <div className="ml-6">
                     <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -214,13 +251,25 @@ export function AppInfo() {
       <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
         <div className="flex justify-between items-start mb-6">
           <h3 className="text-xl font-semibold text-gray-100">App Gegevens</h3>
-          <button
-            onClick={handleEdit}
-            className="flex items-center gap-2 text-gold-500 hover:text-gold-400 transition-colors"
-          >
-            <Edit2 size={18} />
-            Bewerken
-          </button>
+          <div className="flex items-center gap-3">
+            {settings && (
+              <button
+                type="button"
+                onClick={handleDownloadSettingsBackup}
+                className="flex items-center gap-2 text-gray-300 hover:text-gray-100 transition-colors"
+              >
+                <Download size={18} />
+                Backup
+              </button>
+            )}
+            <button
+              onClick={handleEdit}
+              className="flex items-center gap-2 text-gold-500 hover:text-gold-400 transition-colors"
+            >
+              <Edit2 size={18} />
+              Bewerken
+            </button>
+          </div>
         </div>
 
         <div className="space-y-6">

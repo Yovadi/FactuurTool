@@ -28,6 +28,7 @@ export function CompanySettings() {
     kvk_number: '',
     bank_account: '',
     delete_code: '1234',
+    staff_pin_code: '',
     root_folder_path: '',
     test_mode: false,
     test_date: '',
@@ -149,6 +150,7 @@ export function CompanySettings() {
         kvk_number: settings.kvk_number || '',
         bank_account: settings.bank_account || '',
         delete_code: settings.delete_code || '1234',
+        staff_pin_code: settings.staff_pin_code || '',
         root_folder_path: localRootPath || settings.root_folder_path || '',
         test_mode: settings.test_mode || false,
         test_date: settings.test_date || '',
@@ -178,6 +180,7 @@ export function CompanySettings() {
       kvk_number: '',
       bank_account: '',
       delete_code: '1234',
+      staff_pin_code: '',
       root_folder_path: '',
       test_mode: false,
       test_date: '',
@@ -406,8 +409,21 @@ export function CompanySettings() {
                     placeholder="1234"
                   />
                   <p className="text-xs text-gray-400 mt-1">
-                    Deze code wordt gevraagd bij het verwijderen van betaalde facturen
+                    Deze code wordt gevraagd bij het verwijderen van betaalde facturen. Kies iets anders dan 1234.
                   </p>
+                </div>
+                <div className="mt-3">
+                  <label className="block text-sm font-medium text-gray-200 mb-1">
+                    Personeels-PIN voor de app
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={formData.staff_pin_code || ''}
+                    onChange={(e) => setFormData({ ...formData, staff_pin_code: e.target.value.replace(/\D/g, '').slice(0, 8) })}
+                    className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                    placeholder="Leeg = geen lockscreen"
+                  />
                 </div>
               </div>
 

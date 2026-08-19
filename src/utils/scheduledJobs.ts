@@ -1,6 +1,8 @@
 import { supabase } from '../lib/supabase';
 import { checkInvoicePaymentStatuses, checkPurchaseInvoicePaymentStatuses, verifyInvoiceSyncStatus, verifyRelationsInEBoekhouden } from '../lib/eboekhoudenSync';
 import { createLeaseNotification } from './notificationHelper';
+import { sendInvoiceReminderEmails } from './invoiceReminders';
+import { createSettingsBackup } from './settingsBackup';
 
 function getLocalCategory(spaceType?: string): string | null {
   switch (spaceType) {
@@ -47,6 +49,10 @@ export const checkAndRunScheduledJobs = async () => {
       await applyRentIndexation(job);
     } else if (job.job_type === 'complete_past_bookings') {
       await completePastBookings(job);
+    } else if (job.job_type === 'send_invoice_reminders') {
+      await runInvoiceReminders(job);
+    } else if (job.job_type === 'settings_backup') {
+      await runSettingsBackup(job);
     }
   }
 };
@@ -402,6 +408,24 @@ const completePastBookings = async (job: ScheduledJob) => {
     await advanceJobNextRun(job, 24);
   } catch (error) {
     console.error('Error completing past bookings:', error);
+  }
+};
+
+const runInvoiceReminders = async (job: ScheduledJob) => {
+  try {
+    await sendInvoiceReminderEmails();
+    await advanceJobNextRun(job, 24);
+  } catch (error) {
+    console.error('Error sending invoice reminders:', error);
+  }
+};
+
+const runSettingsBackup = async (job: ScheduledJob) => {
+  try {
+    await createSettingsBackup();
+    await advanceJobNextRun(job, 24);
+  } catch (error) {
+    console.error('Error creating settings backup:', error);
   }
 };
 

@@ -19,7 +19,7 @@ export function PinLogin({ onAuthenticated }: PinLoginProps) {
   const [loading, setLoading] = useState(false);
 
   const handlePinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\D/g, '').slice(0, 4);
+    const value = e.target.value.replace(/\D/g, '').slice(0, 8);
     setPinCode(value);
     setError('');
   };
@@ -27,8 +27,8 @@ export function PinLogin({ onAuthenticated }: PinLoginProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (pinCode.length !== 4) {
-      setError('Voer een 4-cijferige PIN-code in');
+    if (pinCode.length < 4 || pinCode.length > 8) {
+      setError('Voer een PIN van 4 tot 8 cijfers in');
       return;
     }
 
@@ -92,15 +92,15 @@ export function PinLogin({ onAuthenticated }: PinLoginProps) {
                 value={pinCode}
                 onChange={handlePinChange}
                 className="w-full px-4 py-3 bg-dark-900 border border-dark-600 rounded-lg text-gray-100 text-center text-2xl tracking-widest focus:ring-2 focus:ring-gold-500 focus:border-transparent"
-                placeholder="••••"
+                placeholder="4-8 cijfers"
                 inputMode="numeric"
-                maxLength={4}
+                maxLength={8}
                 autoComplete="off"
                 autoFocus
                 disabled={loading}
               />
               <p className="text-xs text-gray-500 mt-2 text-center">
-                Voer uw 4-cijferige persoonlijke PIN-code in
+                Voer uw persoonlijke PIN-code in (4 tot 8 cijfers)
               </p>
             </div>
 
@@ -113,7 +113,7 @@ export function PinLogin({ onAuthenticated }: PinLoginProps) {
 
             <button
               type="submit"
-              disabled={pinCode.length !== 4 || loading}
+              disabled={pinCode.length < 4 || loading}
               className="w-full bg-gold-600 text-dark-900 px-6 py-3 rounded-lg font-semibold hover:bg-gold-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Bezig met inloggen...' : 'Inloggen'}

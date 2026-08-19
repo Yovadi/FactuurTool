@@ -4,6 +4,9 @@ import { LayoutDashboard, Users, Building, Settings, CalendarClock, FileText, Bu
 import { supabase } from './lib/supabase';
 import { syncInvoicePDFs, syncLeaseContractPDFs, syncCreditNotePDFs, startPeriodicSync, type SyncResult } from './utils/invoicePdfSync';
 import { getEffectiveRootFolderPath } from './utils/localSettings';
+import { checkAndRunScheduledJobs } from './utils/scheduledJobs';
+import { StaffPinLock } from './components/StaffPinLock';
+import { TestModeBanner } from './components/TestModeBanner';
 
 const OverzichtTabs = lazy(() => import('./components/OverzichtTabs').then(m => ({ default: m.OverzichtTabs })));
 const TenantManagement = lazy(() => import('./components/TenantManagement').then(m => ({ default: m.TenantManagement })));
@@ -66,6 +69,7 @@ function App() {
   }>({ active: false, current: 0, total: 0, invoiceNumber: '' });
   const [newInvoiceCount, setNewInvoiceCount] = useState(0);
   const [visitedTabs, setVisitedTabs] = useState<Set<Tab>>(new Set(['dashboard']));
+  const [testMode, setTestMode] = useState<{ enabled: boolean; date: string | null }>({ enabled: false, date: null });
 
   useEffect(() => {
     const isElectronApp = !!(window as any).electronAPI;
@@ -176,7 +180,7 @@ function App() {
 
     supabase
       .from('company_settings')
-      .select('eboekhouden_enabled, smtp_enabled, smtp_connected, graph_enabled, graph_connected, resend_enabled, resend_connected')
+      .select('eboekhouden_enabled, smtp_enabled, smtp_connected, graph_enabled, graph_connected, resend_enabled, resend_connected, test_mode, test_date')
       .order('updated_at', { ascending: false })
       .limit(1)
       .maybeSingle()
@@ -186,7 +190,13 @@ function App() {
           data?.graph_enabled ||
           data?.resend_enabled;
         if (hasEmail) setEmailEnabled(true);
+        if (data?.test_mode) setTestMode({ enabled: true, date: data.test_date || null });
       });
+
+    checkAndRunScheduledJobs();
+    const jobsInterval = setInterval(() => {
+      checkAndRunScheduledJobs();
+    }, 60 * 60 * 1000);
 
     const handleEboekhoudenChange = (e: Event) => {
       const detail = (e as CustomEvent).detail;
@@ -229,6 +239,7 @@ function App() {
       window.removeEventListener('eboekhouden-enabled-changed', handleEboekhoudenChange);
       window.removeEventListener('email-enabled-changed', handleEmailChange);
       clearInterval(invoiceCheckInterval);
+      clearInterval(jobsInterval);
       window.removeEventListener('invoices-seen', handleInvoicesSeen);
     };
   }, []);
@@ -418,7 +429,9 @@ function App() {
   }
 
   return (
+    <StaffPinLock>
     <div className="h-screen bg-dark-950 flex flex-col">
+      {testMode.enabled && <TestModeBanner testDate={testMode.date} />}
       {(syncStatus.active || syncStatus.result) && (
         <div className="fixed bottom-4 right-4 z-[100] max-w-sm">
           {syncStatus.active && (
@@ -740,6 +753,7 @@ function App() {
         </div>
       </div>
     </div>
+    </StaffPinLock>
   );
 }
 

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Euro, Calendar, AlertCircle, CheckCircle, FileText, Trash2, Eye, Filter, RefreshCw, Loader2, Database, XCircle, Square, CheckSquare, AlertTriangle } from 'lucide-react';
+import { Euro, Calendar, AlertCircle, CheckCircle, FileText, Trash2, Eye, Filter, RefreshCw, Loader2, Database, XCircle, Square, CheckSquare, AlertTriangle, Download } from 'lucide-react';
 import { resyncInvoiceToEBoekhouden } from '../lib/eboekhoudenSync';
 import { Pagination } from './Pagination';
+import { downloadCsv } from '../utils/csvExport';
 
 const getInvoiceTypeColor = (invoice: any): string => {
   if (invoice.lease_id !== null) return 'text-green-500';
@@ -486,8 +487,20 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
       {activeTab === 'open' && (
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 overflow-hidden">
           <div className="bg-dark-900 rounded-lg overflow-hidden flex flex-col">
-            <div className="p-4 bg-dark-800 border-b border-dark-700 flex-shrink-0">
+            <div className="p-4 bg-dark-800 border-b border-dark-700 flex-shrink-0 flex items-center justify-between gap-3">
               <h2 className="text-lg font-semibold text-gray-100">Debiteuren</h2>
+              <button
+                type="button"
+                onClick={() => downloadCsv(
+                  `debiteuren-${new Date().toISOString().slice(0, 10)}.csv`,
+                  ['Bedrijf', 'Contact', 'Openstaand', 'Aantal facturen', 'Achterstallig'],
+                  debtors.map(d => [d.company_name, d.name, d.total_outstanding, d.invoice_count, d.overdue_count])
+                )}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-dark-700 text-gray-200 rounded-lg border border-dark-600"
+              >
+                <Download size={14} />
+                CSV
+              </button>
             </div>
             <div className="overflow-y-auto flex-1">
               {debtors.length === 0 ? (
