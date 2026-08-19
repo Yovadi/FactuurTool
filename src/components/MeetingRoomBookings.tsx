@@ -6,6 +6,10 @@ import { InlineDatePicker } from './InlineDatePicker';
 import { SkeletonTable } from './SkeletonLoader';
 import { Pagination } from './Pagination';
 import { createAdminNotification } from '../utils/notificationHelper';
+import {
+  addBookingToDraftInvoice,
+  removeBookingFromDraftInvoice
+} from '../utils/invoiceBookingSync';
 
 type NotificationType = 'success' | 'error' | 'info';
 
@@ -563,9 +567,22 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       return;
     }
 
-    // Als de status verandert naar cancelled, update de factuur
+    let clearedInvoiceLink = false;
     if (newStatus === 'cancelled' && booking.invoice_id) {
-      await removeBookingFromInvoice(booking);
+      const result = await removeBookingFromDraftInvoice(booking);
+      if (!result.ok) {
+        showNotification(result.message || 'Fout bij het bijwerken van de factuur.', 'error');
+        return;
+      }
+      if (result.invoiceDeleted) {
+        showNotification('Factuur is verwijderd omdat er geen boekingen meer zijn.', 'info');
+        clearedInvoiceLink = true;
+      } else if (result.skipped && result.message) {
+        showNotification(result.message, 'info');
+      } else if (!result.skipped) {
+        showNotification('Factuur is bijgewerkt.', 'info');
+        clearedInvoiceLink = true;
+      }
     }
 
     const { error } = await supabase
@@ -579,7 +596,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       return;
     }
 
-    const updatedAllBookings = allBookings.map(b => b.id === bookingId ? { ...b, status: newStatus, invoice_id: newStatus === 'cancelled' ? null : b.invoice_id } : b);
+    const updatedAllBookings = allBookings.map(b => b.id === bookingId ? { ...b, status: newStatus, invoice_id: clearedInvoiceLink ? null : b.invoice_id } : b);
     setAllBookings(updatedAllBookings);
     applyFilter(updatedAllBookings, selectedFilter);
 
@@ -673,9 +690,17 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       return;
     }
 
-    // Als de boeking aan een factuur is gekoppeld, update de factuur
     if (booking.invoice_id) {
-      await removeBookingFromInvoice(booking);
+      const result = await removeBookingFromDraftInvoice(booking);
+      if (!result.ok) {
+        showNotification(result.message || 'Fout bij het bijwerken van de factuur.', 'error');
+        return;
+      }
+      if (result.invoiceDeleted) {
+        showNotification('Factuur is verwijderd omdat er geen boekingen meer zijn.', 'info');
+      } else if (result.skipped && result.message) {
+        showNotification(result.message, 'error');
+      }
     }
 
     const { error } = await supabase
@@ -696,107 +721,6 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     showNotification('Boeking succesvol verwijderd.', 'success');
   };
 
-  const removeBookingFromInvoice = async (booking: Booking) => {
-    if (!booking.invoice_id) {
-      return;
-    }
-
-    // Haal de factuur op
-    const { data: invoice, error: invoiceError } = await supabase
-      .from('invoices')
-      .select('*')
-      .eq('id', booking.invoice_id)
-      .single();
-
-    if (invoiceError || !invoice) {
-      console.error('Error fetching invoice:', invoiceError);
-      return;
-    }
-
-    // Alleen draft facturen kunnen worden aangepast
-    if (invoice.status !== 'draft') {
-      showNotification('Deze factuur is al verstuurd en kan niet meer worden gewijzigd.', 'error');
-      return;
-    }
-
-    const vatRate = invoice.vat_rate;
-
-    // Bereken nieuwe bedragen zonder deze boeking
-    const newSubtotal = Math.max(0, parseFloat(invoice.subtotal) - booking.total_amount);
-    const newVatAmount = newSubtotal * (vatRate / 100);
-    const newTotal = newSubtotal + newVatAmount;
-
-    // Verwijder de boeking uit de notes
-    let rateDescription = '';
-    if (booking.rate_type === 'half_day') {
-      rateDescription = `dagdeel tarief €${(booking.applied_rate || 0).toFixed(2)}`;
-    } else if (booking.rate_type === 'full_day') {
-      rateDescription = `hele dag tarief €${(booking.applied_rate || 0).toFixed(2)}`;
-    } else {
-      const hourlyRate = booking.applied_rate || (booking.hourly_rate || 0);
-      rateDescription = `${booking.total_hours}u × €${hourlyRate.toFixed(2)}`;
-    }
-
-    // Calculate original amount (before discount)
-    const originalAmount = booking.total_amount + (booking.discount_amount || 0);
-
-    // Create booking line without discount note (show original amount)
-    const bookingLine = `- ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)} (${rateDescription}) = €${originalAmount.toFixed(2)}`;
-
-    // Create discount line if applicable
-    const hasDiscount = booking.discount_percentage && booking.discount_percentage > 0 && booking.discount_amount && booking.discount_amount > 0;
-    const discountLine = hasDiscount
-      ? `- Korting ${booking.discount_percentage}% huurderkorting = €${booking.discount_amount.toFixed(2)}`
-      : '';
-
-    let updatedNotes = invoice.notes || '';
-    const lines = updatedNotes.split('\n');
-    // Filter out both the booking line and the discount line
-    const filteredLines = lines.filter(line => {
-      const trimmedLine = line.trim();
-      return trimmedLine !== bookingLine.trim() && trimmedLine !== discountLine.trim();
-    });
-    updatedNotes = filteredLines.join('\n').trim();
-
-    // Als er geen boekingen meer zijn, verwijder de factuur
-    const remainingBookingLines = filteredLines.filter(line => line.startsWith('-')).length;
-
-    if (remainingBookingLines === 0) {
-      const { error: deleteError } = await supabase
-        .from('invoices')
-        .delete()
-        .eq('id', booking.invoice_id);
-
-      if (deleteError) {
-        console.error('Error deleting invoice:', deleteError);
-        showNotification('Fout bij het verwijderen van de factuur.', 'error');
-        return;
-      }
-
-      showNotification('Factuur is verwijderd omdat er geen boekingen meer zijn.', 'info');
-      return;
-    }
-
-    // Update de factuur
-    const { error: updateError } = await supabase
-      .from('invoices')
-      .update({
-        subtotal: newSubtotal,
-        vat_amount: newVatAmount,
-        amount: newTotal,
-        notes: updatedNotes || null
-      })
-      .eq('id', booking.invoice_id);
-
-    if (updateError) {
-      console.error('Error updating invoice:', updateError);
-      showNotification('Fout bij het bijwerken van de factuur.', 'error');
-      return;
-    }
-
-    showNotification('Factuur is bijgewerkt.', 'info');
-  };
-
   const handleLinkToInvoice = async (booking: Booking) => {
     const customerId = booking.booking_type === 'tenant' ? booking.tenant_id : booking.external_customer_id;
     if (!customerId) return;
@@ -804,6 +728,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     let query = supabase
       .from('invoices')
       .select('id, invoice_number, invoice_date, amount, status, invoice_month')
+      .eq('status', 'draft')
       .order('invoice_date', { ascending: false });
 
     if (booking.booking_type === 'tenant') {
@@ -822,50 +747,13 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     if (!linkDialogBooking || !selectedInvoiceId) return;
 
     try {
-      const { error } = await supabase
-        .from('meeting_room_bookings')
-        .update({ invoice_id: selectedInvoiceId })
-        .eq('id', linkDialogBooking.id);
-
-      if (error) throw error;
-
-      const booking = linkDialogBooking;
-      const spaceName = booking.office_spaces?.space_number || 'Vergaderruimte';
-      const dateStr = new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' });
-      const timeStr = `${booking.start_time.substring(0, 5)}-${booking.end_time.substring(0, 5)}`;
-      const description = `${spaceName} - ${dateStr} ${timeStr}`;
-
-      const { data: existingItems } = await supabase
-        .from('invoice_line_items')
-        .select('id')
-        .eq('invoice_id', selectedInvoiceId)
-        .eq('booking_id', booking.id)
-        .maybeSingle();
-
-      if (!existingItems) {
-        const isFlatRate = booking.rate_type === 'half_day' || booking.rate_type === 'full_day';
-        const qty = isFlatRate ? 1 : booking.total_hours;
-        const unitPrice = isFlatRate ? booking.total_amount : (booking.applied_rate || booking.hourly_rate);
-        await supabase
-          .from('invoice_line_items')
-          .insert({
-            invoice_id: selectedInvoiceId,
-            booking_id: booking.id,
-            description,
-            quantity: qty,
-            unit_price: unitPrice,
-            amount: booking.total_amount,
-            calculation_type: 'quantity_price',
-            local_category: 'vergaderruimte'
-          });
-      }
-
+      await addBookingToDraftInvoice(selectedInvoiceId, linkDialogBooking);
       showNotification('Boeking succesvol gekoppeld aan factuur', 'success');
       setLinkDialogBooking(null);
       await loadData();
     } catch (error) {
       console.error('Error linking booking:', error);
-      showNotification('Fout bij het koppelen aan factuur', 'error');
+      showNotification(error instanceof Error ? error.message : 'Fout bij het koppelen aan factuur', 'error');
     }
   };
 

@@ -12,6 +12,8 @@ import { Pagination } from './Pagination';
 import { checkAndRunScheduledJobs } from '../utils/scheduledJobs';
 import { getLocalRootFolderPath } from '../utils/localSettings';
 import { syncInvoicePDFs, buildInvoiceFolderPath } from '../utils/invoicePdfSync';
+import { calculateVAT } from '../utils/invoiceMoney';
+import { getMeetingRoomVatSettings, unlinkBookingsForInvoiceIds } from '../utils/invoiceBookingSync';
 
 type LeaseWithDetails = Lease & {
   tenant: Tenant;
@@ -314,7 +316,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       .from('meeting_room_bookings')
       .select(`
         id, booking_date, start_time, end_time, total_hours, total_amount, hourly_rate,
-        discount_percentage, discount_amount, rate_type, applied_rate, status, invoice_id,
+        discount_percentage, discount_amount, rate_type, applied_rate, status, invoice_id, vat_rate,
         office_spaces(space_number)
       `)
       .gte('booking_date', startDateStr)
@@ -634,20 +636,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       .order('created_at', { ascending: false });
 
     setInvoices(invoicesData as InvoiceWithDetails[] || []);
-  };
-
-  const calculateVAT = (baseAmount: number, vatRate: number, vatInclusive: boolean) => {
-    if (vatInclusive) {
-      const total = Math.round(baseAmount * 100) / 100;
-      const subtotal = Math.round((baseAmount / (1 + (vatRate / 100))) * 100) / 100;
-      const vatAmount = Math.round((baseAmount - subtotal) * 100) / 100;
-      return { subtotal, vatAmount, total };
-    } else {
-      const subtotal = Math.round(baseAmount * 100) / 100;
-      const vatAmount = Math.round((baseAmount * (vatRate / 100)) * 100) / 100;
-      const total = Math.round((baseAmount + vatAmount) * 100) / 100;
-      return { subtotal, vatAmount, total };
-    }
   };
 
   const updateInvoicedMonthsCounts = () => {
@@ -1483,6 +1471,13 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
     if (invoiceId === 'bulk') {
       const idsToDelete = Array.from(selectedInvoices);
+      try {
+        await unlinkBookingsForInvoiceIds(idsToDelete);
+      } catch (unlinkError) {
+        console.error('Error unlinking bookings:', unlinkError);
+        setDeleteError('Fout bij ontkoppelen van boekingen');
+        return;
+      }
 
       for (const id of idsToDelete) {
         const { error: itemsError } = await supabase
@@ -1521,6 +1516,14 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       setInvoices(prev => prev.filter(inv => !selectedInvoices.has(inv.id)));
       setSelectedInvoices(new Set());
     } else {
+      try {
+        await unlinkBookingsForInvoiceIds([invoiceId]);
+      } catch (unlinkError) {
+        console.error('Error unlinking bookings:', unlinkError);
+        setDeleteError('Fout bij ontkoppelen van boekingen');
+        return;
+      }
+
       const { error: itemsError } = await supabase
         .from('invoice_line_items')
         .delete()
@@ -1706,8 +1709,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         }
 
         const baseAmount = totalBeforeDiscount - totalDiscount - additionalDiscount;
-
-        const { subtotal, vatAmount, total } = calculateVAT(baseAmount, 21, false);
+        const { vatRate, vatInclusive } = await getMeetingRoomVatSettings(bookings);
+        const { subtotal, vatAmount, total } = calculateVAT(baseAmount, vatRate, vatInclusive);
 
         const notesLines = ['Vergaderruimte boekingen:'];
         bookings.forEach(booking => {
@@ -1758,8 +1761,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           subtotal: subtotal,
           vat_amount: vatAmount,
           amount: total,
-          vat_rate: 21,
-          vat_inclusive: false,
+          vat_rate: vatRate,
+          vat_inclusive: vatInclusive,
           status: 'draft',
           notes: invoiceNotes
         };
@@ -2296,7 +2299,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           }
 
           const finalAmount = totalBeforeDiscount - totalDiscountAmount;
-          const { subtotal, vatAmount, total } = calculateVAT(finalAmount, 21, false);
+          const { vatRate, vatInclusive } = await getMeetingRoomVatSettings(bookings);
+          const { subtotal, vatAmount, total } = calculateVAT(finalAmount, vatRate, vatInclusive);
 
           let notesHeader = 'Vergaderruimte boekingen:';
 
@@ -2338,8 +2342,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
               subtotal: subtotal,
               vat_amount: vatAmount,
               amount: total,
-              vat_rate: 21,
-              vat_inclusive: false,
+              vat_rate: vatRate,
+              vat_inclusive: vatInclusive,
               status: 'draft',
               invoice_month: targetMonth,
               notes: invoiceNotes
