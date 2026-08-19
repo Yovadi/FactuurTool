@@ -11,6 +11,7 @@ const SKIP_JOB_TYPES = new Set([
   "eboekhouden_sync_verification",
   "eboekhouden_relation_verification",
   "send_invoice_reminders",
+  "generate_flex_invoices",
 ]);
 
 const SECRET_KEYS = [

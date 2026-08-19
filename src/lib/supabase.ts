@@ -225,7 +225,7 @@ export type WifiNetwork = {
   password: string;
   network_number: number;
   tenant_id: string | null;
-  assignment_type: 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek';
+  assignment_type: 'eigen' | 'huurder' | 'spreekkamer';
   created_at: string;
   updated_at: string;
 };
@@ -235,7 +235,7 @@ export type PatchPort = {
   switch_number: number;
   port_number: number;
   tenant_id: string | null;
-  assignment_type: 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek';
+  assignment_type: 'eigen' | 'huurder' | 'spreekkamer';
   notes: string;
   created_at: string;
   updated_at: string;
@@ -246,7 +246,7 @@ export type MeterGroup = {
   ala_group: string;
   group_number: number;
   tenant_id: string | null;
-  assignment_type: 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek';
+  assignment_type: 'eigen' | 'huurder' | 'spreekkamer';
   description: string;
   created_at: string;
   updated_at: string;
@@ -257,7 +257,7 @@ export type RcboCircuitBreaker = {
   rcbo_number: number;
   ala_group: string;
   tenant_id: string | null;
-  assignment_type: 'eigen' | 'huurder' | 'spreekkamer' | 'flexplek';
+  assignment_type: 'eigen' | 'huurder' | 'spreekkamer';
   description: string;
   created_at: string;
   updated_at: string;
