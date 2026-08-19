@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase, type CompanySettings } from '../lib/supabase';
+import { supabase, edgeFunctionHeaders, edgeFunctionUrl, type CompanySettings } from '../lib/supabase';
 import { Plug, Database, Eye, EyeOff, Link2, CheckCircle2, XCircle, Loader2, Unlink, Mail, Send, Cloud, Zap, HardDrive, FolderUp, Sparkles } from 'lucide-react';
 import { testConnection } from '../lib/eboekhouden';
 
@@ -250,15 +250,9 @@ export function Integrations() {
     setTestSmtpResult(null);
 
     try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://qlvndvpxhqmjljjpehkn.supabase.co';
-      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFsdm5kdnB4aHFtamxqanBlaGtuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA5MjI1MzQsImV4cCI6MjA3NjQ5ODUzNH0.q1Kel_GCQqUx2J5Nd9WFOVz7okodFPcoAJkKL6YVkUk';
-
-      const response = await fetch(`${supabaseUrl}/functions/v1/smtp-send`, {
+      const response = await fetch(edgeFunctionUrl('smtp-send'), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabaseAnonKey}`,
-        },
+        headers: edgeFunctionHeaders(),
         body: JSON.stringify({
           action: 'test',
           smtp: {
@@ -311,15 +305,9 @@ export function Integrations() {
     setTestGraphResult(null);
 
     try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://qlvndvpxhqmjljjpehkn.supabase.co';
-      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFsdm5kdnB4aHFtamxqanBlaGtuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA5MjI1MzQsImV4cCI6MjA3NjQ5ODUzNH0.q1Kel_GCQqUx2J5Nd9WFOVz7okodFPcoAJkKL6YVkUk';
-
-      const response = await fetch(`${supabaseUrl}/functions/v1/graph-send`, {
+      const response = await fetch(edgeFunctionUrl('graph-send'), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabaseAnonKey}`,
-        },
+        headers: edgeFunctionHeaders(),
         body: JSON.stringify({
           action: 'test',
           graph: {
@@ -394,15 +382,9 @@ export function Integrations() {
     setTestResendResult(null);
 
     try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://qlvndvpxhqmjljjpehkn.supabase.co';
-      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFsdm5kdnB4aHFtamxqanBlaGtuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA5MjI1MzQsImV4cCI6MjA3NjQ5ODUzNH0.q1Kel_GCQqUx2J5Nd9WFOVz7okodFPcoAJkKL6YVkUk';
-
-      const response = await fetch(`${supabaseUrl}/functions/v1/resend-send`, {
+      const response = await fetch(edgeFunctionUrl('resend-send'), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabaseAnonKey}`,
-        },
+        headers: edgeFunctionHeaders(),
         body: JSON.stringify({
           action: 'test',
           resend: {
@@ -473,15 +455,9 @@ export function Integrations() {
     setTestOnedriveResult(null);
 
     try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-      const response = await fetch(`${supabaseUrl}/functions/v1/onedrive-upload`, {
+      const response = await fetch(edgeFunctionUrl('onedrive-upload'), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabaseAnonKey}`,
-        },
+        headers: edgeFunctionHeaders(),
         body: JSON.stringify({
           action: 'test',
           graph: {

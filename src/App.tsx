@@ -4,6 +4,10 @@ import { LayoutDashboard, Users, Building, Settings, CalendarClock, FileText, Bu
 import { supabase } from './lib/supabase';
 import { syncInvoicePDFs, syncLeaseContractPDFs, syncCreditNotePDFs, startPeriodicSync, type SyncResult } from './utils/invoicePdfSync';
 import { getEffectiveRootFolderPath } from './utils/localSettings';
+import { BookingInvitePopup } from './components/BookingInvitePopup';
+import type { BookingInvite, MeetingBookingInsert } from './utils/bookingInvite';
+import { formatBookingInvite } from './utils/bookingInvite';
+import { loadBookingInviteDetails, notifyBookingInviteDesktop } from './utils/bookingInviteNotify';
 
 const OverzichtTabs = lazy(() => import('./components/OverzichtTabs').then(m => ({ default: m.OverzichtTabs })));
 const TenantManagement = lazy(() => import('./components/TenantManagement').then(m => ({ default: m.TenantManagement })));
@@ -66,6 +70,8 @@ function App() {
   }>({ active: false, current: 0, total: 0, invoiceNumber: '' });
   const [newInvoiceCount, setNewInvoiceCount] = useState(0);
   const [visitedTabs, setVisitedTabs] = useState<Set<Tab>>(new Set(['dashboard']));
+  const [bookingInvites, setBookingInvites] = useState<BookingInvite[]>([]);
+  const seenInviteIds = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     const isElectronApp = !!(window as any).electronAPI;
@@ -223,6 +229,24 @@ function App() {
     const handleInvoicesSeen = () => setNewInvoiceCount(0);
     window.addEventListener('invoices-seen', handleInvoicesSeen);
 
+    const bookingInviteChannel = supabase
+      .channel('spreekkamer-invites')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'meeting_room_bookings' },
+        async (payload) => {
+          const row = payload.new as MeetingBookingInsert;
+          if (!row?.id || seenInviteIds.current.has(row.id)) return;
+          const invite = await loadBookingInviteDetails(row);
+          if (!invite) return;
+          seenInviteIds.current.add(invite.id);
+          setBookingInvites((queue) => [...queue, invite]);
+          const text = formatBookingInvite(invite);
+          notifyBookingInviteDesktop(text.title, text.body);
+        }
+      )
+      .subscribe();
+
     return () => {
       timers.forEach(clearTimeout);
       stopPeriodicSync?.();
@@ -230,6 +254,7 @@ function App() {
       window.removeEventListener('email-enabled-changed', handleEmailChange);
       clearInterval(invoiceCheckInterval);
       window.removeEventListener('invoices-seen', handleInvoicesSeen);
+      supabase.removeChannel(bookingInviteChannel);
     };
   }, []);
 
@@ -497,6 +522,18 @@ function App() {
           onDownload={handleDownloadUpdate}
           onInstall={handleInstallUpdate}
           onClose={() => setUpdateDialog(prev => ({ ...prev, show: false }))}
+        />
+      )}
+
+      {bookingInvites[0] && (
+        <BookingInvitePopup
+          invite={bookingInvites[0]}
+          remainingCount={Math.max(0, bookingInvites.length - 1)}
+          onDismiss={() => setBookingInvites((queue) => queue.slice(1))}
+          onView={() => {
+            setBookingInvites((queue) => queue.slice(1));
+            switchTab('bookings');
+          }}
         />
       )}
 

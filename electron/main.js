@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, dialog, Notification } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 
@@ -75,6 +75,10 @@ try {
 
 console.log('App version:', app.getVersion());
 console.log('App path:', app.getAppPath());
+
+if (process.platform === 'win32') {
+  app.setAppUserModelId('com.hal5.invoicemanager');
+}
 
 function createWindow() {
   const { screen } = require('electron');
@@ -452,6 +456,34 @@ ipcMain.handle('list-invoices-on-disk', async (event, rootPath) => {
 
 ipcMain.handle('get-app-version', () => {
   return app.getVersion();
+});
+
+ipcMain.handle('show-booking-notification', async (_event, payload) => {
+  const title = payload?.title || 'Nieuwe spreekkamer aanvraag';
+  const body = payload?.body || 'Er is een nieuwe boeking binnengekomen.';
+  try {
+    if (Notification.isSupported()) {
+      const notification = new Notification({
+        title,
+        body,
+        icon: path.join(__dirname, '../public/Logo.png'),
+      });
+      notification.on('click', () => {
+        if (!mainWindow) return;
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        mainWindow.show();
+        mainWindow.focus();
+      });
+      notification.show();
+    }
+    if (mainWindow) {
+      mainWindow.flashFrame(true);
+    }
+    return { success: true };
+  } catch (err) {
+    console.error('Booking notification failed:', err);
+    return { success: false, error: err.message };
+  }
 });
 
 ipcMain.handle('get-logo-base64', () => {

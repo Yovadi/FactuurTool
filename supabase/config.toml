@@ -1,0 +1,32 @@
+# Independent Supabase project config (no Bolt).
+# After claiming the Bolt database in your own Supabase account, the
+# project ref stays the same so the running Windows app keeps working.
+
+project_id = "qlvndvpxhqmjljjpehkn"
+
+[api]
+enabled = true
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+major_version = 15
+
+[functions.eboekhouden-proxy]
+verify_jwt = true
+
+[functions.graph-send]
+verify_jwt = true
+
+[functions.onedrive-upload]
+verify_jwt = true
+
+[functions.parse-invoice]
+verify_jwt = true
+
+[functions.resend-send]
+verify_jwt = true
+
+[functions.smtp-send]
+verify_jwt = true

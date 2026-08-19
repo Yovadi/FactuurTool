@@ -1,4 +1,4 @@
-import { supabase, type CompanySettings } from '../lib/supabase';
+import { supabase, edgeFunctionHeaders, edgeFunctionUrl, type CompanySettings } from '../lib/supabase';
 
 export type EmailMethod = 'smtp' | 'graph' | 'resend' | 'outlook';
 
@@ -84,9 +84,6 @@ export async function sendEmail(
     return { success: false, error: 'Geen e-mail methode geconfigureerd' };
   }
 
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
   const logEntry = {
     to_email: params.to,
     to_name: params.toName || '',
@@ -109,11 +106,11 @@ export async function sendEmail(
     let result: { success: boolean; error?: string };
 
     if (method === 'smtp') {
-      result = await sendViaSMTP(supabaseUrl, supabaseAnonKey, settings, params);
+      result = await sendViaSMTP(settings, params);
     } else if (method === 'graph') {
-      result = await sendViaGraph(supabaseUrl, supabaseAnonKey, settings, params);
+      result = await sendViaGraph(settings, params);
     } else if (method === 'resend') {
-      result = await sendViaResend(supabaseUrl, supabaseAnonKey, settings, params);
+      result = await sendViaResend(settings, params);
     } else {
       result = { success: false, error: 'Onbekende methode' };
     }
@@ -143,8 +140,6 @@ export async function sendEmail(
 }
 
 async function sendViaSMTP(
-  supabaseUrl: string,
-  supabaseAnonKey: string,
   settings: CompanySettings,
   params: SendEmailParams
 ): Promise<{ success: boolean; error?: string }> {
@@ -180,12 +175,9 @@ async function sendViaSMTP(
     body.attachments = attachments;
   }
 
-  const response = await fetch(`${supabaseUrl}/functions/v1/smtp-send`, {
+  const response = await fetch(edgeFunctionUrl('smtp-send'), {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${supabaseAnonKey}`,
-    },
+    headers: edgeFunctionHeaders(),
     body: JSON.stringify(body),
   });
 
@@ -193,8 +185,6 @@ async function sendViaSMTP(
 }
 
 async function sendViaGraph(
-  supabaseUrl: string,
-  supabaseAnonKey: string,
   settings: CompanySettings,
   params: SendEmailParams
 ): Promise<{ success: boolean; error?: string }> {
@@ -229,12 +219,9 @@ async function sendViaGraph(
     body.attachments = attachments;
   }
 
-  const response = await fetch(`${supabaseUrl}/functions/v1/graph-send`, {
+  const response = await fetch(edgeFunctionUrl('graph-send'), {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${supabaseAnonKey}`,
-    },
+    headers: edgeFunctionHeaders(),
     body: JSON.stringify(body),
   });
 
@@ -242,8 +229,6 @@ async function sendViaGraph(
 }
 
 async function sendViaResend(
-  supabaseUrl: string,
-  supabaseAnonKey: string,
   settings: CompanySettings,
   params: SendEmailParams
 ): Promise<{ success: boolean; error?: string }> {
@@ -276,12 +261,9 @@ async function sendViaResend(
     body.attachments = attachments;
   }
 
-  const response = await fetch(`${supabaseUrl}/functions/v1/resend-send`, {
+  const response = await fetch(edgeFunctionUrl('resend-send'), {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${supabaseAnonKey}`,
-    },
+    headers: edgeFunctionHeaders(),
     body: JSON.stringify(body),
   });
 
