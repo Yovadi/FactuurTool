@@ -12,6 +12,7 @@ import { Pagination } from './Pagination';
 import { checkAndRunScheduledJobs } from '../utils/scheduledJobs';
 import { getLocalRootFolderPath } from '../utils/localSettings';
 import { syncInvoicePDFs, buildInvoiceFolderPath } from '../utils/invoicePdfSync';
+import { isEBoekhoudenActive } from '../utils/integrationHelpers';
 
 type LeaseWithDetails = Lease & {
   tenant: Tenant;
@@ -210,7 +211,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   };
 
   const handleSyncToEBoekhouden = async (invoice: InvoiceWithDetails) => {
-    if (!companySettings?.eboekhouden_api_token || !companySettings?.eboekhouden_connected) return;
+    if (!isEBoekhoudenActive(companySettings)) return;
     const customer = invoice.tenant || invoice.external_customer;
     if (!customer) return;
     const customerType = invoice.tenant ? 'tenant' : 'external';
@@ -559,7 +560,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       Promise.all(updatePromises).catch(() => {});
     }
 
-    if (companyData?.eboekhouden_api_token && companyData?.eboekhouden_connected) {
+    if (isEBoekhoudenActive(companyData)) {
       checkInvoicePaymentStatuses(companyData.eboekhouden_api_token).then(result => {
         if (result.updated > 0) {
           supabase
@@ -1449,7 +1450,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           : inv
       ));
 
-      if (companySettings.eboekhouden_api_token && companySettings.eboekhouden_connected) {
+      if (isEBoekhoudenActive(companySettings)) {
         const customerType = invoice.external_customer ? 'external' as const : 'tenant' as const;
         const invoiceWithItems = { ...invoice, line_items: items || [] };
         syncInvoiceToEBoekhouden(
@@ -1459,10 +1460,11 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           customerType,
           companySettings
         ).then(syncResult => {
-          if (syncResult.success) {
+          const syncedId = syncResult.invoiceId;
+          if (syncResult.success && syncedId) {
             setInvoices(prev => prev.map(inv => {
               if (inv.id !== invoiceId) return inv;
-              return { ...inv, eboekhouden_factuur_id: 'synced', eboekhouden_synced_at: new Date().toISOString() } as any;
+              return { ...inv, eboekhouden_factuur_id: syncedId, eboekhouden_synced_at: new Date().toISOString() };
             }));
           }
         }).catch(() => {});
@@ -2717,7 +2719,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         .eq('id', id);
     }
 
-    if (newStatus === 'sent' && companySettings?.eboekhouden_api_token && companySettings?.eboekhouden_connected) {
+    if (newStatus === 'sent' && isEBoekhoudenActive(companySettings)) {
       for (const id of idsToUpdate) {
         const inv = invoices.find(i => i.id === id);
         if (!inv || inv.eboekhouden_factuur_id) continue;

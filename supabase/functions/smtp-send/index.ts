@@ -1,5 +1,4 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { SmtpClient } from "npm:nodemailer@6.9.9";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -51,18 +50,16 @@ Deno.serve(async (req: Request) => {
     }
 
     const nodemailer = await import("npm:nodemailer@6.9.9");
+    const port = smtp.port || 587;
 
     const transporter = nodemailer.default.createTransport({
       host: smtp.host,
-      port: smtp.port || 587,
-      secure: (smtp.port || 587) === 465,
+      port,
+      secure: port === 465,
+      requireTLS: port === 587,
       auth: {
         user: smtp.user,
         pass: smtp.password,
-      },
-      tls: {
-        ciphers: "SSLv3",
-        rejectUnauthorized: false,
       },
     });
 

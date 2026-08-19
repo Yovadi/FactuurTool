@@ -3,6 +3,7 @@ import { supabase, type CompanySettings, type EBoekhoudenSyncLog, type EBoekhoud
 import { testConnection, getLedgerAccounts, getInvoiceTemplates, diagnoseConnection } from '../lib/eboekhouden';
 import { syncRelationToEBoekhouden, syncInvoiceToEBoekhouden, syncPurchaseInvoiceToEBoekhouden, checkInvoicePaymentStatuses, checkPurchaseInvoicePaymentStatuses, verifyInvoiceSyncStatus, verifyRelationsInEBoekhouden, type VerificationResult } from '../lib/eboekhoudenSync';
 import type { ScheduledJob } from '../utils/scheduledJobs';
+import { isEBoekhoudenActive } from '../utils/integrationHelpers';
 import { Link2, CheckCircle2, XCircle, Loader2, RefreshCw, BookOpen, Users, UserPlus, FileText, ArrowUpRight, ArrowDownRight, Clock, AlertTriangle, Activity, Database, Settings2, Plus, Trash2, CreditCard as Edit2, Upload, TrendingDown, TrendingUp, ShieldCheck } from 'lucide-react';
 import { DebtorsOverview } from './DebtorsOverview';
 import { CrediteurenEBoekhouden } from './CrediteurenEBoekhouden';
@@ -90,7 +91,7 @@ export function EBoekhoudenDashboard() {
   const loadDashboardData = async () => {
     setLoading(true);
     const [currentSettings] = await Promise.all([loadSettings(), loadSyncStats(), loadSyncLogs(), loadMappings(), loadScheduledJobs()]);
-    if (currentSettings?.eboekhouden_api_token && currentSettings?.eboekhouden_connected) {
+    if (isEBoekhoudenActive(currentSettings)) {
       await loadLedgerAccounts(currentSettings.eboekhouden_api_token);
       setShowLedger(true);
     }

@@ -2,6 +2,10 @@ import { useState, useEffect } from 'react';
 import { supabase, type CompanySettings } from '../lib/supabase';
 import { Plug, Database, Eye, EyeOff, Link2, CheckCircle2, XCircle, Loader2, Unlink, Mail, Send, Cloud, Zap, HardDrive, FolderUp, Sparkles } from 'lucide-react';
 import { testConnection } from '../lib/eboekhouden';
+import { parseFunctionJson } from '../utils/integrationHelpers';
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://qlvndvpxhqmjljjpehkn.supabase.co';
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFsdm5kdnB4aHFtamxqanBlaGtuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA5MjI1MzQsImV4cCI6MjA3NjQ5ODUzNH0.q1Kel_GCQqUx2J5Nd9WFOVz7okodFPcoAJkKL6YVkUk';
 
 type ConfirmModal = {
   show: boolean;
@@ -145,10 +149,12 @@ export function Integrations() {
   const handleSave = async () => {
     if (!settings) return;
     setSaving(true);
+    const tokenChanged = ebToken !== (settings.eboekhouden_api_token ?? '');
     const { data, error } = await supabase
       .from('company_settings')
       .update({
         eboekhouden_api_token: ebToken,
+        ...(tokenChanged ? { eboekhouden_connected: false } : {}),
         updated_at: new Date().toISOString(),
       })
       .eq('id', settings.id)
@@ -164,6 +170,12 @@ export function Integrations() {
   const handleSaveSmtp = async () => {
     if (!settings) return;
     setSavingSmtp(true);
+    const credentialsChanged =
+      smtpHost !== (settings.smtp_host ?? '') ||
+      smtpPort !== String(settings.smtp_port ?? 587) ||
+      smtpUser !== (settings.smtp_user ?? '') ||
+      smtpPassword !== (settings.smtp_password ?? '') ||
+      smtpFromEmail !== (settings.smtp_from_email ?? '');
     const { data, error } = await supabase
       .from('company_settings')
       .update({
@@ -174,6 +186,7 @@ export function Integrations() {
         smtp_password: smtpPassword,
         smtp_from_name: smtpFromName,
         smtp_from_email: smtpFromEmail,
+        ...(credentialsChanged ? { smtp_connected: false } : {}),
         updated_at: new Date().toISOString(),
       })
       .eq('id', settings.id)
@@ -190,6 +203,11 @@ export function Integrations() {
   const handleSaveGraph = async () => {
     if (!settings) return;
     setSavingGraph(true);
+    const credentialsChanged =
+      graphTenantId !== (settings.graph_tenant_id ?? '') ||
+      graphClientId !== (settings.graph_client_id ?? '') ||
+      graphClientSecret !== (settings.graph_client_secret ?? '') ||
+      graphFromEmail !== (settings.graph_from_email ?? '');
     const { data, error } = await supabase
       .from('company_settings')
       .update({
@@ -199,6 +217,7 @@ export function Integrations() {
         graph_client_secret: graphClientSecret,
         graph_from_email: graphFromEmail,
         graph_from_name: graphFromName,
+        ...(credentialsChanged ? { graph_connected: false } : {}),
         updated_at: new Date().toISOString(),
       })
       .eq('id', settings.id)
@@ -221,11 +240,18 @@ export function Integrations() {
       if (result.success) {
         setTestResult({ success: true, message: 'Verbinding succesvol!' });
         if (settings) {
-          await supabase
+          const { data } = await supabase
             .from('company_settings')
-            .update({ eboekhouden_connected: true, updated_at: new Date().toISOString() })
-            .eq('id', settings.id);
-          setSettings({ ...settings, eboekhouden_connected: true });
+            .update({
+              eboekhouden_api_token: ebToken,
+              eboekhouden_connected: true,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', settings.id)
+            .select()
+            .single();
+          if (data) setSettings(data);
+          else setSettings({ ...settings, eboekhouden_api_token: ebToken, eboekhouden_connected: true });
         }
       } else {
         setTestResult({ success: false, message: result.error || 'Verbinding mislukt. Controleer je API token.' });
@@ -250,14 +276,11 @@ export function Integrations() {
     setTestSmtpResult(null);
 
     try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://qlvndvpxhqmjljjpehkn.supabase.co';
-      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFsdm5kdnB4aHFtamxqanBlaGtuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA5MjI1MzQsImV4cCI6MjA3NjQ5ODUzNH0.q1Kel_GCQqUx2J5Nd9WFOVz7okodFPcoAJkKL6YVkUk';
-
-      const response = await fetch(`${supabaseUrl}/functions/v1/smtp-send`, {
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/smtp-send`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabaseAnonKey}`,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
         },
         body: JSON.stringify({
           action: 'test',
@@ -273,16 +296,27 @@ export function Integrations() {
         }),
       });
 
-      const result = await response.json();
+      const result = await parseFunctionJson(response);
 
       if (result.success) {
         setTestSmtpResult({ success: true, message: 'Verbinding succesvol! Test e-mail verzonden.' });
         if (settings) {
-          await supabase
+          const { data } = await supabase
             .from('company_settings')
-            .update({ smtp_connected: true, updated_at: new Date().toISOString() })
-            .eq('id', settings.id);
-          const updated = { ...settings, smtp_connected: true };
+            .update({
+              smtp_host: smtpHost,
+              smtp_port: parseInt(smtpPort) || 587,
+              smtp_user: smtpUser,
+              smtp_password: smtpPassword,
+              smtp_from_name: smtpFromName,
+              smtp_from_email: smtpFromEmail,
+              smtp_connected: true,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', settings.id)
+            .select()
+            .single();
+          const updated = data || { ...settings, smtp_connected: true };
           setSettings(updated);
           dispatchEmailChange(updated);
         }
@@ -311,14 +345,11 @@ export function Integrations() {
     setTestGraphResult(null);
 
     try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://qlvndvpxhqmjljjpehkn.supabase.co';
-      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFsdm5kdnB4aHFtamxqanBlaGtuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA5MjI1MzQsImV4cCI6MjA3NjQ5ODUzNH0.q1Kel_GCQqUx2J5Nd9WFOVz7okodFPcoAJkKL6YVkUk';
-
-      const response = await fetch(`${supabaseUrl}/functions/v1/graph-send`, {
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/graph-send`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabaseAnonKey}`,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
         },
         body: JSON.stringify({
           action: 'test',
@@ -333,16 +364,26 @@ export function Integrations() {
         }),
       });
 
-      const result = await response.json();
+      const result = await parseFunctionJson(response);
 
       if (result.success) {
         setTestGraphResult({ success: true, message: 'Verbinding succesvol! Test e-mail verzonden.' });
         if (settings) {
-          await supabase
+          const { data } = await supabase
             .from('company_settings')
-            .update({ graph_connected: true, updated_at: new Date().toISOString() })
-            .eq('id', settings.id);
-          const updated = { ...settings, graph_connected: true };
+            .update({
+              graph_tenant_id: graphTenantId,
+              graph_client_id: graphClientId,
+              graph_client_secret: graphClientSecret,
+              graph_from_email: graphFromEmail,
+              graph_from_name: graphFromName,
+              graph_connected: true,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', settings.id)
+            .select()
+            .single();
+          const updated = data || { ...settings, graph_connected: true };
           setSettings(updated);
           dispatchEmailChange(updated);
         }
@@ -368,6 +409,9 @@ export function Integrations() {
   const handleSaveResend = async () => {
     if (!settings) return;
     setSavingResend(true);
+    const credentialsChanged =
+      resendApiKey !== (settings.resend_api_key ?? '') ||
+      resendFromEmail !== (settings.resend_from_email ?? '');
     const { data, error } = await supabase
       .from('company_settings')
       .update({
@@ -375,6 +419,7 @@ export function Integrations() {
         resend_api_key: resendApiKey,
         resend_from_email: resendFromEmail,
         resend_from_name: resendFromName,
+        ...(credentialsChanged ? { resend_connected: false } : {}),
         updated_at: new Date().toISOString(),
       })
       .eq('id', settings.id)
@@ -394,14 +439,11 @@ export function Integrations() {
     setTestResendResult(null);
 
     try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://qlvndvpxhqmjljjpehkn.supabase.co';
-      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFsdm5kdnB4aHFtamxqanBlaGtuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA5MjI1MzQsImV4cCI6MjA3NjQ5ODUzNH0.q1Kel_GCQqUx2J5Nd9WFOVz7okodFPcoAJkKL6YVkUk';
-
-      const response = await fetch(`${supabaseUrl}/functions/v1/resend-send`, {
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/resend-send`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabaseAnonKey}`,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
         },
         body: JSON.stringify({
           action: 'test',
@@ -414,16 +456,24 @@ export function Integrations() {
         }),
       });
 
-      const result = await response.json();
+      const result = await parseFunctionJson(response);
 
       if (result.success) {
         setTestResendResult({ success: true, message: 'Verbinding succesvol! Test e-mail verzonden.' });
         if (settings) {
-          await supabase
+          const { data } = await supabase
             .from('company_settings')
-            .update({ resend_connected: true, updated_at: new Date().toISOString() })
-            .eq('id', settings.id);
-          const updated = { ...settings, resend_connected: true };
+            .update({
+              resend_api_key: resendApiKey,
+              resend_from_email: resendFromEmail,
+              resend_from_name: resendFromName,
+              resend_connected: true,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', settings.id)
+            .select()
+            .single();
+          const updated = data || { ...settings, resend_connected: true };
           setSettings(updated);
           dispatchEmailChange(updated);
         }
@@ -468,36 +518,57 @@ export function Integrations() {
   };
 
   const handleTestOnedrive = async () => {
-    if (!graphTenantId || !graphClientId || !graphClientSecret || !onedriveUserEmail) return;
+    const tenantId = graphTenantId || settings?.graph_tenant_id || '';
+    const clientId = graphClientId || settings?.graph_client_id || '';
+    const clientSecret = graphClientSecret || settings?.graph_client_secret || '';
+    if (!tenantId || !clientId || !clientSecret || !onedriveUserEmail) return;
     setTestOnedriveLoading(true);
     setTestOnedriveResult(null);
 
     try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-      const response = await fetch(`${supabaseUrl}/functions/v1/onedrive-upload`, {
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/onedrive-upload`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabaseAnonKey}`,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
         },
         body: JSON.stringify({
           action: 'test',
           graph: {
-            tenant_id: graphTenantId,
-            client_id: graphClientId,
-            client_secret: graphClientSecret,
+            tenant_id: tenantId,
+            client_id: clientId,
+            client_secret: clientSecret,
           },
           user_email: onedriveUserEmail,
           folder_path: onedriveFolderPath || 'Facturen',
         }),
       });
 
-      const result = await response.json();
+      const result = await parseFunctionJson(response);
 
       if (result.success) {
-        setTestOnedriveResult({ success: true, message: `Verbinding succesvol! Map gevonden/aangemaakt.` });
+        setTestOnedriveResult({ success: true, message: 'Verbinding succesvol! Map gevonden/aangemaakt.' });
+        if (settings) {
+          const { data } = await supabase
+            .from('company_settings')
+            .update({
+              graph_tenant_id: tenantId,
+              graph_client_id: clientId,
+              graph_client_secret: clientSecret,
+              onedrive_folder_path: onedriveFolderPath || 'Facturen',
+              onedrive_user_email: onedriveUserEmail,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', settings.id)
+            .select()
+            .single();
+          if (data) {
+            setSettings(data);
+            setGraphTenantId(data.graph_tenant_id ?? tenantId);
+            setGraphClientId(data.graph_client_id ?? clientId);
+            setGraphClientSecret(data.graph_client_secret ?? clientSecret);
+          }
+        }
       } else {
         setTestOnedriveResult({ success: false, message: result.error || 'Verbinding mislukt.' });
       }
@@ -566,6 +637,12 @@ export function Integrations() {
       onedriveFolderPath !== (settings.onedrive_folder_path ?? 'Facturen') ||
       onedriveUserEmail !== (settings.onedrive_user_email ?? '')
     : false;
+
+  const graphReady = Boolean(
+    (graphTenantId || settings?.graph_tenant_id) &&
+    (graphClientId || settings?.graph_client_id) &&
+    (graphClientSecret || settings?.graph_client_secret)
+  );
 
   if (loading) {
     return (
@@ -1385,6 +1462,9 @@ export function Integrations() {
                   <li>Voeg <span className="font-mono text-gray-300">Files.ReadWrite.All</span> (Application) permissie toe</li>
                   <li>Klik op <span className="font-mono text-gray-300">Grant admin consent</span> om de permissie te activeren</li>
                 </ol>
+                <p className="text-xs text-gray-400 pt-1">
+                  OneDrive gebruikt dezelfde Microsoft Graph-gegevens als hierboven. Een geslaagde test slaat die Graph-gegevens ook op, zodat factuuruploads dezelfde inloggegevens gebruiken.
+                </p>
               </div>
 
               <div>
@@ -1422,7 +1502,7 @@ export function Integrations() {
                   <button
                     type="button"
                     onClick={handleTestOnedrive}
-                    disabled={testOnedriveLoading || !graphTenantId || !graphClientId || !graphClientSecret || !onedriveUserEmail}
+                    disabled={testOnedriveLoading || !graphReady || !onedriveUserEmail}
                     className="flex items-center gap-2 bg-dark-800 text-gray-200 px-4 py-2 rounded-lg hover:bg-dark-700 transition-colors border border-dark-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                   >
                     {testOnedriveLoading ? (

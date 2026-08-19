@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, type CompanySettings } from '../lib/supabase';
-import { isEmailConfigured } from '../utils/emailSender';
+import { isEmailConfigured, getActiveEmailMethodLabel } from '../utils/emailSender';
 import { EmailCompose } from './EmailCompose';
 import { EmailSentItems } from './EmailSentItems';
 import { Mail, Send, Inbox, Loader2, ExternalLink, AlertTriangle, ArrowRight, CheckCircle2, User, Paperclip, Search, Clock } from 'lucide-react';
@@ -13,10 +13,12 @@ type Props = {
 };
 
 function getEnabledMethod(settings: CompanySettings): string | null {
-  if (settings.smtp_enabled) return 'SMTP';
-  if (settings.graph_enabled) return 'Microsoft Graph';
-  if (settings.resend_enabled) return 'Resend';
-  return null;
+  return getActiveEmailMethodLabel(settings) || (
+    settings.smtp_enabled ? 'SMTP' :
+    settings.graph_enabled ? 'Microsoft Graph' :
+    settings.resend_enabled ? 'Resend' :
+    null
+  );
 }
 
 function SetupPreview({ settings, onNavigateToIntegrations }: { settings: CompanySettings; onNavigateToIntegrations?: () => void }) {

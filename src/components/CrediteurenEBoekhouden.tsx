@@ -5,6 +5,7 @@ import {
   Square, CheckSquare, AlertTriangle, Link2, Receipt, ShoppingCart
 } from 'lucide-react';
 import { resyncCreditNoteToEBoekhouden, resyncPurchaseInvoiceToEBoekhouden } from '../lib/eboekhoudenSync';
+import { isEBoekhoudenActive } from '../utils/integrationHelpers';
 
 type SyncedRecord = {
   id: string;
@@ -114,7 +115,7 @@ export function CrediteurenEBoekhouden() {
   };
 
   const handleResync = async (record: SyncedRecord) => {
-    if (!companySettings?.eboekhouden_api_token) return;
+    if (!isEBoekhoudenActive(companySettings)) return;
 
     const confirmed = confirm(
       `Weet je zeker dat je "${record.number}" opnieuw wilt synchroniseren?\n\nDit vervangt de bestaande record in e-Boekhouden.`
@@ -152,7 +153,7 @@ export function CrediteurenEBoekhouden() {
   };
 
   const handleBulkResync = async () => {
-    if (!companySettings?.eboekhouden_api_token || selectedIds.size === 0) return;
+    if (!isEBoekhoudenActive(companySettings) || selectedIds.size === 0) return;
     const confirmed = confirm(`Weet je zeker dat je ${selectedIds.size} record(s) opnieuw wilt synchroniseren?`);
     if (!confirmed) return;
 
@@ -210,7 +211,7 @@ export function CrediteurenEBoekhouden() {
     return `${dt.toLocaleDateString('nl-NL')} ${dt.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}`;
   };
 
-  if (!companySettings?.eboekhouden_connected) {
+  if (!isEBoekhoudenActive(companySettings)) {
     return (
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="text-center">
