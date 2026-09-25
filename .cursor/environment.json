@@ -1,0 +1,17 @@
+{
+  "name": "FactuurTool (HAL5 Facturatie)",
+  "user": "ubuntu",
+  "install": "bash .cursor/install.sh",
+  "terminals": [
+    {
+      "name": "vite-dev",
+      "command": "npm run dev"
+    }
+  ],
+  "ports": [
+    {
+      "name": "vite-dev-server",
+      "port": 5173
+    }
+  ]
+}
