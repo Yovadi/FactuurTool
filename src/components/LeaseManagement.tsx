@@ -27,7 +27,7 @@ export function LeaseManagement() {
     end_date: '',
     security_deposit: '',
     vat_rate: '21',
-    vat_inclusive: true,
+    vat_inclusive: false,
     status: 'active' as 'active' | 'expired' | 'terminated',
   });
 
@@ -487,7 +487,7 @@ export function LeaseManagement() {
       end_date: '',
       security_deposit: '',
       vat_rate: '21',
-      vat_inclusive: true,
+      vat_inclusive: false,
       status: 'active',
     });
     setSelectedSpaces([]);
@@ -585,7 +585,6 @@ export function LeaseManagement() {
                       ...formData,
                       tenant_id: e.target.value,
                       vat_rate: tenant ? String(tenant.vat_rate ?? 21) : formData.vat_rate,
-                      vat_inclusive: true,
                     });
                   }}
                   className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
@@ -794,7 +793,7 @@ export function LeaseManagement() {
                   className="w-4 h-4 text-gold-500 border-dark-600 rounded focus:ring-2 focus:ring-gold-500"
                 />
                 <label htmlFor="vat_inclusive" className="text-sm font-medium text-gray-200">
-                  Huurprijs is inclusief btw (het ingevulde bedrag is wat de klant betaalt)
+                  BTW Inclusief (prijzen zijn inclusief BTW)
                 </label>
               </div>
 

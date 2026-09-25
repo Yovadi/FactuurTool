@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { amountWithEmbeddedVat } from '../utils/zeroVatPrice';
 import { ChevronLeft, ChevronRight, X, CheckCircle, XCircle, Info, Repeat } from 'lucide-react';
 import { RecurringBookingModal } from './RecurringBookingModal';
 
@@ -578,7 +579,9 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
       }
     }
     const discountAmount = (totalAmount * discountPercentage) / 100;
-    const finalAmount = totalAmount - discountAmount;
+    const exclusiveAmount = totalAmount - discountAmount;
+    const finalAmount = amountWithEmbeddedVat(exclusiveAmount, insertVatRate);
+    const billedRate = amountWithEmbeddedVat(appliedRate, insertVatRate);
 
     const insertData: any = {
       space_id: selectedRoomForBooking.id,
@@ -586,13 +589,13 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
       booking_date: selectedCells[0].date,
       start_time: startTime,
       end_time: endTime,
-      hourly_rate: selectedRoomForBooking.hourly_rate || 25,
+      hourly_rate: billedRate,
       total_hours: totalHours,
       total_amount: finalAmount,
       discount_percentage: discountPercentage,
       discount_amount: discountAmount,
       rate_type: rateType,
-      applied_rate: appliedRate,
+      applied_rate: billedRate,
       vat_rate: insertVatRate,
       status: 'pending'
     };
@@ -1595,15 +1598,19 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
 
                 let previewAmount = 0;
                 let rateLabel = '';
+                const selectedCustomerVat = formBookingType === 'tenant'
+                  ? (tenants.find(t => t.id === (loggedInTenantId || formData.tenant_id))?.vat_rate ?? 21)
+                  : (externalCustomers.find(c => c.id === formData.external_customer_id)?.vat_rate ?? 21);
+
                 if (rateType === 'hourly') {
-                  const rate = selectedRoomForCalc?.hourly_rate || 25;
+                  const rate = amountWithEmbeddedVat(selectedRoomForCalc?.hourly_rate || 25, selectedCustomerVat);
                   previewAmount = totalHours * rate;
-                  rateLabel = `€${rate.toFixed(2)}/uur`;
+                  rateLabel = `€${rate.toFixed(2)}/uur${selectedCustomerVat === 0 ? ', btw verwerkt' : ''}`;
                 } else if (rateType === 'half_day') {
-                  previewAmount = selectedRoomForCalc?.half_day_rate || 50;
+                  previewAmount = amountWithEmbeddedVat(selectedRoomForCalc?.half_day_rate || 50, selectedCustomerVat);
                   rateLabel = 'Dagdeel tarief';
                 } else if (rateType === 'full_day') {
-                  previewAmount = selectedRoomForCalc?.full_day_rate || 90;
+                  previewAmount = amountWithEmbeddedVat(selectedRoomForCalc?.full_day_rate || 90, selectedCustomerVat);
                   rateLabel = 'Hele dag tarief';
                 }
 

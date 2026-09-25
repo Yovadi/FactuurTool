@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { amountWithEmbeddedVat } from './zeroVatPrice';
 import { checkInvoicePaymentStatuses, checkPurchaseInvoicePaymentStatuses, verifyInvoiceSyncStatus, verifyRelationsInEBoekhouden } from '../lib/eboekhoudenSync';
 import { createLeaseNotification } from './notificationHelper';
 import { sendInvoiceReminderEmails } from './invoiceReminders';
@@ -461,9 +462,11 @@ const generateMonthlyInvoices = async (job: ScheduledJob) => {
 
       const { data: invoiceNumber } = await supabase.rpc('generate_invoice_number');
 
-      let baseAmount = Math.round(lease.lease_spaces.reduce((sum: number, ls: any) => sum + ls.monthly_rent, 0) * 100) / 100;
+      const embedVatInRent = Number(lease.vat_rate) === 0 && !lease.vat_inclusive;
+      let rentAmount = Math.round(lease.lease_spaces.reduce((sum: number, ls: any) => sum + Number(ls.monthly_rent), 0) * 100) / 100;
+      if (embedVatInRent) rentAmount = amountWithEmbeddedVat(rentAmount, 0);
 
-      baseAmount = Math.round((baseAmount + (lease.security_deposit || 0)) * 100) / 100;
+      const baseAmount = Math.round((rentAmount + (lease.security_deposit || 0)) * 100) / 100;
 
       const { subtotal, vatAmount, total } = calculateVAT(baseAmount, lease.vat_rate, lease.vat_inclusive);
 
@@ -504,14 +507,15 @@ const generateMonthlyInvoices = async (job: ScheduledJob) => {
         }
 
         const sqm = ls.space.square_footage || 1;
-        const pricePerSqm = sqm > 0 ? Math.round((ls.monthly_rent / sqm) * 100) / 100 : ls.monthly_rent;
+        const rentLine = embedVatInRent ? amountWithEmbeddedVat(Number(ls.monthly_rent), 0) : Number(ls.monthly_rent);
+        const pricePerSqm = sqm > 0 ? Math.round((rentLine / sqm) * 100) / 100 : rentLine;
 
         lineItemsToInsert.push({
           invoice_id: newInvoice.id,
           description: displayName,
           quantity: sqm,
           unit_price: pricePerSqm,
-          amount: ls.monthly_rent,
+          amount: rentLine,
           local_category: getLocalCategory(spaceType)
         });
       }

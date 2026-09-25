@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, Repeat, AlertCircle } from 'lucide-react';
 import { supabase, type Tenant } from '../lib/supabase';
+import { amountWithEmbeddedVat } from '../utils/zeroVatPrice';
 
 type ExternalCustomerOption = {
   id: string;
@@ -186,7 +187,9 @@ export function RecurringBookingModal({
     }
 
     const discountAmount = (subtotal * discountPercentage) / 100;
-    const totalAmount = subtotal - discountAmount;
+    const exclusiveAmount = subtotal - discountAmount;
+    const totalAmount = amountWithEmbeddedVat(exclusiveAmount, customerVatRate);
+    const billedRate = amountWithEmbeddedVat(appliedRate, customerVatRate);
 
     // Collect all candidate dates
     let currentDate = new Date(startDate);
@@ -245,13 +248,13 @@ export function RecurringBookingModal({
         booking_date: date,
         start_time: pattern.start_time,
         end_time: pattern.end_time,
-        hourly_rate: (space as any).hourly_rate || 25,
+        hourly_rate: billedRate,
         total_hours: totalHours,
         total_amount: totalAmount,
         discount_percentage: discountPercentage,
         discount_amount: discountAmount,
         rate_type: rateType,
-        applied_rate: appliedRate,
+        applied_rate: billedRate,
         vat_rate: customerVatRate,
         status: 'pending',
         notes: pattern.notes || '',

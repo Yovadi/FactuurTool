@@ -563,7 +563,7 @@ export function TenantManagement() {
                   className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-100"
                 />
                 <p className="text-xs text-gray-400 mt-1">
-                  Zet op 0 als deze klant geen btw betaalt. Huur- en uurprijzen zijn inclusief btw, dus het factuurbedrag blijft de afgesproken prijs.
+                  Normaal blijft het tarief exclusief en komt 21% btw op de factuur. Bij 0% wordt die btw in de prijs verwerkt: €15 per uur wordt €18,15, zonder btw-regel.
                 </p>
               </div>
               <div className="flex gap-4 justify-end pt-4">

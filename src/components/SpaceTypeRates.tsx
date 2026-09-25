@@ -39,7 +39,7 @@ export function SpaceTypeRates() {
     daily_rate: '',
     daily_rate_furnished: '',
     is_annual: false,
-    vat_inclusive: true,
+    vat_inclusive: false,
     description: '',
     description_furnished: ''
   });
@@ -174,7 +174,7 @@ export function SpaceTypeRates() {
       daily_rate: '',
       daily_rate_furnished: '',
       is_annual: false,
-      vat_inclusive: true,
+      vat_inclusive: false,
       description: '',
       description_furnished: ''
     });
@@ -590,8 +590,8 @@ export function SpaceTypeRates() {
                     </label>
                     <p className="text-xs text-gray-500 mt-1 ml-7">
                       {formData.vat_inclusive
-                        ? 'Het ingevulde tarief is wat de klant betaalt. Bij 21% wordt de btw eruit gerekend. Bij 0% blijft dit bedrag het factuurtotaal.'
-                        : 'BTW wordt opgeteld bij het subtotaal (excl. BTW)'}
+                        ? 'BTW wordt berekend uit het totaalbedrag (incl. BTW)'
+                        : 'BTW wordt opgeteld bij het subtotaal (excl. BTW). Een klant met 0% btw krijgt dit bedrag plus 21% als prijs, zonder btw-regel.'}
                     </p>
                   </div>
                   <p className="text-xs text-gray-400">

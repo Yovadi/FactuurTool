@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { amountWithEmbeddedVat } from '../utils/zeroVatPrice';
 import { Calendar, Clock, Plus, X, Check, AlertCircle, Trash2, CalendarDays, CheckCircle, XCircle, Info, RotateCcw, Filter, RefreshCw, Link2, Download, Pencil, Search } from 'lucide-react';
 import { BookingCalendar } from './BookingCalendar';
 import { InlineDatePicker } from './InlineDatePicker';
@@ -472,7 +473,9 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       console.log('Customer discount percentage:', discountPercentage, 'from data:', customerData);
     }
     const discountAmount = (totalAmount * discountPercentage) / 100;
-    const finalAmount = totalAmount - discountAmount;
+    const exclusiveAmount = totalAmount - discountAmount;
+    const finalAmount = amountWithEmbeddedVat(exclusiveAmount, bookingVatRate);
+    const billedRate = amountWithEmbeddedVat(appliedRate, bookingVatRate);
     console.log('Booking calculation - Total:', totalAmount, 'Discount%:', discountPercentage, 'Discount amount:', discountAmount, 'Final:', finalAmount);
 
     const bookingData: any = {
@@ -480,13 +483,13 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       booking_date: formData.booking_date,
       start_time: formData.start_time,
       end_time: formData.end_time,
-      hourly_rate: meetingRoomRates.hourly_rate || formData.hourly_rate,
+      hourly_rate: billedRate,
       total_hours: totalHours,
       total_amount: finalAmount,
       discount_percentage: discountPercentage,
       discount_amount: discountAmount,
       rate_type: rateType,
-      applied_rate: appliedRate,
+      applied_rate: billedRate,
       vat_rate: bookingVatRate,
       notes: formData.notes,
       booking_type: bookingType
