@@ -31,6 +31,18 @@ type ExternalCustomer = {
   updated_at?: string;
 };
 
+function ZeroVatBadge({ vatRate }: { vatRate?: number | null }) {
+  if (Number(vatRate) !== 0) return null;
+  return (
+    <span
+      className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide bg-amber-500/20 text-amber-300 border border-amber-500/40 whitespace-nowrap"
+      title="Facturen zonder btw. De btw zit in de uur- en huurprijs."
+    >
+      0% btw
+    </span>
+  );
+}
+
 export function TenantManagement() {
   const [activeTab, setActiveTab] = useState<'fulltime' | 'external' | 'inactive'>('fulltime');
   const [tenants, setTenants] = useState<TenantWithLeases[]>([]);
@@ -629,6 +641,7 @@ export function TenantManagement() {
                             </span>
                           </div>
                           <span className="text-gray-100 font-medium">{tenant.company_name}</span>
+                          <ZeroVatBadge vatRate={tenant.vat_rate} />
                         </div>
                       </td>
                       <td className="px-4 py-3 text-gray-300 text-sm">{tenant.name || '-'}</td>
@@ -757,6 +770,7 @@ export function TenantManagement() {
                           <span className="text-gray-100 font-medium truncate">
                             {customer.company_name}
                           </span>
+                          <ZeroVatBadge vatRate={customer.vat_rate} />
                         </div>
                       </td>
                       <td className="px-4 py-3">
@@ -897,6 +911,7 @@ export function TenantManagement() {
                             </span>
                           </div>
                           <span className="text-gray-300 font-medium">{tenant.company_name}</span>
+                          <ZeroVatBadge vatRate={tenant.vat_rate} />
                         </div>
                       </td>
                       <td className="px-4 py-3 text-gray-400 text-sm">{tenant.name || '-'}</td>
@@ -999,6 +1014,7 @@ export function TenantManagement() {
                           </span>
                         </div>
                         <span className="text-gray-100 font-medium">{customer.company_name}</span>
+                        <ZeroVatBadge vatRate={customer.vat_rate} />
                       </div>
                     </td>
                     <td className="px-4 py-3 text-gray-300 text-sm">{customer.contact_name}</td>
