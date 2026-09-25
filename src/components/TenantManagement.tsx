@@ -31,15 +31,18 @@ type ExternalCustomer = {
   updated_at?: string;
 };
 
-function ZeroVatBadge({ vatRate }: { vatRate?: number | null }) {
-  if (Number(vatRate) !== 0) return null;
+function VatRateCell({ vatRate }: { vatRate?: number | null }) {
+  const rate = vatRate ?? 21;
+  const zero = Number(rate) === 0;
   return (
-    <span
-      className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide bg-amber-500/20 text-amber-300 border border-amber-500/40 whitespace-nowrap"
-      title="Facturen zonder btw. De btw zit in de uur- en huurprijs."
-    >
-      0% btw
-    </span>
+    <td className="px-4 py-3 text-center">
+      <span
+        className={`font-bold text-sm ${zero ? 'text-amber-300' : 'text-gray-200'}`}
+        title={zero ? 'Facturen zonder btw. De btw zit in de uur- en huurprijs.' : undefined}
+      >
+        {rate}%
+      </span>
+    </td>
   );
 }
 
@@ -616,15 +619,16 @@ export function TenantManagement() {
             <table className="w-full table-fixed">
               <thead>
                 <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
-                  <th className="text-left px-4 py-3 font-semibold w-[15%]">Bedrijf</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[14%]">Bedrijf</th>
                   <th className="text-left px-4 py-3 font-semibold w-[11%]">Contactpersoon</th>
-                  <th className="text-left px-4 py-3 font-semibold w-[13%]">Email</th>
-                  <th className="text-left px-4 py-3 font-semibold w-[9%]">Telefoon</th>
-                  <th className="text-left px-4 py-3 font-semibold w-[13%]">Adres</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[12%]">Email</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[8%]">Telefoon</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[12%]">Adres</th>
                   <th className="text-center px-4 py-3 font-semibold w-[6%]">PIN</th>
                   <th className="text-center px-4 py-3 font-semibold w-[8%]">Verhuur %</th>
-                  <th className="text-center px-4 py-3 font-semibold w-[9%]">Vergader %</th>
-                  <th className="text-right px-4 py-3 font-semibold w-[16%]">Acties</th>
+                  <th className="text-center px-4 py-3 font-semibold w-[8%]">Vergader %</th>
+                  <th className="text-center px-4 py-3 font-semibold w-[7%]">BTW %</th>
+                  <th className="text-right px-4 py-3 font-semibold w-[14%]">Acties</th>
                 </tr>
               </thead>
               <tbody>
@@ -641,7 +645,6 @@ export function TenantManagement() {
                             </span>
                           </div>
                           <span className="text-gray-100 font-medium">{tenant.company_name}</span>
-                          <ZeroVatBadge vatRate={tenant.vat_rate} />
                         </div>
                       </td>
                       <td className="px-4 py-3 text-gray-300 text-sm">{tenant.name || '-'}</td>
@@ -693,6 +696,7 @@ export function TenantManagement() {
                           {tenant.meeting_discount_percentage || 0}%
                         </span>
                       </td>
+                      <VatRateCell vatRate={tenant.vat_rate} />
                       <td className="px-4 py-3">
                         <div className="flex gap-1 justify-end">
                           <button
@@ -743,15 +747,16 @@ export function TenantManagement() {
             <table className="w-full table-fixed">
               <thead>
                 <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
-                  <th className="text-left px-4 py-3 font-semibold w-[15%]">Bedrijf</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[14%]">Bedrijf</th>
                   <th className="text-left px-4 py-3 font-semibold w-[11%]">Contactpersoon</th>
-                  <th className="text-left px-4 py-3 font-semibold w-[13%]">Email</th>
-                  <th className="text-left px-4 py-3 font-semibold w-[9%]">Telefoon</th>
-                  <th className="text-left px-4 py-3 font-semibold w-[13%]">Adres</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[12%]">Email</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[8%]">Telefoon</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[12%]">Adres</th>
                   <th className="text-center px-4 py-3 font-semibold w-[6%]">PIN</th>
                   <th className="text-center px-4 py-3 font-semibold w-[8%]">Verhuur %</th>
-                  <th className="text-center px-4 py-3 font-semibold w-[9%]">Vergader %</th>
-                  <th className="text-right px-4 py-3 font-semibold w-[16%]">Acties</th>
+                  <th className="text-center px-4 py-3 font-semibold w-[8%]">Vergader %</th>
+                  <th className="text-center px-4 py-3 font-semibold w-[7%]">BTW %</th>
+                  <th className="text-right px-4 py-3 font-semibold w-[14%]">Acties</th>
                 </tr>
               </thead>
               <tbody>
@@ -770,7 +775,6 @@ export function TenantManagement() {
                           <span className="text-gray-100 font-medium truncate">
                             {customer.company_name}
                           </span>
-                          <ZeroVatBadge vatRate={customer.vat_rate} />
                         </div>
                       </td>
                       <td className="px-4 py-3">
@@ -834,6 +838,7 @@ export function TenantManagement() {
                           {customer.meeting_discount_percentage || 0}%
                         </span>
                       </td>
+                      <VatRateCell vatRate={customer.vat_rate} />
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
                           <button
@@ -888,13 +893,14 @@ export function TenantManagement() {
             <table className="w-full table-fixed">
               <thead>
                 <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
-                  <th className="text-left px-4 py-3 font-semibold w-[20%]">Bedrijf</th>
-                  <th className="text-left px-4 py-3 font-semibold w-[15%]">Contactpersoon</th>
-                  <th className="text-left px-4 py-3 font-semibold w-[18%]">Email</th>
-                  <th className="text-left px-4 py-3 font-semibold w-[12%]">Telefoon</th>
-                  <th className="text-left px-4 py-3 font-semibold w-[18%]">Adres</th>
-                  <th className="text-center px-4 py-3 font-semibold w-[8%]">PIN</th>
-                  <th className="text-right px-4 py-3 font-semibold w-[9%]">Acties</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[18%]">Bedrijf</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[14%]">Contactpersoon</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[16%]">Email</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[11%]">Telefoon</th>
+                  <th className="text-left px-4 py-3 font-semibold w-[16%]">Adres</th>
+                  <th className="text-center px-4 py-3 font-semibold w-[7%]">PIN</th>
+                  <th className="text-center px-4 py-3 font-semibold w-[8%]">BTW %</th>
+                  <th className="text-right px-4 py-3 font-semibold w-[10%]">Acties</th>
                 </tr>
               </thead>
               <tbody>
@@ -911,7 +917,6 @@ export function TenantManagement() {
                             </span>
                           </div>
                           <span className="text-gray-300 font-medium">{tenant.company_name}</span>
-                          <ZeroVatBadge vatRate={tenant.vat_rate} />
                         </div>
                       </td>
                       <td className="px-4 py-3 text-gray-400 text-sm">{tenant.name || '-'}</td>
@@ -948,6 +953,7 @@ export function TenantManagement() {
                       <td className="px-4 py-3 text-center">
                         <span className="text-gray-500">-</span>
                       </td>
+                      <VatRateCell vatRate={tenant.vat_rate} />
                       <td className="px-4 py-3">
                         <div className="flex gap-1 justify-end">
                           <button
@@ -1014,7 +1020,6 @@ export function TenantManagement() {
                           </span>
                         </div>
                         <span className="text-gray-100 font-medium">{customer.company_name}</span>
-                        <ZeroVatBadge vatRate={customer.vat_rate} />
                       </div>
                     </td>
                     <td className="px-4 py-3 text-gray-300 text-sm">{customer.contact_name}</td>
