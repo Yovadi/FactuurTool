@@ -3,7 +3,7 @@ import { supabase, type Lease, type Tenant, type OfficeSpace, type LeaseSpace, t
 import { Plus, CreditCard as Edit2, Trash2, Calendar, Euro, X, CheckCircle, XCircle, AlertCircle, FileText } from 'lucide-react';
 import { LeaseContractPreview } from './LeaseContractPreview';
 import type { LeaseContractData } from '../utils/leaseContractPdf';
-import { billedRentAmount } from '../utils/zeroVatPrice';
+import { billedRentAmount, monthlyRentFromRate } from '../utils/zeroVatPrice';
 import { SkeletonTable } from './SkeletonLoader';
 import { Pagination } from './Pagination';
 
@@ -466,14 +466,14 @@ export function LeaseManagement() {
       start_date: lease.start_date,
       end_date: lease.end_date,
       vat_rate: lease.vat_rate,
-      vat_inclusive: lease.vat_inclusive,
+      vat_inclusive: Number(lease.vat_rate) === 0 ? false : lease.vat_inclusive,
       security_deposit: lease.security_deposit,
       spaces: lease.lease_spaces.map((ls) => ({
         space_number: ls.space.space_number,
         space_type: ls.space.space_type,
         square_footage: ls.space.square_footage,
-        price_per_sqm: ls.price_per_sqm,
-        monthly_rent: ls.monthly_rent,
+        price_per_sqm: exclusiveRate(ls),
+        monthly_rent: exclusiveMonthly(ls),
       })),
       company,
     };
@@ -509,8 +509,19 @@ export function LeaseManagement() {
     }
   };
 
+  const exclusiveRate = (ls: LeaseWithDetails['lease_spaces'][number]) => {
+    const live = Number(ls.space.rate_per_sqm);
+    return live > 0 ? live : Number(ls.price_per_sqm) || 0;
+  };
+
+  const exclusiveMonthly = (ls: LeaseWithDetails['lease_spaces'][number]) => {
+    const rate = exclusiveRate(ls);
+    if (!(rate > 0)) return Number(ls.monthly_rent) || 0;
+    return monthlyRentFromRate(ls.space.space_type, ls.space.square_footage, rate);
+  };
+
   const calculateLeaseTotal = (lease: LeaseWithDetails) => {
-    return lease.lease_spaces.reduce((sum, ls) => sum + billedRentAmount(ls.monthly_rent, lease.vat_rate, lease.vat_inclusive), 0);
+    return lease.lease_spaces.reduce((sum, ls) => sum + billedRentAmount(exclusiveMonthly(ls), lease.vat_rate, false), 0);
   };
 
   const { activeLeases, expiredLeases, regularLeases } = useMemo(() => {
@@ -886,7 +897,7 @@ export function LeaseManagement() {
                             {lease.lease_spaces.map((ls) => (
                               <div key={ls.id} className="text-xs text-gray-300 flex items-center gap-2">
                                 <span className="font-medium">{ls.space.space_number}</span>
-                                <span className="text-gray-400">({ls.space.square_footage} m² × €{ls.price_per_sqm}/m²)</span>
+                                <span className="text-gray-400">({ls.space.square_footage} m² × €{billedRentAmount(exclusiveRate(ls), lease.vat_rate, false).toFixed(2)}/m²)</span>
                               </div>
                             ))}
                             {lease.security_deposit > 0 && (

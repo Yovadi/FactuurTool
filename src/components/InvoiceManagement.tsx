@@ -15,7 +15,7 @@ import { buildUblInvoiceXml, downloadUblXml } from '../utils/ublInvoice';
 import { sendInvoiceReminderEmails } from '../utils/invoiceReminders';
 import { getLocalRootFolderPath } from '../utils/localSettings';
 import { syncInvoicePDFs, buildInvoiceFolderPath } from '../utils/invoicePdfSync';
-import { billableBeforeDiscount, billableUnitPrice, billedRentAmount, summarizeMeetingInvoice } from '../utils/zeroVatPrice';
+import { billableBeforeDiscount, billableUnitPrice, billedCatalogRent, summarizeMeetingInvoice } from '../utils/zeroVatPrice';
 
 type LeaseWithDetails = Lease & {
   tenant: Tenant;
@@ -1998,8 +1998,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         const vatRate = typeof lease.vat_rate === 'string' ? parseFloat(lease.vat_rate) : lease.vat_rate;
 
         rentAmount = lease.lease_spaces.reduce((sum, ls) => {
-          const monthlyRent = typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent;
-          return sum + billedRentAmount(monthlyRent, Number(vatRate), lease.vat_inclusive);
+          return sum + billedCatalogRent(ls.space, Number(ls.price_per_sqm), Number(ls.monthly_rent), Number(vatRate)).monthly;
         }, 0);
         const securityDeposit = typeof lease.security_deposit === 'string' ? parseFloat(lease.security_deposit) : lease.security_deposit;
         const discountPercentage = lease.tenant?.lease_discount_percentage
@@ -2096,14 +2095,14 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
           console.log('Final quantity for', displayName, ':', quantity);
 
-          const billedRent = billedRentAmount(monthlyRent, Number(vatRate), lease.vat_inclusive);
-          const billedUnit = quantity > 0 ? Math.round((billedRent / quantity) * 100) / 100 : billedRent;
+          const billed = billedCatalogRent(ls.space, Number(ls.price_per_sqm), Number(ls.monthly_rent), Number(vatRate));
+          const billedRent = billed.monthly;
 
           lineItemsToInsert.push({
             invoice_id: newInvoice.id,
             description: displayName,
             quantity: quantity,
-            unit_price: Number(vatRate) === 0 && !lease.vat_inclusive ? billedUnit : pricePerSqm,
+            unit_price: Number(vatRate) === 0 ? billed.rate : pricePerSqm,
             amount: billedRent,
             local_category: getLocalCategory(spaceType)
           });

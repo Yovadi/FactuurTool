@@ -11,10 +11,31 @@ export function roundMoney(value: number): number {
   return Math.round((Number(value) || 0) * 100) / 100;
 }
 
-/** Exclusive rent becomes the invoice amount when VAT is 0% and the price is not already inclusive. */
+export function monthlyRentFromRate(spaceType: string | undefined, squareFootage: number, ratePerSqm: number): number {
+  const raw = (Number(squareFootage) || 0) * (Number(ratePerSqm) || 0);
+  if (spaceType === 'bedrijfsruimte' || spaceType === 'buitenterrein') return roundMoney(raw / 12);
+  return roundMoney(raw);
+}
 export function billedRentAmount(amount: number, vatRate: number, vatInclusive: boolean): number {
   if (vatInclusive || Number(vatRate) !== 0) return roundMoney(amount);
   return amountWithEmbeddedVat(amount, 0);
+}
+
+export function billedCatalogRent(
+  space: { space_type?: string; square_footage?: number | string | null; rate_per_sqm?: number | string | null } | null | undefined,
+  storedRate: number,
+  storedMonthly: number,
+  vatRate: number,
+): { rate: number; monthly: number } {
+  const live = Number(space?.rate_per_sqm);
+  const rate = live > 0 ? live : Number(storedRate) || 0;
+  const exclusiveMonthly = rate > 0
+    ? monthlyRentFromRate(space?.space_type, Number(space?.square_footage) || 0, rate)
+    : Number(storedMonthly) || 0;
+  return {
+    rate: billedRentAmount(rate, vatRate, false),
+    monthly: billedRentAmount(exclusiveMonthly, vatRate, false),
+  };
 }
 
 function alreadyEmbedded(storedVatRate: number | null | undefined): boolean {
