@@ -15,6 +15,7 @@ import { buildUblInvoiceXml, downloadUblXml } from '../utils/ublInvoice';
 import { sendInvoiceReminderEmails } from '../utils/invoiceReminders';
 import { getLocalRootFolderPath } from '../utils/localSettings';
 import { syncInvoicePDFs, buildInvoiceFolderPath } from '../utils/invoicePdfSync';
+import { amountWithEmbeddedVat, billableBeforeDiscount, billableUnitPrice, summarizeMeetingInvoice } from '../utils/zeroVatPrice';
 
 type LeaseWithDetails = Lease & {
   tenant: Tenant;
@@ -1687,27 +1688,31 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           continue;
         }
 
-        const totalBeforeDiscount = Math.round(bookings.reduce((sum, booking) => {
+        const discountPercentage = customerType === 'tenant'
+          ? (customer as Tenant).meeting_discount_percentage
+          : (customer as ExternalCustomer).meeting_discount_percentage;
+        const customerVat = Number((customer as { vat_rate?: number }).vat_rate ?? bookings[0]?.vat_rate ?? 21);
+        const zeroVatFigures = customerVat === 0
+          ? summarizeMeetingInvoice(bookings, 0, discountPercentage || 0)
+          : null;
+
+        const totalBeforeDiscount = zeroVatFigures?.before ?? Math.round(bookings.reduce((sum, booking) => {
           const beforeDiscount = (booking.total_amount || 0) + (booking.discount_amount || 0);
           return sum + beforeDiscount;
         }, 0) * 100) / 100;
 
-        const totalDiscount = Math.round(bookings.reduce((sum, booking) => {
+        const totalDiscount = zeroVatFigures?.discount ?? Math.round(bookings.reduce((sum, booking) => {
           return sum + (booking.discount_amount || 0);
         }, 0) * 100) / 100;
 
         let additionalDiscount = 0;
-        const discountPercentage = customerType === 'tenant'
-          ? (customer as Tenant).meeting_discount_percentage
-          : (customer as ExternalCustomer).meeting_discount_percentage;
-
-        if (discountPercentage && discountPercentage > 0) {
+        if (!zeroVatFigures && discountPercentage && discountPercentage > 0) {
           additionalDiscount = Math.round((totalBeforeDiscount - totalDiscount) * (discountPercentage / 100) * 100) / 100;
         }
 
-        const baseAmount = totalBeforeDiscount - totalDiscount - additionalDiscount;
+        const baseAmount = zeroVatFigures?.finalAmount ?? (totalBeforeDiscount - totalDiscount - additionalDiscount);
 
-        const vatRate = Number((customer as { vat_rate?: number }).vat_rate ?? bookings[0]?.vat_rate ?? 21);
+        const vatRate = customerVat;
         const { subtotal, vatAmount, total } = calculateVAT(baseAmount, vatRate, false);
 
         const notesLines = ['Vergaderruimte boekingen:'];
@@ -1721,7 +1726,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
             rateDescription = `${Math.round(booking.total_hours)}u`;
           }
 
-          const beforeDiscountAmount = (booking.total_amount || 0) + (booking.discount_amount || 0);
+          const beforeDiscountAmount = billableBeforeDiscount(booking.total_amount || 0, booking.discount_amount || 0, vatRate, booking.vat_rate);
           const startTime = booking.start_time?.substring(0, 5) || '--:--';
           const endTime = booking.end_time?.substring(0, 5) || '--:--';
           const bookingLine = `- ${booking.space?.space_number || 'Vergaderruimte'} - ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${startTime}-${endTime} (${rateDescription}) = €${beforeDiscountAmount.toFixed(2)}`;
@@ -1797,10 +1802,10 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           const endTime = booking.end_time?.substring(0, 5) || '--:--';
           const description = `${booking.space?.space_number || 'Vergaderruimte'} - ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${startTime}-${endTime} (${rateDescription})`;
 
-          const beforeDiscountAmount = (booking.total_amount || 0) + (booking.discount_amount || 0);
+          const beforeDiscountAmount = billableBeforeDiscount(booking.total_amount || 0, booking.discount_amount || 0, vatRate, booking.vat_rate);
           const isFlatRate = booking.rate_type === 'half_day' || booking.rate_type === 'full_day';
           const qty = isFlatRate ? 1 : booking.total_hours;
-          const unitPrice = isFlatRate ? beforeDiscountAmount : (booking.applied_rate || booking.hourly_rate);
+          const unitPrice = isFlatRate ? beforeDiscountAmount : billableUnitPrice(booking.applied_rate || booking.hourly_rate || 0, vatRate, booking.vat_rate);
 
           const items: any[] = [{
             invoice_id: newInvoice.id,
@@ -1812,13 +1817,14 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
             local_category: 'vergaderruimte'
           }];
 
-          if (booking.discount_percentage && booking.discount_percentage > 0 && booking.discount_amount && booking.discount_amount > 0) {
+          const lineDiscount = zeroVatFigures ? 0 : booking.discount_amount;
+          if (!zeroVatFigures && booking.discount_percentage && booking.discount_percentage > 0 && lineDiscount && lineDiscount > 0) {
             items.push({
               invoice_id: newInvoice.id,
               description: `Korting ${booking.discount_percentage}% op ${booking.space?.space_number || 'vergaderruimte'}`,
               quantity: 1,
-              unit_price: -(booking.discount_amount),
-              amount: -(booking.discount_amount),
+              unit_price: -lineDiscount,
+              amount: -lineDiscount,
               booking_id: null,
               local_category: 'vergaderruimte'
             });
@@ -1826,6 +1832,18 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
           return items;
         });
+
+        if (zeroVatFigures && zeroVatFigures.discount > 0) {
+          lineItemsToInsert.push({
+            invoice_id: newInvoice.id,
+            description: `Korting boekingen (${discountPercentage || 0}%)`,
+            quantity: 1,
+            unit_price: -zeroVatFigures.discount,
+            amount: -zeroVatFigures.discount,
+            booking_id: null,
+            local_category: 'vergaderruimte'
+          });
+        }
 
         if (additionalDiscount > 0 && discountPercentage) {
           lineItemsToInsert.push({
@@ -1977,12 +1995,14 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         let rentAmount = 0;
         const lineItemsToInsert = [];
 
+        const vatRate = typeof lease.vat_rate === 'string' ? parseFloat(lease.vat_rate) : lease.vat_rate;
+        const embedRent = Number(vatRate) === 0 && !lease.vat_inclusive;
+        const rentOf = (rent: number) => embedRent ? amountWithEmbeddedVat(rent, 0) : rent;
+
         rentAmount = lease.lease_spaces.reduce((sum, ls) => {
           const monthlyRent = typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent;
-          return sum + monthlyRent;
+          return sum + rentOf(monthlyRent);
         }, 0);
-
-        const vatRate = typeof lease.vat_rate === 'string' ? parseFloat(lease.vat_rate) : lease.vat_rate;
         const securityDeposit = typeof lease.security_deposit === 'string' ? parseFloat(lease.security_deposit) : lease.security_deposit;
         const discountPercentage = lease.tenant?.lease_discount_percentage
           ? (typeof lease.tenant.lease_discount_percentage === 'string'
@@ -2044,7 +2064,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           const squareFootage = typeof ls.space.square_footage === 'string' ? parseFloat(ls.space.square_footage) : ls.space.square_footage;
           const diversenCalc = (ls.space as any).diversen_calculation;
           const pricePerSqm = typeof ls.price_per_sqm === 'string' ? parseFloat(ls.price_per_sqm) : ls.price_per_sqm;
-          const monthlyRent = typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent;
+          const monthlyRent = rentOf(typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent);
 
           console.log('Processing lease space:', {
             spaceName,
@@ -2078,11 +2098,13 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
           console.log('Final quantity for', displayName, ':', quantity);
 
+          const unitPrice = embedRent && quantity > 0 ? Math.round((monthlyRent / quantity) * 100) / 100 : pricePerSqm;
+
           lineItemsToInsert.push({
             invoice_id: newInvoice.id,
             description: displayName,
             quantity: quantity,
-            unit_price: pricePerSqm,
+            unit_price: unitPrice,
             amount: monthlyRent,
             local_category: getLocalCategory(spaceType)
           });
@@ -2281,23 +2303,29 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
             ? (customer as any).meeting_discount_percentage || 0
             : (customer as any).meeting_discount_percentage || 0;
 
-          let totalBeforeDiscount = 0;
-          let totalDiscountAmount = 0;
+          const customerVat = Number((customer as { vat_rate?: number }).vat_rate ?? bookings[0]?.vat_rate ?? 21);
+          const zeroVatFigures = customerVat === 0
+            ? summarizeMeetingInvoice(bookings, 0, customerDiscountPercentage || 0)
+            : null;
 
-          bookings.forEach(booking => {
-            const bookingAmount = booking.total_amount || 0;
-            const bookingDiscount = booking.discount_amount || 0;
-            const beforeDiscount = bookingAmount + bookingDiscount;
-            totalBeforeDiscount += beforeDiscount;
-            totalDiscountAmount += bookingDiscount;
-          });
+          let totalBeforeDiscount = zeroVatFigures?.before ?? 0;
+          let totalDiscountAmount = zeroVatFigures?.discount ?? 0;
 
-          if (customerDiscountPercentage > 0 && totalDiscountAmount === 0) {
-            totalDiscountAmount = Math.round(totalBeforeDiscount * (customerDiscountPercentage / 100) * 100) / 100;
+          if (!zeroVatFigures) {
+            bookings.forEach(booking => {
+              const bookingAmount = booking.total_amount || 0;
+              const bookingDiscount = booking.discount_amount || 0;
+              totalBeforeDiscount += bookingAmount + bookingDiscount;
+              totalDiscountAmount += bookingDiscount;
+            });
+
+            if (customerDiscountPercentage > 0 && totalDiscountAmount === 0) {
+              totalDiscountAmount = Math.round(totalBeforeDiscount * (customerDiscountPercentage / 100) * 100) / 100;
+            }
           }
 
-          const finalAmount = totalBeforeDiscount - totalDiscountAmount;
-          const vatRate = Number((customer as { vat_rate?: number }).vat_rate ?? bookings[0]?.vat_rate ?? 21);
+          const finalAmount = zeroVatFigures?.finalAmount ?? (totalBeforeDiscount - totalDiscountAmount);
+          const vatRate = customerVat;
           const { subtotal, vatAmount, total } = calculateVAT(finalAmount, vatRate, false);
 
           let notesHeader = 'Vergaderruimte boekingen:';
@@ -2314,9 +2342,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
             }
 
             const defaultLabel = 'Vergaderruimte';
-            const bookingAmount = booking.total_amount || 0;
-            const bookingDiscount = booking.discount_amount || 0;
-            const beforeDiscountAmount = bookingAmount + bookingDiscount;
+            const beforeDiscountAmount = billableBeforeDiscount(booking.total_amount || 0, booking.discount_amount || 0, vatRate, booking.vat_rate);
             const startTime = booking.start_time?.substring(0, 5) || '--:--';
             const endTime = booking.end_time?.substring(0, 5) || '--:--';
             const bookingLine = `- ${booking.space?.space_number || defaultLabel} - ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${startTime}-${endTime} (${rateDescription}) = €${beforeDiscountAmount.toFixed(2)}`;
@@ -2356,14 +2382,12 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           }
 
           const lineItems = bookings.map(booking => {
-            const bookingAmount = booking.total_amount || 0;
-            const bookingDiscount = booking.discount_amount || 0;
-            const beforeDiscountAmount = bookingAmount + bookingDiscount;
+            const beforeDiscountAmount = billableBeforeDiscount(booking.total_amount || 0, booking.discount_amount || 0, vatRate, booking.vat_rate);
             const defaultLabel = 'Vergaderruimte';
             const category = 'vergaderruimte';
             const isFlatRate = booking.rate_type === 'half_day' || booking.rate_type === 'full_day';
             const qty = isFlatRate ? 1 : booking.total_hours;
-            const unitPrice = isFlatRate ? beforeDiscountAmount : (booking.applied_rate || booking.hourly_rate);
+            const unitPrice = isFlatRate ? beforeDiscountAmount : billableUnitPrice(booking.applied_rate || booking.hourly_rate || 0, vatRate, booking.vat_rate);
 
             return {
               invoice_id: newInvoice.id,

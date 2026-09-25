@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase, type Tenant, type ExternalCustomer, type Lease, type LeaseSpace, type OfficeSpace } from '../lib/supabase';
 import { Home, Calendar, CheckSquare, Square, Loader2, AlertTriangle, ChevronDown, ChevronRight, ChevronLeft, RefreshCw } from 'lucide-react';
 import { Toast } from './Toast';
+import { amountWithEmbeddedVat, billableBeforeDiscount, billableUnitPrice, summarizeMeetingInvoice } from '../utils/zeroVatPrice';
 
 type LeaseWithDetails = Lease & {
   tenant: Tenant;
@@ -205,9 +206,11 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
       let amount = 0;
       const details: string[] = [];
 
+      const embedRent = Number(lease.vat_rate) === 0 && !lease.vat_inclusive;
+      const rentOf = (rent: number) => embedRent ? amountWithEmbeddedVat(rent, 0) : rent;
       amount = lease.lease_spaces.reduce((sum, ls) => {
         const rent = typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent;
-        return sum + rent;
+        return sum + rentOf(rent);
       }, 0);
       const deposit = typeof lease.security_deposit === 'string' ? parseFloat(lease.security_deposit) : lease.security_deposit;
       amount += deposit;
@@ -219,7 +222,7 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
           if (/^\d+/.test(numOnly)) name = `Hal ${numOnly}`;
         }
         const rent = typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent;
-        details.push(`${name}: ${rent.toFixed(2)}`);
+        details.push(`${name}: ${rentOf(rent).toFixed(2)}`);
       });
       if (deposit > 0) {
         details.push(`Voorschot GWE: ${deposit.toFixed(2)}`);
@@ -254,17 +257,20 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
 
       if (allBookings.length === 0) continue;
 
-      let totalAmount = 0;
+      const figures = summarizeMeetingInvoice(allBookings, customer.vatRate, customer.discountPct);
       const details: string[] = [];
 
       allBookings.forEach((b: any) => {
-        totalAmount += b.total_amount || 0;
         const spaceName = b.space?.space_number || 'Vergaderruimte';
         const date = new Date(b.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit' });
         const start = b.start_time?.substring(0, 5) || '--:--';
         const end = b.end_time?.substring(0, 5) || '--:--';
-        details.push(`${spaceName} - ${date} ${start}-${end}: ${(b.total_amount || 0).toFixed(2)}`);
+        const lineAmount = billableBeforeDiscount(b.total_amount || 0, b.discount_amount || 0, customer.vatRate, b.vat_rate);
+        details.push(`${spaceName} - ${date} ${start}-${end}: ${lineAmount.toFixed(2)}`);
       });
+      if (figures.discount > 0) {
+        details.push(`Korting (${customer.discountPct}%): -${figures.discount.toFixed(2)}`);
+      }
 
       const typeLabel = 'Vergaderruimte';
 
@@ -275,8 +281,8 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
         customerName: customer.name,
         isExternal: customer.isExternal,
         description: `${typeLabel} boekingen (${allBookings.length}x)`,
-        amount: totalAmount,
-        vatRate: customer.vatRate,
+        amount: figures.finalAmount,
+        vatRate: figures.vatRate,
         vatInclusive: false,
         bookings: allBookings,
         details,
@@ -374,8 +380,10 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
           let rentAmount = 0;
           const lineItemsToInsert: any[] = [];
 
+          const embedRent = Number(lease.vat_rate) === 0 && !lease.vat_inclusive;
+          const rentOf = (rent: number) => embedRent ? amountWithEmbeddedVat(rent, 0) : rent;
           rentAmount = lease.lease_spaces.reduce((sum, ls) => {
-            return sum + (typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent);
+            return sum + rentOf(typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent);
           }, 0);
 
           for (const ls of lease.lease_spaces) {
@@ -390,10 +398,11 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
             let quantity = 1;
             if (!isDiversenFixed && sqft && !isNaN(sqft) && sqft > 0) quantity = sqft;
             const pricePerSqm = typeof ls.price_per_sqm === 'string' ? parseFloat(ls.price_per_sqm) : ls.price_per_sqm;
-            const monthlyRent = typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent;
+            const monthlyRent = rentOf(typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent);
+            const unitPrice = quantity > 0 ? Math.round((monthlyRent / quantity) * 100) / 100 : monthlyRent;
 
             lineItemsToInsert.push({
-              description: displayName, quantity, unit_price: pricePerSqm,
+              description: displayName, quantity, unit_price: embedRent ? unitPrice : pricePerSqm,
               amount: monthlyRent, local_category: getLocalCategory(ls.space.space_type)
             });
           }
@@ -449,30 +458,18 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
           if (bookings.length === 0) { failCount++; continue; }
 
           const customerDiscountPct = item.customerDiscountPct || 0;
-          let totalBeforeDiscount = 0;
-          bookings.forEach((b: any) => {
-            const amt = typeof b.total_amount === 'string' ? parseFloat(b.total_amount) : (b.total_amount || 0);
-            const disc = typeof b.discount_amount === 'string' ? parseFloat(b.discount_amount) : (b.discount_amount || 0);
-            totalBeforeDiscount += amt + disc;
-          });
-          const totalDiscountAmount = customerDiscountPct > 0
-            ? Math.round(totalBeforeDiscount * (customerDiscountPct / 100) * 100) / 100
-            : bookings.reduce((sum: number, b: any) => {
-                const disc = typeof b.discount_amount === 'string' ? parseFloat(b.discount_amount) : (b.discount_amount || 0);
-                return sum + disc;
-              }, 0);
-
-          const finalAmount = totalBeforeDiscount - totalDiscountAmount;
-          const vatRate = Number(item.vatRate ?? bookings[0]?.vat_rate ?? 21);
+          const figures = summarizeMeetingInvoice(bookings, Number(item.vatRate ?? 21), customerDiscountPct);
+          const totalBeforeDiscount = figures.before;
+          const totalDiscountAmount = figures.discount;
+          const finalAmount = figures.finalAmount;
+          const vatRate = figures.vatRate;
           const { subtotal, vatAmount, total } = calculateVAT(finalAmount, vatRate, false);
 
           const notesLines = ['Vergaderruimte boekingen:'];
           bookings.forEach((b: any) => {
             const rateDesc = b.rate_type === 'half_day' ? 'dagdeel' : (b.rate_type === 'full_day' ? 'hele dag' : `${Math.round(b.total_hours)}u`);
             const label = 'Vergaderruimte';
-            const totalAmt = typeof b.total_amount === 'string' ? parseFloat(b.total_amount) : (b.total_amount || 0);
-            const discAmt = typeof b.discount_amount === 'string' ? parseFloat(b.discount_amount) : (b.discount_amount || 0);
-            const amt = totalAmt + discAmt;
+            const amt = billableBeforeDiscount(b.total_amount || 0, b.discount_amount || 0, vatRate, b.vat_rate);
             const start = b.start_time?.substring(0, 5) || '--:--';
             const end = b.end_time?.substring(0, 5) || '--:--';
             notesLines.push(`- ${b.space?.space_number || label} - ${new Date(b.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${start}-${end} (${rateDesc}) = \u20AC${amt.toFixed(2)}`);
@@ -497,15 +494,13 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
           if (invErr || !newInvoice) { failCount++; continue; }
 
           const lineItems = bookings.map((b: any) => {
-            const totalAmt = typeof b.total_amount === 'string' ? parseFloat(b.total_amount) : (b.total_amount || 0);
-            const discAmt = typeof b.discount_amount === 'string' ? parseFloat(b.discount_amount) : (b.discount_amount || 0);
             const bHours = typeof b.total_hours === 'string' ? parseFloat(b.total_hours) : (b.total_hours || 0);
             const bAppliedRate = typeof b.applied_rate === 'string' ? parseFloat(b.applied_rate) : (b.applied_rate || 0);
             const bHourlyRate = typeof b.hourly_rate === 'string' ? parseFloat(b.hourly_rate) : (b.hourly_rate || 0);
-            const amt = totalAmt + discAmt;
+            const amt = billableBeforeDiscount(b.total_amount || 0, b.discount_amount || 0, vatRate, b.vat_rate);
             const isFlatRate = b.rate_type === 'half_day' || b.rate_type === 'full_day';
             const quantity = isFlatRate ? 1 : bHours;
-            const unitPrice = isFlatRate ? amt : (bAppliedRate || bHourlyRate);
+            const unitPrice = isFlatRate ? amt : billableUnitPrice(bAppliedRate || bHourlyRate, vatRate, b.vat_rate);
             const label = 'Vergaderruimte';
             const category = 'vergaderruimte';
             return {
@@ -666,7 +661,7 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
                       {'\u20AC'}{calculateVAT(item.amount, item.vatRate, item.vatInclusive).total.toFixed(2)}
                     </div>
                     <div className="text-xs text-gray-500">
-                      excl. {'\u20AC'}{item.amount.toFixed(2)}
+                      {Number(item.vatRate) === 0 ? '0% btw' : `excl. \u20AC${item.amount.toFixed(2)}`}
                     </div>
                   </div>
                 </div>
