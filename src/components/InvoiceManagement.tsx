@@ -15,7 +15,7 @@ import { buildUblInvoiceXml, downloadUblXml } from '../utils/ublInvoice';
 import { sendInvoiceReminderEmails } from '../utils/invoiceReminders';
 import { getLocalRootFolderPath } from '../utils/localSettings';
 import { syncInvoicePDFs, buildInvoiceFolderPath } from '../utils/invoicePdfSync';
-import { billableBeforeDiscount, billableUnitPrice, summarizeMeetingInvoice } from '../utils/zeroVatPrice';
+import { billableBeforeDiscount, billableUnitPrice, billedRentAmount, summarizeMeetingInvoice } from '../utils/zeroVatPrice';
 
 type LeaseWithDetails = Lease & {
   tenant: Tenant;
@@ -1999,7 +1999,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
         rentAmount = lease.lease_spaces.reduce((sum, ls) => {
           const monthlyRent = typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent;
-          return sum + monthlyRent;
+          return sum + billedRentAmount(monthlyRent, Number(vatRate), lease.vat_inclusive);
         }, 0);
         const securityDeposit = typeof lease.security_deposit === 'string' ? parseFloat(lease.security_deposit) : lease.security_deposit;
         const discountPercentage = lease.tenant?.lease_discount_percentage
@@ -2096,12 +2096,15 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
           console.log('Final quantity for', displayName, ':', quantity);
 
+          const billedRent = billedRentAmount(monthlyRent, Number(vatRate), lease.vat_inclusive);
+          const billedUnit = quantity > 0 ? Math.round((billedRent / quantity) * 100) / 100 : billedRent;
+
           lineItemsToInsert.push({
             invoice_id: newInvoice.id,
             description: displayName,
             quantity: quantity,
-            unit_price: pricePerSqm,
-            amount: monthlyRent,
+            unit_price: Number(vatRate) === 0 && !lease.vat_inclusive ? billedUnit : pricePerSqm,
+            amount: billedRent,
             local_category: getLocalCategory(spaceType)
           });
         }

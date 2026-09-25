@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase, type Tenant, type ExternalCustomer, type Lease, type LeaseSpace, type OfficeSpace } from '../lib/supabase';
 import { Home, Calendar, CheckSquare, Square, Loader2, AlertTriangle, ChevronDown, ChevronRight, ChevronLeft, RefreshCw } from 'lucide-react';
 import { Toast } from './Toast';
-import { billableBeforeDiscount, billableUnitPrice, summarizeMeetingInvoice } from '../utils/zeroVatPrice';
+import { billableBeforeDiscount, billableUnitPrice, billedRentAmount, summarizeMeetingInvoice } from '../utils/zeroVatPrice';
 
 type LeaseWithDetails = Lease & {
   tenant: Tenant;
@@ -208,7 +208,7 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
 
       amount = lease.lease_spaces.reduce((sum, ls) => {
         const rent = typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent;
-        return sum + rent;
+        return sum + billedRentAmount(rent, Number(lease.vat_rate), lease.vat_inclusive);
       }, 0);
       const deposit = typeof lease.security_deposit === 'string' ? parseFloat(lease.security_deposit) : lease.security_deposit;
       amount += deposit;
@@ -219,7 +219,7 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
           const numOnly = name.replace(/^(Bedrijfsruimte|Hal)\s*/i, '').trim();
           if (/^\d+/.test(numOnly)) name = `Hal ${numOnly}`;
         }
-        const rent = typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent;
+        const rent = billedRentAmount(typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent, Number(lease.vat_rate), lease.vat_inclusive);
         details.push(`${name}: ${rent.toFixed(2)}`);
       });
       if (deposit > 0) {
@@ -379,7 +379,8 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
           const lineItemsToInsert: any[] = [];
 
           rentAmount = lease.lease_spaces.reduce((sum, ls) => {
-            return sum + (typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent);
+            const rent = typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent;
+            return sum + billedRentAmount(rent, Number(lease.vat_rate), lease.vat_inclusive);
           }, 0);
 
           for (const ls of lease.lease_spaces) {
@@ -394,10 +395,11 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
             let quantity = 1;
             if (!isDiversenFixed && sqft && !isNaN(sqft) && sqft > 0) quantity = sqft;
             const pricePerSqm = typeof ls.price_per_sqm === 'string' ? parseFloat(ls.price_per_sqm) : ls.price_per_sqm;
-            const monthlyRent = typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent;
+            const monthlyRent = billedRentAmount(typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent, Number(lease.vat_rate), lease.vat_inclusive);
+            const unitPrice = quantity > 0 ? Math.round((monthlyRent / quantity) * 100) / 100 : monthlyRent;
 
             lineItemsToInsert.push({
-              description: displayName, quantity, unit_price: pricePerSqm,
+              description: displayName, quantity, unit_price: Number(lease.vat_rate) === 0 && !lease.vat_inclusive ? unitPrice : pricePerSqm,
               amount: monthlyRent, local_category: getLocalCategory(ls.space.space_type)
             });
           }

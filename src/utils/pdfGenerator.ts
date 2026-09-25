@@ -418,7 +418,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(9);
   pdf.setTextColor(60, 60, 60);
-  pdf.text('Subtotaal (excl. BTW):', pageWidth - margin - 70, yPosition);
+  pdf.text(invoice.vat_rate === 0 ? 'Subtotaal:' : 'Subtotaal (excl. BTW):', pageWidth - margin - 70, yPosition);
   pdf.text(`€ ${invoice.subtotal.toFixed(2)}`, pageWidth - margin, yPosition, { align: 'right' });
 
   yPosition += 6;

@@ -11,6 +11,12 @@ export function roundMoney(value: number): number {
   return Math.round((Number(value) || 0) * 100) / 100;
 }
 
+/** Exclusive rent becomes the invoice amount when VAT is 0% and the price is not already inclusive. */
+export function billedRentAmount(amount: number, vatRate: number, vatInclusive: boolean): number {
+  if (vatInclusive || Number(vatRate) !== 0) return roundMoney(amount);
+  return amountWithEmbeddedVat(amount, 0);
+}
+
 function alreadyEmbedded(storedVatRate: number | null | undefined): boolean {
   if (storedVatRate === null || storedVatRate === undefined) return false;
   return Number(storedVatRate) === 0;

@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { billedRentAmount } from './zeroVatPrice';
 import { checkInvoicePaymentStatuses, checkPurchaseInvoicePaymentStatuses, verifyInvoiceSyncStatus, verifyRelationsInEBoekhouden } from '../lib/eboekhoudenSync';
 import { createLeaseNotification } from './notificationHelper';
 import { sendInvoiceReminderEmails } from './invoiceReminders';
@@ -461,7 +462,7 @@ const generateMonthlyInvoices = async (job: ScheduledJob) => {
 
       const { data: invoiceNumber } = await supabase.rpc('generate_invoice_number');
 
-      const rentAmount = Math.round(lease.lease_spaces.reduce((sum: number, ls: any) => sum + Number(ls.monthly_rent), 0) * 100) / 100;
+      const rentAmount = Math.round(lease.lease_spaces.reduce((sum: number, ls: any) => sum + billedRentAmount(Number(ls.monthly_rent), lease.vat_rate, lease.vat_inclusive), 0) * 100) / 100;
 
       const baseAmount = Math.round((rentAmount + (lease.security_deposit || 0)) * 100) / 100;
 
@@ -504,8 +505,10 @@ const generateMonthlyInvoices = async (job: ScheduledJob) => {
         }
 
         const sqm = ls.space.square_footage || 1;
-        const rentLine = Number(ls.monthly_rent);
-        const pricePerSqm = Number(ls.price_per_sqm) || (sqm > 0 ? Math.round((rentLine / sqm) * 100) / 100 : rentLine);
+        const rentLine = billedRentAmount(Number(ls.monthly_rent), lease.vat_rate, lease.vat_inclusive);
+        const pricePerSqm = Number(lease.vat_rate) === 0 && !lease.vat_inclusive
+          ? (sqm > 0 ? Math.round((rentLine / sqm) * 100) / 100 : rentLine)
+          : (Number(ls.price_per_sqm) || rentLine);
 
         lineItemsToInsert.push({
           invoice_id: newInvoice.id,

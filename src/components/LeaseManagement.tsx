@@ -3,6 +3,7 @@ import { supabase, type Lease, type Tenant, type OfficeSpace, type LeaseSpace, t
 import { Plus, CreditCard as Edit2, Trash2, Calendar, Euro, X, CheckCircle, XCircle, AlertCircle, FileText } from 'lucide-react';
 import { LeaseContractPreview } from './LeaseContractPreview';
 import type { LeaseContractData } from '../utils/leaseContractPdf';
+import { billedRentAmount } from '../utils/zeroVatPrice';
 import { SkeletonTable } from './SkeletonLoader';
 import { Pagination } from './Pagination';
 
@@ -509,7 +510,7 @@ export function LeaseManagement() {
   };
 
   const calculateLeaseTotal = (lease: LeaseWithDetails) => {
-    return lease.lease_spaces.reduce((sum, ls) => sum + ls.monthly_rent, 0);
+    return lease.lease_spaces.reduce((sum, ls) => sum + billedRentAmount(ls.monthly_rent, lease.vat_rate, lease.vat_inclusive), 0);
   };
 
   const { activeLeases, expiredLeases, regularLeases } = useMemo(() => {
@@ -585,7 +586,6 @@ export function LeaseManagement() {
                       ...formData,
                       tenant_id: e.target.value,
                       vat_rate: tenant ? String(tenant.vat_rate ?? 21) : formData.vat_rate,
-                      vat_inclusive: tenant ? Number(tenant.vat_rate) === 0 || formData.vat_inclusive : formData.vat_inclusive,
                     });
                   }}
                   className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
@@ -665,9 +665,8 @@ export function LeaseManagement() {
                                   {(() => {
                                     const effectivePrice = space.price_per_sqm || getDefaultRate(space.space_id);
                                     if (!effectivePrice) return '€0.00/mnd';
-                                    return selectedSpace.space_type === 'bedrijfsruimte'
-                                      ? `€${monthlyRent.toFixed(2)}/mnd`
-                                      : `€${monthlyRent.toFixed(2)}/mnd`;
+                                    const billed = billedRentAmount(monthlyRent, Number(formData.vat_rate), formData.vat_inclusive);
+                                    return `€${billed.toFixed(2)}/mnd`;
                                   })()}
                                 </div>
                                 {(selectedSpace.space_type === 'diversen' && (!selectedSpace.diversen_calculation || selectedSpace.diversen_calculation === 'fixed')) ? (
@@ -710,7 +709,9 @@ export function LeaseManagement() {
                     <div className="text-right pt-2 border-t border-dark-700">
                       <span className="text-sm font-medium text-gray-200">
                         Totale Maandhuur: €{getTotalMonthlyRent().toFixed(2)}
-                        {Number(formData.vat_rate) === 0 ? ' · 0% btw, dit bedrag komt op factuur en contract' : ''}
+                        {Number(formData.vat_rate) === 0 && !formData.vat_inclusive
+                          ? ` · op factuur €${billedRentAmount(getTotalMonthlyRent() - (parseFloat(formData.security_deposit) || 0), 0, false).toFixed(2)} (0% btw)`
+                          : Number(formData.vat_rate) === 0 ? ' · 0% btw, ingevuld bedrag is inclusief' : ''}
                       </span>
                     </div>
                   )}
@@ -780,7 +781,6 @@ export function LeaseManagement() {
                           setFormData({
                             ...formData,
                             vat_rate: value,
-                            vat_inclusive: numValue === 0 ? true : formData.vat_inclusive,
                           });
                         }
                       }
@@ -802,7 +802,7 @@ export function LeaseManagement() {
                   BTW Inclusief (prijzen zijn inclusief BTW)
                 </label>
                 {Number(formData.vat_rate) === 0 && (
-                  <span className="text-xs text-amber-300">Bij 0% is de ingevulde huurprijs het factuurbedrag. Er komt geen btw meer bij.</span>
+                  <span className="text-xs text-amber-300">Prijs exclusief: het contract rekent daar 21% bij. Op de factuur staat BTW niet van toepassing. Vink inclusief aan als het bedrag de btw al bevat.</span>
                 )}
               </div>
 

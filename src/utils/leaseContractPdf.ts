@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import { getLogoBase64 } from './logoLoader';
+import { billedRentAmount } from './zeroVatPrice';
 
 export interface LeaseContractData {
   tenant_name: string;
@@ -266,6 +267,9 @@ async function buildLeaseContractPDF(pdf: jsPDF, data: LeaseContractData) {
         pdf.rect(margin, y - 4, pageWidth - 2 * margin, 7, 'F');
       }
 
+      const billedRate = billedRentAmount(space.price_per_sqm, data.vat_rate, data.vat_inclusive);
+      const billedRent = billedRentAmount(space.monthly_rent, data.vat_rate, data.vat_inclusive);
+
       pdf.text(space.space_number, colX[0] + 2, y);
       pdf.text(getSpaceTypeLabel(space.space_type), colX[1], y);
 
@@ -284,17 +288,17 @@ async function buildLeaseContractPDF(pdf: jsPDF, data: LeaseContractData) {
           space.space_type === 'bedrijfsruimte' ||
           space.space_type === 'buitenterrein';
         const rateLabel = isDiversenFixed
-          ? `\u20AC ${space.price_per_sqm.toFixed(2)}`
+          ? `\u20AC ${billedRate.toFixed(2)}`
           : isAnnual
-            ? `\u20AC ${space.price_per_sqm.toFixed(2)}/m\u00B2/jr`
-            : `\u20AC ${space.price_per_sqm.toFixed(2)}/m\u00B2`;
+            ? `\u20AC ${billedRate.toFixed(2)}/m\u00B2/jr`
+            : `\u20AC ${billedRate.toFixed(2)}/m\u00B2`;
         pdf.text(rateLabel, colX[3], y, { align: 'right' });
       }
 
-      pdf.text(`\u20AC ${space.monthly_rent.toFixed(2)}`, colX[4] - 2, y, {
+      pdf.text(`\u20AC ${billedRent.toFixed(2)}`, colX[4] - 2, y, {
         align: 'right',
       });
-      totalMonthlyRent += space.monthly_rent;
+      totalMonthlyRent += billedRent;
       y += 7;
     });
 
