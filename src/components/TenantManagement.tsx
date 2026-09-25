@@ -26,6 +26,7 @@ type ExternalCustomer = {
   booking_pin_code?: string;
   lease_discount_percentage?: number;
   meeting_discount_percentage?: number;
+  vat_rate?: number;
   created_at?: string;
   updated_at?: string;
 };
@@ -63,7 +64,8 @@ export function TenantManagement() {
     country: 'Nederland',
     booking_pin_code: '',
     lease_discount_percentage: 0,
-    meeting_discount_percentage: 10
+    meeting_discount_percentage: 10,
+    vat_rate: 21
   });
 
   useEffect(() => {
@@ -187,7 +189,8 @@ export function TenantManagement() {
         country: formData.country,
         booking_pin_code: formData.booking_pin_code,
         lease_discount_percentage: formData.lease_discount_percentage,
-        meeting_discount_percentage: formData.meeting_discount_percentage
+        meeting_discount_percentage: formData.meeting_discount_percentage,
+        vat_rate: formData.vat_rate
       };
 
       if (editingCustomer) {
@@ -265,7 +268,8 @@ export function TenantManagement() {
       country: tenant.country || 'Nederland',
       booking_pin_code: tenant.booking_pin_code || '',
       lease_discount_percentage: tenant.lease_discount_percentage || 0,
-      meeting_discount_percentage: tenant.meeting_discount_percentage || 10
+      meeting_discount_percentage: tenant.meeting_discount_percentage || 10,
+      vat_rate: tenant.vat_rate ?? 21
     });
     setShowForm(true);
   };
@@ -284,7 +288,8 @@ export function TenantManagement() {
       country: customer.country,
       booking_pin_code: customer.booking_pin_code || '',
       lease_discount_percentage: customer.lease_discount_percentage || 0,
-      meeting_discount_percentage: customer.meeting_discount_percentage || 0
+      meeting_discount_percentage: customer.meeting_discount_percentage || 0,
+      vat_rate: customer.vat_rate ?? 21
     });
     setShowForm(true);
   };
@@ -318,7 +323,7 @@ export function TenantManagement() {
   };
 
   const resetForm = () => {
-    setFormData({ company_name: '', name: '', email: '', phone: '', street: '', postal_code: '', city: '', country: 'Nederland', booking_pin_code: '', lease_discount_percentage: 0, meeting_discount_percentage: 10 });
+    setFormData({ company_name: '', name: '', email: '', phone: '', street: '', postal_code: '', city: '', country: 'Nederland', booking_pin_code: '', lease_discount_percentage: 0, meeting_discount_percentage: 10, vat_rate: 21 });
     setEditingTenant(null);
     setEditingCustomer(null);
     setShowForm(false);
@@ -542,6 +547,24 @@ export function TenantManagement() {
                     Korting op vergaderruimte boekingen
                   </p>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  BTW-tarief op facturen (%)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={formData.vat_rate}
+                  onChange={(e) => setFormData({ ...formData, vat_rate: Math.min(100, Math.max(0, Number(e.target.value))) })}
+                  className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-100"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Zet op 0 als deze klant geen btw betaalt. Huur- en uurprijzen zijn inclusief btw, dus het factuurbedrag blijft de afgesproken prijs.
+                </p>
               </div>
               <div className="flex gap-4 justify-end pt-4">
                 <button

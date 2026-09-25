@@ -7,6 +7,7 @@ type ExternalCustomerOption = {
   company_name: string;
   contact_name: string;
   meeting_discount_percentage?: number;
+  vat_rate?: number;
 };
 
 type BookingType = 'tenant' | 'external';
@@ -171,14 +172,17 @@ export function RecurringBookingModal({
 
     // Calculate discount based on booking type
     let discountPercentage = 0;
+    let customerVatRate = 21;
     const isExternal = bookingType === 'external';
 
     if (isExternal) {
       const selectedCustomer = externalCustomers.find(c => c.id === pattern.external_customer_id);
       discountPercentage = Number(selectedCustomer?.meeting_discount_percentage) || 0;
+      customerVatRate = selectedCustomer?.vat_rate ?? 21;
     } else {
       const selectedTenant = tenants.find(t => t.id === pattern.tenant_id);
       discountPercentage = Number(selectedTenant?.meeting_discount_percentage) || 0;
+      customerVatRate = selectedTenant?.vat_rate ?? 21;
     }
 
     const discountAmount = (subtotal * discountPercentage) / 100;
@@ -248,6 +252,7 @@ export function RecurringBookingModal({
         discount_amount: discountAmount,
         rate_type: rateType,
         applied_rate: appliedRate,
+        vat_rate: customerVatRate,
         status: 'pending',
         notes: pattern.notes || '',
         recurring_pattern_id: pattern.id,

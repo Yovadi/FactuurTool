@@ -47,6 +47,7 @@ type Tenant = {
   name: string;
   company_name: string;
   booking_pin_code?: string;
+  vat_rate?: number;
 };
 
 type ExternalCustomer = {
@@ -54,6 +55,7 @@ type ExternalCustomer = {
   company_name: string;
   contact_name: string;
   booking_pin_code?: string;
+  vat_rate?: number;
 };
 
 type SelectedCell = {
@@ -129,8 +131,6 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
   const [showRecurringModal, setShowRecurringModal] = useState(false);
-  const [isProcessingTap, setIsProcessingTap] = useState(false);
-
   const showToast = (message: string, type: NotificationType = 'info') => {
     const id = notificationId;
     setNotificationId(id + 1);
@@ -239,12 +239,6 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
   const handleMouseUp = useCallback(() => {
     if (isDragging) {
       setIsDragging(false);
-      setSelectedCells(prev => {
-        if (prev.length > 0) {
-          setShowForm(true);
-        }
-        return prev;
-      });
     }
     if (isDraggingBooking) {
       setIsDraggingBooking(false);
@@ -334,11 +328,11 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
         .order('space_number'),
       supabase
         .from('tenants')
-        .select('id, name, company_name, booking_pin_code')
+        .select('id, name, company_name, booking_pin_code, vat_rate')
         .order('name'),
       supabase
         .from('external_customers')
-        .select('id, company_name, contact_name, booking_pin_code')
+        .select('id, company_name, contact_name, booking_pin_code, vat_rate')
         .order('company_name'),
       supabase
         .from('meeting_room_bookings')
@@ -449,82 +443,38 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
     });
   };
 
+  const selectRange = (dateStr: string, fromIndex: number, toIndex: number) => {
+    const minIndex = Math.min(fromIndex, toIndex);
+    const maxIndex = Math.max(fromIndex, toIndex);
+    for (let i = minIndex; i <= maxIndex; i++) {
+      if (hasBooking(dateStr, timeSlots[i])) {
+        showToast('Selecteer alleen aaneengesloten vrije tijdslots', 'error');
+        return;
+      }
+    }
+    const cells: SelectedCell[] = [];
+    for (let i = minIndex; i <= maxIndex; i++) {
+      cells.push({ date: dateStr, time: timeSlots[i], slotIndex: i });
+    }
+    setSelectedCells(cells);
+  };
+
   const handleCellMouseDown = (dateStr: string, time: string) => {
     if (hasBooking(dateStr, time)) return;
 
     const slotIndex = timeSlots.indexOf(time);
+    const sameDay = selectedCells.length > 0 && selectedCells.every(cell => cell.date === dateStr);
+
+    if (sameDay) {
+      const anchor = Math.min(...selectedCells.map(cell => cell.slotIndex));
+      selectRange(dateStr, anchor, slotIndex);
+      setDragStart({ date: dateStr, time: timeSlots[anchor], slotIndex: anchor });
+    } else {
+      setSelectedCells([{ date: dateStr, time, slotIndex }]);
+      setDragStart({ date: dateStr, time, slotIndex });
+    }
+
     setIsDragging(true);
-    setDragStart({ date: dateStr, time, slotIndex });
-    setSelectedCells([{ date: dateStr, time, slotIndex }]);
-  };
-
-  const handleCellTap = (dateStr: string, time: string) => {
-    if (isProcessingTap) return;
-    if (hasBooking(dateStr, time)) return;
-
-    setIsProcessingTap(true);
-    const slotIndex = timeSlots.indexOf(time);
-
-    requestAnimationFrame(() => {
-      const cellIndex = selectedCells.findIndex(c => c.date === dateStr && c.time === time);
-
-      if (cellIndex !== -1) {
-        const newCells = selectedCells.filter((_, i) => i !== cellIndex);
-        setSelectedCells(newCells);
-        setIsProcessingTap(false);
-        return;
-      }
-
-      if (selectedCells.length === 0) {
-        setSelectedCells([{ date: dateStr, time, slotIndex }]);
-        setIsProcessingTap(false);
-        return;
-      }
-
-      if (selectedCells[0].date !== dateStr) {
-        setSelectedCells([{ date: dateStr, time, slotIndex }]);
-        setIsProcessingTap(false);
-        return;
-      }
-
-      const currentTimeIndex = slotIndex;
-
-      const timeIndices = selectedCells.map(c => c.slotIndex);
-      const minIndex = Math.min(...timeIndices);
-      const maxIndex = Math.max(...timeIndices);
-
-      if (currentTimeIndex === minIndex - 1 || currentTimeIndex === maxIndex + 1) {
-        const newCells = [...selectedCells, { date: dateStr, time, slotIndex }];
-
-        const newTimeIndices = newCells.map(c => c.slotIndex);
-        const newMinIndex = Math.min(...newTimeIndices);
-        const newMaxIndex = Math.max(...newTimeIndices);
-        const expectedLength = newMaxIndex - newMinIndex + 1;
-
-        if (newCells.length !== expectedLength) {
-          showToast('Selecteer alleen aaneengesloten tijdslots', 'error');
-          setIsProcessingTap(false);
-          return;
-        }
-
-        for (let i = newMinIndex; i <= newMaxIndex; i++) {
-          const t = timeSlots[i];
-          if (hasBooking(dateStr, t)) {
-            showToast('Selecteer alleen aaneengesloten tijdslots', 'error');
-            setIsProcessingTap(false);
-            return;
-          }
-        }
-
-        setSelectedCells(newCells);
-      } else if (currentTimeIndex >= minIndex && currentTimeIndex <= maxIndex) {
-        setSelectedCells([...selectedCells, { date: dateStr, time, slotIndex }]);
-      } else {
-        showToast('Selecteer alleen aaneengesloten tijdslots', 'error');
-      }
-
-      setIsProcessingTap(false);
-    });
   };
 
   const handleCellMouseEnter = (dateStr: string, time: string) => {
@@ -535,15 +485,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
     const minIndex = Math.min(startIndex, currentIndex);
     const maxIndex = Math.max(startIndex, currentIndex);
 
-    const cells: SelectedCell[] = [];
-    for (let i = minIndex; i <= maxIndex; i++) {
-      const t = timeSlots[i];
-      if (!hasBooking(dateStr, t)) {
-        cells.push({ date: dateStr, time: t, slotIndex: i });
-      }
-    }
-
-    setSelectedCells(cells);
+    selectRange(dateStr, minIndex, maxIndex);
   };
 
   const isCellSelected = (dateStr: string, time: string) => {
@@ -606,6 +548,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
     }
 
     let discountPercentage = 0;
+    let insertVatRate = 21;
     const overrideTrimmed = discountOverride.trim();
     if (overrideTrimmed !== '') {
       const parsed = Number(overrideTrimmed);
@@ -617,19 +560,21 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
       if (tenantIdToUse) {
         const { data: tenantData } = await supabase
           .from('tenants')
-          .select('meeting_discount_percentage')
+          .select('meeting_discount_percentage, vat_rate')
           .eq('id', tenantIdToUse)
           .maybeSingle();
         discountPercentage = Number(tenantData?.meeting_discount_percentage) || 0;
+        insertVatRate = tenantData?.vat_rate ?? 21;
       }
     } else {
       if (formData.external_customer_id) {
         const { data: customerData } = await supabase
           .from('external_customers')
-          .select('meeting_discount_percentage')
+          .select('meeting_discount_percentage, vat_rate')
           .eq('id', formData.external_customer_id)
           .maybeSingle();
         discountPercentage = Number(customerData?.meeting_discount_percentage) || 0;
+        insertVatRate = customerData?.vat_rate ?? 21;
       }
     }
     const discountAmount = (totalAmount * discountPercentage) / 100;
@@ -648,6 +593,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
       discount_amount: discountAmount,
       rate_type: rateType,
       applied_rate: appliedRate,
+      vat_rate: insertVatRate,
       status: 'pending'
     };
 
@@ -1517,24 +1463,19 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                                 !hasBookingInRoom ? 'cursor-pointer hover:bg-dark-700/20' : ''
                               } ${isDraggingBooking && !hasBookingInRoom ? 'bg-green-900/10' : ''} ${isTouchDevice && !hasBookingInRoom ? 'active:bg-yellow-500/20 transition-colors' : ''}`}
                               style={{ height: `${CELL_HEIGHT}px` }}
-                              onMouseDown={() => {
-                                if (!isDraggingBooking && !isTouchDevice && !hasBookingInRoom) {
-                                  handleCellMouseDown(day.dateStr, time);
-                                }
+                              onMouseDown={(e) => {
+                                if (e.button !== 0 || isDraggingBooking || hasBookingInRoom) return;
+                                e.preventDefault();
+                                handleCellMouseDown(day.dateStr, time);
                               }}
                               onMouseEnter={() => {
-                                if (!isDraggingBooking && !isTouchDevice) {
+                                if (!isDraggingBooking) {
                                   handleCellMouseEnter(day.dateStr, time);
                                 }
                               }}
                               onMouseUp={() => {
                                 if (isDraggingBooking && !hasBookingInRoom) {
                                   handleBookingDrop(day.dateStr, time);
-                                }
-                              }}
-                              onClick={() => {
-                                if (isTouchDevice && !isDraggingBooking && !hasBookingInRoom) {
-                                  handleCellTap(day.dateStr, time);
                                 }
                               }}
                             >
@@ -1563,24 +1504,19 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
                           !hasBookingHere ? 'cursor-pointer hover:bg-dark-700/20' : ''
                         } ${isSelected ? (isTouchDevice ? 'bg-yellow-500/50 border border-yellow-300' : 'bg-yellow-200/20 border border-yellow-500/50') : ''} ${!isWorkHours ? 'bg-dark-950/20' : ''} ${isDraggingBooking && !hasBookingHere ? 'bg-green-900/10' : ''} ${isTouchDevice && !hasBookingHere ? 'active:bg-yellow-500/20 transition-colors' : ''}`}
                         style={{ height: `${CELL_HEIGHT}px` }}
-                        onMouseDown={() => {
-                          if (!isDraggingBooking && !isTouchDevice) {
-                            handleCellMouseDown(day.dateStr, time);
-                          }
+                        onMouseDown={(e) => {
+                          if (e.button !== 0 || isDraggingBooking || hasBookingHere) return;
+                          e.preventDefault();
+                          handleCellMouseDown(day.dateStr, time);
                         }}
                         onMouseEnter={() => {
-                          if (!isDraggingBooking && !isTouchDevice) {
+                          if (!isDraggingBooking) {
                             handleCellMouseEnter(day.dateStr, time);
                           }
                         }}
                         onMouseUp={() => {
                           if (isDraggingBooking && !hasBookingHere) {
                             handleBookingDrop(day.dateStr, time);
-                          }
-                        }}
-                        onClick={() => {
-                          if (isTouchDevice && !isDraggingBooking && !hasBookingHere) {
-                            handleCellTap(day.dateStr, time);
                           }
                         }}
                       >
@@ -1597,7 +1533,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
       </div>
 
       {/* Floating Action Button for Touch Devices */}
-      {isTouchDevice && selectedCells.length > 0 && !showForm && (
+      {selectedCells.length > 0 && !showForm && (
         <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-2">
           <div className="bg-yellow-600 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-medium">
             {selectedCells.length} tijdslot{selectedCells.length !== 1 ? 's' : ''} geselecteerd

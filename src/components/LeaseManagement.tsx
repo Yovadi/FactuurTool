@@ -27,7 +27,7 @@ export function LeaseManagement() {
     end_date: '',
     security_deposit: '',
     vat_rate: '21',
-    vat_inclusive: false,
+    vat_inclusive: true,
     status: 'active' as 'active' | 'expired' | 'terminated',
   });
 
@@ -487,7 +487,7 @@ export function LeaseManagement() {
       end_date: '',
       security_deposit: '',
       vat_rate: '21',
-      vat_inclusive: false,
+      vat_inclusive: true,
       status: 'active',
     });
     setSelectedSpaces([]);
@@ -579,7 +579,15 @@ export function LeaseManagement() {
                 <select
                   required
                   value={formData.tenant_id}
-                  onChange={(e) => setFormData({ ...formData, tenant_id: e.target.value })}
+                  onChange={(e) => {
+                    const tenant = tenants.find(t => t.id === e.target.value);
+                    setFormData({
+                      ...formData,
+                      tenant_id: e.target.value,
+                      vat_rate: tenant ? String(tenant.vat_rate ?? 21) : formData.vat_rate,
+                      vat_inclusive: true,
+                    });
+                  }}
                   className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
                   disabled={!!editingLease}
                 >
@@ -786,7 +794,7 @@ export function LeaseManagement() {
                   className="w-4 h-4 text-gold-500 border-dark-600 rounded focus:ring-2 focus:ring-gold-500"
                 />
                 <label htmlFor="vat_inclusive" className="text-sm font-medium text-gray-200">
-                  BTW Inclusief (prijzen zijn inclusief BTW)
+                  Huurprijs is inclusief btw (het ingevulde bedrag is wat de klant betaalt)
                 </label>
               </div>
 

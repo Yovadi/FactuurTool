@@ -27,6 +27,7 @@ export type Tenant = {
   booking_pin_code: string | null;
   lease_discount_percentage: number;
   meeting_discount_percentage: number;
+  vat_rate: number;
   eboekhouden_relatie_id: number | null;
   created_at: string;
 };
@@ -44,6 +45,7 @@ export type ExternalCustomer = {
   booking_pin_code: string | null;
   lease_discount_percentage: number;
   meeting_discount_percentage: number;
+  vat_rate: number;
   eboekhouden_relatie_id: number | null;
   created_at: string;
   updated_at?: string;

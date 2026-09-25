@@ -450,22 +450,25 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     console.log('Optimal rate result:', { rateType, appliedRate, totalAmount });
 
     let discountPercentage = 0;
+    let bookingVatRate = 21;
     if (bookingType === 'tenant') {
       const tenantId = loggedInTenantId || formData.tenant_id;
       const { data: tenantData } = await supabase
         .from('tenants')
-        .select('meeting_discount_percentage')
+        .select('meeting_discount_percentage, vat_rate')
         .eq('id', tenantId)
         .single();
       discountPercentage = Number(tenantData?.meeting_discount_percentage) || 0;
+      bookingVatRate = tenantData?.vat_rate ?? 21;
       console.log('Tenant discount percentage:', discountPercentage, 'from data:', tenantData);
     } else {
       const { data: customerData } = await supabase
         .from('external_customers')
-        .select('meeting_discount_percentage')
+        .select('meeting_discount_percentage, vat_rate')
         .eq('id', formData.external_customer_id)
         .single();
       discountPercentage = Number(customerData?.meeting_discount_percentage) || 0;
+      bookingVatRate = customerData?.vat_rate ?? 21;
       console.log('Customer discount percentage:', discountPercentage, 'from data:', customerData);
     }
     const discountAmount = (totalAmount * discountPercentage) / 100;
@@ -484,6 +487,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       discount_amount: discountAmount,
       rate_type: rateType,
       applied_rate: appliedRate,
+      vat_rate: bookingVatRate,
       notes: formData.notes,
       booking_type: bookingType
     };
