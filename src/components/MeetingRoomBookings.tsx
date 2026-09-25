@@ -472,10 +472,10 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
       bookingVatRate = customerData?.vat_rate ?? 21;
       console.log('Customer discount percentage:', discountPercentage, 'from data:', customerData);
     }
-    const discountAmount = (totalAmount * discountPercentage) / 100;
-    const exclusiveAmount = totalAmount - discountAmount;
-    const finalAmount = amountWithEmbeddedVat(exclusiveAmount, bookingVatRate);
     const billedRate = amountWithEmbeddedVat(appliedRate, bookingVatRate);
+    const grossAmount = amountWithEmbeddedVat(totalAmount, bookingVatRate);
+    const discountAmount = Math.round(grossAmount * (discountPercentage / 100) * 100) / 100;
+    const finalAmount = Math.round((grossAmount - discountAmount) * 100) / 100;
     console.log('Booking calculation - Total:', totalAmount, 'Discount%:', discountPercentage, 'Discount amount:', discountAmount, 'Final:', finalAmount);
 
     const bookingData: any = {

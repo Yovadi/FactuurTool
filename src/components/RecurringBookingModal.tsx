@@ -186,10 +186,10 @@ export function RecurringBookingModal({
       customerVatRate = selectedTenant?.vat_rate ?? 21;
     }
 
-    const discountAmount = (subtotal * discountPercentage) / 100;
-    const exclusiveAmount = subtotal - discountAmount;
-    const totalAmount = amountWithEmbeddedVat(exclusiveAmount, customerVatRate);
     const billedRate = amountWithEmbeddedVat(appliedRate, customerVatRate);
+    const grossAmount = amountWithEmbeddedVat(subtotal, customerVatRate);
+    const discountAmount = Math.round(grossAmount * (discountPercentage / 100) * 100) / 100;
+    const totalAmount = Math.round((grossAmount - discountAmount) * 100) / 100;
 
     // Collect all candidate dates
     let currentDate = new Date(startDate);

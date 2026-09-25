@@ -463,7 +463,8 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
               }, 0);
 
           const finalAmount = totalBeforeDiscount - totalDiscountAmount;
-          const { subtotal, vatAmount, total } = calculateVAT(finalAmount, 21, false);
+          const vatRate = Number(bookings[0]?.vat_rate ?? 21);
+          const { subtotal, vatAmount, total } = calculateVAT(finalAmount, vatRate, false);
 
           const notesLines = ['Vergaderruimte boekingen:'];
           bookings.forEach((b: any) => {
@@ -489,7 +490,7 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
               external_customer_id: item.isExternal ? item.customerId : null,
               invoice_date: invoiceDate, due_date: dueDate,
               subtotal, vat_amount: vatAmount, amount: total,
-              vat_rate: 21, vat_inclusive: false, status: 'draft',
+              vat_rate: vatRate, vat_inclusive: false, status: 'draft',
               invoice_month: invoiceMonth, notes: notesLines.join('\n')
             }).select().single();
 

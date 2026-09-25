@@ -578,10 +578,10 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
         insertVatRate = customerData?.vat_rate ?? 21;
       }
     }
-    const discountAmount = (totalAmount * discountPercentage) / 100;
-    const exclusiveAmount = totalAmount - discountAmount;
-    const finalAmount = amountWithEmbeddedVat(exclusiveAmount, insertVatRate);
     const billedRate = amountWithEmbeddedVat(appliedRate, insertVatRate);
+    const grossAmount = amountWithEmbeddedVat(totalAmount, insertVatRate);
+    const discountAmount = Math.round(grossAmount * (discountPercentage / 100) * 100) / 100;
+    const finalAmount = Math.round((grossAmount - discountAmount) * 100) / 100;
 
     const insertData: any = {
       space_id: selectedRoomForBooking.id,
