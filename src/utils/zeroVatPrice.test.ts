@@ -1,4 +1,4 @@
-import { amountWithEmbeddedVat, billableBeforeDiscount, summarizeMeetingInvoice } from './zeroVatPrice';
+import { amountWithEmbeddedVat, billableBeforeDiscount, billedRentAmount, summarizeMeetingInvoice } from './zeroVatPrice';
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -25,5 +25,8 @@ assert(coppis.before === 54.45, 'three exclusive hours become 54.45');
 assert(coppis.discount === 5.45, '10% is taken after the gross-up');
 assert(coppis.finalAmount === 49, 'payable amount is 49.00 at 0% VAT');
 assert(coppis.vatRate === 0, 'invoice VAT rate stays 0');
+
+assert(billedRentAmount(23, 0, false) === 27.83, 'exclusive 23 at 0% VAT becomes 27.83');
+assert(billedRentAmount(27.83, 0, true) === 27.83, 'inclusive rent is not grossed again');
 
 console.log('zero vat price tests passed');
