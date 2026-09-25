@@ -585,6 +585,7 @@ export function LeaseManagement() {
                       ...formData,
                       tenant_id: e.target.value,
                       vat_rate: tenant ? String(tenant.vat_rate ?? 21) : formData.vat_rate,
+                      vat_inclusive: tenant ? Number(tenant.vat_rate) === 0 || formData.vat_inclusive : formData.vat_inclusive,
                     });
                   }}
                   className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
@@ -709,6 +710,7 @@ export function LeaseManagement() {
                     <div className="text-right pt-2 border-t border-dark-700">
                       <span className="text-sm font-medium text-gray-200">
                         Totale Maandhuur: €{getTotalMonthlyRent().toFixed(2)}
+                        {Number(formData.vat_rate) === 0 ? ' · 0% btw, dit bedrag komt op factuur en contract' : ''}
                       </span>
                     </div>
                   )}
@@ -775,7 +777,11 @@ export function LeaseManagement() {
                       if (value === '' || /^\d*\.?\d*$/.test(value)) {
                         const numValue = parseFloat(value);
                         if (value === '' || (numValue >= 0 && numValue <= 100)) {
-                          setFormData({ ...formData, vat_rate: value });
+                          setFormData({
+                            ...formData,
+                            vat_rate: value,
+                            vat_inclusive: numValue === 0 ? true : formData.vat_inclusive,
+                          });
                         }
                       }
                     }}
@@ -784,7 +790,7 @@ export function LeaseManagement() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <input
                   type="checkbox"
                   id="vat_inclusive"
@@ -795,6 +801,9 @@ export function LeaseManagement() {
                 <label htmlFor="vat_inclusive" className="text-sm font-medium text-gray-200">
                   BTW Inclusief (prijzen zijn inclusief BTW)
                 </label>
+                {Number(formData.vat_rate) === 0 && (
+                  <span className="text-xs text-amber-300">Bij 0% is de ingevulde huurprijs het factuurbedrag. Er komt geen btw meer bij.</span>
+                )}
               </div>
 
               {editingLease && (

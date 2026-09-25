@@ -15,7 +15,7 @@ import { buildUblInvoiceXml, downloadUblXml } from '../utils/ublInvoice';
 import { sendInvoiceReminderEmails } from '../utils/invoiceReminders';
 import { getLocalRootFolderPath } from '../utils/localSettings';
 import { syncInvoicePDFs, buildInvoiceFolderPath } from '../utils/invoicePdfSync';
-import { amountWithEmbeddedVat, billableBeforeDiscount, billableUnitPrice, summarizeMeetingInvoice } from '../utils/zeroVatPrice';
+import { billableBeforeDiscount, billableUnitPrice, summarizeMeetingInvoice } from '../utils/zeroVatPrice';
 
 type LeaseWithDetails = Lease & {
   tenant: Tenant;
@@ -1996,12 +1996,10 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         const lineItemsToInsert = [];
 
         const vatRate = typeof lease.vat_rate === 'string' ? parseFloat(lease.vat_rate) : lease.vat_rate;
-        const embedRent = Number(vatRate) === 0 && !lease.vat_inclusive;
-        const rentOf = (rent: number) => embedRent ? amountWithEmbeddedVat(rent, 0) : rent;
 
         rentAmount = lease.lease_spaces.reduce((sum, ls) => {
           const monthlyRent = typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent;
-          return sum + rentOf(monthlyRent);
+          return sum + monthlyRent;
         }, 0);
         const securityDeposit = typeof lease.security_deposit === 'string' ? parseFloat(lease.security_deposit) : lease.security_deposit;
         const discountPercentage = lease.tenant?.lease_discount_percentage
@@ -2064,7 +2062,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           const squareFootage = typeof ls.space.square_footage === 'string' ? parseFloat(ls.space.square_footage) : ls.space.square_footage;
           const diversenCalc = (ls.space as any).diversen_calculation;
           const pricePerSqm = typeof ls.price_per_sqm === 'string' ? parseFloat(ls.price_per_sqm) : ls.price_per_sqm;
-          const monthlyRent = rentOf(typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent);
+          const monthlyRent = typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent;
 
           console.log('Processing lease space:', {
             spaceName,
@@ -2098,13 +2096,11 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
           console.log('Final quantity for', displayName, ':', quantity);
 
-          const unitPrice = embedRent && quantity > 0 ? Math.round((monthlyRent / quantity) * 100) / 100 : pricePerSqm;
-
           lineItemsToInsert.push({
             invoice_id: newInvoice.id,
             description: displayName,
             quantity: quantity,
-            unit_price: unitPrice,
+            unit_price: pricePerSqm,
             amount: monthlyRent,
             local_category: getLocalCategory(spaceType)
           });

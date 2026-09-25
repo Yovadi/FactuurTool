@@ -211,7 +211,9 @@ async function buildLeaseContractPDF(pdf: jsPDF, data: LeaseContractData) {
   );
   addField(
     'BTW:',
-    `${data.vat_rate}% (${data.vat_inclusive ? 'inclusief' : 'exclusief'})`
+    Number(data.vat_rate) === 0
+      ? '0% (prijs inclusief btw)'
+      : `${data.vat_rate}% (${data.vat_inclusive ? 'inclusief' : 'exclusief'})`
   );
   addField('Type:', 'Voltijd');
 
@@ -330,10 +332,13 @@ async function buildLeaseContractPDF(pdf: jsPDF, data: LeaseContractData) {
     });
     y += 5;
 
-    const vatAmount = data.vat_inclusive
-      ? grandTotal - grandTotal / (1 + data.vat_rate / 100)
-      : grandTotal * (data.vat_rate / 100);
-    const totalInclVat = data.vat_inclusive
+    const zeroVat = Number(data.vat_rate) === 0;
+    const vatAmount = zeroVat
+      ? 0
+      : data.vat_inclusive
+        ? grandTotal - grandTotal / (1 + data.vat_rate / 100)
+        : grandTotal * (data.vat_rate / 100);
+    const totalInclVat = zeroVat || data.vat_inclusive
       ? grandTotal
       : grandTotal + vatAmount;
 
@@ -341,7 +346,7 @@ async function buildLeaseContractPDF(pdf: jsPDF, data: LeaseContractData) {
     pdf.setFontSize(9);
     pdf.setTextColor(80, 80, 80);
     pdf.text(
-      `BTW (${data.vat_rate}%): \u20AC ${vatAmount.toFixed(2)}`,
+      zeroVat ? `BTW niet van toepassing: \u20AC ${vatAmount.toFixed(2)}` : `BTW (${data.vat_rate}%): \u20AC ${vatAmount.toFixed(2)}`,
       margin,
       y
     );
