@@ -293,7 +293,7 @@ export function LeaseManagement() {
     });
     setSelectedSpaces(lease.lease_spaces.map(ls => ({
       space_id: ls.space_id,
-      price_per_sqm: ls.price_per_sqm.toString()
+      price_per_sqm: getDefaultRate(ls.space_id) || ls.price_per_sqm.toString()
     })));
 
     setShowForm(true);
@@ -659,10 +659,16 @@ export function LeaseManagement() {
                                 </div>
                                 <div className="text-lg font-bold text-gold-500">
                                   €{(() => {
-                                    const effectivePrice = space.price_per_sqm || getDefaultRate(space.space_id);
-                                    return effectivePrice ? parseFloat(effectivePrice).toFixed(2) : '0.00';
+                                    const catalog = parseFloat(space.price_per_sqm || getDefaultRate(space.space_id) || '0');
+                                    const shown = billedRentAmount(catalog, Number(formData.vat_rate), false);
+                                    return shown.toFixed(2);
                                   })()}{(selectedSpace.space_type === 'diversen' && (!selectedSpace.diversen_calculation || selectedSpace.diversen_calculation === 'fixed')) ? '' : (selectedSpace.square_footage && selectedSpace.square_footage > 0 ? '/m²' : '')}
                                 </div>
+                                {Number(formData.vat_rate) === 0 && (
+                                  <div className="text-xs text-gray-400 mt-1">
+                                    €{parseFloat(space.price_per_sqm || getDefaultRate(space.space_id) || '0').toFixed(2)} exclusief + btw
+                                  </div>
+                                )}
                                 {space.space_id && getDefaultRate(space.space_id) && (
                                   <div className="text-xs text-emerald-500 flex items-center gap-1 mt-1">
                                     <CheckCircle size={12} />
@@ -676,7 +682,7 @@ export function LeaseManagement() {
                                   {(() => {
                                     const effectivePrice = space.price_per_sqm || getDefaultRate(space.space_id);
                                     if (!effectivePrice) return '€0.00/mnd';
-                                    const billed = billedRentAmount(monthlyRent, Number(formData.vat_rate), formData.vat_inclusive);
+                                    const billed = billedRentAmount(monthlyRent, Number(formData.vat_rate), false);
                                     return `€${billed.toFixed(2)}/mnd`;
                                   })()}
                                 </div>
@@ -719,10 +725,8 @@ export function LeaseManagement() {
                   {selectedSpaces.length > 0 && (
                     <div className="text-right pt-2 border-t border-dark-700">
                       <span className="text-sm font-medium text-gray-200">
-                        Totale Maandhuur: €{getTotalMonthlyRent().toFixed(2)}
-                        {Number(formData.vat_rate) === 0 && !formData.vat_inclusive
-                          ? ` · op factuur €${billedRentAmount(getTotalMonthlyRent() - (parseFloat(formData.security_deposit) || 0), 0, false).toFixed(2)} (0% btw)`
-                          : Number(formData.vat_rate) === 0 ? ' · 0% btw, ingevuld bedrag is inclusief' : ''}
+                        Totale Maandhuur: €{billedRentAmount(getTotalMonthlyRent() - (parseFloat(formData.security_deposit) || 0), Number(formData.vat_rate), false).toFixed(2)}
+                        {Number(formData.vat_rate) === 0 ? ' · 0% btw, prijs inclusief btw' : ''}
                       </span>
                     </div>
                   )}
