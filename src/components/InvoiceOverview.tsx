@@ -166,7 +166,7 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
       supabase.from('external_customers').select('*'),
       supabase.from('meeting_room_bookings').select(`
         id, booking_date, start_time, end_time, total_hours, total_amount, hourly_rate,
-        discount_percentage, discount_amount, rate_type, applied_rate, status, invoice_id,
+        discount_percentage, discount_amount, rate_type, applied_rate, vat_rate, status, invoice_id,
         tenant_id, external_customer_id, office_spaces(space_number)
       `).gte('booking_date', startDateStr).lte('booking_date', endDateStr)
         .in('status', ['confirmed', 'completed']).is('invoice_id', null),
@@ -242,8 +242,8 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
     }
 
     const allCustomers = [
-      ...tenants.map(t => ({ id: t.id, name: t.company_name || t.name, isExternal: false, discountPct: t.meeting_discount_percentage || 0 })),
-      ...externals.map(e => ({ id: e.id, name: e.company_name || e.contact_name, isExternal: true, discountPct: e.meeting_discount_percentage || 0 }))
+      ...tenants.map(t => ({ id: t.id, name: t.company_name || t.name, isExternal: false, discountPct: t.meeting_discount_percentage || 0, vatRate: t.vat_rate ?? 21 })),
+      ...externals.map(e => ({ id: e.id, name: e.company_name || e.contact_name, isExternal: true, discountPct: e.meeting_discount_percentage || 0, vatRate: e.vat_rate ?? 21 }))
     ];
 
     for (const customer of allCustomers) {
@@ -276,7 +276,7 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
         isExternal: customer.isExternal,
         description: `${typeLabel} boekingen (${allBookings.length}x)`,
         amount: totalAmount,
-        vatRate: 21,
+        vatRate: customer.vatRate,
         vatInclusive: false,
         bookings: allBookings,
         details,
@@ -463,7 +463,7 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
               }, 0);
 
           const finalAmount = totalBeforeDiscount - totalDiscountAmount;
-          const vatRate = Number(bookings[0]?.vat_rate ?? 21);
+          const vatRate = Number(item.vatRate ?? bookings[0]?.vat_rate ?? 21);
           const { subtotal, vatAmount, total } = calculateVAT(finalAmount, vatRate, false);
 
           const notesLines = ['Vergaderruimte boekingen:'];

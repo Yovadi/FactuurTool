@@ -317,7 +317,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       .from('meeting_room_bookings')
       .select(`
         id, booking_date, start_time, end_time, total_hours, total_amount, hourly_rate,
-        discount_percentage, discount_amount, rate_type, applied_rate, status, invoice_id,
+        discount_percentage, discount_amount, rate_type, applied_rate, vat_rate, status, invoice_id,
         office_spaces(space_number)
       `)
       .gte('booking_date', startDateStr)
@@ -1707,7 +1707,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
         const baseAmount = totalBeforeDiscount - totalDiscount - additionalDiscount;
 
-        const vatRate = Number(bookings[0]?.vat_rate ?? (customer as { vat_rate?: number }).vat_rate ?? 21);
+        const vatRate = Number((customer as { vat_rate?: number }).vat_rate ?? bookings[0]?.vat_rate ?? 21);
         const { subtotal, vatAmount, total } = calculateVAT(baseAmount, vatRate, false);
 
         const notesLines = ['Vergaderruimte boekingen:'];
@@ -2297,7 +2297,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           }
 
           const finalAmount = totalBeforeDiscount - totalDiscountAmount;
-          const vatRate = Number(bookings[0]?.vat_rate ?? (customer as { vat_rate?: number }).vat_rate ?? 21);
+          const vatRate = Number((customer as { vat_rate?: number }).vat_rate ?? bookings[0]?.vat_rate ?? 21);
           const { subtotal, vatAmount, total } = calculateVAT(finalAmount, vatRate, false);
 
           let notesHeader = 'Vergaderruimte boekingen:';
