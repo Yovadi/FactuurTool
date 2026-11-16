@@ -1,5 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
+import { amsterdamNextMonthStart } from "../../../src/utils/amsterdamCalendar.ts";
+import { buildLeaseRentDraft } from "../../../src/utils/leaseRentDraft.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,10 +14,6 @@ const SKIP_JOB_TYPES = new Set([
   "eboekhouden_relation_verification",
   "send_invoice_reminders",
   "generate_flex_invoices",
-  // This copy bills stored monthly_rent for the UTC month. The desktop app
-  // bills the advance month, divides hall rates by 12 and embeds 21% at 0% VAT.
-  // Leave it to the app until this function uses those same rules.
-  "generate_monthly_invoices",
 ]);
 
 const SECRET_KEYS = [
@@ -37,21 +35,6 @@ type Job = {
   next_run_at: string | null;
   is_enabled: boolean;
 };
-
-function getLocalCategory(spaceType?: string): string | null {
-  switch (spaceType) {
-    case "kantoor":
-      return "huur_kantoor";
-    case "bedrijfsruimte":
-      return "huur_bedrijfsruimte";
-    case "buitenterrein":
-      return "huur_buitenterrein";
-    case "diversen":
-      return "diversen";
-    default:
-      return null;
-  }
-}
 
 function calculateVAT(amount: number, vatRate: number, vatInclusive: boolean) {
   if (vatInclusive) {
@@ -81,14 +64,23 @@ async function advanceJobNextRun(supabase: SupabaseClient, job: Job, intervalHou
     .eq("id", job.id);
 }
 
+async function claimJob(supabase: SupabaseClient, job: Job): Promise<boolean> {
+  const now = new Date().toISOString();
+  const until = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+  const { data } = await supabase
+    .from("scheduled_jobs")
+    .update({ next_run_at: until })
+    .eq("id", job.id)
+    .lte("next_run_at", now)
+    .select("id")
+    .maybeSingle();
+  return !!data;
+}
+
 async function advanceJobToNextMonth(supabase: SupabaseClient, job: Job) {
-  const nextMonth = new Date();
-  nextMonth.setMonth(nextMonth.getMonth() + 1);
-  nextMonth.setDate(1);
-  nextMonth.setHours(0, 0, 0, 0);
   await supabase
     .from("scheduled_jobs")
-    .update({ last_run_at: new Date().toISOString(), next_run_at: nextMonth.toISOString() })
+    .update({ last_run_at: new Date().toISOString(), next_run_at: amsterdamNextMonthStart().toISOString() })
     .eq("id", job.id);
 }
 
@@ -258,88 +250,47 @@ async function applyRentIndexation(supabase: SupabaseClient, job: Job) {
 async function generateMonthlyInvoices(supabase: SupabaseClient, job: Job) {
   const { data: leases } = await supabase
     .from("leases")
-    .select("*, tenant:tenants(*), lease_spaces(*, space:office_spaces(*))")
+    .select("*, tenant:tenants(lease_discount_percentage), lease_spaces(*, space:office_spaces(*))")
     .eq("status", "active");
 
-  if (!leases || leases.length === 0) {
-    await advanceJobToNextMonth(supabase, job);
-    return;
-  }
+  const { data: existingLeaseInvoices } = await supabase
+    .from("invoices")
+    .select("lease_id, invoice_month, notes")
+    .not("lease_id", "is", null);
 
-  const invoiceMonth = new Date().toISOString().slice(0, 7);
-  const invoiceDate = new Date().toISOString().split("T")[0];
-  const dueDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+  const invoiceIndex = existingLeaseInvoices || [];
 
-  for (const lease of leases) {
-    const { data: existingInvoice } = await supabase
-      .from("invoices")
-      .select("id")
-      .eq("lease_id", lease.id)
-      .eq("invoice_month", invoiceMonth)
-      .maybeSingle();
-    if (existingInvoice) continue;
+  for (const lease of leases || []) {
+    const draft = buildLeaseRentDraft(lease, invoiceIndex);
+    if (!draft) continue;
 
     const { data: invoiceNumber } = await supabase.rpc("generate_invoice_number");
-    let baseAmount = Math.round(
-      (lease.lease_spaces || []).reduce((sum: number, ls: { monthly_rent: number }) => sum + Number(ls.monthly_rent), 0) * 100,
-    ) / 100;
-    baseAmount = Math.round((baseAmount + (lease.security_deposit || 0)) * 100) / 100;
-    const { subtotal, vatAmount, total } = calculateVAT(baseAmount, lease.vat_rate, lease.vat_inclusive);
-
     const { data: newInvoice, error: invoiceError } = await supabase
       .from("invoices")
       .insert({
         lease_id: lease.id,
         tenant_id: lease.tenant_id,
         invoice_number: invoiceNumber,
-        invoice_date: invoiceDate,
-        due_date: dueDate,
-        invoice_month: invoiceMonth,
-        subtotal,
-        vat_amount: vatAmount,
-        amount: total,
-        vat_rate: lease.vat_rate,
-        vat_inclusive: lease.vat_inclusive,
+        invoice_date: draft.invoiceDate,
+        due_date: draft.dueDate,
+        invoice_month: draft.invoiceMonth,
+        subtotal: draft.subtotal,
+        vat_amount: draft.vatAmount,
+        amount: draft.amount,
+        vat_rate: draft.vatRate,
+        vat_inclusive: draft.vatInclusive,
         status: "draft",
-        notes: null,
+        notes: draft.notes,
       })
       .select()
       .single();
     if (invoiceError || !newInvoice) continue;
+    invoiceIndex.push({ lease_id: lease.id, invoice_month: draft.invoiceMonth, notes: draft.notes });
 
-    const lineItemsToInsert = [];
-    for (const ls of lease.lease_spaces || []) {
-      const spaceName = ls.space?.space_number || "Ruimte";
-      const spaceType = ls.space?.space_type;
-      let displayName = spaceName;
-      if (spaceType === "bedrijfsruimte") {
-        const numOnly = spaceName.replace(/^(Bedrijfsruimte|Hal)\s*/i, "").trim();
-        if (/^\d+/.test(numOnly)) displayName = `Hal ${numOnly}`;
-      }
-      const sqm = ls.space?.square_footage || 1;
-      const pricePerSqm = sqm > 0 ? Math.round((ls.monthly_rent / sqm) * 100) / 100 : ls.monthly_rent;
-      lineItemsToInsert.push({
-        invoice_id: newInvoice.id,
-        description: displayName,
-        quantity: sqm,
-        unit_price: pricePerSqm,
-        amount: ls.monthly_rent,
-        local_category: getLocalCategory(spaceType),
-      });
-    }
-    if (lease.security_deposit > 0) {
-      lineItemsToInsert.push({
-        invoice_id: newInvoice.id,
-        description: "Voorschot Gas, Water & Electra",
-        quantity: 1,
-        unit_price: lease.security_deposit,
-        amount: lease.security_deposit,
-        local_category: "diversen",
-      });
-    }
-    if (lineItemsToInsert.length > 0) {
-      await supabase.from("invoice_line_items").insert(lineItemsToInsert);
-    }
+    const { error: lineError } = await supabase.from("invoice_line_items").insert(
+      draft.lines.map((line) => ({ ...line, invoice_id: newInvoice.id })),
+    );
+    if (lineError) await supabase.from("invoices").delete().eq("id", newInvoice.id);
   }
 
   await advanceJobToNextMonth(supabase, job);
@@ -468,6 +419,10 @@ async function runDueJobs(supabase: SupabaseClient) {
   for (const job of (jobs || []) as Job[]) {
     if (SKIP_JOB_TYPES.has(job.job_type)) {
       results[job.job_type] = "skipped";
+      continue;
+    }
+    if (!(await claimJob(supabase, job))) {
+      results[job.job_type] = "claimed";
       continue;
     }
     try {
