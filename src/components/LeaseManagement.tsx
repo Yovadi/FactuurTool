@@ -905,14 +905,14 @@ export function LeaseManagement({ isActive = true }: LeaseManagementProps) {
                   type="submit"
                   className="flex-1 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors"
                 >
-                  {editingLease ? 'Update' : 'Create'}
+                  {editingLease ? 'Opslaan' : 'Aanmaken'}
                 </button>
                 <button
                   type="button"
                   onClick={resetForm}
                   className="flex-1 bg-dark-800 text-gray-200 px-4 py-2 rounded-lg hover:bg-dark-700 transition-colors"
                 >
-                  Cancel
+                  Annuleren
                 </button>
               </div>
             </form>

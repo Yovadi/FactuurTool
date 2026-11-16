@@ -33,7 +33,7 @@ const JOB_META: Record<string, {
   },
   generate_meeting_room_invoices: {
     label: 'Vergaderruimte facturen aanmaken',
-    description: 'Genereert automatisch facturen voor alle bevestigde en voltooide vergaderruimte boekingen van de vorige maand die nog niet zijn gefactureerd. Boekingen worden per klant gegroepeerd op één factuur.',
+    description: 'Maakt facturen voor bevestigde en voltooide vergaderboekingen van de vorige maand. Het bedrag is hetzelfde als op het scherm, ook bij 0% btw en korting. Boekingen van één klant komen op één factuur.',
     icon: <DoorOpen size={18} />,
     accentColor: 'teal',
     interval: 'Maandelijks (1e van de maand)',
@@ -422,8 +422,7 @@ export function Automatiseringen() {
             {enabledCount} van {visibleJobs.length} automatiseringen actief
           </p>
           <p className="text-xs text-gray-500 mt-1 max-w-2xl">
-            Facturen, backups, boekingen en contractmeldingen draaien ook als de Windows-app dicht is (Supabase, elk uur).
-            Herinneringen met PDF alleen als de app open is. e-Boekhouden-jobs blijven uit de achtergrondrun.
+            Deze taken draaien wanneer de app open is, bij het openen en daarna elk uur. De nachtelijke servertaak staat uit tot de nieuwe functie geplaatst is. Herinneringen met een pdf en de e-Boekhouden-taken blijven aan de app.
           </p>
         </div>
         <button
@@ -514,7 +513,7 @@ export function Automatiseringen() {
       <div className="rounded-xl bg-dark-800/50 border border-dark-700 px-5 py-4 flex items-start gap-3">
         <Clock size={16} className="text-gray-500 mt-0.5 flex-shrink-0" />
         <p className="text-sm text-gray-400 leading-relaxed">
-          Automatiseringen worden uitgevoerd zolang de app geopend is. Ze worden gecontroleerd bij het openen van de app en daarna elk uur opnieuw. Elke taak draait op zijn eigen schema en wordt overgeslagen als de app gesloten is tot het volgende controlemoment.
+          Een taak die klaarstaat wordt uitgevoerd zolang de app open is. Staat de app dicht, dan wacht die taak tot de app weer open is.
         </p>
       </div>
 

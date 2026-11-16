@@ -5,6 +5,7 @@ import { sendInvoiceReminderEmails } from './invoiceReminders';
 import { createSettingsBackup } from './settingsBackup';
 import { amsterdamNextMonthStart } from './amsterdamCalendar';
 import { buildLeaseRentDraft } from './leaseRentDraft';
+import { buildMeetingInvoiceDraft, groupMeetingBookings, previousAmsterdamMonth } from './meetingInvoiceDraft';
 
 export interface ScheduledJob {
   id: string;
@@ -88,18 +89,6 @@ async function advanceJobNextRun(job: ScheduledJob, intervalHours: number) {
     .eq('id', job.id);
 }
 
-function calculateVAT(amount: number, vatRate: number, vatInclusive: boolean) {
-  if (vatInclusive) {
-    const subtotal = Math.round((amount / (1 + vatRate / 100)) * 100) / 100;
-    const vatAmount = Math.round((amount - subtotal) * 100) / 100;
-    return { subtotal, vatAmount, total: Math.round(amount * 100) / 100 };
-  } else {
-    const subtotal = Math.round(amount * 100) / 100;
-    const vatAmount = Math.round((amount * (vatRate / 100)) * 100) / 100;
-    return { subtotal, vatAmount, total: Math.round((subtotal + vatAmount) * 100) / 100 };
-  }
-}
-
 const runEBoekhoudenPaymentStatusCheck = async (job: ScheduledJob) => {
   try {
     const token = await getEBoekhoudenToken();
@@ -137,114 +126,59 @@ const runEBoekhoudenRelationVerification = async (job: ScheduledJob) => {
 // Groups bookings by customer, creates/updates one draft invoice per customer per month
 const generateMeetingRoomInvoices = async (job: ScheduledJob) => {
   try {
-    const prevMonth = new Date();
-    prevMonth.setDate(1);
-    prevMonth.setMonth(prevMonth.getMonth() - 1);
-    const targetMonth = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}`;
-
-    const { data: rates } = await supabase
-      .from('space_type_rates')
-      .select('vat_inclusive')
-      .eq('space_type', 'vergaderruimte')
-      .maybeSingle();
-    const vatInclusive = rates?.vat_inclusive ?? false;
-    const defaultVatRate = 21;
-
+    const period = previousAmsterdamMonth();
     const { data: bookings } = await supabase
       .from('meeting_room_bookings')
-      .select('*, office_spaces(space_number)')
+      .select(`
+        id, booking_date, start_time, end_time, total_hours, applied_rate, hourly_rate, rate_type,
+        total_amount, discount_amount, vat_rate, tenant_id, external_customer_id,
+        office_spaces(space_number),
+        tenants(vat_rate, meeting_discount_percentage),
+        external_customers(vat_rate, meeting_discount_percentage)
+      `)
       .is('invoice_id', null)
       .in('status', ['confirmed', 'completed'])
-      .gte('booking_date', `${targetMonth}-01`)
-      .lte('booking_date', `${targetMonth}-31`);
+      .gte('booking_date', period.start)
+      .lte('booking_date', period.end);
 
     if (!bookings || bookings.length === 0) {
       await advanceJobToNextMonth(job);
       return;
     }
 
-    const grouped: Record<string, { customerId: string; customerType: 'tenant' | 'external'; bookings: typeof bookings }> = {};
+    for (const group of groupMeetingBookings(bookings)) {
+      const draft = buildMeetingInvoiceDraft(group.bookings, group.vatRate, group.discountPct, period.yearMonth);
+      if (!draft) continue;
+      const { data: invoiceNumber } = await supabase.rpc('generate_invoice_number');
+      const insertData: Record<string, unknown> = {
+        invoice_number: invoiceNumber,
+        invoice_date: draft.invoiceDate,
+        due_date: draft.dueDate,
+        invoice_month: draft.invoiceMonth,
+        status: 'draft',
+        subtotal: draft.subtotal,
+        vat_amount: draft.vatAmount,
+        vat_rate: draft.vatRate,
+        vat_inclusive: false,
+        amount: draft.amount,
+        notes: draft.notes,
+      };
+      if (group.customerType === 'tenant') insertData.tenant_id = group.customerId;
+      else insertData.external_customer_id = group.customerId;
 
-    for (const b of bookings) {
-      const key = b.booking_type === 'tenant' ? `tenant_${b.tenant_id}` : `external_${b.external_customer_id}`;
-      if (!grouped[key]) {
-        grouped[key] = {
-          customerId: b.booking_type === 'tenant' ? b.tenant_id : b.external_customer_id,
-          customerType: b.booking_type === 'tenant' ? 'tenant' : 'external',
-          bookings: [],
-        };
+      const { data: newInvoice } = await supabase.from('invoices').insert(insertData).select('id').single();
+      if (!newInvoice) continue;
+      const { error: lineError } = await supabase.from('invoice_line_items').insert(
+        draft.lines.map((line) => ({ ...line, invoice_id: newInvoice.id })),
+      );
+      if (lineError) {
+        await supabase.from('invoices').delete().eq('id', newInvoice.id);
+        continue;
       }
-      grouped[key].bookings.push(b);
-    }
-
-    const invoiceDate = new Date().toISOString().split('T')[0];
-    const dueDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-
-    for (const group of Object.values(grouped)) {
-      const totalAmount = group.bookings.reduce((sum, b) => sum + Number(b.total_amount), 0);
-      const vatRate = group.bookings[0].vat_rate ?? defaultVatRate;
-      const { subtotal, vatAmount, total } = calculateVAT(totalAmount, vatRate, vatInclusive);
-
-      const notesLines = group.bookings.map(b => {
-        const spaceName = b.office_spaces?.space_number || 'Vergaderruimte';
-        const dateStr = new Date(b.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' });
-        const timeStr = `${b.start_time.substring(0, 5)}-${b.end_time.substring(0, 5)}`;
-        return `- ${spaceName} ${dateStr} ${timeStr} = €${Number(b.total_amount).toFixed(2)}`;
-      });
-      const notes = `Vergaderruimte boekingen:\n${notesLines.join('\n')}`;
-
-      const existingQuery = supabase
-        .from('invoices')
-        .select('id, subtotal, vat_amount, amount, notes')
-        .eq('invoice_month', targetMonth)
-        .eq('status', 'draft');
-
-      const existingResult = group.customerType === 'tenant'
-        ? await existingQuery.eq('tenant_id', group.customerId).maybeSingle()
-        : await existingQuery.eq('external_customer_id', group.customerId).maybeSingle();
-
-      let invoiceId: string;
-
-      if (existingResult.data) {
-        const existing = existingResult.data;
-        const newSubtotal = Math.round((Number(existing.subtotal) + subtotal) * 100) / 100;
-        const newVat = Math.round((newSubtotal * vatRate / 100) * 100) / 100;
-        const newTotal = Math.round((newSubtotal + newVat) * 100) / 100;
-        const updatedNotes = existing.notes ? `${existing.notes}\n${notes}` : notes;
-
-        await supabase.from('invoices').update({
-          subtotal: newSubtotal, vat_amount: newVat, amount: newTotal, notes: updatedNotes
-        }).eq('id', existing.id);
-
-        invoiceId = existing.id;
-      } else {
-        const { data: invoiceNumber } = await supabase.rpc('generate_invoice_number');
-        const insertData: Record<string, unknown> = {
-          invoice_number: invoiceNumber,
-          invoice_date: invoiceDate,
-          due_date: dueDate,
-          invoice_month: targetMonth,
-          status: 'draft',
-          subtotal,
-          vat_amount: vatAmount,
-          vat_rate: vatRate,
-          vat_inclusive: vatInclusive,
-          amount: total,
-          notes,
-        };
-        if (group.customerType === 'tenant') {
-          insertData.tenant_id = group.customerId;
-        } else {
-          insertData.external_customer_id = group.customerId;
-        }
-
-        const { data: newInvoice } = await supabase.from('invoices').insert(insertData).select('id').single();
-        if (!newInvoice) continue;
-        invoiceId = newInvoice.id;
-      }
-
-      const bookingIds = group.bookings.map(b => b.id);
-      await supabase.from('meeting_room_bookings').update({ invoice_id: invoiceId }).in('id', bookingIds);
+      await supabase
+        .from('meeting_room_bookings')
+        .update({ invoice_id: newInvoice.id })
+        .in('id', group.bookings.map((booking) => booking.id).filter((id): id is string => !!id));
     }
 
     await advanceJobToNextMonth(job);

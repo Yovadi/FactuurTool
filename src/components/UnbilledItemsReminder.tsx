@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { amsterdamCalendar } from '../utils/amsterdamCalendar';
 import { shiftYearMonth } from '../utils/leaseInvoiceEligibility';
 import { missingRentForPastMonths, type RentLease } from '../utils/leaseRentDraft';
+import { meetingBookingCharge } from '../utils/meetingInvoiceDraft';
 
 export type UnbilledItem = {
   type: 'huur' | 'vergaderruimte';
@@ -46,8 +47,9 @@ export function useUnbilledItems() {
       `).eq('status', 'active'),
       supabase.from('invoices').select('lease_id, invoice_month, notes'),
       supabase.from('meeting_room_bookings').select(`
-        id, booking_date, total_amount, tenant_id, external_customer_id,
-        tenants(company_name), external_customers(company_name)
+        id, booking_date, total_amount, discount_amount, vat_rate, tenant_id, external_customer_id,
+        tenants(company_name, vat_rate, meeting_discount_percentage),
+        external_customers(company_name, vat_rate, meeting_discount_percentage)
       `)
         .lt('booking_date', currentMonthStart)
         .in('status', ['confirmed', 'completed'])
@@ -95,15 +97,18 @@ export function useUnbilledItems() {
     (unbilledMeetings || []).forEach((b: any) => {
       const month = b.booking_date.substring(0, 7);
       if (month >= currentMonth) return;
+      const tenantRow = Array.isArray(b.tenants) ? b.tenants[0] : b.tenants;
+      const externalRow = Array.isArray(b.external_customers) ? b.external_customers[0] : b.external_customers;
+      const profile = b.tenant_id ? tenantRow : externalRow;
       const name = b.tenant_id
-        ? (b.tenants?.company_name || 'Onbekende huurder')
-        : (b.external_customers?.company_name || 'Externe klant');
+        ? (tenantRow?.company_name || 'Onbekende huurder')
+        : (externalRow?.company_name || 'Externe klant');
       allItems.push({
         type: 'vergaderruimte',
         month,
         monthLabel: getMonthLabel(month),
         customerName: name,
-        amount: b.total_amount || 0
+        amount: meetingBookingCharge(b, Number(profile?.vat_rate ?? 21), Number(profile?.meeting_discount_percentage) || 0),
       });
     });
 
