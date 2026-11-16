@@ -1,4 +1,4 @@
-import { amountWithEmbeddedVat, billableBeforeDiscount, billedCatalogRent, billedLeaseMonthly, billedRentAmount, summarizeMeetingInvoice } from './zeroVatPrice';
+import { amountWithEmbeddedVat, billableBeforeDiscount, billedCatalogRent, billedLeaseMonthly, billedRentAmount, monthlyLineFromTotal, summarizeMeetingInvoice } from './zeroVatPrice';
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -48,5 +48,10 @@ assert(billedCatalogRent(
   1100,
   21,
 ).monthly === 1100, '21% customer keeps the exclusive monthly hall rent');
+
+const halLine = monthlyLineFromTotal(1331, 352);
+assert(halLine.quantity === 352, 'hall line keeps the square metres');
+assert(halLine.unitPrice === 3.78, 'hall line stores the monthly price per m2');
+assert(halLine.amount === 1331, 'hall line amount stays the exact monthly total');
 
 console.log('zero vat price tests passed');

@@ -364,7 +364,9 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
                                   displayName.toLowerCase().includes('hal ') ||
                                   displayName.toLowerCase().includes('bedrijfsruimte') ||
                                   displayName.toLowerCase().includes('buitenterrein');
-            if (isAnnualRate) {
+            const perSqmFromAmount = sqm > 0 ? Math.abs(space.monthly_rent) / sqm : space.price_per_sqm;
+            const storedIsAnnual = Math.abs(space.price_per_sqm / 12 - perSqmFromAmount) + 0.05 < Math.abs(space.price_per_sqm - perSqmFromAmount);
+            if (isAnnualRate && storedIsAnnual) {
               rate = `€ ${space.price_per_sqm.toFixed(2)} / m² / jaar`;
             } else {
               rate = `€ ${space.price_per_sqm.toFixed(2)} / m²`;

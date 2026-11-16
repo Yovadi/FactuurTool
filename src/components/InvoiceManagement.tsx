@@ -15,7 +15,7 @@ import { buildUblInvoiceXml, downloadUblXml } from '../utils/ublInvoice';
 import { sendInvoiceReminderEmails } from '../utils/invoiceReminders';
 import { getLocalRootFolderPath } from '../utils/localSettings';
 import { syncInvoicePDFs, buildInvoiceFolderPath } from '../utils/invoicePdfSync';
-import { billableBeforeDiscount, billableUnitPrice, billedCatalogRent, billedLeaseMonthly, billedLeaseSpaceMonthly, summarizeMeetingInvoice } from '../utils/zeroVatPrice';
+import { billableBeforeDiscount, billableUnitPrice, billedCatalogRent, billedLeaseMonthly, billedLeaseSpaceMonthly, monthlyLineFromTotal, summarizeMeetingInvoice } from '../utils/zeroVatPrice';
 import { isBorgfactuurNote, isLeaseEligibleForInvoiceMonth, resolveDepositInvoice, resolveLeaseInvoiceTarget } from '../utils/leaseInvoiceEligibility';
 import {
   LEASES_CHANGED_EVENT,
@@ -113,7 +113,7 @@ function persistedInvoiceLine(item: {
   const shownPrice = parseFloat(item.unit_price || '0');
   const amount = Math.round(((shownQuantity || 1) * shownPrice) * 100) / 100;
   if (item.square_footage && item.square_footage > 0 && item.catalog_rate && item.catalog_rate > 0) {
-    return { quantity: item.square_footage, unitPrice: item.catalog_rate, amount };
+    return monthlyLineFromTotal(amount, item.square_footage);
   }
   return { quantity: shownQuantity || 1, unitPrice: shownPrice, amount };
 }
@@ -1058,7 +1058,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       if (formData.invoice_month) {
         let query = supabase
           .from('invoices')
-          .select('id', { count: 'exact', head: true })
+          .select('id, notes')
           .eq('invoice_month', formData.invoice_month);
 
         if (invoiceMode === 'lease') {
@@ -1069,9 +1069,11 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           query = query.eq('external_customer_id', formData.external_customer_id).is('lease_id', null);
         }
 
-        const { count } = await query;
+        const { data: monthInvoices } = await query;
+        const creatingBorg = isBorgfactuurNote(formData.notes);
+        const sameKind = (monthInvoices || []).filter((inv) => isBorgfactuurNote(inv.notes) === creatingBorg);
 
-        if (count && count > 0) {
+        if (sameKind.length > 0) {
           let customerName = '';
           if (invoiceMode === 'lease') {
             const lease = leases.find(l => l.id === formData.lease_id);
@@ -1087,7 +1089,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           setDuplicateInvoiceConfirm({
             month: formData.invoice_month,
             customerName,
-            count
+            count: sameKind.length
           });
           setPendingSubmit(() => createInvoice);
           return;

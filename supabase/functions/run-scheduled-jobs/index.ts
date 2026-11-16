@@ -12,6 +12,10 @@ const SKIP_JOB_TYPES = new Set([
   "eboekhouden_relation_verification",
   "send_invoice_reminders",
   "generate_flex_invoices",
+  // This copy bills stored monthly_rent for the UTC month. The desktop app
+  // bills the advance month, divides hall rates by 12 and embeds 21% at 0% VAT.
+  // Leave it to the app until this function uses those same rules.
+  "generate_monthly_invoices",
 ]);
 
 const SECRET_KEYS = [

@@ -11,6 +11,20 @@ export function roundMoney(value: number): number {
   return Math.round((Number(value) || 0) * 100) / 100;
 }
 
+/**
+ * Store a hall line as square metres times the monthly price per m².
+ * The line amount stays the exact monthly total; the unit price is that total
+ * divided by the area, rounded to cents.
+ */
+export function monthlyLineFromTotal(amount: number, squareFootage: number): { quantity: number; unitPrice: number; amount: number } {
+  const total = roundMoney(amount);
+  const sqm = Number(squareFootage);
+  if (!(sqm > 0) || total === 0) {
+    return { quantity: 1, unitPrice: total, amount: total };
+  }
+  return { quantity: sqm, unitPrice: roundMoney(total / sqm), amount: total };
+}
+
 export function monthlyRentFromRate(spaceType: string | undefined, squareFootage: number, ratePerSqm: number): number {
   const raw = (Number(squareFootage) || 0) * (Number(ratePerSqm) || 0);
   if (spaceType === 'bedrijfsruimte' || spaceType === 'buitenterrein') return roundMoney(raw / 12);
