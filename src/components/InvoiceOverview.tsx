@@ -331,7 +331,7 @@ export function InvoiceOverview({ onInvoicesCreated, isActive = true }: InvoiceO
     });
 
     setItems(newItems);
-    setSelected(new Set(newItems.map(i => i.id)));
+    setSelected(new Set(newItems.map(item => item.id)));
     setLoading(false);
   }, [invoiceMonth]);
 
@@ -391,8 +391,13 @@ export function InvoiceOverview({ onInvoicesCreated, isActive = true }: InvoiceO
   };
 
   const toggleAll = () => {
-    if (selected.size === items.length) setSelected(new Set());
-    else setSelected(new Set(items.map(i => i.id)));
+    const regularIds = items.filter(item => item.type !== 'borg').map(item => item.id);
+    const allRegularSelected = regularIds.length > 0 && regularIds.every(id => selected.has(id));
+    setSelected(prev => {
+      const next = new Set(prev);
+      regularIds.forEach(id => allRegularSelected ? next.delete(id) : next.add(id));
+      return next;
+    });
   };
 
   const toggleExpand = (id: string) => {
@@ -404,8 +409,8 @@ export function InvoiceOverview({ onInvoicesCreated, isActive = true }: InvoiceO
     });
   };
 
-  const generateSelectedInvoices = async () => {
-    const selectedItems = items.filter(i => selected.has(i.id));
+  const generateSelectedInvoices = async (scope: 'regular' | 'borg' = 'regular') => {
+    const selectedItems = items.filter(i => selected.has(i.id) && (scope === 'borg' ? i.type === 'borg' : i.type !== 'borg'));
     if (selectedItems.length === 0) return;
 
     setGenerating(true);
@@ -629,7 +634,12 @@ export function InvoiceOverview({ onInvoicesCreated, isActive = true }: InvoiceO
     setGenerating(false);
 
     if (successCount > 0) {
-      showToast(`${successCount} factuur${successCount !== 1 ? 'en' : ''} succesvol aangemaakt als concept.`, 'success');
+      showToast(
+        scope === 'borg'
+          ? `${successCount} borgfactuur${successCount !== 1 ? 'en' : ''} aangemaakt als concept. Verstuur deze los van de huur.`
+          : `${successCount} factuur${successCount !== 1 ? 'en' : ''} succesvol aangemaakt als concept.`,
+        'success'
+      );
       loadInvoiceableItems();
       onInvoicesCreated?.();
     }
@@ -654,11 +664,15 @@ export function InvoiceOverview({ onInvoicesCreated, isActive = true }: InvoiceO
     }
   };
 
-  const huurItems = items.filter(i => i.type === 'huur' || i.type === 'borg');
+  const huurItems = items.filter(i => i.type === 'huur');
+  const borgItems = items.filter(i => i.type === 'borg');
   const bookingItems = items.filter(i => i.type === 'meeting_booking');
+  const regularItems = items.filter(i => i.type !== 'borg');
 
-  const selectedCount = items.filter(i => selected.has(i.id)).length;
-  const selectedTotal = items.filter(i => selected.has(i.id)).reduce((sum, i) => {
+  const selectedRegular = regularItems.filter(i => selected.has(i.id));
+  const selectedBorg = borgItems.filter(i => selected.has(i.id));
+  const selectedCount = selectedRegular.length;
+  const selectedTotal = selectedRegular.reduce((sum, i) => {
     const { total } = calculateVAT(i.amount, i.vatRate, i.vatInclusive);
     return sum + total;
   }, 0);
@@ -846,17 +860,17 @@ export function InvoiceOverview({ onInvoicesCreated, isActive = true }: InvoiceO
           </div>
 
           <div className="flex items-center gap-4">
-            {items.length > 0 && (
+            {regularItems.length > 0 && (
               <div className="flex items-center gap-3 text-sm">
                 <button
                   onClick={toggleAll}
                   className="text-gray-400 hover:text-gray-200 transition-colors underline"
                 >
-                  {selected.size === items.length ? 'Deselecteer alles' : 'Selecteer alles'}
+                  {regularItems.length > 0 && selectedCount === regularItems.length ? 'Deselecteer alles' : 'Selecteer alles'}
                 </button>
                 <span className="text-gray-500">|</span>
                 <span className="text-gray-300">
-                  <span className="font-semibold text-gold-500">{selectedCount}</span> van {items.length} geselecteerd
+                  <span className="font-semibold text-gold-500">{selectedCount}</span> van {regularItems.length} geselecteerd
                 </span>
               </div>
             )}
@@ -892,6 +906,23 @@ export function InvoiceOverview({ onInvoicesCreated, isActive = true }: InvoiceO
               {renderSection('Boekingen', <Calendar size={18} className="text-blue-400" />, bookingItems, 'text-blue-400', 'Geen boekingen te factureren voor deze maand.')}
             </div>
           </div>
+          {borgItems.length > 0 && (
+            <div>
+              <p className="text-sm text-amber-200/80 mb-2">Borgfacturen staan los van de maandhuur en verstuur je apart.</p>
+              {renderSection('Borgfacturen', <Home size={18} className="text-amber-400" />, borgItems, 'text-amber-400', 'Geen borgfacturen te maken voor deze maand.')}
+              {selectedBorg.length > 0 && (
+                <div className="flex justify-end mt-3">
+                  <button
+                    onClick={() => generateSelectedInvoices('borg')}
+                    disabled={generating}
+                    className="px-5 py-2.5 bg-amber-600 text-white font-medium text-sm rounded-lg hover:bg-amber-500 disabled:opacity-50 transition-colors"
+                  >
+                    {generating ? 'Genereren...' : `Maak ${selectedBorg.length} borgfactuur${selectedBorg.length !== 1 ? 'en' : ''}`}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
           </div>
         )}
       </div>
@@ -899,7 +930,7 @@ export function InvoiceOverview({ onInvoicesCreated, isActive = true }: InvoiceO
       {items.length > 0 && selectedCount > 0 && (
         <div className="flex-shrink-0 pt-3 border-t border-dark-700 flex justify-end">
           <button
-            onClick={generateSelectedInvoices}
+            onClick={() => generateSelectedInvoices('regular')}
             disabled={generating || selectedCount === 0}
             className="px-5 py-2.5 bg-gold-500 text-white font-medium text-sm rounded-lg hover:bg-gold-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
           >

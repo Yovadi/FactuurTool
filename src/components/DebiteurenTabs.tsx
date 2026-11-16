@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { InvoiceManagement, InvoiceManagementRef } from './InvoiceManagement';
 import { InvoiceOverview } from './InvoiceOverview';
 import { DebtorsOverview } from './DebtorsOverview';
-import { FileText, AlertTriangle, FileCheck, Home, Calendar } from 'lucide-react';
+import { DepositOverview } from './DepositOverview';
+import { FileText, AlertTriangle, FileCheck, Home, Calendar, Shield } from 'lucide-react';
 
 type DebiteurenTabsProps = {
   initialTab?: 'facturen' | 'outstanding' | 'log';
@@ -12,7 +13,7 @@ type DebiteurenTabsProps = {
 };
 
 export function DebiteurenTabs({ initialTab, onInitialTabConsumed, onCreateCreditNote, isActive = true }: DebiteurenTabsProps) {
-  const [activeTab, setActiveTab] = useState<'facturen' | 'outstanding' | 'log'>(initialTab || 'facturen');
+  const [activeTab, setActiveTab] = useState<'facturen' | 'outstanding' | 'log' | 'borg'>(initialTab || 'facturen');
 
   useEffect(() => {
     if (initialTab) {
@@ -24,6 +25,7 @@ export function DebiteurenTabs({ initialTab, onInitialTabConsumed, onCreateCredi
 
   const tabs: { id: typeof activeTab; label: string; icon: any }[] = [
     { id: 'facturen', label: 'Facturen', icon: FileText },
+    { id: 'borg', label: 'Borg', icon: Shield },
     { id: 'outstanding', label: 'Openstaand', icon: AlertTriangle },
     { id: 'log', label: 'Logboek', icon: FileCheck },
   ];
@@ -65,6 +67,13 @@ export function DebiteurenTabs({ initialTab, onInitialTabConsumed, onCreateCredi
                   <Calendar size={18} />
                   Boeking Facturen
                 </button>
+                <button
+                  onClick={() => invoiceManagementRef.current?.openGenerateBorgModal()}
+                  className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white font-medium rounded-lg hover:bg-amber-500 transition-colors"
+                >
+                  <Shield size={18} />
+                  Borg Facturen
+                </button>
               </div>
             )}
           </div>
@@ -85,6 +94,11 @@ export function DebiteurenTabs({ initialTab, onInitialTabConsumed, onCreateCredi
               hideOpenInvoices
               isActive={isActive && activeTab === 'facturen'}
             />
+          </div>
+        )}
+        {activeTab === 'borg' && (
+          <div className="h-full overflow-y-auto">
+            <DepositOverview isActive={isActive && activeTab === 'borg'} />
           </div>
         )}
         {activeTab === 'outstanding' && (
