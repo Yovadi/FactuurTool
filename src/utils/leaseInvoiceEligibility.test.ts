@@ -88,9 +88,13 @@ assert(!isBorgfactuurNote('Vergaderruimte boekingen:'), 'other notes are not bor
 const withDeposit = { ...trackLab, deposit_amount: 2000 };
 const deposit = resolveDepositInvoice(withDeposit, '2026-12', noInvoices);
 assert(deposit?.eligible && deposit.amount === 2000, 'deposit can be invoiced beside the advance rent');
-assert(deposit?.isBorgfactuur && deposit.invoiceMonth === '2027-01', 'deposit invoice is stored on the start month');
+assert(deposit?.isBorgfactuur && deposit.invoiceMonth === '2026-12', 'deposit keeps the month you pick');
 assert(resolveDepositInvoice(trackLab, '2026-12', noInvoices) === null, 'no deposit invoice without an amount');
-assert(resolveDepositInvoice(withDeposit, '2026-11', noInvoices) === null, 'deposit is not offered two months early');
+const novemberDeposit = resolveDepositInvoice(withDeposit, '2026-11', noInvoices);
+assert(
+  novemberDeposit?.eligible && novemberDeposit.invoiceMonth === '2026-11',
+  'TrackLab deposit can be created in November, before the December rent'
+);
 assert(resolveDepositInvoice(withDeposit, '2026-12', depositOnly) === null, 'deposit is offered only once');
 
 const existingTenant = {
@@ -131,7 +135,10 @@ const anotherDeposit = resolveDepositInvoice(anotherNewLease, '2026-05', [
   ...depositOnly,
   { lease_id: 'lease-existing', invoice_month: '2026-06', notes: BORGFACTUUR_NOTES },
 ]);
-assert(anotherDeposit?.eligible && anotherDeposit.amount === 500, 'one tenant deposit never blocks another tenant');
-assert(resolveDepositInvoice(anotherNewLease, '2026-04', noInvoices) === null, 'a new lease is not offered two months early');
+assert(anotherDeposit?.eligible && anotherDeposit.amount === 500 && anotherDeposit.invoiceMonth === '2026-05', 'one tenant deposit never blocks another tenant');
+assert(
+  resolveDepositInvoice(anotherNewLease, '2026-04', noInvoices)?.invoiceMonth === '2026-04',
+  'a deposit can be created before the first rent month'
+);
 
 console.log('leaseInvoiceEligibility tests passed');

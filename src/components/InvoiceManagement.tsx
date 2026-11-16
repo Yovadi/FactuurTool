@@ -303,9 +303,9 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       const result = `${nextYear}-${String(finalMonth + 1).padStart(2, '0')}`;
       console.log('Default month for rent (next month):', result);
       return result;
-    } else if (type === 'vergaderruimte') {
+    } else if (type === 'vergaderruimte' || type === 'borg') {
       const result = `${year}-${String(month + 1).padStart(2, '0')}`;
-      console.log('Default month for bookings (current month):', result);
+      console.log('Default month for bookings or deposit (current month):', result);
       return result;
     } else {
       const nextMonth = month + 1;
@@ -4099,7 +4099,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                             )}
                             {generateModalType === 'borg' && (
                               <p className="text-xs text-amber-300">
-                                Borgfactuur staat los van de huur en wordt apart verstuurd
+                                Kies zelf de maand. Die hoeft niet de maand van de eerste huur te zijn
                               </p>
                             )}
                             {(generateModalType === 'all' || generateModalType === 'bookings') && (

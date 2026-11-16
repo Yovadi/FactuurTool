@@ -166,7 +166,10 @@ export function resolveLeaseInvoiceTarget(
   };
 }
 
-/** Separate refundable deposit. It does not replace the rent invoice. */
+/**
+ * Separate refundable deposit. It does not replace the rent invoice and is
+ * not tied to the first rent month. Any selected month is allowed, once per lease.
+ */
 export function resolveDepositInvoice(
   lease: LeaseForEligibility & { deposit_amount?: number | string | null },
   selectedMonth: string,
@@ -176,14 +179,9 @@ export function resolveDepositInvoice(
   if (!amount || typeof selectedMonth !== 'string' || !selectedMonth) return null;
   if (invoices.some((inv) => inv.lease_id === lease.id && isBorgfactuurNote(inv.notes))) return null;
 
-  const startMonth = getLeaseStartMonth(lease);
-  const leadMonth = getLeaseLeadMonth(lease);
-  const inWindow = selectedMonth === leadMonth || isLeaseActiveInMonth(lease, selectedMonth);
-  if (!inWindow) return null;
-
   return {
     eligible: true,
-    invoiceMonth: selectedMonth === leadMonth && startMonth ? startMonth : selectedMonth,
+    invoiceMonth: selectedMonth,
     notes: BORGFACTUUR_NOTES,
     isBorgfactuur: true,
     isAdvanceRent: false,
