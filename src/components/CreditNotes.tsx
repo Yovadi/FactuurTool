@@ -679,7 +679,7 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
   return (
     <div className="h-full flex overflow-hidden">
     <div className="flex-1 min-w-0 overflow-y-auto">
-      <div className="p-6">
+      <div>
       <div className="flex justify-end items-center mb-4 flex-wrap gap-3">
         <div className="flex items-center gap-2 flex-wrap">
           {ebConnected && creditNotes.some(n => !n.eboekhouden_id) && (
@@ -710,7 +710,7 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
           </div>
         ) : (
           <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden flex flex-col">
-            <div className="overflow-x-auto flex-1 min-h-0">
+            <div className="overflow-x-auto">
               <table className="w-full table-fixed min-w-[1000px]">
                 <thead>
                   <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">

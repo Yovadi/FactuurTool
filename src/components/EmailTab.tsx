@@ -222,7 +222,7 @@ export function EmailTab({ onOpenInSplitscreen, onNavigateToIntegrations }: Prop
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <div className="flex-shrink-0 sticky top-0 z-10 bg-dark-950 pb-4">
+      <div className="flex-shrink-0 mb-4">
         <div className="flex items-center justify-end mb-4">
           <div className="flex items-center gap-2">
             {configured && (
@@ -250,16 +250,16 @@ export function EmailTab({ onOpenInSplitscreen, onNavigateToIntegrations }: Prop
           </div>
         </div>
 
-        <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-1.5">
-          <div className="flex gap-1">
+        <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2">
+          <div className="flex gap-2">
             {subTabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveSubTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-colors text-sm ${
+                className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
                   activeSubTab === tab.id
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-400 hover:bg-dark-800 hover:text-gray-200'
+                    ? 'bg-gold-500 text-white'
+                    : 'text-gray-300 hover:bg-dark-800'
                 }`}
               >
                 {tab.icon}
@@ -270,7 +270,7 @@ export function EmailTab({ onOpenInSplitscreen, onNavigateToIntegrations }: Prop
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-auto pr-1">
+      <div className="flex-1 min-h-0 overflow-y-auto">
         <div className="bg-dark-900 rounded-xl border border-dark-700 p-6">
           {configured && companySettings ? (
             <>

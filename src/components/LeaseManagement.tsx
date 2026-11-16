@@ -582,8 +582,9 @@ export function LeaseManagement({ isActive = true }: LeaseManagementProps) {
   }
 
   return (
-    <div className="h-full bg-dark-950 overflow-y-auto p-6">
-      <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2 mb-6">
+    <div className="h-full overflow-y-auto">
+      <div className="sticky top-0 z-10 bg-dark-950 pb-4">
+      <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2">
         <div className="flex gap-2">
           <button
             onClick={() => { setActiveTab('active'); setRegularPage(1); }}
@@ -608,6 +609,7 @@ export function LeaseManagement({ isActive = true }: LeaseManagementProps) {
             Verlopen/Beëindigd ({expiredLeases.length})
           </button>
         </div>
+      </div>
       </div>
 
       {(tenants.length === 0 || spaces.length === 0) && (
@@ -934,7 +936,7 @@ export function LeaseManagement({ isActive = true }: LeaseManagementProps) {
                 Huurcontract Aanmaken
               </button>
             </div>
-            <div className="overflow-x-auto flex-1 min-h-0">
+            <div className="overflow-x-auto">
               <table className="w-full table-fixed min-w-[1000px]">
                 <thead>
                   <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">

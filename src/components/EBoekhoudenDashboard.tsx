@@ -671,7 +671,7 @@ export function EBoekhoudenDashboard() {
         {activeSubTab === 'crediteuren' && <CrediteurenEBoekhouden />}
         {activeSubTab === 'instellingen' && (
         <div className="h-full overflow-y-auto">
-        <div className="space-y-6 p-4 sm:p-6">
+        <div className="space-y-6">
 
       <div className={`rounded-lg p-4 border ${connected ? 'bg-green-900/10 border-green-800/30' : hasToken ? 'bg-yellow-900/10 border-yellow-800/30' : 'bg-dark-800 border-dark-700'}`}>
         <div className="flex items-center justify-between">

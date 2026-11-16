@@ -2967,7 +2967,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   }
 
   return (
-    <div className="h-full flex overflow-hidden">
+    <div className="w-full">
 
       {duplicateInvoiceConfirm && (
         <ConfirmModal
@@ -3530,7 +3530,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           />
       )}
 
-      <div className="flex-1 min-w-0 overflow-y-auto w-full transition-all duration-300">
+      <div className="w-full">
       <div className="space-y-4">
         {(() => {
           const sortByInvoiceNumber = (a: InvoiceWithDetails, b: InvoiceWithDetails) => {

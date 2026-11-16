@@ -192,8 +192,8 @@ export function SpaceTypeRates() {
   }
 
   return (
-    <div className="h-full bg-dark-950 overflow-y-auto p-6">
-      <div className="flex justify-end items-center mb-6">
+    <div className="h-full overflow-y-auto">
+      <div className="sticky top-0 z-10 bg-dark-950 pb-4 flex justify-end items-center">
         <button
           onClick={() => setShowForm(true)}
           className="flex items-center gap-2 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors font-medium"

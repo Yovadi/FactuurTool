@@ -235,7 +235,7 @@ export function DepositOverview({ isActive = true }: DepositOverviewProps) {
   const openTotal = rows.reduce((sum, row) => sum + row.open, 0);
 
   return (
-    <div className="h-full overflow-y-auto space-y-4">
+    <div className="space-y-4 pb-4">
       <div className="bg-dark-900 rounded-lg border border-dark-700 p-4 flex items-start justify-between gap-4">
         <div>
           <h2 className="text-lg font-semibold text-gray-100 flex items-center gap-2">
