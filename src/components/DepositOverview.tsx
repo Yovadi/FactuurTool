@@ -93,6 +93,7 @@ export function DepositOverview({ isActive = true }: DepositOverviewProps) {
   const [rows, setRows] = useState<OverviewRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [creatingId, setCreatingId] = useState<string | null>(null);
+  const [invoiceMonths, setInvoiceMonths] = useState<Record<string, string>>({});
   const [toasts, setToasts] = useState<{ id: number; message: string; type: 'success' | 'error' | 'info' }[]>([]);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info') => {
@@ -143,7 +144,7 @@ export function DepositOverview({ isActive = true }: DepositOverviewProps) {
         .reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0);
       const invoice = [...invoices].sort((a, b) => invoiceRank(a) - invoiceRank(b) || b.invoice_date.localeCompare(a.invoice_date))[0] || null;
       const open = Math.max(0, Math.round(((agreed || invoices.reduce((sum, item) => sum + Number(item.amount || 0), 0)) - paid) * 100) / 100);
-      const canCreate = !invoices.length && !!resolveDepositInvoice(lease, depositSelectionMonth(lease), []);
+      const canCreate = invoices.length === 0 && agreed > 0;
 
       nextRows.push({
         lease,
@@ -166,8 +167,10 @@ export function DepositOverview({ isActive = true }: DepositOverviewProps) {
     if (isActive) load();
   }, [isActive, load]);
 
+  const monthFor = (row: OverviewRow) => invoiceMonths[row.lease.id] || depositSelectionMonth(row.lease);
+
   const createInvoice = async (row: OverviewRow) => {
-    const month = depositSelectionMonth(row.lease);
+    const month = monthFor(row);
     const target = resolveDepositInvoice(row.lease, month, []);
     if (!target?.eligible || !target.amount) {
       showToast('Voor dit contract kan nu geen borgfactuur worden gemaakt.', 'error');
@@ -220,7 +223,8 @@ export function DepositOverview({ isActive = true }: DepositOverviewProps) {
         throw lineError;
       }
 
-      showToast(`Borgfactuur ${invoiceNumber} staat als concept. Verstuur deze los van de huur.`, 'success');
+      const monthLabel = new Date(`${target.invoiceMonth}-01T00:00:00`).toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' });
+      showToast(`Borgfactuur ${invoiceNumber} voor ${monthLabel} staat als concept. Verstuur deze via Facturen.`, 'success');
       await load();
     } catch (error) {
       console.error('Error creating deposit invoice:', error);
@@ -243,7 +247,7 @@ export function DepositOverview({ isActive = true }: DepositOverviewProps) {
             Borg per huurder
           </h2>
           <p className="text-sm text-gray-400 mt-1">
-            De waarborgsom is een eigen factuur. Die maak en verstuur je los van de maandhuur. Aan het einde van het contract wordt het bedrag teruggestort.
+            De waarborgsom is een eigen factuur, los van de maandhuur. Kies zelf de factuurmaand; die mag eerder zijn dan de eerste huur. Aan het einde van het contract wordt het bedrag teruggestort.
           </p>
         </div>
         <button
@@ -273,7 +277,7 @@ export function DepositOverview({ isActive = true }: DepositOverviewProps) {
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px]">
+            <table className="w-full min-w-[1040px]">
               <thead>
                 <tr className="border-b border-dark-700 text-gray-400 text-xs uppercase">
                   <th className="text-left px-4 py-3 font-semibold">Huurder</th>
@@ -309,13 +313,22 @@ export function DepositOverview({ isActive = true }: DepositOverviewProps) {
                       </td>
                       <td className="px-4 py-3 text-right">
                         {row.canCreate ? (
-                          <button
-                            onClick={() => createInvoice(row)}
-                            disabled={creatingId === row.lease.id}
-                            className="px-3 py-1.5 bg-amber-600 text-white text-sm rounded-lg hover:bg-amber-500 disabled:opacity-50"
-                          >
-                            {creatingId === row.lease.id ? 'Bezig...' : 'Borgfactuur maken'}
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            <input
+                              type="month"
+                              aria-label={`Factuurmaand borg ${row.tenantName}`}
+                              value={monthFor(row)}
+                              onChange={(event) => setInvoiceMonths(prev => ({ ...prev, [row.lease.id]: event.target.value }))}
+                              className="px-2 py-1.5 bg-dark-800 border border-dark-600 text-gray-200 rounded-lg text-sm"
+                            />
+                            <button
+                              onClick={() => createInvoice(row)}
+                              disabled={creatingId === row.lease.id || !monthFor(row)}
+                              className="px-3 py-1.5 bg-amber-600 text-white text-sm rounded-lg hover:bg-amber-500 disabled:opacity-50 whitespace-nowrap"
+                            >
+                              {creatingId === row.lease.id ? 'Bezig...' : 'Borgfactuur maken'}
+                            </button>
+                          </div>
                         ) : (
                           <span className="text-xs text-gray-500">
                             {row.invoice?.status === 'draft' ? 'Verstuur via Facturen' : ''}

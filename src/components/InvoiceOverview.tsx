@@ -3,7 +3,7 @@ import { supabase, type Tenant, type ExternalCustomer, type Lease, type LeaseSpa
 import { Home, Calendar, CheckSquare, Square, Loader2, AlertTriangle, ChevronDown, ChevronRight, ChevronLeft, RefreshCw } from 'lucide-react';
 import { Toast } from './Toast';
 import { billableBeforeDiscount, billableUnitPrice, billedCatalogRent, summarizeMeetingInvoice } from '../utils/zeroVatPrice';
-import { resolveDepositInvoice, resolveLeaseInvoiceTarget } from '../utils/leaseInvoiceEligibility';
+import { resolveLeaseInvoiceTarget } from '../utils/leaseInvoiceEligibility';
 import {
   LEASES_CHANGED_EVENT,
   TENANTS_CHANGED_EVENT,
@@ -64,15 +64,18 @@ function calculateVAT(baseAmount: number, vatRate: number, vatInclusive: boolean
 
 type InvoiceOverviewProps = {
   onInvoicesCreated?: () => void;
+  onFocusMonthConsumed?: () => void;
   isActive?: boolean;
+  focusMonth?: string;
 };
 
-export function InvoiceOverview({ onInvoicesCreated, isActive = true }: InvoiceOverviewProps = {}) {
+export function InvoiceOverview({ onInvoicesCreated, onFocusMonthConsumed, isActive = true, focusMonth }: InvoiceOverviewProps = {}) {
   const [invoiceMonth, setInvoiceMonth] = useState('');
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [generatingScope, setGeneratingScope] = useState<'huur' | 'meeting_booking' | null>(null);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [toasts, setToasts] = useState<{ id: number; message: string; type: 'success' | 'error' | 'info' }[]>([]);
   const [pastDueBookings, setPastDueBookings] = useState<{ meetingCount: number; months: string[] }>({ meetingCount: 0, months: [] });
@@ -106,10 +109,7 @@ export function InvoiceOverview({ onInvoicesCreated, isActive = true }: InvoiceO
       { data: allInvoices },
       { data: unbilledMeetings },
     ] = await Promise.all([
-      supabase.from('leases').select('id, tenant_id, start_date, end_date, deposit_amount').eq('status', 'active').then(async (result) => {
-        if (!result.error) return result;
-        return supabase.from('leases').select('id, tenant_id, start_date, end_date').eq('status', 'active');
-      }),
+      supabase.from('leases').select('id, tenant_id, start_date, end_date').eq('status', 'active'),
       supabase.from('invoices').select('lease_id, invoice_month, notes'),
       supabase.from('meeting_room_bookings').select('id, booking_date')
         .in('status', ['confirmed', 'completed']).is('invoice_id', null),
@@ -126,7 +126,6 @@ export function InvoiceOverview({ onInvoicesCreated, isActive = true }: InvoiceO
         for (const lease of activeLeases as any[]) {
           const target = resolveLeaseInvoiceTarget(lease, month, allInvoices || []);
           if (target.eligible) leaseCount++;
-          if (resolveDepositInvoice(lease, month, allInvoices || [])) leaseCount++;
         }
       }
 
@@ -152,6 +151,13 @@ export function InvoiceOverview({ onInvoicesCreated, isActive = true }: InvoiceO
     const months = getMonthRange(currentMonth);
     setVisibleMonths(months);
   }, []);
+
+  useEffect(() => {
+    if (!focusMonth || !/^\d{4}-\d{2}$/.test(focusMonth)) return;
+    setInvoiceMonth(focusMonth);
+    setVisibleMonths(getMonthRange(focusMonth));
+    onFocusMonthConsumed?.();
+  }, [focusMonth]);
 
   const loadInvoiceableItems = useCallback(async () => {
     if (!invoiceMonth) return;
@@ -254,27 +260,6 @@ export function InvoiceOverview({ onInvoicesCreated, isActive = true }: InvoiceO
         invoiceNotes: target.notes,
         isBorgfactuur: false,
       });
-      }
-
-      const depositTarget = resolveDepositInvoice(lease, invoiceMonth, invoices);
-      if (depositTarget?.eligible && depositTarget.amount) {
-        newItems.push({
-          id: `borg_${lease.id}`,
-          type: 'borg',
-          customerId: lease.tenant_id,
-          customerName: lease.tenant?.company_name || lease.tenant?.name || 'Onbekend',
-          isExternal: false,
-          leaseId: lease.id,
-          description: 'Borgfactuur',
-          amount: depositTarget.amount,
-          vatRate: 0,
-          vatInclusive: false,
-          lease,
-          details: ['Waarborgsom. Dit bedrag wordt aan het einde van het contract teruggestort.'],
-          resolvedInvoiceMonth: depositTarget.invoiceMonth,
-          invoiceNotes: depositTarget.notes,
-          isBorgfactuur: true,
-        });
       }
     }
 
@@ -409,11 +394,12 @@ export function InvoiceOverview({ onInvoicesCreated, isActive = true }: InvoiceO
     });
   };
 
-  const generateSelectedInvoices = async (scope: 'regular' | 'borg' = 'regular') => {
-    const selectedItems = items.filter(i => selected.has(i.id) && (scope === 'borg' ? i.type === 'borg' : i.type !== 'borg'));
+  const generateSelectedInvoices = async (scope: 'huur' | 'meeting_booking') => {
+    const selectedItems = items.filter(i => selected.has(i.id) && i.type === scope);
     if (selectedItems.length === 0) return;
 
     setGenerating(true);
+    setGeneratingScope(scope);
     let successCount = 0;
     let failCount = 0;
 
@@ -632,12 +618,12 @@ export function InvoiceOverview({ onInvoicesCreated, isActive = true }: InvoiceO
     }
 
     setGenerating(false);
+    setGeneratingScope(null);
 
     if (successCount > 0) {
+      const noun = scope === 'huur' ? 'huurfactuur' : 'boekingfactuur';
       showToast(
-        scope === 'borg'
-          ? `${successCount} borgfactuur${successCount !== 1 ? 'en' : ''} aangemaakt als concept. Verstuur deze los van de huur.`
-          : `${successCount} factuur${successCount !== 1 ? 'en' : ''} succesvol aangemaakt als concept.`,
+        `${successCount} ${noun}${successCount !== 1 ? 'en' : ''} aangemaakt als concept.`,
         'success'
       );
       loadInvoiceableItems();
@@ -665,16 +651,14 @@ export function InvoiceOverview({ onInvoicesCreated, isActive = true }: InvoiceO
   };
 
   const huurItems = items.filter(i => i.type === 'huur');
-  const borgItems = items.filter(i => i.type === 'borg');
   const bookingItems = items.filter(i => i.type === 'meeting_booking');
-  const regularItems = items.filter(i => i.type !== 'borg');
+  const regularItems = [...huurItems, ...bookingItems];
 
-  const selectedRegular = regularItems.filter(i => selected.has(i.id));
-  const selectedBorg = borgItems.filter(i => selected.has(i.id));
-  const selectedCount = selectedRegular.length;
-  const selectedTotal = selectedRegular.reduce((sum, i) => {
-    const { total } = calculateVAT(i.amount, i.vatRate, i.vatInclusive);
-    return sum + total;
+  const selectedHuur = huurItems.filter(i => selected.has(i.id));
+  const selectedBookings = bookingItems.filter(i => selected.has(i.id));
+  const selectedCount = selectedHuur.length + selectedBookings.length;
+  const sectionTotal = (list: InvoiceItem[]) => list.reduce((sum, item) => {
+    return sum + calculateVAT(item.amount, item.vatRate, item.vatInclusive).total;
   }, 0);
 
   const monthLabel = invoiceMonth
@@ -855,7 +839,10 @@ export function InvoiceOverview({ onInvoicesCreated, isActive = true }: InvoiceO
 
         <div className="px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-lg font-semibold text-gray-100 capitalize">{monthLabel}</span>
+            <div>
+              <span className="text-lg font-semibold text-gray-100 capitalize">{monthLabel}</span>
+              <p className="text-xs text-gray-500 mt-0.5">Huur en boekingen voor deze maand. Borg staat op een eigen tabblad.</p>
+            </div>
             {loading && <Loader2 size={16} className="text-gold-500 animate-spin" />}
           </div>
 
@@ -898,53 +885,45 @@ export function InvoiceOverview({ onInvoicesCreated, isActive = true }: InvoiceO
               </div>
             </div>
           )}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="flex flex-col gap-3">
               {renderSection('Huurcontracten', <Home size={18} className="text-emerald-400" />, huurItems, 'text-emerald-400', 'Geen huurcontracten te factureren voor deze maand.')}
-            </div>
-            <div>
-              {renderSection('Boekingen', <Calendar size={18} className="text-blue-400" />, bookingItems, 'text-blue-400', 'Geen boekingen te factureren voor deze maand.')}
-            </div>
-          </div>
-          {borgItems.length > 0 && (
-            <div>
-              <p className="text-sm text-amber-200/80 mb-2">Borgfacturen staan los van de maandhuur en verstuur je apart.</p>
-              {renderSection('Borgfacturen', <Home size={18} className="text-amber-400" />, borgItems, 'text-amber-400', 'Geen borgfacturen te maken voor deze maand.')}
-              {selectedBorg.length > 0 && (
-                <div className="flex justify-end mt-3">
+              {selectedHuur.length > 0 && (
+                <div className="flex justify-end">
                   <button
-                    onClick={() => generateSelectedInvoices('borg')}
+                    onClick={() => generateSelectedInvoices('huur')}
                     disabled={generating}
-                    className="px-5 py-2.5 bg-amber-600 text-white font-medium text-sm rounded-lg hover:bg-amber-500 disabled:opacity-50 transition-colors"
+                    className="px-5 py-2.5 bg-emerald-600 text-white font-medium text-sm rounded-lg hover:bg-emerald-500 disabled:opacity-50 transition-colors flex items-center gap-2"
                   >
-                    {generating ? 'Genereren...' : `Maak ${selectedBorg.length} borgfactuur${selectedBorg.length !== 1 ? 'en' : ''}`}
+                    {generating && generatingScope === 'huur' && <Loader2 size={16} className="animate-spin" />}
+                    {generating && generatingScope === 'huur'
+                      ? 'Bezig...'
+                      : `Maak ${selectedHuur.length} huurfactuur${selectedHuur.length !== 1 ? 'en' : ''} (\u20AC${sectionTotal(selectedHuur).toFixed(2)} incl. btw)`}
                   </button>
                 </div>
               )}
             </div>
-          )}
+            <div className="flex flex-col gap-3">
+              {renderSection('Boekingen', <Calendar size={18} className="text-blue-400" />, bookingItems, 'text-blue-400', 'Geen boekingen te factureren voor deze maand.')}
+              {selectedBookings.length > 0 && (
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => generateSelectedInvoices('meeting_booking')}
+                    disabled={generating}
+                    className="px-5 py-2.5 bg-blue-600 text-white font-medium text-sm rounded-lg hover:bg-blue-500 disabled:opacity-50 transition-colors flex items-center gap-2"
+                  >
+                    {generating && generatingScope === 'meeting_booking' && <Loader2 size={16} className="animate-spin" />}
+                    {generating && generatingScope === 'meeting_booking'
+                      ? 'Bezig...'
+                      : `Maak ${selectedBookings.length} boekingfactuur${selectedBookings.length !== 1 ? 'en' : ''} (\u20AC${sectionTotal(selectedBookings).toFixed(2)} incl. btw)`}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
           </div>
         )}
       </div>
-
-      {items.length > 0 && selectedCount > 0 && (
-        <div className="flex-shrink-0 pt-3 border-t border-dark-700 flex justify-end">
-          <button
-            onClick={() => generateSelectedInvoices('regular')}
-            disabled={generating || selectedCount === 0}
-            className="px-5 py-2.5 bg-gold-500 text-white font-medium text-sm rounded-lg hover:bg-gold-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-          >
-            {generating ? (
-              <>
-                <Loader2 size={16} className="animate-spin" />
-                Genereren...
-              </>
-            ) : (
-              `Genereer ${selectedCount} ${selectedCount !== 1 ? 'facturen' : 'factuur'} (${'\u20AC'}${selectedTotal.toFixed(2)} incl. BTW)`
-            )}
-          </button>
-        </div>
-      )}
 
       {toasts.map(toast => (
         <Toast key={toast.id} message={toast.message} type={toast.type} onClose={() => removeToast(toast.id)} />

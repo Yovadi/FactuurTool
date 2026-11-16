@@ -49,7 +49,8 @@ function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [isElectron, setIsElectron] = useState(false);
   const [prefilledInvoiceData, setPrefilledInvoiceData] = useState<PrefilledInvoiceData | null>(null);
-  const [debiteurenInitialTab, setDebiteurenInitialTab] = useState<'facturen' | 'outstanding' | 'log' | undefined>(undefined);
+  const [debiteurenInitialTab, setDebiteurenInitialTab] = useState<'te-factureren' | 'facturen' | 'borg' | 'outstanding' | 'log' | undefined>(undefined);
+  const [debiteurenFocusMonth, setDebiteurenFocusMonth] = useState<string | undefined>(undefined);
   const [appVersion, setAppVersion] = useState<string>('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -687,7 +688,9 @@ function App() {
                 {visitedTabs.has('dashboard') && <OverzichtTabs onNavigateToDebtors={(subTab) => {
                   setDebiteurenInitialTab(subTab);
                   switchTab('financial-debtors');
-                }} onNavigateToInvoicing={() => {
+                }} onNavigateToInvoicing={(month) => {
+                  setDebiteurenInitialTab('te-factureren');
+                  setDebiteurenFocusMonth(month);
                   switchTab('financial-debtors');
                 }} />}
               </div>
@@ -711,7 +714,9 @@ function App() {
                   <DebiteurenTabs
                     isActive={activeTab === 'financial-debtors'}
                     initialTab={debiteurenInitialTab}
+                    focusMonth={debiteurenFocusMonth}
                     onInitialTabConsumed={() => setDebiteurenInitialTab(undefined)}
+                    onFocusMonthConsumed={() => setDebiteurenFocusMonth(undefined)}
                     onCreateCreditNote={(invoice, tenant, spaces) => {
                       setPrefilledInvoiceData({ invoice, tenant, spaces });
                       switchTab('financial-creditors');
