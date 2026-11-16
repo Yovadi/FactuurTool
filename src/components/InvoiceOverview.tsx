@@ -841,7 +841,7 @@ export function InvoiceOverview({ onInvoicesCreated, onFocusMonthConsumed, isAct
           <div className="flex items-center gap-3">
             <div>
               <span className="text-lg font-semibold text-gray-100 capitalize">{monthLabel}</span>
-              <p className="text-xs text-gray-500 mt-0.5">Huur en boekingen voor deze maand. Borg staat op een eigen tabblad.</p>
+              <p className="text-xs text-gray-500 mt-0.5">Kies de maand en maak de facturen. De concepten staan hieronder om te controleren en te versturen. Borg maak je op het tabblad Borg.</p>
             </div>
             {loading && <Loader2 size={16} className="text-gold-500 animate-spin" />}
           </div>

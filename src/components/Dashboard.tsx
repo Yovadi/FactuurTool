@@ -62,7 +62,7 @@ type Lease = {
 };
 
 type DashboardProps = {
-  onNavigateToDebtors?: (subTab: 'facturen' | 'outstanding') => void;
+  onNavigateToDebtors?: (subTab: 'te-factureren' | 'facturen' | 'outstanding') => void;
   onNavigateToInvoicing?: (month: string) => void;
 };
 
@@ -598,7 +598,7 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
                       return (
                         <div
                           key={inv.invoice_number}
-                          onClick={() => onNavigateToDebtors?.('facturen')}
+                          onClick={() => onNavigateToDebtors?.('te-factureren')}
                           className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-amber-900/20 transition-colors"
                         >
                           <div className="flex items-center gap-2.5">

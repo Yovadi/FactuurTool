@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { InvoiceManagement } from './InvoiceManagement';
+import { useState, useEffect, useRef } from 'react';
+import { InvoiceManagement, InvoiceManagementRef } from './InvoiceManagement';
 import { InvoiceOverview } from './InvoiceOverview';
 import { DebtorsOverview } from './DebtorsOverview';
 import { DepositOverview } from './DepositOverview';
@@ -25,6 +25,7 @@ export function DebiteurenTabs({
   isActive = true,
 }: DebiteurenTabsProps) {
   const [activeTab, setActiveTab] = useState<DebiteurenTab>(initialTab || 'te-factureren');
+  const invoiceManagementRef = useRef<InvoiceManagementRef>(null);
 
   useEffect(() => {
     if (initialTab) {
@@ -69,11 +70,22 @@ export function DebiteurenTabs({
       <div className="flex-1 min-h-0 overflow-hidden">
         {activeTab === 'te-factureren' && (
           <div className="h-full overflow-y-auto">
-            <InvoiceOverview
-              isActive={isActive && activeTab === 'te-factureren'}
-              focusMonth={focusMonth}
-              onFocusMonthConsumed={onFocusMonthConsumed}
-            />
+            <div className="flex flex-col gap-4 pb-4">
+              <InvoiceOverview
+                isActive={isActive && activeTab === 'te-factureren'}
+                focusMonth={focusMonth}
+                onFocusMonthConsumed={onFocusMonthConsumed}
+                onInvoicesCreated={() => invoiceManagementRef.current?.refreshInvoices()}
+              />
+              <InvoiceManagement
+                ref={invoiceManagementRef}
+                onCreateCreditNote={onCreateCreditNote}
+                invoiceTypeFilter="all"
+                hideOpenInvoices
+                embeddedDrafts
+                isActive={isActive && activeTab === 'te-factureren'}
+              />
+            </div>
           </div>
         )}
         {activeTab === 'facturen' && (

@@ -144,10 +144,11 @@ type InvoiceManagementProps = {
   invoiceTypeFilter?: InvoiceTypeFilter;
   hideOpenInvoices?: boolean;
   onlyOpenInvoices?: boolean;
+  embeddedDrafts?: boolean;
   isActive?: boolean;
 };
 
-export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCreateCreditNote, invoiceTypeFilter = 'all', hideOpenInvoices = false, onlyOpenInvoices = false, isActive = true }, ref) => {
+export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCreateCreditNote, invoiceTypeFilter = 'all', hideOpenInvoices = false, onlyOpenInvoices = false, embeddedDrafts = false, isActive = true }, ref) => {
   const [invoices, setInvoices] = useState<InvoiceWithDetails[]>([]);
   const [leases, setLeases] = useState<LeaseWithDetails[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -3763,8 +3764,13 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
               {!onlyOpenInvoices && (
               <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700">
-                <div className="flex items-center justify-between px-4 py-3 bg-dark-800 border-b border-emerald-500">
-                  <h2 className="text-lg font-bold text-gray-100">Concept Facturen</h2>
+                <div className="flex items-center justify-between gap-4 px-4 py-3 bg-dark-800 border-b border-emerald-500">
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-100">Concept Facturen</h2>
+                    {embeddedDrafts && (
+                      <p className="text-xs text-gray-400 mt-0.5">Alle concepten, ook van andere maanden. Open een factuur om te controleren en te versturen.</p>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2">
                     {draftSelected > 0 && (
                       <>
