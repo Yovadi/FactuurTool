@@ -16,6 +16,13 @@ import { sendInvoiceReminderEmails } from '../utils/invoiceReminders';
 import { getLocalRootFolderPath } from '../utils/localSettings';
 import { syncInvoicePDFs, buildInvoiceFolderPath } from '../utils/invoicePdfSync';
 import { billableBeforeDiscount, billableUnitPrice, billedCatalogRent, summarizeMeetingInvoice } from '../utils/zeroVatPrice';
+import { isLeaseEligibleForInvoiceMonth, resolveLeaseInvoiceTarget } from '../utils/leaseInvoiceEligibility';
+import {
+  LEASES_CHANGED_EVENT,
+  TENANTS_CHANGED_EVENT,
+  subscribeDataRefresh,
+  subscribeTenantsLeasesRealtime,
+} from '../utils/dataRefresh';
 
 type LeaseWithDetails = Lease & {
   tenant: Tenant;
@@ -107,23 +114,6 @@ function getLocalCategory(spaceType?: string, bookingType?: string): string | nu
   }
 }
 
-function isLeaseActiveInMonth(lease: { start_date?: string | null; end_date?: string | null }, invoiceMonth: string): boolean {
-  if (!invoiceMonth) return true;
-  const [y, m] = invoiceMonth.split('-').map(Number);
-  if (!y || !m) return true;
-  const monthStart = new Date(y, m - 1, 1);
-  const monthEnd = new Date(y, m, 0);
-  if (lease.start_date) {
-    const startDate = new Date(lease.start_date);
-    if (startDate > monthEnd) return false;
-  }
-  if (lease.end_date) {
-    const endDate = new Date(lease.end_date);
-    if (endDate < monthStart) return false;
-  }
-  return true;
-}
-
 export type InvoiceTypeFilter = 'all' | 'huur' | 'vergaderruimte' | 'handmatig';
 
 export interface InvoiceManagementRef {
@@ -138,9 +128,10 @@ type InvoiceManagementProps = {
   invoiceTypeFilter?: InvoiceTypeFilter;
   hideOpenInvoices?: boolean;
   onlyOpenInvoices?: boolean;
+  isActive?: boolean;
 };
 
-export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCreateCreditNote, invoiceTypeFilter = 'all', hideOpenInvoices = false, onlyOpenInvoices = false }, ref) => {
+export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCreateCreditNote, invoiceTypeFilter = 'all', hideOpenInvoices = false, onlyOpenInvoices = false, isActive = true }, ref) => {
   const [invoices, setInvoices] = useState<InvoiceWithDetails[]>([]);
   const [leases, setLeases] = useState<LeaseWithDetails[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -406,6 +397,27 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     localStorage.setItem('hal5-invoices-last-seen', new Date().toISOString());
     window.dispatchEvent(new CustomEvent('invoices-seen'));
   }, []);
+
+  useEffect(() => {
+    if (isActive) {
+      loadData();
+    }
+  }, [isActive]);
+
+  useEffect(() => {
+    const refresh = () => {
+      if (isActive) loadData();
+    };
+    const unsubEvents = subscribeDataRefresh(
+      [TENANTS_CHANGED_EVENT, LEASES_CHANGED_EVENT],
+      refresh
+    );
+    const unsubRealtime = subscribeTenantsLeasesRealtime(refresh);
+    return () => {
+      unsubEvents();
+      unsubRealtime();
+    };
+  }, [isActive]);
 
   useEffect(() => {
     const electron = (window as any).electron;
@@ -710,13 +722,9 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   useEffect(() => {
     if (!invoiceMonth || !showGenerateModal) return;
 
-    const leasesToGenerate = leases.filter(lease => {
-      if (!isLeaseActiveInMonth(lease, invoiceMonth)) return false;
-      const existingInvoice = invoices.find(
-        inv => inv.lease_id === lease.id && inv.invoice_month === invoiceMonth
-      );
-      return !existingInvoice;
-    });
+    const leasesToGenerate = leases.filter(lease =>
+      isLeaseEligibleForInvoiceMonth(lease, invoiceMonth, invoices)
+    );
 
     const customersWithBookingsIds = [...tenants, ...externalCustomers.map(ec => ({
       ...ec,
@@ -1954,6 +1962,10 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     const dueDate = dueDateObj.toISOString().split('T')[0];
 
     const leasesToProcess = leases.filter(l => selectedLeases.has(l.id));
+    const invoiceIndex = invoices.map(inv => ({
+      lease_id: inv.lease_id,
+      invoice_month: inv.invoice_month,
+    }));
 
     console.log('Starting bulk invoice generation for month:', targetMonth);
     console.log('Total leases to process:', leasesToProcess.length);
@@ -1966,21 +1978,20 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       try {
         console.log('Processing lease:', lease.id, 'Tenant:', lease.tenant?.company_name);
 
-        if (!isLeaseActiveInMonth(lease, targetMonth)) {
-          console.log('Skipping - lease not active in', targetMonth, 'for', lease.tenant?.company_name);
+        const target = resolveLeaseInvoiceTarget(lease, targetMonth, invoiceIndex);
+        if (!target.eligible) {
+          console.log('Skipping - lease not eligible in', targetMonth, 'for', lease.tenant?.company_name);
           continue;
         }
 
-        const existingInvoice = invoices.find(
-          inv => inv.lease_id === lease.id && inv.invoice_month === targetMonth
+        const leaseInvoiceMonth = target.invoiceMonth;
+        console.log(
+          'Creating invoice for',
+          lease.tenant?.company_name,
+          'for month:',
+          leaseInvoiceMonth,
+          target.isBorgfactuur ? '(Borgfactuur)' : ''
         );
-
-        if (existingInvoice) {
-          console.log('Skipping - invoice already exists for', lease.tenant?.company_name, 'month:', targetMonth);
-          continue;
-        }
-
-        console.log('Creating invoice for', lease.tenant?.company_name, 'for month:', targetMonth);
 
         const { data: invoiceNumber, error: numberError } = await supabase.rpc('generate_invoice_number');
 
@@ -2037,14 +2048,14 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
             invoice_number: invoiceNumber,
             invoice_date: invoiceDate,
             due_date: dueDate,
-            invoice_month: targetMonth,
+            invoice_month: leaseInvoiceMonth,
             subtotal: subtotal,
             vat_amount: vatAmount,
             amount: total,
             vat_rate: vatRate,
             vat_inclusive: lease.vat_inclusive,
             status: 'draft',
-            notes: null
+            notes: target.notes
           }])
           .select()
           .single();
@@ -2054,6 +2065,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           failCount++;
           continue;
         }
+
+        invoiceIndex.push({ lease_id: lease.id, invoice_month: leaseInvoiceMonth });
 
         for (const ls of lease.lease_spaces) {
           const spaceName = ls.space.space_number;
@@ -3851,13 +3864,9 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       {showGenerateModal && (() => {
         const targetMonth = invoiceMonth;
 
-        const allLeasesToGenerate = targetMonth ? leases.filter(lease => {
-          if (!isLeaseActiveInMonth(lease, targetMonth)) return false;
-          const existingInvoice = invoices.find(
-            inv => inv.lease_id === lease.id && inv.invoice_month === targetMonth
-          );
-          return !existingInvoice;
-        }) : [];
+        const allLeasesToGenerate = targetMonth
+          ? leases.filter(lease => isLeaseEligibleForInvoiceMonth(lease, targetMonth, invoices))
+          : [];
 
         const regularLeasesToGenerate = allLeasesToGenerate;
 
@@ -4042,6 +4051,9 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                               {regularLeasesToGenerate.map(lease => {
                                 const rentAmount = lease.lease_spaces.reduce((sum, ls) => sum + ls.monthly_rent, 0);
                                 const total = Math.round((rentAmount + lease.security_deposit) * 100) / 100;
+                                const leaseTarget = targetMonth
+                                  ? resolveLeaseInvoiceTarget(lease, targetMonth, invoices)
+                                  : null;
 
                                 return (
                                   <div
@@ -4065,6 +4077,9 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                                       </div>
                                       <div className="text-xs text-gray-400">
                                         {lease.lease_spaces.length} ruimte(s)
+                                        {leaseTarget?.isBorgfactuur && leaseTarget.invoiceMonth
+                                          ? ` · Borgfactuur ${new Date(leaseTarget.invoiceMonth + '-01').toLocaleDateString('nl-NL', { month: 'short', year: 'numeric' })}`
+                                          : ''}
                                       </div>
                                     </div>
                                     <div className="text-sm font-medium text-gray-200 flex-shrink-0">

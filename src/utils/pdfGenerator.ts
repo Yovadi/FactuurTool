@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import { getLogoBase64 } from './logoLoader';
+import { isBorgfactuurNote } from './leaseInvoiceEligibility';
 
 export interface BuildingInfoData {
   company?: {
@@ -219,6 +220,14 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
 
   yPosition = 90;
 
+  if (isBorgfactuurNote(invoice.notes)) {
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(40, 40, 40);
+    pdf.text('Borgfactuur', margin, yPosition);
+    yPosition += 7;
+  }
+
   if (invoice.invoice_month) {
     pdf.setFontSize(9);
     pdf.setFont('helvetica', 'bold');
@@ -230,7 +239,7 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
     const monthName = monthNames[parseInt(month) - 1];
     pdf.text(monthName + ' ' + year, margin + 30, yPosition);
     yPosition += 8;
-  } else {
+  } else if (!isBorgfactuurNote(invoice.notes)) {
     yPosition += 3;
   }
 

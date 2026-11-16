@@ -3,6 +3,13 @@ import { supabase, type Tenant, type ExternalCustomer, type Lease, type LeaseSpa
 import { Home, Calendar, CheckSquare, Square, Loader2, AlertTriangle, ChevronDown, ChevronRight, ChevronLeft, RefreshCw } from 'lucide-react';
 import { Toast } from './Toast';
 import { billableBeforeDiscount, billableUnitPrice, billedCatalogRent, summarizeMeetingInvoice } from '../utils/zeroVatPrice';
+import { BORGFACTUUR_NOTE, resolveLeaseInvoiceTarget } from '../utils/leaseInvoiceEligibility';
+import {
+  LEASES_CHANGED_EVENT,
+  TENANTS_CHANGED_EVENT,
+  subscribeDataRefresh,
+  subscribeTenantsLeasesRealtime,
+} from '../utils/dataRefresh';
 
 type LeaseWithDetails = Lease & {
   tenant: Tenant;
@@ -24,6 +31,10 @@ type InvoiceItem = {
   lease?: LeaseWithDetails;
   details: string[];
   customerDiscountPct?: number;
+  /** Resolved invoice_month for lease items (start month for borg). */
+  resolvedInvoiceMonth?: string;
+  invoiceNotes?: string | null;
+  isBorgfactuur?: boolean;
 };
 
 function getLocalCategory(spaceType?: string, bookingType?: string): string | null {
@@ -53,9 +64,10 @@ function calculateVAT(baseAmount: number, vatRate: number, vatInclusive: boolean
 
 type InvoiceOverviewProps = {
   onInvoicesCreated?: () => void;
+  isActive?: boolean;
 };
 
-export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}) {
+export function InvoiceOverview({ onInvoicesCreated, isActive = true }: InvoiceOverviewProps = {}) {
   const [invoiceMonth, setInvoiceMonth] = useState('');
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -109,12 +121,8 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
       let leaseCount = 0;
       if (activeLeases && month >= '2026-02') {
         for (const lease of activeLeases as any[]) {
-          if (lease.start_date && lease.start_date > endDate) continue;
-          if (lease.end_date && lease.end_date < startDate) continue;
-          const alreadyInvoiced = (allInvoices || []).some(
-            (inv: any) => inv.lease_id === lease.id && inv.invoice_month === month
-          );
-          if (!alreadyInvoiced) leaseCount++;
+          const target = resolveLeaseInvoiceTarget(lease, month, allInvoices || []);
+          if (target.eligible) leaseCount++;
         }
       }
 
@@ -198,10 +206,8 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
     const newItems: InvoiceItem[] = [];
 
     for (const lease of leases) {
-      if ((lease as any).start_date && (lease as any).start_date > endDateStr) continue;
-      if ((lease as any).end_date && (lease as any).end_date < startDateStr) continue;
-      const hasExisting = invoices.some(inv => inv.lease_id === lease.id && inv.invoice_month === invoiceMonth);
-      if (hasExisting) continue;
+      const target = resolveLeaseInvoiceTarget(lease, invoiceMonth, invoices);
+      if (!target.eligible) continue;
 
       let amount = 0;
       const details: string[] = [];
@@ -232,12 +238,15 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
         customerName: lease.tenant?.company_name || lease.tenant?.name || 'Onbekend',
         isExternal: false,
         leaseId: lease.id,
-        description: `Huurcontract`,
+        description: target.isBorgfactuur ? BORGFACTUUR_NOTE : 'Huurcontract',
         amount,
         vatRate: lease.vat_rate,
         vatInclusive: lease.vat_inclusive,
         lease,
-        details
+        details,
+        resolvedInvoiceMonth: target.invoiceMonth,
+        invoiceNotes: target.notes,
+        isBorgfactuur: target.isBorgfactuur,
       });
     }
 
@@ -305,6 +314,29 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
   useEffect(() => {
     if (visibleMonths.length > 0) loadMonthIndicators(visibleMonths);
   }, [visibleMonths, loadMonthIndicators]);
+
+  useEffect(() => {
+    if (!isActive) return;
+    if (invoiceMonth) loadInvoiceableItems();
+    if (visibleMonths.length > 0) loadMonthIndicators(visibleMonths);
+  }, [isActive]);
+
+  useEffect(() => {
+    const refresh = () => {
+      if (!isActive) return;
+      if (invoiceMonth) loadInvoiceableItems();
+      if (visibleMonths.length > 0) loadMonthIndicators(visibleMonths);
+    };
+    const unsubEvents = subscribeDataRefresh(
+      [TENANTS_CHANGED_EVENT, LEASES_CHANGED_EVENT],
+      refresh
+    );
+    const unsubRealtime = subscribeTenantsLeasesRealtime(refresh);
+    return () => {
+      unsubEvents();
+      unsubRealtime();
+    };
+  }, [isActive, invoiceMonth, visibleMonths, loadInvoiceableItems, loadMonthIndicators]);
 
   const selectMonth = (month: string) => {
     setInvoiceMonth(month);
@@ -414,13 +446,15 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
           const baseAmount = Math.round((rentAmount - discountAmount + deposit) * 100) / 100;
           const { subtotal, vatAmount, total } = calculateVAT(baseAmount, vatRate, lease.vat_inclusive);
 
+          const leaseInvoiceMonth = item.resolvedInvoiceMonth || invoiceMonth;
           const { data: newInvoice, error: invErr } = await supabase
             .from('invoices')
             .insert([{
               lease_id: lease.id, tenant_id: lease.tenant_id,
               invoice_number: invoiceNumber, invoice_date: invoiceDate, due_date: dueDate,
-              invoice_month: invoiceMonth, subtotal, vat_amount: vatAmount, amount: total,
-              vat_rate: vatRate, vat_inclusive: lease.vat_inclusive, status: 'draft', notes: null
+              invoice_month: leaseInvoiceMonth, subtotal, vat_amount: vatAmount, amount: total,
+              vat_rate: vatRate, vat_inclusive: lease.vat_inclusive, status: 'draft',
+              notes: item.invoiceNotes ?? null
             }]).select().single();
 
           if (invErr || !newInvoice) { failCount++; continue; }

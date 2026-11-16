@@ -4,6 +4,7 @@ import { checkInvoicePaymentStatuses, checkPurchaseInvoicePaymentStatuses, verif
 import { createLeaseNotification } from './notificationHelper';
 import { sendInvoiceReminderEmails } from './invoiceReminders';
 import { createSettingsBackup } from './settingsBackup';
+import { resolveLeaseInvoiceTarget } from './leaseInvoiceEligibility';
 
 function getLocalCategory(spaceType?: string): string | null {
   switch (spaceType) {
@@ -446,19 +447,22 @@ const generateMonthlyInvoices = async (job: ScheduledJob) => {
 
     if (!leases || leases.length === 0) return;
 
-    const invoiceMonth = new Date().toISOString().slice(0, 7);
+    const selectedMonth = new Date().toISOString().slice(0, 7);
     const invoiceDate = new Date().toISOString().split('T')[0];
     const dueDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-    for (const lease of leases) {
-      const existingInvoice = await supabase
-        .from('invoices')
-        .select('id')
-        .eq('lease_id', lease.id)
-        .eq('invoice_month', invoiceMonth)
-        .maybeSingle();
+    const { data: existingLeaseInvoices } = await supabase
+      .from('invoices')
+      .select('lease_id, invoice_month')
+      .not('lease_id', 'is', null);
 
-      if (existingInvoice.data) continue;
+    const invoiceIndex = existingLeaseInvoices || [];
+
+    for (const lease of leases) {
+      const target = resolveLeaseInvoiceTarget(lease, selectedMonth, invoiceIndex);
+      if (!target.eligible) continue;
+
+      const invoiceMonth = target.invoiceMonth;
 
       const { data: invoiceNumber } = await supabase.rpc('generate_invoice_number');
 
@@ -483,18 +487,28 @@ const generateMonthlyInvoices = async (job: ScheduledJob) => {
           vat_rate: lease.vat_rate,
           vat_inclusive: lease.vat_inclusive,
           status: 'draft',
-          notes: null
+          notes: target.notes
         })
         .select()
         .single();
 
       if (invoiceError || !newInvoice) continue;
 
+      invoiceIndex.push({ lease_id: lease.id, invoice_month: invoiceMonth });
+
       const lineItemsToInsert = [];
 
       for (const ls of lease.lease_spaces) {
         const spaceName = ls.space.space_number;
         const spaceType = ls.space.space_type;
+        const squareFootage = typeof ls.space.square_footage === 'string'
+          ? parseFloat(ls.space.square_footage)
+          : Number(ls.space.square_footage);
+        const diversenCalc = ls.space.diversen_calculation;
+        const isDiversenFixed = spaceType === 'diversen' && (!diversenCalc || diversenCalc === 'fixed');
+        const quantity = isDiversenFixed
+          ? 1
+          : (squareFootage && !isNaN(squareFootage) && squareFootage > 0 ? squareFootage : 1);
 
         let displayName = spaceName;
         if (spaceType === 'bedrijfsruimte') {
@@ -511,7 +525,7 @@ const generateMonthlyInvoices = async (job: ScheduledJob) => {
         lineItemsToInsert.push({
           invoice_id: newInvoice.id,
           description: displayName,
-          quantity: sqm,
+          quantity,
           unit_price: pricePerSqm,
           amount: rentLine,
           local_category: getLocalCategory(spaceType)
