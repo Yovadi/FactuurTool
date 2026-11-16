@@ -15,7 +15,7 @@ import { buildUblInvoiceXml, downloadUblXml } from '../utils/ublInvoice';
 import { sendInvoiceReminderEmails } from '../utils/invoiceReminders';
 import { getLocalRootFolderPath } from '../utils/localSettings';
 import { syncInvoicePDFs, buildInvoiceFolderPath } from '../utils/invoicePdfSync';
-import { billableBeforeDiscount, billableUnitPrice, billedCatalogRent, summarizeMeetingInvoice } from '../utils/zeroVatPrice';
+import { billableBeforeDiscount, billableUnitPrice, billedCatalogRent, billedLeaseMonthly, billedLeaseSpaceMonthly, summarizeMeetingInvoice } from '../utils/zeroVatPrice';
 import { isLeaseEligibleForInvoiceMonth, resolveLeaseInvoiceTarget } from '../utils/leaseInvoiceEligibility';
 import {
   LEASES_CHANGED_EVENT,
@@ -101,6 +101,21 @@ function convertLineItemsToSpaces(items: InvoiceLineItem[]) {
       hourly_rate: hourlyRate
     };
   });
+}
+
+function persistedInvoiceLine(item: {
+  quantity?: string;
+  unit_price: string;
+  square_footage?: number;
+  catalog_rate?: number;
+}) {
+  const shownQuantity = item.quantity ? parseFloat(item.quantity) : 1;
+  const shownPrice = parseFloat(item.unit_price || '0');
+  const amount = Math.round(((shownQuantity || 1) * shownPrice) * 100) / 100;
+  if (item.square_footage && item.square_footage > 0 && item.catalog_rate && item.catalog_rate > 0) {
+    return { quantity: item.square_footage, unitPrice: item.catalog_rate, amount };
+  }
+  return { quantity: shownQuantity || 1, unitPrice: shownPrice, amount };
 }
 
 function getLocalCategory(spaceType?: string, bookingType?: string): string | null {
@@ -358,6 +373,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     bookingType?: 'meeting_room';
     local_category?: string | null;
     grootboek_id?: number | null;
+    square_footage?: number;
+    catalog_rate?: number;
   }>>([]);
   const [grootboekMappings, setGrootboekMappings] = useState<Array<{
     id: string;
@@ -786,7 +803,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       customer_type: customerType,
       invoice_date: invoice.invoice_date,
       due_date: invoice.due_date,
-      invoice_month: invoice.invoice_month || getNextMonthString(),
+      invoice_month: invoice.invoice_month || await getNextMonthString(),
       vat_rate: invoice.vat_rate.toString(),
       vat_inclusive: invoice.vat_inclusive,
       reference_number: invoice.reference_number || '',
@@ -872,14 +889,13 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         .eq('invoice_id', editingInvoiceId);
 
       const lineItemsToInsert = lineItems.map(item => {
-        const quantity = item.quantity ? parseFloat(item.quantity) : 1;
-        const unitPrice = parseFloat(item.unit_price);
+        const shown = persistedInvoiceLine(item);
         return {
           invoice_id: editingInvoiceId,
           description: item.description,
-          quantity: quantity,
-          unit_price: unitPrice,
-          amount: quantity * unitPrice,
+          quantity: shown.quantity,
+          unit_price: shown.unitPrice,
+          amount: shown.amount,
           booking_id: item.bookingId || null,
           local_category: item.local_category || getLocalCategory(item.space_type, item.bookingType),
           grootboek_id: item.grootboek_id || null
@@ -957,14 +973,13 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         }
 
       const lineItemsToInsert = lineItems.map(item => {
-        const quantity = item.quantity ? parseFloat(item.quantity) : 1;
-        const unitPrice = parseFloat(item.unit_price);
+        const shown = persistedInvoiceLine(item);
         return {
           invoice_id: newInvoice.id,
           description: item.description,
-          quantity: quantity,
-          unit_price: unitPrice,
-          amount: quantity * unitPrice,
+          quantity: shown.quantity,
+          unit_price: shown.unitPrice,
+          amount: shown.amount,
           booking_id: item.bookingId || null,
           local_category: item.local_category || getLocalCategory(item.space_type, item.bookingType),
           grootboek_id: item.grootboek_id || null
@@ -1069,52 +1084,64 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   const handleLeaseSelect = async (leaseId: string) => {
     const lease = leases.find(l => l.id === leaseId);
     if (lease) {
-      const items = [];
+      const vatRate = Number(lease.vat_rate);
+      const items: typeof lineItems = [];
 
-      items.push(...lease.lease_spaces.map(ls => {
-          const spaceName = ls.space.space_number;
-          const spaceType = ls.space.space_type;
-          const squareFootageRaw = ls.space.square_footage;
-          const squareFootage = typeof squareFootageRaw === 'string' ? parseFloat(squareFootageRaw) : squareFootageRaw;
-          const diversenCalc = (ls.space as any).diversen_calculation;
+      for (const ls of lease.lease_spaces) {
+        const spaceName = ls.space.space_number;
+        const spaceType = ls.space.space_type;
+        let displayName = spaceName;
+        if (spaceType === 'bedrijfsruimte') {
+          const numOnly = spaceName.replace(/^(Bedrijfsruimte|Hal)\s*/i, '').trim();
+          if (/^\d+/.test(numOnly)) displayName = `Hal ${numOnly}`;
+        }
+        const billed = billedLeaseSpaceMonthly(ls.space, Number(ls.price_per_sqm), Number(ls.monthly_rent), vatRate);
+        const fixedDiversen = spaceType === 'diversen' && (!(ls.space as any).diversen_calculation || (ls.space as any).diversen_calculation === 'fixed');
+        items.push({
+          description: displayName,
+          unit_price: billed.monthly.toFixed(2),
+          quantity: '1',
+          space_type: spaceType,
+          local_category: getLocalCategory(spaceType),
+          square_footage: fixedDiversen ? undefined : billed.quantity,
+          catalog_rate: fixedDiversen ? undefined : billed.rate,
+        });
+      }
 
-          let displayName = spaceName;
-          if (spaceType === 'bedrijfsruimte') {
-            const numOnly = spaceName.replace(/^(Bedrijfsruimte|Hal)\s*/i, '').trim();
-            if (/^\d+/.test(numOnly)) {
-              displayName = `Hal ${numOnly}`;
-            }
-          }
-
-          const isDiversenFixed = spaceType === 'diversen' && (!diversenCalc || diversenCalc === 'fixed');
-          let quantity = 1;
-
-          if (isDiversenFixed) {
-            quantity = 1;
-          } else if (squareFootage && !isNaN(squareFootage) && squareFootage > 0) {
-            quantity = squareFootage;
-          } else {
-            quantity = 1;
-          }
-
-          return {
-            description: displayName,
-            unit_price: ls.price_per_sqm.toFixed(2),
-            quantity: quantity,
-            space_type: spaceType,
-            local_category: getLocalCategory(spaceType)
-          };
-        }));
+      const discountPct = Number(lease.tenant?.lease_discount_percentage) || 0;
+      const rentAmount = items.reduce((sum, item) => sum + (parseFloat(item.unit_price) || 0), 0);
+      if (discountPct > 0) {
+        const discountAmount = Math.round(rentAmount * (discountPct / 100) * 100) / 100;
+        items.push({
+          description: `Korting verhuur (${discountPct}%)`,
+          unit_price: (-discountAmount).toFixed(2),
+          quantity: '1',
+          local_category: null,
+        });
+      }
 
       if (lease.security_deposit > 0) {
         items.push({
           description: 'Voorschot Gas, Water & Electra',
-          unit_price: lease.security_deposit.toFixed(2),
+          unit_price: Number(lease.security_deposit).toFixed(2),
+          quantity: '1',
           local_category: 'diversen'
         });
       }
 
       setLineItems(items);
+
+      const existing = invoices
+        .filter(inv => inv.lease_id === lease.id && inv.invoice_month)
+        .map(inv => ({ lease_id: lease.id, invoice_month: inv.invoice_month }));
+      const target = resolveLeaseInvoiceTarget(lease, formData.invoice_month, existing);
+      setFormData({
+        ...formData,
+        lease_id: leaseId,
+        invoice_month: target.isBorgfactuur && target.invoiceMonth ? target.invoiceMonth : formData.invoice_month,
+        notes: target.isBorgfactuur ? (formData.notes?.trim() ? formData.notes : (target.notes || '')) : formData.notes,
+      });
+      return;
     }
     setFormData({ ...formData, lease_id: leaseId });
   };
@@ -1580,7 +1607,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     setPreviewInvoice({ invoice: { ...invoice, line_items: items } as any, spaces });
   };
 
-  const resetForm = () => {
+  const resetForm = async () => {
+    const invoiceMonth = await getNextMonthString();
     setFormData({
       lease_id: '',
       tenant_id: '',
@@ -1588,7 +1616,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       customer_type: 'tenant',
       invoice_date: new Date().toISOString().split('T')[0],
       due_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      invoice_month: getNextMonthString(),
+      invoice_month: invoiceMonth,
       vat_rate: '21',
       vat_inclusive: false,
       reference_number: '',
@@ -3011,8 +3039,12 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                   >
                     <option value="">Selecteer een huurcontract...</option>
                     {leases.map((lease) => {
-                      const rentAmount = lease.lease_spaces.reduce((sum, ls) => sum + ls.monthly_rent, 0);
-                      const totalMonthlyRent = Math.round((rentAmount + lease.security_deposit) * 100) / 100;
+                      const totalMonthlyRent = billedLeaseMonthly(
+                        lease.lease_spaces,
+                        Number(lease.vat_rate),
+                        Number(lease.security_deposit),
+                        Number(lease.tenant?.lease_discount_percentage) || 0,
+                      );
                       return (
                         <option key={lease.id} value={lease.id}>
                           {lease.tenant.company_name} - €{totalMonthlyRent.toFixed(2)}/mo ({lease.vat_rate}% BTW {lease.vat_inclusive ? 'incl.' : 'excl.'})

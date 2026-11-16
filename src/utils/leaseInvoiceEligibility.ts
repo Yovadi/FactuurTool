@@ -100,10 +100,10 @@ export function resolveLeaseInvoiceTarget(
   selectedMonth: string,
   invoices: InvoiceForEligibility[] = []
 ): LeaseInvoiceTarget {
-  if (!selectedMonth) {
+  if (typeof selectedMonth !== 'string' || !selectedMonth) {
     return {
       eligible: true,
-      invoiceMonth: selectedMonth,
+      invoiceMonth: '',
       notes: null,
       isBorgfactuur: false,
     };
