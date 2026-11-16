@@ -6,13 +6,24 @@ import type { LeaseContractData } from '../utils/leaseContractPdf';
 import { billedRentAmount, monthlyRentFromRate } from '../utils/zeroVatPrice';
 import { SkeletonTable } from './SkeletonLoader';
 import { Pagination } from './Pagination';
+import {
+  LEASES_CHANGED_EVENT,
+  TENANTS_CHANGED_EVENT,
+  emitLeasesChanged,
+  subscribeDataRefresh,
+  subscribeTenantsLeasesRealtime,
+} from '../utils/dataRefresh';
 
 type LeaseWithDetails = Lease & {
   tenant: Tenant;
   lease_spaces: (LeaseSpace & { space: OfficeSpace })[];
 };
 
-export function LeaseManagement() {
+type LeaseManagementProps = {
+  isActive?: boolean;
+};
+
+export function LeaseManagement({ isActive = true }: LeaseManagementProps) {
   const [leases, setLeases] = useState<LeaseWithDetails[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [spaces, setSpaces] = useState<OfficeSpace[]>([]);
@@ -46,6 +57,25 @@ export function LeaseManagement() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (isActive) loadData();
+  }, [isActive]);
+
+  useEffect(() => {
+    const refresh = () => {
+      if (isActive) loadData();
+    };
+    const unsubEvents = subscribeDataRefresh(
+      [LEASES_CHANGED_EVENT, TENANTS_CHANGED_EVENT],
+      refresh
+    );
+    const unsubRealtime = subscribeTenantsLeasesRealtime(refresh);
+    return () => {
+      unsubEvents();
+      unsubRealtime();
+    };
+  }, [isActive]);
 
   useEffect(() => {
     if (showForm && !editingLease && selectedSpaces.length === 0) {
@@ -196,6 +226,7 @@ export function LeaseManagement() {
       }
 
       resetForm();
+      emitLeasesChanged();
       loadData();
 
     } else {
@@ -275,6 +306,7 @@ export function LeaseManagement() {
       }
 
       resetForm();
+      emitLeasesChanged();
       loadData();
     }
   };
@@ -335,6 +367,7 @@ export function LeaseManagement() {
     }
 
     setLeases(leases.filter(l => l.id !== lease.id));
+    emitLeasesChanged();
   };
 
   const addSpace = () => {

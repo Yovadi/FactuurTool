@@ -8,9 +8,10 @@ type DebiteurenTabsProps = {
   initialTab?: 'facturen' | 'outstanding' | 'log';
   onInitialTabConsumed?: () => void;
   onCreateCreditNote?: (invoice: any, tenant: any, spaces: any[]) => void;
+  isActive?: boolean;
 };
 
-export function DebiteurenTabs({ initialTab, onInitialTabConsumed, onCreateCreditNote }: DebiteurenTabsProps) {
+export function DebiteurenTabs({ initialTab, onInitialTabConsumed, onCreateCreditNote, isActive = true }: DebiteurenTabsProps) {
   const [activeTab, setActiveTab] = useState<'facturen' | 'outstanding' | 'log'>(initialTab || 'facturen');
 
   useEffect(() => {
@@ -73,12 +74,16 @@ export function DebiteurenTabs({ initialTab, onInitialTabConsumed, onCreateCredi
       <div className="flex-1 min-h-0 overflow-hidden">
         {activeTab === 'facturen' && (
           <div className="h-full flex flex-col gap-4 overflow-y-auto">
-            <InvoiceOverview onInvoicesCreated={() => invoiceManagementRef.current?.refreshInvoices()} />
+            <InvoiceOverview
+              isActive={isActive && activeTab === 'facturen'}
+              onInvoicesCreated={() => invoiceManagementRef.current?.refreshInvoices()}
+            />
             <InvoiceManagement
               ref={invoiceManagementRef}
               onCreateCreditNote={onCreateCreditNote}
               invoiceTypeFilter="all"
               hideOpenInvoices
+              isActive={isActive && activeTab === 'facturen'}
             />
           </div>
         )}
@@ -88,6 +93,7 @@ export function DebiteurenTabs({ initialTab, onInitialTabConsumed, onCreateCredi
               onCreateCreditNote={onCreateCreditNote}
               invoiceTypeFilter="all"
               onlyOpenInvoices
+              isActive={isActive && activeTab === 'outstanding'}
             />
           </div>
         )}

@@ -692,7 +692,7 @@ function App() {
                 }} />}
               </div>
               <div className="h-full" style={tabStyle('tenants')}>
-                {visitedTabs.has('tenants') && <TenantManagement />}
+                {visitedTabs.has('tenants') && <TenantManagement isActive={activeTab === 'tenants'} />}
               </div>
               <div className="h-full" style={tabStyle('spaces-spaces')}>
                 {visitedTabs.has('spaces-spaces') && <SpaceManagement />}
@@ -701,7 +701,7 @@ function App() {
                 {visitedTabs.has('spaces-rates') && <SpaceTypeRates />}
               </div>
               <div className="h-full" style={tabStyle('contracts')}>
-                {visitedTabs.has('contracts') && <LeaseManagement />}
+                {visitedTabs.has('contracts') && <LeaseManagement isActive={activeTab === 'contracts'} />}
               </div>
               <div className="h-full" style={tabStyle('bookings')}>
                 {visitedTabs.has('bookings') && <MeetingRoomBookings />}
@@ -709,6 +709,7 @@ function App() {
               <div className="h-full" style={tabStyle('financial-debtors')}>
                 {visitedTabs.has('financial-debtors') && (
                   <DebiteurenTabs
+                    isActive={activeTab === 'financial-debtors'}
                     initialTab={debiteurenInitialTab}
                     onInitialTabConsumed={() => setDebiteurenInitialTab(undefined)}
                     onCreateCreditNote={(invoice, tenant, spaces) => {

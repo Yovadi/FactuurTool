@@ -5,6 +5,12 @@ import { BookingOverview } from './BookingOverview';
 import { getLocalRootFolderPath } from '../utils/localSettings';
 import { SkeletonTable } from './SkeletonLoader';
 import { Pagination } from './Pagination';
+import {
+  TENANTS_CHANGED_EVENT,
+  emitTenantsChanged,
+  subscribeDataRefresh,
+  subscribeTenantsLeasesRealtime,
+} from '../utils/dataRefresh';
 
 type TenantWithLeases = Tenant & {
   leases?: Array<{
@@ -46,7 +52,11 @@ function VatRateCell({ vatRate }: { vatRate?: number | null }) {
   );
 }
 
-export function TenantManagement() {
+type TenantManagementProps = {
+  isActive?: boolean;
+};
+
+export function TenantManagement({ isActive = true }: TenantManagementProps) {
   const [activeTab, setActiveTab] = useState<'fulltime' | 'external' | 'inactive'>('fulltime');
   const [tenants, setTenants] = useState<TenantWithLeases[]>([]);
   const [externalCustomers, setExternalCustomers] = useState<ExternalCustomer[]>([]);
@@ -86,6 +96,22 @@ export function TenantManagement() {
   useEffect(() => {
     loadAllData();
   }, []);
+
+  useEffect(() => {
+    if (isActive) loadAllData();
+  }, [isActive]);
+
+  useEffect(() => {
+    const refresh = () => {
+      if (isActive) loadAllData();
+    };
+    const unsubEvents = subscribeDataRefresh([TENANTS_CHANGED_EVENT], refresh);
+    const unsubRealtime = subscribeTenantsLeasesRealtime(refresh);
+    return () => {
+      unsubEvents();
+      unsubRealtime();
+    };
+  }, [isActive]);
 
   const loadAllData = async () => {
     setLoading(true);
@@ -266,6 +292,7 @@ export function TenantManagement() {
       }
     }
 
+    emitTenantsChanged();
     resetForm();
   };
 
@@ -322,6 +349,7 @@ export function TenantManagement() {
       }
 
       setTenants(tenants.filter(t => t.id !== id));
+      emitTenantsChanged();
     } else {
       const { error } = await supabase
         .from('external_customers')
@@ -334,6 +362,7 @@ export function TenantManagement() {
       }
 
       setExternalCustomers(externalCustomers.filter(c => c.id !== id));
+      emitTenantsChanged();
     }
   };
 
