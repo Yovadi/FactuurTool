@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { isBorgfactuurNote } from '../utils/leaseInvoiceEligibility';
+import { amsterdamCalendar } from '../utils/amsterdamCalendar';
+import { shiftYearMonth } from '../utils/leaseInvoiceEligibility';
+import { missingRentForPastMonths, type RentLease } from '../utils/leaseRentDraft';
 
 export type UnbilledItem = {
   type: 'huur' | 'vergaderruimte';
@@ -24,12 +26,10 @@ export function useUnbilledItems() {
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    const now = new Date();
-    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const currentMonth = amsterdamCalendar().yearMonth;
     const currentMonthStart = `${currentMonth}-01`;
-
-    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1);
-    const lookbackStart = `${sixMonthsAgo.getFullYear()}-${String(sixMonthsAgo.getMonth() + 1).padStart(2, '0')}`;
+    const pastMonths: string[] = [];
+    for (let offset = -6; offset < 0; offset += 1) pastMonths.push(shiftYearMonth(currentMonth, offset));
 
     const [
       { data: activeLeases },
@@ -37,10 +37,12 @@ export function useUnbilledItems() {
       { data: unbilledMeetings }
     ] = await Promise.all([
       supabase.from('leases').select(`
-        id, tenant_id,
-        security_deposit, start_date,
-        lease_spaces:lease_spaces(monthly_rent),
-        tenants(company_name)
+        id, tenant_id, security_deposit, start_date, end_date, vat_rate, vat_inclusive,
+        lease_spaces:lease_spaces(
+          price_per_sqm, monthly_rent,
+          space:office_spaces(space_number, space_type, square_footage, rate_per_sqm, diversen_calculation)
+        ),
+        tenants(company_name, lease_discount_percentage)
       `).eq('status', 'active'),
       supabase.from('invoices').select('lease_id, invoice_month, notes'),
       supabase.from('meeting_room_bookings').select(`
@@ -60,41 +62,31 @@ export function useUnbilledItems() {
     };
 
     if (activeLeases) {
-      const pastMonths: string[] = [];
-      const d = new Date(sixMonthsAgo);
-      while (d < now) {
-        const m = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-        if (m < currentMonth) pastMonths.push(m);
-        d.setMonth(d.getMonth() + 1);
-      }
-
       for (const lease of activeLeases) {
-        const leaseStart = (lease as any).start_date?.substring(0, 7) || lookbackStart;
-        const customerName = (lease as any).tenants?.company_name || 'Onbekende huurder';
-
-        const leaseEnd = (lease as any).end_date?.substring(0, 7);
-        for (const month of pastMonths) {
-          if (month < leaseStart) continue;
-          if (leaseEnd && month > leaseEnd) continue;
-          const alreadyInvoiced = (allInvoices || []).some(
-            (inv: any) => inv.lease_id === lease.id && inv.invoice_month === month && !isBorgfactuurNote(inv.notes)
-          );
-          if (alreadyInvoiced) continue;
-
-          let amt = 0;
-          amt = ((lease as any).lease_spaces || []).reduce((sum: number, ls: any) => {
-            const rent = typeof ls.monthly_rent === 'string' ? parseFloat(ls.monthly_rent) : ls.monthly_rent;
-            return sum + rent;
-          }, 0);
-          const deposit = typeof lease.security_deposit === 'string' ? parseFloat(lease.security_deposit as any) : lease.security_deposit;
-          amt += deposit || 0;
-
+        const tenantRow = Array.isArray((lease as any).tenants) ? (lease as any).tenants[0] : (lease as any).tenants;
+        const customerName = tenantRow?.company_name || 'Onbekende huurder';
+        const rentLease: RentLease = {
+          id: lease.id,
+          start_date: lease.start_date,
+          end_date: lease.end_date,
+          vat_rate: lease.vat_rate,
+          vat_inclusive: lease.vat_inclusive,
+          security_deposit: lease.security_deposit,
+          tenant: tenantRow ? { lease_discount_percentage: tenantRow.lease_discount_percentage } : null,
+          lease_spaces: (lease.lease_spaces || []).map((entry) => ({
+            price_per_sqm: entry.price_per_sqm,
+            monthly_rent: entry.monthly_rent,
+            space: Array.isArray(entry.space) ? entry.space[0] : entry.space,
+          })),
+        };
+        const leaseInvoices = (allInvoices || []).filter((inv) => inv.lease_id === lease.id);
+        for (const missing of missingRentForPastMonths(rentLease, leaseInvoices, pastMonths)) {
           allItems.push({
             type: 'huur',
-            month,
-            monthLabel: getMonthLabel(month),
+            month: missing.month,
+            monthLabel: getMonthLabel(missing.month),
             customerName,
-            amount: amt
+            amount: missing.amount,
           });
         }
       }

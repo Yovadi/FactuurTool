@@ -1,4 +1,4 @@
-import { addCalendarDays, amsterdamCalendar } from './amsterdamCalendar';
+import { addCalendarDays, amsterdamCalendar, amsterdamInstant } from './amsterdamCalendar';
 import { resolveLeaseInvoiceTarget, type InvoiceForEligibility } from './leaseInvoiceEligibility';
 import { billedLeaseSpaceMonthly, monthlyLineFromTotal, roundMoney } from './zeroVatPrice';
 
@@ -146,4 +146,35 @@ export function buildLeaseRentDraft(
     vatInclusive,
     lines,
   };
+}
+
+export type MissingRent = {
+  /** Month in which the invoice should have been made (YYYY-MM). */
+  month: string;
+  amount: number;
+};
+
+/**
+ * Rent that is still missing for the given past months.
+ * The amount is the same draft the invoice screen would create.
+ * Advance rent for a later start month is counted once.
+ */
+export function missingRentForPastMonths(
+  lease: RentLease,
+  invoices: InvoiceForEligibility[],
+  pastMonths: string[],
+): MissingRent[] {
+  const seen = new Set<string>();
+  const missing: MissingRent[] = [];
+  for (const month of pastMonths) {
+    const target = resolveLeaseInvoiceTarget(lease, month, invoices);
+    if (!target.eligible || !target.invoiceMonth || seen.has(target.invoiceMonth)) continue;
+    const [year, mon] = month.split('-').map(Number);
+    if (!year || !mon) continue;
+    const draft = buildLeaseRentDraft(lease, invoices, amsterdamInstant(year, mon, 15, 12, 0));
+    if (!draft || draft.amount <= 0) continue;
+    seen.add(target.invoiceMonth);
+    missing.push({ month, amount: draft.amount });
+  }
+  return missing;
 }

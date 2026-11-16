@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { invoiceFullyCovered } from '../utils/creditPrefill';
 import { X, Link, DollarSign, Send, CheckCircle } from 'lucide-react';
 
 type CreditNote = {
@@ -133,6 +134,11 @@ export function CreditNoteApplications({ creditNote, onClose, onApplied }: Credi
       console.error('Error applying credit:', error);
       alert('Fout bij toepassen credit');
       return;
+    }
+
+    const target = customerInvoices.find((invoice) => invoice.id === linkFormData.invoice_id);
+    if (target && invoiceFullyCovered(target.amount, target.applied_credit, linkFormData.amount)) {
+      await supabase.from('invoices').update({ status: 'credited' }).eq('id', target.id);
     }
 
     await loadData();

@@ -1,4 +1,4 @@
-import { buildLeaseRentDraft } from './leaseRentDraft';
+import { buildLeaseRentDraft, missingRentForPastMonths } from './leaseRentDraft';
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -42,5 +42,30 @@ const discounted = buildLeaseRentDraft({
 }, [], december);
 assert(discounted, 'discounted lease still invoices');
 assert(discounted.amount === 1222.9, `10% off the hall rent, GWE remains, got ${discounted.amount}`);
+
+const missingAdvance = missingRentForPastMonths(trackLab, [], ['2026-11', '2026-12', '2027-01']);
+assert(missingAdvance.length === 1, `advance rent is counted once, got ${missingAdvance.length}`);
+assert(missingAdvance[0].month === '2026-12', `shown in the month it should be made, got ${missingAdvance[0].month}`);
+assert(missingAdvance[0].amount === 1356, `unbilled amount matches the draft, got ${missingAdvance[0].amount}`);
+
+const afterInvoice = missingRentForPastMonths(
+  trackLab,
+  [{ lease_id: 'lease-tracklab', invoice_month: '2027-01', notes: null }],
+  ['2026-12', '2027-01'],
+);
+assert(afterInvoice.length === 0, 'an existing rent invoice is not still unbilled');
+
+const borgOnly = missingRentForPastMonths(
+  trackLab,
+  [{ lease_id: 'lease-tracklab', invoice_month: '2026-12', notes: 'Borgfactuur\nWaarborgsom' }],
+  ['2026-12'],
+);
+assert(borgOnly.length === 1 && borgOnly[0].amount === 1356, 'a deposit invoice does not replace the rent');
+
+const discountedMissing = missingRentForPastMonths({
+  ...trackLab,
+  tenant: { lease_discount_percentage: 10 },
+}, [], ['2026-12']);
+assert(discountedMissing[0].amount === 1222.9, `unbilled discount matches the draft, got ${discountedMissing[0].amount}`);
 
 console.log('lease rent draft tests passed');

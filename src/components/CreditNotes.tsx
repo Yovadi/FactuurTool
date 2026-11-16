@@ -10,6 +10,7 @@ import { generateCreditNotePDF } from '../utils/pdfGenerator';
 import { syncCreditNoteToEBoekhouden } from '../lib/eboekhoudenSync';
 import { isEmailConfigured } from '../utils/emailSender';
 import { buildCreditNoteEmailSubject, buildCreditNoteEmailText, buildCreditNoteEmailHtml } from '../utils/emailTemplate';
+import { creditLineFromSpace, creditVatRate } from '../utils/creditPrefill';
 
 type CreditNote = {
   id: string;
@@ -171,22 +172,18 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
     const isExternal = !!invoice.external_customer_id;
     setCustomerType(isExternal ? 'external' : 'tenant');
 
+    const convertedLineItems = spaces.map(space => creditLineFromSpace(space));
+    const lineSum = convertedLineItems.reduce((sum, line) => sum + line.amount, 0);
+
     setFormData({
       original_invoice_id: invoice.id || '',
       tenant_id: invoice.tenant_id || '',
       external_customer_id: invoice.external_customer_id || '',
       credit_date: new Date().toISOString().split('T')[0],
       reason: `Correctie factuur ${invoice.invoice_number}`,
-      vat_rate: invoice.vat_rate || 21,
+      vat_rate: creditVatRate(invoice, lineSum),
       notes: '',
     });
-
-    const convertedLineItems = spaces.map(space => ({
-      description: space.space_name,
-      quantity: space.square_footage || 1,
-      unit_price: space.price_per_sqm || space.monthly_rent,
-      amount: space.monthly_rent,
-    }));
 
     setLineItems(convertedLineItems.length > 0 ? convertedLineItems : [
       { description: '', quantity: 1, unit_price: 0, amount: 0 }
