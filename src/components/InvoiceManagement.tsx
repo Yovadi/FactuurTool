@@ -1137,7 +1137,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
       const existing = invoices
         .filter(inv => inv.lease_id === lease.id && inv.invoice_month)
-        .map(inv => ({ lease_id: lease.id, invoice_month: inv.invoice_month }));
+        .map(inv => ({ lease_id: lease.id, invoice_month: inv.invoice_month, notes: inv.notes }));
       const target = resolveLeaseInvoiceTarget(lease, formData.invoice_month, existing);
       setFormData({
         ...formData,
@@ -2098,7 +2098,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           continue;
         }
 
-        invoiceIndex.push({ lease_id: lease.id, invoice_month: leaseInvoiceMonth });
+        invoiceIndex.push({ lease_id: lease.id, invoice_month: leaseInvoiceMonth, notes: null });
 
         for (const ls of lease.lease_spaces) {
           const spaceName = ls.space.space_number;
@@ -2224,7 +2224,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     for (const leaseId of selectedDepositLeases) {
       const lease = leases.find(item => item.id === leaseId);
       if (!lease) continue;
-      const deposit = resolveDepositInvoice(lease, targetMonth, invoices);
+      const deposit = resolveDepositInvoice(lease, targetMonth, invoiceIndex);
       if (!deposit?.eligible || !deposit.amount) continue;
       try {
         const { data: invoiceNumber, error: numberError } = await supabase.rpc('generate_invoice_number');
@@ -2262,6 +2262,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           failCount++;
         } else {
           successCount++;
+          invoiceIndex.push({ lease_id: lease.id, invoice_month: deposit.invoiceMonth, notes: deposit.notes });
         }
       } catch (error) {
         console.error('Error creating deposit invoice:', error);
@@ -3953,6 +3954,14 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           : [];
 
         const regularLeasesToGenerate = allLeasesToGenerate;
+        const depositLeasesToGenerate = targetMonth
+          ? leases.filter(lease => resolveDepositInvoice(lease, targetMonth, invoices)?.eligible)
+          : [];
+        const panelLeaseIds = new Set([
+          ...regularLeasesToGenerate.map(lease => lease.id),
+          ...depositLeasesToGenerate.map(lease => lease.id),
+        ]);
+        const panelLeases = leases.filter(lease => panelLeaseIds.has(lease.id));
 
         const allCustomers = [...tenants, ...externalCustomers.map(ec => ({
           ...ec,
@@ -4019,12 +4028,12 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
               <div className="overflow-y-auto flex-1 p-6 space-y-4">
                 {invoiceMonth && (
-                  (generateModalType === 'huur' && regularLeasesToGenerate.length > 0) ||
+                  (generateModalType === 'huur' && panelLeases.length > 0) ||
                   (generateModalType === 'bookings' && customersWithMeetingBookings.length > 0) ||
                   (generateModalType === 'all' && (
-                    (invoiceTypeFilter === 'huur' && regularLeasesToGenerate.length > 0) ||
+                    (invoiceTypeFilter === 'huur' && panelLeases.length > 0) ||
                     (invoiceTypeFilter === 'vergaderruimte' && customersWithMeetingBookings.length > 0) ||
-                    (invoiceTypeFilter === 'all' && (regularLeasesToGenerate.length > 0 || customersWithBookings.length > 0)) ||
+                    (invoiceTypeFilter === 'all' && (panelLeases.length > 0 || customersWithBookings.length > 0)) ||
                     (invoiceTypeFilter === 'handmatig')
                   ))
                 ) ? (
@@ -4108,12 +4117,12 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                     {/* Gedetailleerde selectie - 3 kolommen naast elkaar */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {/* Huurcontracten */}
-                      {(generateModalType === 'huur' || generateModalType === 'all') && (invoiceTypeFilter === 'huur' || invoiceTypeFilter === 'all') && regularLeasesToGenerate.length > 0 && (
+                      {(generateModalType === 'huur' || generateModalType === 'all') && (invoiceTypeFilter === 'huur' || invoiceTypeFilter === 'all') && panelLeases.length > 0 && (
                           <div className="space-y-3">
                             <div className="flex items-center justify-between">
                               <h4 className="text-sm font-medium text-gray-300 flex items-center gap-2">
                                 <Home size={16} className="text-emerald-500" />
-                                Huurcontracten ({regularLeasesToGenerate.length})
+                                Huurcontracten ({panelLeases.length})
                               </h4>
                             </div>
                             <div className="flex gap-2 text-xs">
@@ -4132,15 +4141,17 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                               </button>
                             </div>
                             <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
-                              {regularLeasesToGenerate.map(lease => {
+                              {panelLeases.map(lease => {
                                 const rentAmount = lease.lease_spaces.reduce((sum, ls) => sum + ls.monthly_rent, 0);
                                 const total = Math.round((rentAmount + lease.security_deposit) * 100) / 100;
                                 const leaseTarget = targetMonth
                                   ? resolveLeaseInvoiceTarget(lease, targetMonth, invoices)
                                   : null;
+                                const rentEligible = !!leaseTarget?.eligible;
 
                                 return (
                                   <div key={lease.id} className="space-y-2">
+                                  {rentEligible && (
                                   <div
                                     onClick={() => toggleLeaseSelection(lease.id)}
                                     className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-all ${
@@ -4170,6 +4181,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                                       €{total.toFixed(2)}
                                     </div>
                                   </div>
+                                  )}
                                   {targetMonth && resolveDepositInvoice(lease, targetMonth, invoices)?.eligible && (
                                     <div
                                       onClick={() => setSelectedDepositLeases(prev => {
@@ -4191,8 +4203,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                                         className="w-4 h-4 rounded border-dark-600 text-amber-500 focus:ring-amber-500 flex-shrink-0"
                                       />
                                       <div className="flex-1 min-w-0">
-                                        <div className="text-sm font-medium text-gray-200 truncate">Borgfactuur</div>
-                                        <div className="text-xs text-gray-400">Wordt aan het einde teruggestort</div>
+                                        <div className="text-sm font-medium text-gray-200 truncate">{lease.tenant?.company_name}</div>
+                                        <div className="text-xs text-gray-400">Borgfactuur · wordt aan het einde teruggestort</div>
                                       </div>
                                       <div className="text-sm font-medium text-amber-200 flex-shrink-0">
                                         €{Number(lease.deposit_amount || 0).toFixed(2)}

@@ -93,4 +93,45 @@ assert(resolveDepositInvoice(trackLab, '2026-12', noInvoices) === null, 'no depo
 assert(resolveDepositInvoice(withDeposit, '2026-11', noInvoices) === null, 'deposit is not offered two months early');
 assert(resolveDepositInvoice(withDeposit, '2026-12', depositOnly) === null, 'deposit is offered only once');
 
+const existingTenant = {
+  id: 'lease-existing',
+  start_date: '2024-03-01',
+  end_date: '2027-12-31',
+  deposit_amount: 1500,
+};
+const existingInvoices = [
+  { lease_id: 'lease-existing', invoice_month: '2026-11', notes: null },
+  { lease_id: 'lease-existing', invoice_month: '2026-12', notes: null },
+];
+const existingDecember = resolveLeaseInvoiceTarget(existingTenant, '2026-12', existingInvoices);
+assert(!existingDecember.eligible && !existingDecember.isAdvanceRent, 'an existing tenant is not invoiced twice for the same month');
+const existingJanuary = resolveLeaseInvoiceTarget(existingTenant, '2027-01', existingInvoices);
+assert(
+  existingJanuary.eligible && existingJanuary.invoiceMonth === '2027-01' && !existingJanuary.isAdvanceRent && !existingJanuary.isBorgfactuur,
+  'an existing tenant keeps a normal rent invoice in an open month'
+);
+const existingDeposit = resolveDepositInvoice(existingTenant, '2026-12', existingInvoices);
+assert(
+  existingDeposit?.eligible && existingDeposit.amount === 1500 && existingDeposit.isBorgfactuur && existingDeposit.invoiceMonth === '2026-12',
+  'an existing tenant can get a deposit invoice after the rent invoice exists'
+);
+
+const anotherNewLease = {
+  id: 'lease-new',
+  start_date: '2026-06-15',
+  end_date: '2028-06-14',
+  deposit_amount: 500,
+};
+const anotherLead = resolveLeaseInvoiceTarget(anotherNewLease, '2026-05', noInvoices);
+assert(
+  anotherLead.eligible && anotherLead.isAdvanceRent && !anotherLead.isBorgfactuur && anotherLead.invoiceMonth === '2026-06',
+  'every new lease is billed one month before it starts'
+);
+const anotherDeposit = resolveDepositInvoice(anotherNewLease, '2026-05', [
+  ...depositOnly,
+  { lease_id: 'lease-existing', invoice_month: '2026-06', notes: BORGFACTUUR_NOTES },
+]);
+assert(anotherDeposit?.eligible && anotherDeposit.amount === 500, 'one tenant deposit never blocks another tenant');
+assert(resolveDepositInvoice(anotherNewLease, '2026-04', noInvoices) === null, 'a new lease is not offered two months early');
+
 console.log('leaseInvoiceEligibility tests passed');

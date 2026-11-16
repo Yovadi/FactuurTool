@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { isBorgfactuurNote } from '../utils/leaseInvoiceEligibility';
 
 export type UnbilledItem = {
   type: 'huur' | 'vergaderruimte';
@@ -41,7 +42,7 @@ export function useUnbilledItems() {
         lease_spaces:lease_spaces(monthly_rent),
         tenants(company_name)
       `).eq('status', 'active'),
-      supabase.from('invoices').select('lease_id, invoice_month'),
+      supabase.from('invoices').select('lease_id, invoice_month, notes'),
       supabase.from('meeting_room_bookings').select(`
         id, booking_date, total_amount, tenant_id, external_customer_id,
         tenants(company_name), external_customers(company_name)
@@ -76,7 +77,7 @@ export function useUnbilledItems() {
           if (month < leaseStart) continue;
           if (leaseEnd && month > leaseEnd) continue;
           const alreadyInvoiced = (allInvoices || []).some(
-            (inv: any) => inv.lease_id === lease.id && inv.invoice_month === month
+            (inv: any) => inv.lease_id === lease.id && inv.invoice_month === month && !isBorgfactuurNote(inv.notes)
           );
           if (alreadyInvoiced) continue;
 

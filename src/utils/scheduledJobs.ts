@@ -4,7 +4,7 @@ import { checkInvoicePaymentStatuses, checkPurchaseInvoicePaymentStatuses, verif
 import { createLeaseNotification } from './notificationHelper';
 import { sendInvoiceReminderEmails } from './invoiceReminders';
 import { createSettingsBackup } from './settingsBackup';
-import { resolveLeaseInvoiceTarget } from './leaseInvoiceEligibility';
+import { resolveDepositInvoice, resolveLeaseInvoiceTarget } from './leaseInvoiceEligibility';
 
 function getLocalCategory(spaceType?: string): string | null {
   switch (spaceType) {
@@ -460,8 +460,7 @@ const generateMonthlyInvoices = async (job: ScheduledJob) => {
 
     for (const lease of leases) {
       const target = resolveLeaseInvoiceTarget(lease, selectedMonth, invoiceIndex);
-      if (!target.eligible) continue;
-
+      if (target.eligible) {
       const invoiceMonth = target.invoiceMonth;
 
       const { data: invoiceNumber } = await supabase.rpc('generate_invoice_number');
@@ -492,9 +491,8 @@ const generateMonthlyInvoices = async (job: ScheduledJob) => {
         .select()
         .single();
 
-      if (invoiceError || !newInvoice) continue;
-
-      invoiceIndex.push({ lease_id: lease.id, invoice_month: invoiceMonth });
+      if (!invoiceError && newInvoice) {
+      invoiceIndex.push({ lease_id: lease.id, invoice_month: invoiceMonth, notes: null });
 
       const lineItemsToInsert = [];
 
@@ -544,6 +542,50 @@ const generateMonthlyInvoices = async (job: ScheduledJob) => {
       }
 
       await supabase.from('invoice_line_items').insert(lineItemsToInsert);
+      }
+      }
+
+      const deposit = resolveDepositInvoice(lease, selectedMonth, invoiceIndex);
+      if (!deposit?.eligible || !deposit.amount) continue;
+
+      const { data: depositNumber } = await supabase.rpc('generate_invoice_number');
+      if (!depositNumber) continue;
+
+      const { data: depositInvoice, error: depositError } = await supabase
+        .from('invoices')
+        .insert({
+          lease_id: lease.id,
+          tenant_id: lease.tenant_id,
+          invoice_number: depositNumber,
+          invoice_date: invoiceDate,
+          due_date: dueDate,
+          invoice_month: deposit.invoiceMonth,
+          subtotal: deposit.amount,
+          vat_amount: 0,
+          amount: deposit.amount,
+          vat_rate: 0,
+          vat_inclusive: false,
+          status: 'draft',
+          notes: deposit.notes
+        })
+        .select()
+        .single();
+
+      if (depositError || !depositInvoice) continue;
+
+      const { error: depositLinesError } = await supabase.from('invoice_line_items').insert([{
+        invoice_id: depositInvoice.id,
+        description: 'Waarborgsom',
+        quantity: 1,
+        unit_price: deposit.amount,
+        amount: deposit.amount,
+        local_category: null
+      }]);
+      if (depositLinesError) {
+        await supabase.from('invoices').delete().eq('id', depositInvoice.id);
+        continue;
+      }
+      invoiceIndex.push({ lease_id: lease.id, invoice_month: deposit.invoiceMonth, notes: deposit.notes });
     }
 
     await advanceJobToNextMonth(job);

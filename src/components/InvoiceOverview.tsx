@@ -211,8 +211,7 @@ export function InvoiceOverview({ onInvoicesCreated, isActive = true }: InvoiceO
 
     for (const lease of leases) {
       const target = resolveLeaseInvoiceTarget(lease, invoiceMonth, invoices);
-      if (!target.eligible) continue;
-
+      if (target.eligible) {
       let amount = 0;
       const details: string[] = [];
 
@@ -255,6 +254,7 @@ export function InvoiceOverview({ onInvoicesCreated, isActive = true }: InvoiceO
         invoiceNotes: target.notes,
         isBorgfactuur: false,
       });
+      }
 
       const depositTarget = resolveDepositInvoice(lease, invoiceMonth, invoices);
       if (depositTarget?.eligible && depositTarget.amount) {
@@ -325,7 +325,7 @@ export function InvoiceOverview({ onInvoicesCreated, isActive = true }: InvoiceO
     }
 
     newItems.sort((a, b) => {
-      const typeOrder = { huur: 0, meeting_booking: 1 };
+      const typeOrder = { huur: 0, borg: 0, meeting_booking: 1 };
       if (typeOrder[a.type] !== typeOrder[b.type]) return typeOrder[a.type] - typeOrder[b.type];
       return a.customerName.localeCompare(b.customerName);
     });
