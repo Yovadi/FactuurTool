@@ -2,8 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase, type Tenant, type ExternalCustomer, type Lease, type LeaseSpace, type OfficeSpace } from '../lib/supabase';
 import { Home, Calendar, CheckSquare, Square, Loader2, AlertTriangle, ChevronDown, ChevronRight, ChevronLeft, RefreshCw } from 'lucide-react';
 import { Toast } from './Toast';
-import { billableBeforeDiscount, billableUnitPrice, billedCatalogRent, summarizeMeetingInvoice } from '../utils/zeroVatPrice';
+import { billableBeforeDiscount, billableUnitPrice, summarizeMeetingInvoice } from '../utils/zeroVatPrice';
 import { resolveLeaseInvoiceTarget } from '../utils/leaseInvoiceEligibility';
+import { amsterdamInstant } from '../utils/amsterdamCalendar';
+import { buildLeaseRentDraft, type LeaseRentDraft, type RentLease } from '../utils/leaseRentDraft';
 import {
   LEASES_CHANGED_EVENT,
   TENANTS_CHANGED_EVENT,
@@ -31,21 +33,29 @@ type InvoiceItem = {
   lease?: LeaseWithDetails;
   details: string[];
   customerDiscountPct?: number;
+  rentDraft?: LeaseRentDraft;
   /** Resolved invoice_month. Advance rent uses the lease start month. */
   resolvedInvoiceMonth?: string;
   invoiceNotes?: string | null;
   isBorgfactuur?: boolean;
 };
 
-function getLocalCategory(spaceType?: string, bookingType?: string): string | null {
-  if (bookingType === 'meeting_room') return 'vergaderruimte';
-  switch (spaceType) {
-    case 'kantoor': return 'huur_kantoor';
-    case 'bedrijfsruimte': return 'huur_bedrijfsruimte';
-    case 'buitenterrein': return 'huur_buitenterrein';
-    case 'diversen': return 'diversen';
-    default: return null;
-  }
+function rentLeaseOf(lease: LeaseWithDetails): RentLease {
+  return {
+    id: lease.id,
+    start_date: lease.start_date,
+    end_date: lease.end_date,
+    vat_rate: lease.vat_rate,
+    vat_inclusive: lease.vat_inclusive,
+    security_deposit: lease.security_deposit,
+    tenant: { lease_discount_percentage: lease.tenant?.lease_discount_percentage },
+    lease_spaces: lease.lease_spaces,
+  };
+}
+
+function instantInMonth(yearMonth: string): Date {
+  const [year, month] = yearMonth.split('-').map(Number);
+  return amsterdamInstant(year, month, 15, 12, 0);
 }
 
 function calculateVAT(baseAmount: number, vatRate: number, vatInclusive: boolean) {
@@ -217,28 +227,11 @@ export function InvoiceOverview({ onInvoicesCreated, onFocusMonthConsumed, isAct
 
     for (const lease of leases) {
       const target = resolveLeaseInvoiceTarget(lease, invoiceMonth, invoices);
-      if (target.eligible) {
-      let amount = 0;
-      const details: string[] = [];
-
-      amount = lease.lease_spaces.reduce((sum, ls) => {
-        return sum + billedCatalogRent(ls.space, Number(ls.price_per_sqm), Number(ls.monthly_rent), Number(lease.vat_rate)).monthly;
-      }, 0);
-      const deposit = typeof lease.security_deposit === 'string' ? parseFloat(lease.security_deposit) : lease.security_deposit;
-      amount += deposit;
-
-      lease.lease_spaces.forEach(ls => {
-        let name = ls.space.space_number;
-        if (ls.space.space_type === 'bedrijfsruimte') {
-          const numOnly = name.replace(/^(Bedrijfsruimte|Hal)\s*/i, '').trim();
-          if (/^\d+/.test(numOnly)) name = `Hal ${numOnly}`;
-        }
-        const rent = billedCatalogRent(ls.space, Number(ls.price_per_sqm), Number(ls.monthly_rent), Number(lease.vat_rate)).monthly;
-        details.push(`${name}: ${rent.toFixed(2)}`);
-      });
-      if (deposit > 0) {
-        details.push(`Voorschot GWE: ${deposit.toFixed(2)}`);
-      }
+      const draft = target.eligible
+        ? buildLeaseRentDraft(rentLeaseOf(lease), invoices, instantInMonth(invoiceMonth))
+        : null;
+      if (draft) {
+      const details = draft.lines.map((line) => `${line.description}: ${line.amount.toFixed(2)}`);
       if (target.isAdvanceRent) {
         details.unshift('Eerste huur vooruit. Dit is de huur van de startmaand.');
       }
@@ -251,13 +244,14 @@ export function InvoiceOverview({ onInvoicesCreated, onFocusMonthConsumed, isAct
         isExternal: false,
         leaseId: lease.id,
         description: 'Huurcontract',
-        amount,
-        vatRate: lease.vat_rate,
-        vatInclusive: lease.vat_inclusive,
+        amount: lease.vat_inclusive ? draft.amount : draft.subtotal,
+        vatRate: draft.vatRate,
+        vatInclusive: draft.vatInclusive,
         lease,
         details,
-        resolvedInvoiceMonth: target.invoiceMonth,
-        invoiceNotes: target.notes,
+        rentDraft: draft,
+        resolvedInvoiceMonth: draft.invoiceMonth,
+        invoiceNotes: draft.notes,
         isBorgfactuur: false,
       });
       }
@@ -425,75 +419,24 @@ export function InvoiceOverview({ onInvoicesCreated, onFocusMonthConsumed, isAct
 
         if (item.type === 'huur') {
           const lease = item.lease!;
-          let rentAmount = 0;
-          const lineItemsToInsert: any[] = [];
+          const draft = item.rentDraft;
+          if (!draft) { failCount++; continue; }
 
-          rentAmount = lease.lease_spaces.reduce((sum, ls) => {
-            return sum + billedCatalogRent(ls.space, Number(ls.price_per_sqm), Number(ls.monthly_rent), Number(lease.vat_rate)).monthly;
-          }, 0);
-
-          for (const ls of lease.lease_spaces) {
-            let displayName = ls.space.space_number;
-            if (ls.space.space_type === 'bedrijfsruimte') {
-              const numOnly = displayName.replace(/^(Bedrijfsruimte|Hal)\s*/i, '').trim();
-              if (/^\d+/.test(numOnly)) displayName = `Hal ${numOnly}`;
-            }
-            const sqft = typeof ls.space.square_footage === 'string' ? parseFloat(ls.space.square_footage) : ls.space.square_footage;
-            const diversenCalc = (ls.space as any).diversen_calculation;
-            const isDiversenFixed = ls.space.space_type === 'diversen' && (!diversenCalc || diversenCalc === 'fixed');
-            let quantity = 1;
-            if (!isDiversenFixed && sqft && !isNaN(sqft) && sqft > 0) quantity = sqft;
-            const pricePerSqm = typeof ls.price_per_sqm === 'string' ? parseFloat(ls.price_per_sqm) : ls.price_per_sqm;
-            const billed = billedCatalogRent(ls.space, Number(ls.price_per_sqm), Number(ls.monthly_rent), Number(lease.vat_rate));
-            const monthlyRent = billed.monthly;
-
-            lineItemsToInsert.push({
-              description: displayName, quantity, unit_price: Number(lease.vat_rate) === 0 ? billed.rate : pricePerSqm,
-              amount: monthlyRent, local_category: getLocalCategory(ls.space.space_type)
-            });
-          }
-
-          const vatRate = typeof lease.vat_rate === 'string' ? parseFloat(lease.vat_rate) : lease.vat_rate;
-          const deposit = typeof lease.security_deposit === 'string' ? parseFloat(lease.security_deposit) : lease.security_deposit;
-          const discountPct = lease.tenant?.lease_discount_percentage
-            ? (typeof lease.tenant.lease_discount_percentage === 'string' ? parseFloat(lease.tenant.lease_discount_percentage) : lease.tenant.lease_discount_percentage)
-            : 0;
-
-          let discountAmount = 0;
-          if (discountPct > 0) discountAmount = Math.round(rentAmount * (discountPct / 100) * 100) / 100;
-
-          const baseAmount = Math.round((rentAmount - discountAmount + deposit) * 100) / 100;
-          const { subtotal, vatAmount, total } = calculateVAT(baseAmount, vatRate, lease.vat_inclusive);
-
-          const leaseInvoiceMonth = item.resolvedInvoiceMonth || invoiceMonth;
           const { data: newInvoice, error: invErr } = await supabase
             .from('invoices')
             .insert([{
               lease_id: lease.id, tenant_id: lease.tenant_id,
               invoice_number: invoiceNumber, invoice_date: invoiceDate, due_date: dueDate,
-              invoice_month: leaseInvoiceMonth, subtotal, vat_amount: vatAmount, amount: total,
-              vat_rate: vatRate, vat_inclusive: lease.vat_inclusive, status: 'draft',
-              notes: item.invoiceNotes ?? null
+              invoice_month: draft.invoiceMonth, subtotal: draft.subtotal, vat_amount: draft.vatAmount, amount: draft.amount,
+              vat_rate: draft.vatRate, vat_inclusive: draft.vatInclusive, status: 'draft',
+              notes: draft.notes
             }]).select().single();
 
           if (invErr || !newInvoice) { failCount++; continue; }
 
-          if (discountAmount > 0) {
-            lineItemsToInsert.push({
-              description: `Korting verhuur (${discountPct}%)`, quantity: 1,
-              unit_price: -discountAmount, amount: -discountAmount, local_category: null
-            });
-          }
-          if (deposit > 0) {
-            lineItemsToInsert.push({
-              description: 'Voorschot Gas, Water & Electra', quantity: 1,
-              unit_price: deposit, amount: deposit, local_category: 'diversen'
-            });
-          }
-
           const { error: liErr } = await supabase
             .from('invoice_line_items')
-            .insert(lineItemsToInsert.map(li => ({ ...li, invoice_id: newInvoice.id })));
+            .insert(draft.lines.map(li => ({ ...li, invoice_id: newInvoice.id })));
 
           if (liErr) {
             await supabase.from('invoices').delete().eq('id', newInvoice.id);
