@@ -38,6 +38,7 @@ export function LeaseManagement({ isActive = true }: LeaseManagementProps) {
     start_date: '',
     end_date: '',
     security_deposit: '',
+    deposit_amount: '',
     vat_rate: '21',
     vat_inclusive: false,
     status: 'active' as 'active' | 'expired' | 'terminated',
@@ -141,6 +142,11 @@ export function LeaseManagement({ isActive = true }: LeaseManagementProps) {
       status: formData.status,
       lease_type: 'full_time'
     };
+
+    const depositValue = parseFloat(formData.deposit_amount) || 0;
+    if ((editingLease && 'deposit_amount' in editingLease) || depositValue > 0) {
+      leaseData.deposit_amount = depositValue;
+    }
 
     if (editingLease) {
       const { error } = await supabase
@@ -319,6 +325,7 @@ export function LeaseManagement({ isActive = true }: LeaseManagementProps) {
       start_date: lease.start_date,
       end_date: lease.end_date,
       security_deposit: lease.security_deposit.toString(),
+      deposit_amount: lease.deposit_amount ? Number(lease.deposit_amount).toString() : '',
       vat_rate: lease.vat_rate.toString(),
       vat_inclusive: lease.vat_inclusive,
       status: lease.status,
@@ -501,6 +508,7 @@ export function LeaseManagement({ isActive = true }: LeaseManagementProps) {
       vat_rate: lease.vat_rate,
       vat_inclusive: Number(lease.vat_rate) === 0 ? false : lease.vat_inclusive,
       security_deposit: lease.security_deposit,
+      deposit_amount: Number(lease.deposit_amount) || 0,
       spaces: lease.lease_spaces.map((ls) => ({
         space_number: ls.space.space_number,
         space_type: ls.space.space_type,
@@ -520,6 +528,7 @@ export function LeaseManagement({ isActive = true }: LeaseManagementProps) {
       start_date: '',
       end_date: '',
       security_deposit: '',
+      deposit_amount: '',
       vat_rate: '21',
       vat_inclusive: false,
       status: 'active',
@@ -814,6 +823,24 @@ export function LeaseManagement({ isActive = true }: LeaseManagementProps) {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-200 mb-1">
+                    Borg (waarborgsom)
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={formData.deposit_amount}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                        setFormData({ ...formData, deposit_amount: value });
+                      }
+                    }}
+                    className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Apart van de huur. Wordt aan het einde van het contract teruggestort.</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-200 mb-1">
                     BTW-tarief (%)
                   </label>
                   <input
@@ -940,6 +967,11 @@ export function LeaseManagement({ isActive = true }: LeaseManagementProps) {
                             {lease.security_deposit > 0 && (
                               <div className="text-xs text-green-400">
                                 + Voorschot G/W/E
+                              </div>
+                            )}
+                            {Number(lease.deposit_amount) > 0 && (
+                              <div className="text-xs text-amber-300">
+                                Borg €{Number(lease.deposit_amount).toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}, wordt teruggestort
                               </div>
                             )}
                           </div>

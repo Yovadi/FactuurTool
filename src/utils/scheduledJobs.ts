@@ -453,7 +453,7 @@ const generateMonthlyInvoices = async (job: ScheduledJob) => {
 
     const { data: existingLeaseInvoices } = await supabase
       .from('invoices')
-      .select('lease_id, invoice_month')
+      .select('lease_id, invoice_month, notes')
       .not('lease_id', 'is', null);
 
     const invoiceIndex = existingLeaseInvoices || [];

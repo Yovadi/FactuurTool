@@ -1,10 +1,11 @@
 import {
-  BORGFACTUUR_NOTE,
+  BORGFACTUUR_NOTES,
   getLeaseLeadMonth,
   getLeaseStartMonth,
   isBorgfactuurNote,
   isLeaseActiveInMonth,
   isLeaseEligibleForInvoiceMonth,
+  resolveDepositInvoice,
   resolveLeaseInvoiceTarget,
   shiftYearMonth,
   toYearMonth,
@@ -39,32 +40,38 @@ assert(
   'TrackLab selectable in december lead month without prior invoices'
 );
 
-const borg = resolveLeaseInvoiceTarget(trackLab, '2026-12', noInvoices);
-assert(borg.eligible, 'borg target eligible');
-assert(borg.invoiceMonth === '2027-01', 'borg invoice_month is start month');
-assert(borg.notes === BORGFACTUUR_NOTE, 'borg notes');
-assert(borg.isBorgfactuur, 'borg flag');
+const advance = resolveLeaseInvoiceTarget(trackLab, '2026-12', noInvoices);
+assert(advance.eligible, 'december advance rent is eligible');
+assert(advance.invoiceMonth === '2027-01', 'advance rent is stored as the start month');
+assert(advance.notes === null, 'advance rent is not a deposit invoice');
+assert(advance.isAdvanceRent && !advance.isBorgfactuur, 'december is the first rent invoice, not the deposit');
 
 assert(
   isLeaseEligibleForInvoiceMonth(trackLab, '2027-01', noInvoices),
   'TrackLab selectable in start month'
 );
 const january = resolveLeaseInvoiceTarget(trackLab, '2027-01', noInvoices);
-assert(january.eligible && january.invoiceMonth === '2027-01' && !january.isBorgfactuur, 'january is normal first-month invoice when selected directly');
+assert(january.eligible && january.invoiceMonth === '2027-01' && !january.isBorgfactuur && !january.isAdvanceRent, 'january itself stays a normal rent invoice');
 
 assert(
   !isLeaseEligibleForInvoiceMonth(trackLab, '2026-11', noInvoices),
   'not eligible two months before start'
 );
 
-const withBorgInvoice = [{ lease_id: 'lease-tracklab', invoice_month: '2027-01' }];
+const withJanuaryRent = [{ lease_id: 'lease-tracklab', invoice_month: '2027-01', notes: null }];
 assert(
-  !isLeaseEligibleForInvoiceMonth(trackLab, '2026-12', withBorgInvoice),
-  'lead month blocked once start-month invoice exists'
+  !isLeaseEligibleForInvoiceMonth(trackLab, '2026-12', withJanuaryRent),
+  'lead month blocked once the start-month rent invoice exists'
 );
 assert(
-  !isLeaseEligibleForInvoiceMonth(trackLab, '2027-01', withBorgInvoice),
-  'start month blocked once invoice exists'
+  !isLeaseEligibleForInvoiceMonth(trackLab, '2027-01', withJanuaryRent),
+  'start month blocked once the rent invoice exists'
+);
+
+const depositOnly = [{ lease_id: 'lease-tracklab', invoice_month: '2027-01', notes: BORGFACTUUR_NOTES }];
+assert(
+  isLeaseEligibleForInvoiceMonth(trackLab, '2026-12', depositOnly),
+  'a deposit invoice does not take the place of the January rent invoice'
 );
 
 const otherLeaseInvoice = [{ lease_id: 'lease-other', invoice_month: '2026-12' }];
@@ -75,6 +82,15 @@ assert(
 
 assert(isBorgfactuurNote('Borgfactuur'), 'exact borg note');
 assert(isBorgfactuurNote('  Borgfactuur  '), 'trimmed borg note');
+assert(isBorgfactuurNote(BORGFACTUUR_NOTES), 'deposit note with explanation still counts');
 assert(!isBorgfactuurNote('Vergaderruimte boekingen:'), 'other notes are not borg');
+
+const withDeposit = { ...trackLab, deposit_amount: 2000 };
+const deposit = resolveDepositInvoice(withDeposit, '2026-12', noInvoices);
+assert(deposit?.eligible && deposit.amount === 2000, 'deposit can be invoiced beside the advance rent');
+assert(deposit?.isBorgfactuur && deposit.invoiceMonth === '2027-01', 'deposit invoice is stored on the start month');
+assert(resolveDepositInvoice(trackLab, '2026-12', noInvoices) === null, 'no deposit invoice without an amount');
+assert(resolveDepositInvoice(withDeposit, '2026-11', noInvoices) === null, 'deposit is not offered two months early');
+assert(resolveDepositInvoice(withDeposit, '2026-12', depositOnly) === null, 'deposit is offered only once');
 
 console.log('leaseInvoiceEligibility tests passed');

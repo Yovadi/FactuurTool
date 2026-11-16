@@ -16,7 +16,7 @@ import { sendInvoiceReminderEmails } from '../utils/invoiceReminders';
 import { getLocalRootFolderPath } from '../utils/localSettings';
 import { syncInvoicePDFs, buildInvoiceFolderPath } from '../utils/invoicePdfSync';
 import { billableBeforeDiscount, billableUnitPrice, billedCatalogRent, billedLeaseMonthly, billedLeaseSpaceMonthly, summarizeMeetingInvoice } from '../utils/zeroVatPrice';
-import { isLeaseEligibleForInvoiceMonth, resolveLeaseInvoiceTarget } from '../utils/leaseInvoiceEligibility';
+import { isLeaseEligibleForInvoiceMonth, resolveDepositInvoice, resolveLeaseInvoiceTarget } from '../utils/leaseInvoiceEligibility';
 import {
   LEASES_CHANGED_EVENT,
   TENANTS_CHANGED_EVENT,
@@ -183,6 +183,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     meetingRoomCount: new Map()
   });
   const [selectedLeases, setSelectedLeases] = useState<Set<string>>(new Set());
+  const [selectedDepositLeases, setSelectedDepositLeases] = useState<Set<string>>(new Set());
   const [selectedCustomers, setSelectedCustomers] = useState<Set<string>>(new Set());
   const [meetingRoomBookings, setMeetingRoomBookings] = useState<any[]>([]);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
@@ -773,6 +774,9 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     }).map(c => c.id);
 
     setSelectedLeases(new Set(leasesToGenerate.map(l => l.id)));
+    setSelectedDepositLeases(new Set(
+      (invoiceMonth ? leases.filter(lease => resolveDepositInvoice(lease, invoiceMonth, invoices)?.eligible) : []).map(lease => lease.id)
+    ));
     setSelectedCustomers(new Set(customersWithBookingsIds));
     setShowDetailSelection(false);
   }, [invoiceMonth, showGenerateModal, leases, invoices, tenants, externalCustomers, meetingRoomBookings]);
@@ -1138,8 +1142,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       setFormData({
         ...formData,
         lease_id: leaseId,
-        invoice_month: target.isBorgfactuur && target.invoiceMonth ? target.invoiceMonth : formData.invoice_month,
-        notes: target.isBorgfactuur ? (formData.notes?.trim() ? formData.notes : (target.notes || '')) : formData.notes,
+        invoice_month: target.isAdvanceRent && target.invoiceMonth ? target.invoiceMonth : formData.invoice_month,
       });
       return;
     }
@@ -1966,7 +1969,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   };
 
   const generateBulkInvoices = async () => {
-    if (selectedLeases.size === 0) {
+    if (selectedLeases.size === 0 && selectedDepositLeases.size === 0) {
       showToast('Selecteer eerst de huurcontracten waarvoor je facturen wilt genereren.', 'error');
       return;
     }
@@ -1993,6 +1996,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     const invoiceIndex = invoices.map(inv => ({
       lease_id: inv.lease_id,
       invoice_month: inv.invoice_month,
+      notes: inv.notes,
     }));
 
     console.log('Starting bulk invoice generation for month:', targetMonth);
@@ -2018,7 +2022,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           lease.tenant?.company_name,
           'for month:',
           leaseInvoiceMonth,
-          target.isBorgfactuur ? '(Borgfactuur)' : ''
+          target.isAdvanceRent ? '(huur vooruit)' : ''
         );
 
         const { data: invoiceNumber, error: numberError } = await supabase.rpc('generate_invoice_number');
@@ -2213,6 +2217,54 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         } else {
           console.error('Unexpected error for lease:', lease.id, error);
         }
+        failCount++;
+      }
+    }
+
+    for (const leaseId of selectedDepositLeases) {
+      const lease = leases.find(item => item.id === leaseId);
+      if (!lease) continue;
+      const deposit = resolveDepositInvoice(lease, targetMonth, invoices);
+      if (!deposit?.eligible || !deposit.amount) continue;
+      try {
+        const { data: invoiceNumber, error: numberError } = await supabase.rpc('generate_invoice_number');
+        if (numberError || !invoiceNumber) { failCount++; continue; }
+        const { data: newInvoice, error: invoiceError } = await supabase
+          .from('invoices')
+          .insert([{
+            lease_id: lease.id,
+            tenant_id: lease.tenant_id,
+            invoice_number: invoiceNumber,
+            invoice_date: invoiceDate,
+            due_date: dueDate,
+            invoice_month: deposit.invoiceMonth,
+            subtotal: deposit.amount,
+            vat_amount: 0,
+            amount: deposit.amount,
+            vat_rate: 0,
+            vat_inclusive: false,
+            status: 'draft',
+            notes: deposit.notes
+          }])
+          .select()
+          .single();
+        if (invoiceError || !newInvoice) { failCount++; continue; }
+        const { error: lineItemsError } = await supabase.from('invoice_line_items').insert([{
+          invoice_id: newInvoice.id,
+          description: 'Waarborgsom',
+          quantity: 1,
+          unit_price: deposit.amount,
+          amount: deposit.amount,
+          local_category: null
+        }]);
+        if (lineItemsError) {
+          await supabase.from('invoices').delete().eq('id', newInvoice.id);
+          failCount++;
+        } else {
+          successCount++;
+        }
+      } catch (error) {
+        console.error('Error creating deposit invoice:', error);
         failCount++;
       }
     }
@@ -4088,8 +4140,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                                   : null;
 
                                 return (
+                                  <div key={lease.id} className="space-y-2">
                                   <div
-                                    key={lease.id}
                                     onClick={() => toggleLeaseSelection(lease.id)}
                                     className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-all ${
                                       selectedLeases.has(lease.id)
@@ -4109,14 +4161,44 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                                       </div>
                                       <div className="text-xs text-gray-400">
                                         {lease.lease_spaces.length} ruimte(s)
-                                        {leaseTarget?.isBorgfactuur && leaseTarget.invoiceMonth
-                                          ? ` · Borgfactuur ${new Date(leaseTarget.invoiceMonth + '-01').toLocaleDateString('nl-NL', { month: 'short', year: 'numeric' })}`
+                                        {leaseTarget?.isAdvanceRent && leaseTarget.invoiceMonth
+                                          ? ` · Huur ${new Date(leaseTarget.invoiceMonth + '-01').toLocaleDateString('nl-NL', { month: 'short', year: 'numeric' })}`
                                           : ''}
                                       </div>
                                     </div>
                                     <div className="text-sm font-medium text-gray-200 flex-shrink-0">
                                       €{total.toFixed(2)}
                                     </div>
+                                  </div>
+                                  {targetMonth && resolveDepositInvoice(lease, targetMonth, invoices)?.eligible && (
+                                    <div
+                                      onClick={() => setSelectedDepositLeases(prev => {
+                                        const next = new Set(prev);
+                                        if (next.has(lease.id)) next.delete(lease.id);
+                                        else next.add(lease.id);
+                                        return next;
+                                      })}
+                                      className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-all ${
+                                        selectedDepositLeases.has(lease.id)
+                                          ? 'bg-amber-900/20 border-amber-700'
+                                          : 'bg-dark-800 border-dark-700 hover:border-dark-600'
+                                      }`}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedDepositLeases.has(lease.id)}
+                                        onChange={() => {}}
+                                        className="w-4 h-4 rounded border-dark-600 text-amber-500 focus:ring-amber-500 flex-shrink-0"
+                                      />
+                                      <div className="flex-1 min-w-0">
+                                        <div className="text-sm font-medium text-gray-200 truncate">Borgfactuur</div>
+                                        <div className="text-xs text-gray-400">Wordt aan het einde teruggestort</div>
+                                      </div>
+                                      <div className="text-sm font-medium text-amber-200 flex-shrink-0">
+                                        €{Number(lease.deposit_amount || 0).toFixed(2)}
+                                      </div>
+                                    </div>
+                                  )}
                                   </div>
                                 );
                               })}

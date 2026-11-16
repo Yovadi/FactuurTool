@@ -3,7 +3,7 @@ import { supabase, type Tenant, type ExternalCustomer, type Lease, type LeaseSpa
 import { Home, Calendar, CheckSquare, Square, Loader2, AlertTriangle, ChevronDown, ChevronRight, ChevronLeft, RefreshCw } from 'lucide-react';
 import { Toast } from './Toast';
 import { billableBeforeDiscount, billableUnitPrice, billedCatalogRent, summarizeMeetingInvoice } from '../utils/zeroVatPrice';
-import { BORGFACTUUR_NOTE, resolveLeaseInvoiceTarget } from '../utils/leaseInvoiceEligibility';
+import { resolveDepositInvoice, resolveLeaseInvoiceTarget } from '../utils/leaseInvoiceEligibility';
 import {
   LEASES_CHANGED_EVENT,
   TENANTS_CHANGED_EVENT,
@@ -18,7 +18,7 @@ type LeaseWithDetails = Lease & {
 
 type InvoiceItem = {
   id: string;
-  type: 'huur' | 'meeting_booking';
+  type: 'huur' | 'borg' | 'meeting_booking';
   customerId: string;
   customerName: string;
   isExternal: boolean;
@@ -31,7 +31,7 @@ type InvoiceItem = {
   lease?: LeaseWithDetails;
   details: string[];
   customerDiscountPct?: number;
-  /** Resolved invoice_month for lease items (start month for borg). */
+  /** Resolved invoice_month. Advance rent uses the lease start month. */
   resolvedInvoiceMonth?: string;
   invoiceNotes?: string | null;
   isBorgfactuur?: boolean;
@@ -106,8 +106,11 @@ export function InvoiceOverview({ onInvoicesCreated, isActive = true }: InvoiceO
       { data: allInvoices },
       { data: unbilledMeetings },
     ] = await Promise.all([
-      supabase.from('leases').select('id, tenant_id, start_date, end_date').eq('status', 'active'),
-      supabase.from('invoices').select('lease_id, invoice_month'),
+      supabase.from('leases').select('id, tenant_id, start_date, end_date, deposit_amount').eq('status', 'active').then(async (result) => {
+        if (!result.error) return result;
+        return supabase.from('leases').select('id, tenant_id, start_date, end_date').eq('status', 'active');
+      }),
+      supabase.from('invoices').select('lease_id, invoice_month, notes'),
       supabase.from('meeting_room_bookings').select('id, booking_date')
         .in('status', ['confirmed', 'completed']).is('invoice_id', null),
     ]);
@@ -123,6 +126,7 @@ export function InvoiceOverview({ onInvoicesCreated, isActive = true }: InvoiceO
         for (const lease of activeLeases as any[]) {
           const target = resolveLeaseInvoiceTarget(lease, month, allInvoices || []);
           if (target.eligible) leaseCount++;
+          if (resolveDepositInvoice(lease, month, allInvoices || [])) leaseCount++;
         }
       }
 
@@ -170,7 +174,7 @@ export function InvoiceOverview({ onInvoicesCreated, isActive = true }: InvoiceO
         *, tenant:tenants(*),
         lease_spaces:lease_spaces(*, space:office_spaces(*))
       `).eq('status', 'active'),
-      supabase.from('invoices').select('id, lease_id, tenant_id, external_customer_id, invoice_month, status'),
+      supabase.from('invoices').select('id, lease_id, tenant_id, external_customer_id, invoice_month, status, notes'),
       supabase.from('tenants').select('*'),
       supabase.from('external_customers').select('*'),
       supabase.from('meeting_room_bookings').select(`
@@ -230,6 +234,9 @@ export function InvoiceOverview({ onInvoicesCreated, isActive = true }: InvoiceO
       if (deposit > 0) {
         details.push(`Voorschot GWE: ${deposit.toFixed(2)}`);
       }
+      if (target.isAdvanceRent) {
+        details.unshift('Eerste huur vooruit. Dit is de huur van de startmaand.');
+      }
 
       newItems.push({
         id: `huur_${lease.id}`,
@@ -238,7 +245,7 @@ export function InvoiceOverview({ onInvoicesCreated, isActive = true }: InvoiceO
         customerName: lease.tenant?.company_name || lease.tenant?.name || 'Onbekend',
         isExternal: false,
         leaseId: lease.id,
-        description: target.isBorgfactuur ? BORGFACTUUR_NOTE : 'Huurcontract',
+        description: 'Huurcontract',
         amount,
         vatRate: lease.vat_rate,
         vatInclusive: lease.vat_inclusive,
@@ -246,8 +253,29 @@ export function InvoiceOverview({ onInvoicesCreated, isActive = true }: InvoiceO
         details,
         resolvedInvoiceMonth: target.invoiceMonth,
         invoiceNotes: target.notes,
-        isBorgfactuur: target.isBorgfactuur,
+        isBorgfactuur: false,
       });
+
+      const depositTarget = resolveDepositInvoice(lease, invoiceMonth, invoices);
+      if (depositTarget?.eligible && depositTarget.amount) {
+        newItems.push({
+          id: `borg_${lease.id}`,
+          type: 'borg',
+          customerId: lease.tenant_id,
+          customerName: lease.tenant?.company_name || lease.tenant?.name || 'Onbekend',
+          isExternal: false,
+          leaseId: lease.id,
+          description: 'Borgfactuur',
+          amount: depositTarget.amount,
+          vatRate: 0,
+          vatInclusive: false,
+          lease,
+          details: ['Waarborgsom. Dit bedrag wordt aan het einde van het contract teruggestort.'],
+          resolvedInvoiceMonth: depositTarget.invoiceMonth,
+          invoiceNotes: depositTarget.notes,
+          isBorgfactuur: true,
+        });
+      }
     }
 
     const allCustomers = [
@@ -482,6 +510,37 @@ export function InvoiceOverview({ onInvoicesCreated, isActive = true }: InvoiceO
           } else {
             successCount++;
           }
+        } else if (item.type === 'borg') {
+          const lease = item.lease!;
+          const amount = item.amount;
+          const { data: newInvoice, error: invErr } = await supabase
+            .from('invoices')
+            .insert([{
+              lease_id: lease.id, tenant_id: lease.tenant_id,
+              invoice_number: invoiceNumber, invoice_date: invoiceDate, due_date: dueDate,
+              invoice_month: item.resolvedInvoiceMonth || invoiceMonth,
+              subtotal: amount, vat_amount: 0, amount,
+              vat_rate: 0, vat_inclusive: false, status: 'draft',
+              notes: item.invoiceNotes ?? null
+            }]).select().single();
+
+          if (invErr || !newInvoice) { failCount++; continue; }
+
+          const { error: liErr } = await supabase.from('invoice_line_items').insert([{
+            invoice_id: newInvoice.id,
+            description: 'Waarborgsom',
+            quantity: 1,
+            unit_price: amount,
+            amount,
+            local_category: null
+          }]);
+
+          if (liErr) {
+            await supabase.from('invoices').delete().eq('id', newInvoice.id);
+            failCount++;
+          } else {
+            successCount++;
+          }
         } else {
           const bookings = item.bookings || [];
           if (bookings.length === 0) { failCount++; continue; }
@@ -582,6 +641,7 @@ export function InvoiceOverview({ onInvoicesCreated, isActive = true }: InvoiceO
   const getTypeLabel = (type: InvoiceItem['type']) => {
     switch (type) {
       case 'huur': return 'Huur';
+      case 'borg': return 'Borg';
       case 'meeting_booking': return 'Vergaderruimte';
     }
   };
@@ -589,11 +649,12 @@ export function InvoiceOverview({ onInvoicesCreated, isActive = true }: InvoiceO
   const getTypeBadgeColor = (type: InvoiceItem['type']) => {
     switch (type) {
       case 'huur': return 'bg-emerald-900/50 text-emerald-400 border-emerald-700/50';
+      case 'borg': return 'bg-amber-900/50 text-amber-300 border-amber-700/50';
       case 'meeting_booking': return 'bg-blue-900/50 text-blue-400 border-blue-700/50';
     }
   };
 
-  const huurItems = items.filter(i => i.type === 'huur');
+  const huurItems = items.filter(i => i.type === 'huur' || i.type === 'borg');
   const bookingItems = items.filter(i => i.type === 'meeting_booking');
 
   const selectedCount = items.filter(i => selected.has(i.id)).length;
