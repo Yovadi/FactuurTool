@@ -8,6 +8,18 @@ let mainWindow;
 let previewWindow = null;
 let isManualUpdateCheck = false;
 
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+  });
+}
+
 function getLocalSettingsPath() {
   return path.join(app.getPath('userData'), 'local-settings.json');
 }
@@ -782,7 +794,7 @@ ipcMain.handle('close-preview-window', async () => {
   }
 });
 
-app.whenReady().then(() => {
+if (gotSingleInstanceLock) app.whenReady().then(() => {
   createWindow();
 
   setTimeout(() => {

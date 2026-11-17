@@ -29,6 +29,7 @@ export function LeaseManagement({ isActive = true }: LeaseManagementProps) {
   const [spaces, setSpaces] = useState<OfficeSpace[]>([]);
   const [spaceTypeRates, setSpaceTypeRates] = useState<SpaceTypeRate[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [editingLease, setEditingLease] = useState<LeaseWithDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'active' | 'expired'>('active');
@@ -126,11 +127,22 @@ export function LeaseManagement({ isActive = true }: LeaseManagementProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return;
 
     if (selectedSpaces.length === 0) {
       alert('Selecteer minimaal één ruimte');
       return;
     }
+
+    setSaving(true);
+    try {
+      await saveLease();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveLease = async () => {
 
     const leaseData: any = {
       tenant_id: formData.tenant_id,
@@ -903,9 +915,10 @@ export function LeaseManagement({ isActive = true }: LeaseManagementProps) {
               <div className="flex gap-2 pt-2">
                 <button
                   type="submit"
-                  className="flex-1 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors"
+                  disabled={saving}
+                  className="flex-1 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors disabled:opacity-50"
                 >
-                  {editingLease ? 'Opslaan' : 'Aanmaken'}
+                  {saving ? 'Bezig...' : editingLease ? 'Opslaan' : 'Aanmaken'}
                 </button>
                 <button
                   type="button"
