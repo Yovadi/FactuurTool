@@ -3,7 +3,8 @@ import { checkInvoicePaymentStatuses, checkPurchaseInvoicePaymentStatuses, verif
 import { createLeaseNotification } from './notificationHelper';
 import { sendInvoiceReminderEmails } from './invoiceReminders';
 import { createSettingsBackup } from './settingsBackup';
-import { addCalendarDays, amsterdamCalendar, amsterdamNextMonthStart } from './amsterdamCalendar';
+import { addCalendarDays, amsterdamInstant, amsterdamNextMonthStart } from './amsterdamCalendar';
+import { getCurrentDate, getCurrentDateString } from './dateHelpers';
 import { buildLeaseRentDraft } from './leaseRentDraft';
 import { buildMeetingInvoiceDraft, groupMeetingBookings, previousAmsterdamMonth } from './meetingInvoiceDraft';
 
@@ -142,7 +143,8 @@ const runEBoekhoudenRelationVerification = async (job: ScheduledJob) => {
 // Groups bookings by customer, creates/updates one draft invoice per customer per month
 const generateMeetingRoomInvoices = async (job: ScheduledJob) => {
   try {
-    const period = previousAmsterdamMonth();
+    const clock = await getCurrentDate();
+    const period = previousAmsterdamMonth(clock);
     const { data: bookings } = await supabase
       .from('meeting_room_bookings')
       .select(`
@@ -164,7 +166,7 @@ const generateMeetingRoomInvoices = async (job: ScheduledJob) => {
 
     let failed = false;
     for (const group of groupMeetingBookings(bookings)) {
-      const draft = buildMeetingInvoiceDraft(group.bookings, group.vatRate, group.discountPct, period.yearMonth);
+      const draft = buildMeetingInvoiceDraft(group.bookings, group.vatRate, group.discountPct, period.yearMonth, clock);
       if (!draft) continue;
       const { data: invoiceNumber } = await supabase.rpc('generate_invoice_number');
       const insertData: Record<string, unknown> = {
@@ -210,7 +212,7 @@ const generateMeetingRoomInvoices = async (job: ScheduledJob) => {
 
 const checkExpiringLeases = async (job: ScheduledJob) => {
   try {
-    const todayStr = amsterdamCalendar().date;
+    const todayStr = await getCurrentDateString();
     const in60Str = addCalendarDays(todayStr, 60);
 
     const { data: leases } = await supabase
@@ -281,7 +283,8 @@ const applyRentIndexation = async (job: ScheduledJob) => {
       return;
     }
 
-    const currentYear = new Date().getFullYear();
+    const todayStr = await getCurrentDateString();
+    const currentYear = Number(todayStr.slice(0, 4));
     const currentYearStart = `${currentYear}-01-01`;
 
     const { data: leases } = await supabase
@@ -320,7 +323,7 @@ const applyRentIndexation = async (job: ScheduledJob) => {
 
       await supabase
         .from('leases')
-        .update({ last_indexation_at: new Date().toISOString().split('T')[0] })
+        .update({ last_indexation_at: todayStr })
         .eq('id', lease.id);
 
       await createLeaseNotification(
@@ -332,11 +335,7 @@ const applyRentIndexation = async (job: ScheduledJob) => {
       );
     }
 
-    const nextYear = new Date();
-    nextYear.setFullYear(nextYear.getFullYear() + 1);
-    nextYear.setMonth(0);
-    nextYear.setDate(1);
-    nextYear.setHours(0, 0, 0, 0);
+    const nextYear = amsterdamInstant(currentYear + 1, 1, 1, 0, 15);
 
     await supabase
       .from('scheduled_jobs')
@@ -349,7 +348,7 @@ const applyRentIndexation = async (job: ScheduledJob) => {
 
 const completePastBookings = async (job: ScheduledJob) => {
   try {
-    const todayStr = amsterdamCalendar().date;
+    const todayStr = await getCurrentDateString();
 
     await supabase
       .from('meeting_room_bookings')
@@ -383,6 +382,7 @@ const runSettingsBackup = async (job: ScheduledJob) => {
 
 const generateMonthlyInvoices = async (job: ScheduledJob) => {
   try {
+    const clock = await getCurrentDate();
     const { data: leases } = await supabase
       .from('leases')
       .select(`
@@ -404,7 +404,7 @@ const generateMonthlyInvoices = async (job: ScheduledJob) => {
     let failed = false;
 
     for (const lease of leases || []) {
-      const draft = buildLeaseRentDraft(lease, invoiceIndex);
+      const draft = buildLeaseRentDraft(lease, invoiceIndex, clock);
       if (!draft) continue;
 
       const { data: invoiceNumber } = await supabase.rpc('generate_invoice_number');

@@ -4,6 +4,9 @@ import { AlertCircle, Calendar, Clock, CalendarClock, FileText, DollarSign, Chec
 import { SkeletonDashboard } from './SkeletonLoader';
 import { createAdminNotification } from '../utils/notificationHelper';
 import { useUnbilledItems } from './UnbilledItemsReminder';
+import { addBusinessDays, businessMonth, businessMonthRange } from '../utils/businessClock';
+import { getCurrentDateString } from '../utils/dateHelpers';
+import { shiftYearMonth } from '../utils/leaseInvoiceEligibility';
 
 type DashboardStats = {
   revenueThisMonth: number;
@@ -159,17 +162,11 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
   const loadDashboardStats = async () => {
     setLoading(true);
 
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
-    const fourteenDaysFromNow = new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000);
-    const fourteenDaysStr = fourteenDaysFromNow.toISOString().split('T')[0];
-    const sevenDaysFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
-    const sevenDaysStr = sevenDaysFromNow.toISOString().split('T')[0];
-
-    const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
-    const thisMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
-    const prevMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1).toISOString().split('T')[0];
-    const prevMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0).toISOString().split('T')[0];
+    const todayStr = await getCurrentDateString();
+    const fourteenDaysStr = addBusinessDays(todayStr, 14);
+    const sevenDaysStr = addBusinessDays(todayStr, 7);
+    const thisMonth = businessMonthRange(todayStr);
+    const prevMonth = businessMonthRange(`${shiftYearMonth(businessMonth(todayStr).yearMonth, -1)}-01`);
 
     const [
       { data: activeLeases },
@@ -185,8 +182,8 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
         invoice_number, amount, status, due_date, tenant_id, external_customer_id,
         tenants(company_name), external_customers(company_name)
       `).in('status', ['draft', 'sent', 'overdue']),
-      supabase.from('invoices').select('amount').gte('created_at', thisMonthStart).lte('created_at', thisMonthEnd + 'T23:59:59'),
-      supabase.from('invoices').select('amount').gte('created_at', prevMonthStart).lte('created_at', prevMonthEnd + 'T23:59:59'),
+      supabase.from('invoices').select('amount').gte('created_at', thisMonth.start).lte('created_at', thisMonth.end),
+      supabase.from('invoices').select('amount').gte('created_at', prevMonth.start).lte('created_at', prevMonth.end),
       supabase.from('meeting_room_bookings').select('*', { count: 'exact', head: true }).eq('booking_date', todayStr).neq('status', 'cancelled'),
       supabase.from('meeting_room_bookings').select('*', { count: 'exact', head: true }).gte('booking_date', todayStr).lte('booking_date', sevenDaysStr).neq('status', 'cancelled'),
       supabase

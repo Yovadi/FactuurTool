@@ -11,6 +11,8 @@ import { syncCreditNoteToEBoekhouden } from '../lib/eboekhoudenSync';
 import { isEmailConfigured } from '../utils/emailSender';
 import { buildCreditNoteEmailSubject, buildCreditNoteEmailText, buildCreditNoteEmailHtml } from '../utils/emailTemplate';
 import { creditLineFromSpace, creditVatRate } from '../utils/creditPrefill';
+import { amsterdamCalendar } from '../utils/amsterdamCalendar';
+import { getCurrentDateString } from '../utils/dateHelpers';
 
 type CreditNote = {
   id: string;
@@ -115,7 +117,7 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
     original_invoice_id: '',
     tenant_id: '',
     external_customer_id: '',
-    credit_date: new Date().toISOString().split('T')[0],
+    credit_date: amsterdamCalendar().date,
     reason: '',
     vat_rate: 21,
     notes: '',
@@ -127,6 +129,15 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
 
   useEffect(() => {
     loadData();
+    let active = true;
+    const seed = formData.credit_date;
+    getCurrentDateString().then((date) => {
+      if (!active) return;
+      setFormData((prev) => (prev.credit_date === seed ? { ...prev, credit_date: date } : prev));
+    });
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -164,8 +175,9 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
     }
   }, [prefilledInvoiceData]);
 
-  const handlePrefilledInvoice = () => {
+  const handlePrefilledInvoice = async () => {
     if (!prefilledInvoiceData) return;
+    const creditDate = await getCurrentDateString();
 
     const { invoice, tenant, spaces } = prefilledInvoiceData;
 
@@ -179,7 +191,7 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
       original_invoice_id: invoice.id || '',
       tenant_id: invoice.tenant_id || '',
       external_customer_id: invoice.external_customer_id || '',
-      credit_date: new Date().toISOString().split('T')[0],
+      credit_date: creditDate,
       reason: `Correctie factuur ${invoice.invoice_number}`,
       vat_rate: creditVatRate(invoice, lineSum),
       notes: '',
@@ -336,28 +348,43 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
 
         if (lineItemsError) throw lineItemsError;
       } else {
-        const { data: creditNoteNumber } = await supabase.rpc('generate_credit_note_number');
+        let creditNote: { id: string } | null = null;
+        let creditNoteError: { code?: string; message?: string } | null = null;
+        for (let attempt = 0; attempt < 5; attempt++) {
+          const { data: creditNoteNumber, error: numberError } = await supabase.rpc('generate_credit_note_number');
+          if (numberError || !creditNoteNumber) throw numberError || new Error('Geen creditnotanummer');
 
-        const { data: creditNote, error: creditNoteError } = await supabase
-          .from('credit_notes')
-          .insert({
-            credit_note_number: creditNoteNumber,
-            original_invoice_id: formData.original_invoice_id || null,
-            tenant_id: customerType === 'tenant' ? formData.tenant_id : null,
-            external_customer_id: customerType === 'external' ? formData.external_customer_id : null,
-            credit_date: formData.credit_date,
-            reason: formData.reason,
-            subtotal,
-            vat_amount: vatAmount,
-            vat_rate: formData.vat_rate,
-            total_amount: total,
-            status: 'issued',
-            notes: formData.notes,
-          })
-          .select()
-          .single();
+          const inserted = await supabase
+            .from('credit_notes')
+            .insert({
+              credit_note_number: creditNoteNumber,
+              original_invoice_id: formData.original_invoice_id || null,
+              tenant_id: customerType === 'tenant' ? formData.tenant_id : null,
+              external_customer_id: customerType === 'external' ? formData.external_customer_id : null,
+              credit_date: formData.credit_date,
+              reason: formData.reason,
+              subtotal,
+              vat_amount: vatAmount,
+              vat_rate: formData.vat_rate,
+              total_amount: total,
+              status: 'issued',
+              notes: formData.notes,
+            })
+            .select()
+            .single();
 
-        if (creditNoteError) throw creditNoteError;
+          if (!inserted.error && inserted.data) {
+            creditNote = inserted.data;
+            creditNoteError = null;
+            break;
+          }
+          creditNoteError = inserted.error;
+          const duplicate = inserted.error?.code === '23505' || /duplicate key/i.test(inserted.error?.message || '');
+          if (!duplicate) break;
+          await new Promise((resolve) => setTimeout(resolve, 25 * (attempt + 1)));
+        }
+
+        if (creditNoteError || !creditNote) throw creditNoteError || new Error('Creditnota niet opgeslagen');
 
         const lineItemsToInsert = lineItems.map((item) => ({
           credit_note_id: creditNote.id,
@@ -382,12 +409,13 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
     }
   };
 
-  const resetForm = () => {
+  const resetForm = async () => {
+    const creditDate = await getCurrentDateString();
     setFormData({
       original_invoice_id: '',
       tenant_id: '',
       external_customer_id: '',
-      credit_date: new Date().toISOString().split('T')[0],
+      credit_date: creditDate,
       reason: '',
       vat_rate: 21,
       notes: '',
