@@ -36,7 +36,25 @@ function run() {
   });
   assert(ubl.includes('INV-2026-001'), 'UBL XML should contain invoice number');
   assert(ubl.includes('Huurder BV'), 'UBL XML should contain customer name');
+  assert(ubl.includes('<cbc:ID>S</cbc:ID>'), 'a 21% invoice uses tax category S');
+  assert(ubl.includes('<cbc:Percent>21</cbc:Percent>'), 'a 21% invoice states the VAT percentage');
   assert(!ubl.includes('iDEAL') && !ubl.includes('payment means'), 'UBL download must not add payment methods');
+
+  const zeroVat = buildUblInvoiceXml({
+    invoiceNumber: 'INV-2026-002',
+    invoiceDate: '2026-08-19',
+    dueDate: '2026-09-02',
+    supplier: { name: 'HAL5', address: 'Straat 1', postalCode: '5825 AA', city: 'Overloon' },
+    customer: { name: 'TrackLab' },
+    lines: [{ description: 'Hal 4', quantity: 1, unitPrice: 1356, amount: 1356 }],
+    subtotal: 1356,
+    vatAmount: 0,
+    vatRate: 0,
+    total: 1356,
+  });
+  assert(zeroVat.includes('<cbc:ID>O</cbc:ID>'), '0% uses category O, BTW niet van toepassing');
+  assert(!zeroVat.includes('<cbc:ID>S</cbc:ID>'), '0% must not stay on category S');
+  assert(!zeroVat.includes('<cbc:Percent>'), 'category O has no VAT percentage');
 
   console.log('app extras helper tests passed');
 }

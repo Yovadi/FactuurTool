@@ -1,8 +1,8 @@
 import { supabase } from './supabase';
 import type { Invoice, InvoiceLineItem, Tenant, ExternalCustomer, CompanySettings, PurchaseInvoice, PurchaseInvoiceLineItem, CreditNote, CreditNoteLineItem } from './supabase';
 import { createRelation, getRelation, updateRelation, createInvoice as ebCreateInvoice, createMutation, getInvoice as ebGetInvoice, getMutation as ebGetMutation } from './eboekhouden';
-import { amsterdamCalendar } from '../utils/amsterdamCalendar';
-import { openInvoiceAmount } from '../utils/invoiceBalance';
+import { paymentToMatchBookkeeping } from '../utils/invoiceBalance';
+import { getCurrentDateString } from '../utils/dateHelpers';
 
 const VAT_CODE_MAP: Record<number, string> = {
   21: 'HOOG_VERK_21',
@@ -542,13 +542,57 @@ export async function verifyInvoiceSyncStatus(
   return result;
 }
 
+async function recordBookkeepingPayment(
+  invoiceId: string,
+  booksOpen: number
+): Promise<'recorded' | 'unchanged' | 'missing-table' | 'error'> {
+  const { data: row, error } = await supabase
+    .from('invoices')
+    .select('amount, applied_credit, paid_amount')
+    .eq('id', invoiceId)
+    .maybeSingle();
+
+  if (error) {
+    return /paid_amount|schema cache/i.test(error.message || '') ? 'missing-table' : 'error';
+  }
+  if (!row) return 'error';
+
+  const { data: payments, error: paymentsError } = await supabase
+    .from('invoice_payments')
+    .select('amount')
+    .eq('invoice_id', invoiceId);
+  if (paymentsError) {
+    return /invoice_payments|schema cache/i.test(paymentsError.message || '') ? 'missing-table' : 'error';
+  }
+  const recordedPaid = (payments || []).reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0);
+
+  const gap = paymentToMatchBookkeeping({
+    amount: Number(row.amount),
+    appliedCredit: Number(row.applied_credit) || 0,
+    paidAmount: Math.max(Number(row.paid_amount) || 0, recordedPaid),
+    amountOpen: booksOpen,
+  });
+  if (gap <= 0.009) return 'unchanged';
+
+  const { error: insertError } = await supabase.from('invoice_payments').insert({
+    invoice_id: invoiceId,
+    amount: gap,
+    paid_on: await getCurrentDateString(),
+    note: 'e-Boekhouden',
+  });
+  if (insertError) {
+    return /invoice_payments|schema cache|paid_amount/i.test(insertError.message || '') ? 'missing-table' : 'error';
+  }
+  return 'recorded';
+}
+
 export async function checkInvoicePaymentStatuses(
   apiToken: string
 ): Promise<{ updated: number; errors: string[] }> {
   const { data: invoices } = await supabase
     .from('invoices')
     .select('id, eboekhouden_factuur_id, invoice_number')
-    .eq('status', 'sent')
+    .in('status', ['sent', 'overdue'])
     .not('eboekhouden_factuur_id', 'is', null);
 
   if (!invoices?.length) return { updated: 0, errors: [] };
@@ -562,29 +606,28 @@ export async function checkInvoicePaymentStatuses(
       if (result.success) {
         const ebInvoice = result.data as Record<string, unknown>;
         const amountOpen = ebInvoice?.amountOpen ?? ebInvoice?.AmountOpen ?? ebInvoice?.openAmount ?? null;
+        if (amountOpen === null || amountOpen === undefined || Number.isNaN(Number(amountOpen))) continue;
 
-        if (amountOpen !== null && Number(amountOpen) === 0) {
+        const booksOpen = Math.max(0, Math.round(Number(amountOpen) * 100) / 100);
+        const recorded = await recordBookkeepingPayment(inv.id, booksOpen);
+        if (recorded === 'missing-table' && booksOpen <= 0.009) {
           await supabase
             .from('invoices')
             .update({ status: 'paid', paid_at: new Date().toISOString() })
             .eq('id', inv.id);
-          const { data: row } = await supabase
-            .from('invoices')
-            .select('amount, applied_credit, paid_amount')
-            .eq('id', inv.id)
-            .maybeSingle();
-          if (row) {
-            const open = openInvoiceAmount(Number(row.amount), Number(row.applied_credit) || 0, Number(row.paid_amount) || 0);
-            if (open > 0.009) {
-              await supabase.from('invoice_payments').insert({
-                invoice_id: inv.id,
-                amount: open,
-                paid_on: amsterdamCalendar().date,
-                note: 'e-Boekhouden',
-              });
-            }
-          }
           updated++;
+        } else if (recorded === 'missing-table') {
+          errors.push(`Factuur ${inv.invoice_number}: deelbetaling niet opgeslagen, de betalingstabel ontbreekt nog`);
+        } else if (recorded === 'error') {
+          errors.push(`Factuur ${inv.invoice_number}: betaling niet bijgewerkt`);
+        } else if (recorded === 'recorded' || (recorded === 'unchanged' && booksOpen <= 0.009)) {
+          if (booksOpen <= 0.009) {
+            await supabase
+              .from('invoices')
+              .update({ status: 'paid', paid_at: new Date().toISOString() })
+              .eq('id', inv.id);
+          }
+          if (recorded === 'recorded' || booksOpen <= 0.009) updated++;
         }
       }
     } catch {

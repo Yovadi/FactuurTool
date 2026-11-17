@@ -31,6 +31,16 @@ export function toYearMonth(dateOrMonth: string): string {
   return dateOrMonth.slice(0, 7);
 }
 
+/** The `lookback` calendar months before the month of `today` (YYYY-MM-DD or YYYY-MM). */
+export function pastMonthsBefore(today: string, lookback = 6): string[] {
+  const currentMonth = toYearMonth(today);
+  const months: string[] = [];
+  for (let offset = -lookback; offset < 0; offset += 1) {
+    months.push(shiftYearMonth(currentMonth, offset));
+  }
+  return months;
+}
+
 /** Shift a YYYY-MM value by `delta` calendar months. */
 export function shiftYearMonth(yearMonth: string, delta: number): string {
   const [y, m] = yearMonth.split('-').map(Number);

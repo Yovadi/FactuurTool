@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Download, Send, CreditCard as Edit, Receipt, FileText, Loader2, RotateCcw, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { generateInvoicePDFBlobUrl } from '../utils/pdfGenerator';
+import { generateInvoicePDF, generateInvoicePDFBlobUrl } from '../utils/pdfGenerator';
 import { isBorgfactuurNote } from '../utils/leaseInvoiceEligibility';
 import { amsterdamCalendar } from '../utils/amsterdamCalendar';
 import { openInvoiceAmount } from '../utils/invoiceBalance';
@@ -112,6 +112,7 @@ export function InvoicePreview({
   const [pdfError, setPdfError] = useState<string | null>(null);
   const pdfLoadingRef = useRef(false);
   const prevInvoiceIdRef = useRef<string | undefined>(undefined);
+  const settlementKeyRef = useRef('');
 
   useEffect(() => {
     if (invoice?.id && invoice?.applied_credit && invoice.applied_credit > 0) {
@@ -140,10 +141,11 @@ export function InvoicePreview({
   }, [invoice?.id]);
 
   const recordedPaid = payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
+  const paidForPdf = Math.max(Number(invoice.paid_amount) || 0, recordedPaid);
   const openAmount = openInvoiceAmount(
     invoice.amount,
     invoice.applied_credit || 0,
-    Math.max(Number(invoice.paid_amount) || 0, recordedPaid)
+    paidForPdf
   );
 
   const loadPayments = async () => {
@@ -187,29 +189,9 @@ export function InvoicePreview({
     onPaymentRecorded?.();
   };
 
-  useEffect(() => {
-    if (!invoice || !tenant) return;
-
-    const invoiceChanged = prevInvoiceIdRef.current !== invoice.id;
-    prevInvoiceIdRef.current = invoice.id;
-
-    if (invoiceChanged) {
-      setPdfUrl(prev => {
-        if (prev) URL.revokeObjectURL(prev);
-        return null;
-      });
-      setPdfError(null);
-      pdfLoadingRef.current = false;
-    }
-
-    if (pdfLoadingRef.current) return;
-    if (!invoiceChanged && pdfUrl) return;
-
-    pdfLoadingRef.current = true;
-    setPdfLoading(true);
-    setPdfError(null);
-
-    generateInvoicePDFBlobUrl({
+  const previewPdfData = () => {
+    if (!invoice || !tenant) return null;
+    return {
       invoice_number: invoice.invoice_number,
       tenant_name: tenant.name || tenant.contact_name || '',
       tenant_company_name: tenant.company_name || '',
@@ -237,10 +219,56 @@ export function InvoicePreview({
       vat_amount: invoice.vat_amount,
       vat_rate: invoice.vat_rate,
       vat_inclusive: invoice.vat_inclusive,
+      applied_credit: invoice.applied_credit,
+      paid_amount: paidForPdf,
       due_date: invoice.due_date,
       invoice_date: invoice.invoice_date,
       company,
-    }).then(url => {
+    };
+  };
+
+  const downloadPdf = async () => {
+    const data = previewPdfData();
+    if (!data) {
+      onDownload?.();
+      return;
+    }
+    await generateInvoicePDF(data, false);
+  };
+
+  useEffect(() => {
+    if (!invoice || !tenant) return;
+
+    const invoiceChanged = prevInvoiceIdRef.current !== invoice.id;
+    const settlementChanged = settlementKeyRef.current !== `${invoice.applied_credit || 0}|${paidForPdf}`;
+    prevInvoiceIdRef.current = invoice.id;
+    settlementKeyRef.current = `${invoice.applied_credit || 0}|${paidForPdf}`;
+
+    if (invoiceChanged || settlementChanged) {
+      setPdfUrl(prev => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
+      setPdfError(null);
+      pdfLoadingRef.current = false;
+    }
+
+    if (pdfLoadingRef.current) return;
+    if (!invoiceChanged && !settlementChanged && pdfUrl) return;
+
+    const data = previewPdfData();
+    if (!data) return;
+
+    const requestKey = `${invoice.applied_credit || 0}|${paidForPdf}`;
+    pdfLoadingRef.current = true;
+    setPdfLoading(true);
+    setPdfError(null);
+
+    generateInvoicePDFBlobUrl(data).then(url => {
+      if (settlementKeyRef.current !== requestKey) {
+        URL.revokeObjectURL(url);
+        return;
+      }
       setPdfUrl(prev => {
         if (prev) URL.revokeObjectURL(prev);
         return url;
@@ -252,7 +280,7 @@ export function InvoicePreview({
       pdfLoadingRef.current = false;
       setPdfLoading(false);
     });
-  }, [invoice?.id, invoice, tenant, spaces, company]);
+  }, [invoice?.id, invoice, tenant, spaces, company, paidForPdf]);
 
   if (!invoice || !tenant) {
     if (inline) {
@@ -313,7 +341,7 @@ export function InvoicePreview({
       )}
       {onDownload && (
         <button
-          onClick={onDownload}
+          onClick={downloadPdf}
           className="flex items-center gap-1.5 bg-green-600 hover:bg-green-500 text-white transition-colors px-3 py-1.5 rounded-lg"
           title="Download PDF"
         >

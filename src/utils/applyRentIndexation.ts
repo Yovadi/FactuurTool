@@ -30,16 +30,42 @@ async function loadLeases(): Promise<IndexationLease[]> {
   }));
 }
 
+export type IndexationHistoryRow = {
+  id: string;
+  tenant_name: string;
+  percentage: number;
+  old_monthly_rent: number;
+  new_monthly_rent: number;
+  applied_on: string;
+};
+
+export type IndexationApplyResult = {
+  applied: number;
+  historySaved: boolean;
+};
+
 export async function loadIndexationPreview(percentage: number): Promise<IndexationPreview[]> {
   const today = await getCurrentDateString();
   const yearStart = `${today.slice(0, 4)}-01-01`;
   return pendingIndexation(await loadLeases(), percentage, yearStart);
 }
 
-export async function applyPendingIndexation(percentage: number): Promise<number> {
+export async function loadIndexationHistory(): Promise<IndexationHistoryRow[]> {
+  const { data, error } = await supabase
+    .from('rent_indexation_history')
+    .select('id, tenant_name, percentage, old_monthly_rent, new_monthly_rent, applied_on')
+    .order('applied_on', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(30);
+  if (error || !data) return [];
+  return data as IndexationHistoryRow[];
+}
+
+export async function applyPendingIndexation(percentage: number): Promise<IndexationApplyResult> {
   const today = await getCurrentDateString();
   const yearStart = `${today.slice(0, 4)}-01-01`;
   const pending = pendingIndexation(await loadLeases(), percentage, yearStart);
+  let historySaved = true;
 
   for (const lease of pending) {
     for (const line of lease.lines) {
@@ -56,6 +82,16 @@ export async function applyPendingIndexation(percentage: number): Promise<number
       .eq('id', lease.leaseId);
     if (leaseError) throw leaseError;
 
+    const { error: historyError } = await supabase.from('rent_indexation_history').insert({
+      lease_id: lease.leaseId,
+      tenant_name: lease.tenantName,
+      percentage,
+      old_monthly_rent: lease.totalOld,
+      new_monthly_rent: lease.totalNew,
+      applied_on: today,
+    });
+    if (historyError) historySaved = false;
+
     await createLeaseNotification(
       'rent_indexation_applied',
       lease.leaseId,
@@ -65,5 +101,5 @@ export async function applyPendingIndexation(percentage: number): Promise<number
     );
   }
 
-  return pending.length;
+  return { applied: pending.length, historySaved: pending.length === 0 || historySaved };
 }

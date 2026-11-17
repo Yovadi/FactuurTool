@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import { getLogoBase64 } from './logoLoader';
 import { isBorgfactuurNote } from './leaseInvoiceEligibility';
+import { invoiceAmountBreakdown } from './invoiceBalance';
 
 export interface BuildingInfoData {
   company?: {
@@ -62,6 +63,8 @@ export interface InvoiceData {
   vat_amount: number;
   vat_rate: number;
   vat_inclusive: boolean;
+  applied_credit?: number;
+  paid_amount?: number;
   due_date: string;
   invoice_date: string;
   company?: {
@@ -444,8 +447,29 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(11);
   pdf.setTextColor(40, 40, 40);
-  pdf.text('Totaal te betalen:', pageWidth - margin - 70, yPosition);
+  const settlement = invoiceAmountBreakdown(invoice.amount, invoice.applied_credit, invoice.paid_amount);
+  pdf.text(settlement.showRemainder ? 'Totaal:' : 'Totaal te betalen:', pageWidth - margin - 70, yPosition);
   pdf.text(`€ ${invoice.amount.toFixed(2)}`, pageWidth - margin, yPosition, { align: 'right' });
+
+  if (settlement.showRemainder) {
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(9);
+    if (settlement.credit > 0.009) {
+      yPosition += 6;
+      pdf.text('Verrekend met creditnota:', pageWidth - margin - 70, yPosition);
+      pdf.text(`€ ${settlement.credit.toFixed(2)}`, pageWidth - margin, yPosition, { align: 'right' });
+    }
+    if (settlement.paid > 0.009) {
+      yPosition += 6;
+      pdf.text('Reeds betaald:', pageWidth - margin - 70, yPosition);
+      pdf.text(`€ ${settlement.paid.toFixed(2)}`, pageWidth - margin, yPosition, { align: 'right' });
+    }
+    yPosition += 7;
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(11);
+    pdf.text('Nog te betalen:', pageWidth - margin - 70, yPosition);
+    pdf.text(`€ ${settlement.open.toFixed(2)}`, pageWidth - margin, yPosition, { align: 'right' });
+  }
 
   yPosition += 3;
   pdf.setDrawColor(234, 179, 8);
