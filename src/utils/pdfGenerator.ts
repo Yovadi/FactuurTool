@@ -403,7 +403,10 @@ async function buildInvoicePDF(pdf: jsPDF, invoice: InvoiceData) {
     });
   }
 
-  if (invoice.security_deposit && invoice.security_deposit > 0) {
+  const gweOnALine = (invoice.spaces || []).some((space) =>
+    /voorschot gas/i.test(space.space_name || ''),
+  );
+  if (invoice.security_deposit && invoice.security_deposit > 0 && !gweOnALine) {
     if (yPosition > pageHeight - 70) {
       pdf.addPage();
       yPosition = 20;

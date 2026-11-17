@@ -517,7 +517,7 @@ function App() {
       <button
         onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
         className="lg:hidden fixed top-3 left-3 z-50 p-3 bg-dark-900 border border-dark-700 rounded-lg text-gray-100 hover:bg-dark-800 transition-colors shadow-lg"
-        aria-label="Toggle menu"
+        aria-label="Menu openen of sluiten"
       >
         {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
       </button>
@@ -566,7 +566,7 @@ function App() {
                   <button
                     onClick={() => setMobileMenuOpen(false)}
                     className="lg:hidden p-1 text-gray-400 hover:text-gray-200"
-                    aria-label="Close menu"
+                    aria-label="Menu sluiten"
                   >
                     <X size={20} />
                   </button>

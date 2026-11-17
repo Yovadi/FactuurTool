@@ -1,6 +1,11 @@
-const FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/eboekhouden-proxy`;
+const supabaseUrl =
+  (import.meta.env && import.meta.env.VITE_SUPABASE_URL) ||
+  (typeof process !== 'undefined' ? process.env.VITE_SUPABASE_URL : undefined);
+const FUNCTION_URL = `${supabaseUrl}/functions/v1/eboekhouden-proxy`;
 
-const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const ANON_KEY =
+  (import.meta.env && import.meta.env.VITE_SUPABASE_ANON_KEY) ||
+  (typeof process !== 'undefined' ? process.env.VITE_SUPABASE_ANON_KEY : undefined);
 
 interface EBoekhoudenResponse<T = unknown> {
   success: boolean;

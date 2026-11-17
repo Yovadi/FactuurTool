@@ -10,6 +10,7 @@ export function StaffPinLock({ children }: { children: React.ReactNode }) {
   const [input, setInput] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [pinCheckFailed, setPinCheckFailed] = useState(false);
 
   useEffect(() => {
     supabase
@@ -28,7 +29,8 @@ export function StaffPinLock({ children }: { children: React.ReactNode }) {
         }
         setLoading(false);
       }, () => {
-        setUnlocked(true);
+        setUnlocked(false);
+        setPinCheckFailed(true);
         setLoading(false);
       });
   }, []);
@@ -37,6 +39,24 @@ export function StaffPinLock({ children }: { children: React.ReactNode }) {
     return (
       <div className="min-h-screen bg-dark-950 flex items-center justify-center text-gray-400">
         Laden...
+      </div>
+    );
+  }
+
+  if (pinCheckFailed) {
+    return (
+      <div className="min-h-screen bg-dark-950 flex items-center justify-center p-6">
+        <div className="w-full max-w-sm bg-dark-900 border border-dark-700 rounded-2xl p-6 space-y-4">
+          <h1 className="text-xl font-semibold text-gray-100">HAL5 Facturatie</h1>
+          <p className="text-sm text-gray-400">De PIN kon niet worden gecontroleerd. Probeer het opnieuw.</p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="w-full bg-gold-500 text-dark-950 font-medium py-2.5 rounded-lg hover:bg-gold-400"
+          >
+            Opnieuw
+          </button>
+        </div>
       </div>
     );
   }
