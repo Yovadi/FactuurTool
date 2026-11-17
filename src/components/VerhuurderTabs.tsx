@@ -17,7 +17,7 @@ export function VerhuurderTabs() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <div className="flex-shrink-0 sticky top-0 z-10 bg-dark-950 pb-4">
+      <div className="flex-shrink-0 mb-4">
         <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2">
           <div className="flex gap-2 flex-wrap">
             {tabs.map((tab) => (
@@ -38,7 +38,7 @@ export function VerhuurderTabs() {
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-auto pr-1">
+      <div className="flex-1 min-h-0 overflow-y-auto">
         {activeTab === 'company' && <CompanyInfo />}
         {activeTab === 'building' && <BuildingInfo />}
         {activeTab === 'email' && <EmailTemplateSettings />}

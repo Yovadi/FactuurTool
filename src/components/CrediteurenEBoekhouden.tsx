@@ -223,7 +223,7 @@ export function CrediteurenEBoekhouden() {
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
+    <div className="h-full flex flex-col bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden">
       <div className="flex-shrink-0 bg-dark-800 border-b border-gold-500 px-4 py-3 flex items-center gap-2">
         <Database size={20} className="text-gold-500" />
         <h3 className="text-lg font-bold text-gray-100">e-Boekhouden Synchronisatie</h3>

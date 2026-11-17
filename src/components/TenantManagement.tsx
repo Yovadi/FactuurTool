@@ -5,6 +5,12 @@ import { BookingOverview } from './BookingOverview';
 import { getLocalRootFolderPath } from '../utils/localSettings';
 import { SkeletonTable } from './SkeletonLoader';
 import { Pagination } from './Pagination';
+import {
+  TENANTS_CHANGED_EVENT,
+  emitTenantsChanged,
+  subscribeDataRefresh,
+  subscribeTenantsLeasesRealtime,
+} from '../utils/dataRefresh';
 
 type TenantWithLeases = Tenant & {
   leases?: Array<{
@@ -46,7 +52,11 @@ function VatRateCell({ vatRate }: { vatRate?: number | null }) {
   );
 }
 
-export function TenantManagement() {
+type TenantManagementProps = {
+  isActive?: boolean;
+};
+
+export function TenantManagement({ isActive = true }: TenantManagementProps) {
   const [activeTab, setActiveTab] = useState<'fulltime' | 'external' | 'inactive'>('fulltime');
   const [tenants, setTenants] = useState<TenantWithLeases[]>([]);
   const [externalCustomers, setExternalCustomers] = useState<ExternalCustomer[]>([]);
@@ -86,6 +96,22 @@ export function TenantManagement() {
   useEffect(() => {
     loadAllData();
   }, []);
+
+  useEffect(() => {
+    if (isActive) loadAllData();
+  }, [isActive]);
+
+  useEffect(() => {
+    const refresh = () => {
+      if (isActive) loadAllData();
+    };
+    const unsubEvents = subscribeDataRefresh([TENANTS_CHANGED_EVENT], refresh);
+    const unsubRealtime = subscribeTenantsLeasesRealtime(refresh);
+    return () => {
+      unsubEvents();
+      unsubRealtime();
+    };
+  }, [isActive]);
 
   const loadAllData = async () => {
     setLoading(true);
@@ -266,6 +292,7 @@ export function TenantManagement() {
       }
     }
 
+    emitTenantsChanged();
     resetForm();
   };
 
@@ -322,6 +349,7 @@ export function TenantManagement() {
       }
 
       setTenants(tenants.filter(t => t.id !== id));
+      emitTenantsChanged();
     } else {
       const { error } = await supabase
         .from('external_customers')
@@ -334,6 +362,7 @@ export function TenantManagement() {
       }
 
       setExternalCustomers(externalCustomers.filter(c => c.id !== id));
+      emitTenantsChanged();
     }
   };
 
@@ -354,8 +383,9 @@ export function TenantManagement() {
   }
 
   return (
-    <div className="h-full bg-dark-950 overflow-y-auto p-6">
-      <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2 mb-6">
+    <div className="h-full overflow-y-auto">
+      <div className="sticky top-0 z-10 bg-dark-950 pb-4">
+      <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2">
         <div className="flex gap-2">
           <button
             onClick={() => { setActiveTab('fulltime'); setTenantsPage(1); }}
@@ -391,6 +421,7 @@ export function TenantManagement() {
             Afgelopen Huurders
           </button>
         </div>
+      </div>
       </div>
 
       {showForm && (
@@ -615,7 +646,7 @@ export function TenantManagement() {
               Huurder Toevoegen
             </button>
           </div>
-          <div className="overflow-x-auto flex-1 min-h-0">
+          <div className="overflow-x-auto">
             <table className="w-full table-fixed">
               <thead>
                 <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
@@ -743,7 +774,7 @@ export function TenantManagement() {
               Externe Huurder Toevoegen
             </button>
           </div>
-          <div className="overflow-x-auto flex-1 min-h-0">
+          <div className="overflow-x-auto">
             <table className="w-full table-fixed">
               <thead>
                 <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
@@ -889,7 +920,7 @@ export function TenantManagement() {
               Afgelopen Huurders
             </h2>
           </div>
-          <div className="overflow-x-auto flex-1 min-h-0">
+          <div className="overflow-x-auto">
             <table className="w-full table-fixed">
               <thead>
                 <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
@@ -993,7 +1024,7 @@ export function TenantManagement() {
               Externe Huurder Toevoegen
             </button>
           </div>
-          <div className="overflow-x-auto flex-1 min-h-0">
+          <div className="overflow-x-auto">
             <table className="w-full table-fixed">
               <thead>
                 <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">

@@ -310,8 +310,8 @@ export function SpaceManagement() {
   }
 
   return (
-    <div className="h-full bg-dark-950 overflow-y-auto p-6">
-      <div className="flex justify-end items-center mb-6">
+    <div className="h-full overflow-y-auto">
+      <div className="sticky top-0 z-10 bg-dark-950 pb-4 flex justify-end items-center">
         <button
           onClick={() => {
             setShowForm(true);
@@ -705,7 +705,7 @@ export function SpaceManagement() {
               <h2 className="text-lg font-bold text-gray-100 px-4 py-3 bg-dark-800 border-b border-amber-500">
                 {typeLabels[type]}
               </h2>
-              <div className="overflow-x-auto flex-1 min-h-0">
+              <div className="overflow-x-auto">
                 <table className="w-full table-fixed">
                   <thead>
                     <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">

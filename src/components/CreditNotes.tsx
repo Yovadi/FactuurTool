@@ -10,6 +10,7 @@ import { generateCreditNotePDF } from '../utils/pdfGenerator';
 import { syncCreditNoteToEBoekhouden } from '../lib/eboekhoudenSync';
 import { isEmailConfigured } from '../utils/emailSender';
 import { buildCreditNoteEmailSubject, buildCreditNoteEmailText, buildCreditNoteEmailHtml } from '../utils/emailTemplate';
+import { creditLineFromSpace, creditVatRate } from '../utils/creditPrefill';
 
 type CreditNote = {
   id: string;
@@ -171,22 +172,18 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
     const isExternal = !!invoice.external_customer_id;
     setCustomerType(isExternal ? 'external' : 'tenant');
 
+    const convertedLineItems = spaces.map(space => creditLineFromSpace(space));
+    const lineSum = convertedLineItems.reduce((sum, line) => sum + line.amount, 0);
+
     setFormData({
       original_invoice_id: invoice.id || '',
       tenant_id: invoice.tenant_id || '',
       external_customer_id: invoice.external_customer_id || '',
       credit_date: new Date().toISOString().split('T')[0],
       reason: `Correctie factuur ${invoice.invoice_number}`,
-      vat_rate: invoice.vat_rate || 21,
+      vat_rate: creditVatRate(invoice, lineSum),
       notes: '',
     });
-
-    const convertedLineItems = spaces.map(space => ({
-      description: space.space_name,
-      quantity: space.square_footage || 1,
-      unit_price: space.price_per_sqm || space.monthly_rent,
-      amount: space.monthly_rent,
-    }));
 
     setLineItems(convertedLineItems.length > 0 ? convertedLineItems : [
       { description: '', quantity: 1, unit_price: 0, amount: 0 }
@@ -679,7 +676,7 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
   return (
     <div className="h-full flex overflow-hidden">
     <div className="flex-1 min-w-0 overflow-y-auto">
-      <div className="p-6">
+      <div>
       <div className="flex justify-end items-center mb-4 flex-wrap gap-3">
         <div className="flex items-center gap-2 flex-wrap">
           {ebConnected && creditNotes.some(n => !n.eboekhouden_id) && (
@@ -710,7 +707,7 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
           </div>
         ) : (
           <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden flex flex-col">
-            <div className="overflow-x-auto flex-1 min-h-0">
+            <div className="overflow-x-auto">
               <table className="w-full table-fixed min-w-[1000px]">
                 <thead>
                   <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">

@@ -49,7 +49,8 @@ function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [isElectron, setIsElectron] = useState(false);
   const [prefilledInvoiceData, setPrefilledInvoiceData] = useState<PrefilledInvoiceData | null>(null);
-  const [debiteurenInitialTab, setDebiteurenInitialTab] = useState<'facturen' | 'outstanding' | 'log' | undefined>(undefined);
+  const [debiteurenInitialTab, setDebiteurenInitialTab] = useState<'te-factureren' | 'facturen' | 'borg' | 'outstanding' | 'log' | undefined>(undefined);
+  const [debiteurenFocusMonth, setDebiteurenFocusMonth] = useState<string | undefined>(undefined);
   const [appVersion, setAppVersion] = useState<string>('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -687,12 +688,14 @@ function App() {
                 {visitedTabs.has('dashboard') && <OverzichtTabs onNavigateToDebtors={(subTab) => {
                   setDebiteurenInitialTab(subTab);
                   switchTab('financial-debtors');
-                }} onNavigateToInvoicing={() => {
+                }} onNavigateToInvoicing={(month) => {
+                  setDebiteurenInitialTab('te-factureren');
+                  setDebiteurenFocusMonth(month);
                   switchTab('financial-debtors');
                 }} />}
               </div>
               <div className="h-full" style={tabStyle('tenants')}>
-                {visitedTabs.has('tenants') && <TenantManagement />}
+                {visitedTabs.has('tenants') && <TenantManagement isActive={activeTab === 'tenants'} />}
               </div>
               <div className="h-full" style={tabStyle('spaces-spaces')}>
                 {visitedTabs.has('spaces-spaces') && <SpaceManagement />}
@@ -701,7 +704,7 @@ function App() {
                 {visitedTabs.has('spaces-rates') && <SpaceTypeRates />}
               </div>
               <div className="h-full" style={tabStyle('contracts')}>
-                {visitedTabs.has('contracts') && <LeaseManagement />}
+                {visitedTabs.has('contracts') && <LeaseManagement isActive={activeTab === 'contracts'} />}
               </div>
               <div className="h-full" style={tabStyle('bookings')}>
                 {visitedTabs.has('bookings') && <MeetingRoomBookings />}
@@ -709,8 +712,11 @@ function App() {
               <div className="h-full" style={tabStyle('financial-debtors')}>
                 {visitedTabs.has('financial-debtors') && (
                   <DebiteurenTabs
+                    isActive={activeTab === 'financial-debtors'}
                     initialTab={debiteurenInitialTab}
+                    focusMonth={debiteurenFocusMonth}
                     onInitialTabConsumed={() => setDebiteurenInitialTab(undefined)}
+                    onFocusMonthConsumed={() => setDebiteurenFocusMonth(undefined)}
                     onCreateCreditNote={(invoice, tenant, spaces) => {
                       setPrefilledInvoiceData({ invoice, tenant, spaces });
                       switchTab('financial-creditors');

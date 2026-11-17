@@ -2,7 +2,16 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase, type Tenant, type ExternalCustomer, type Lease, type LeaseSpace, type OfficeSpace } from '../lib/supabase';
 import { Home, Calendar, CheckSquare, Square, Loader2, AlertTriangle, ChevronDown, ChevronRight, ChevronLeft, RefreshCw } from 'lucide-react';
 import { Toast } from './Toast';
-import { billableBeforeDiscount, billableUnitPrice, billedCatalogRent, summarizeMeetingInvoice } from '../utils/zeroVatPrice';
+import { billableBeforeDiscount, billableUnitPrice, summarizeMeetingInvoice } from '../utils/zeroVatPrice';
+import { resolveLeaseInvoiceTarget } from '../utils/leaseInvoiceEligibility';
+import { amsterdamInstant } from '../utils/amsterdamCalendar';
+import { buildLeaseRentDraft, type LeaseRentDraft, type RentLease } from '../utils/leaseRentDraft';
+import {
+  LEASES_CHANGED_EVENT,
+  TENANTS_CHANGED_EVENT,
+  subscribeDataRefresh,
+  subscribeTenantsLeasesRealtime,
+} from '../utils/dataRefresh';
 
 type LeaseWithDetails = Lease & {
   tenant: Tenant;
@@ -11,7 +20,7 @@ type LeaseWithDetails = Lease & {
 
 type InvoiceItem = {
   id: string;
-  type: 'huur' | 'meeting_booking';
+  type: 'huur' | 'borg' | 'meeting_booking';
   customerId: string;
   customerName: string;
   isExternal: boolean;
@@ -24,17 +33,29 @@ type InvoiceItem = {
   lease?: LeaseWithDetails;
   details: string[];
   customerDiscountPct?: number;
+  rentDraft?: LeaseRentDraft;
+  /** Resolved invoice_month. Advance rent uses the lease start month. */
+  resolvedInvoiceMonth?: string;
+  invoiceNotes?: string | null;
+  isBorgfactuur?: boolean;
 };
 
-function getLocalCategory(spaceType?: string, bookingType?: string): string | null {
-  if (bookingType === 'meeting_room') return 'vergaderruimte';
-  switch (spaceType) {
-    case 'kantoor': return 'huur_kantoor';
-    case 'bedrijfsruimte': return 'huur_bedrijfsruimte';
-    case 'buitenterrein': return 'huur_buitenterrein';
-    case 'diversen': return 'diversen';
-    default: return null;
-  }
+function rentLeaseOf(lease: LeaseWithDetails): RentLease {
+  return {
+    id: lease.id,
+    start_date: lease.start_date,
+    end_date: lease.end_date,
+    vat_rate: lease.vat_rate,
+    vat_inclusive: lease.vat_inclusive,
+    security_deposit: lease.security_deposit,
+    tenant: { lease_discount_percentage: lease.tenant?.lease_discount_percentage },
+    lease_spaces: lease.lease_spaces,
+  };
+}
+
+function instantInMonth(yearMonth: string): Date {
+  const [year, month] = yearMonth.split('-').map(Number);
+  return amsterdamInstant(year, month, 15, 12, 0);
 }
 
 function calculateVAT(baseAmount: number, vatRate: number, vatInclusive: boolean) {
@@ -53,14 +74,18 @@ function calculateVAT(baseAmount: number, vatRate: number, vatInclusive: boolean
 
 type InvoiceOverviewProps = {
   onInvoicesCreated?: () => void;
+  onFocusMonthConsumed?: () => void;
+  isActive?: boolean;
+  focusMonth?: string;
 };
 
-export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}) {
+export function InvoiceOverview({ onInvoicesCreated, onFocusMonthConsumed, isActive = true, focusMonth }: InvoiceOverviewProps = {}) {
   const [invoiceMonth, setInvoiceMonth] = useState('');
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [generatingScope, setGeneratingScope] = useState<'huur' | 'meeting_booking' | null>(null);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [toasts, setToasts] = useState<{ id: number; message: string; type: 'success' | 'error' | 'info' }[]>([]);
   const [pastDueBookings, setPastDueBookings] = useState<{ meetingCount: number; months: string[] }>({ meetingCount: 0, months: [] });
@@ -95,7 +120,7 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
       { data: unbilledMeetings },
     ] = await Promise.all([
       supabase.from('leases').select('id, tenant_id, start_date, end_date').eq('status', 'active'),
-      supabase.from('invoices').select('lease_id, invoice_month'),
+      supabase.from('invoices').select('lease_id, invoice_month, notes'),
       supabase.from('meeting_room_bookings').select('id, booking_date')
         .in('status', ['confirmed', 'completed']).is('invoice_id', null),
     ]);
@@ -109,12 +134,8 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
       let leaseCount = 0;
       if (activeLeases && month >= '2026-02') {
         for (const lease of activeLeases as any[]) {
-          if (lease.start_date && lease.start_date > endDate) continue;
-          if (lease.end_date && lease.end_date < startDate) continue;
-          const alreadyInvoiced = (allInvoices || []).some(
-            (inv: any) => inv.lease_id === lease.id && inv.invoice_month === month
-          );
-          if (!alreadyInvoiced) leaseCount++;
+          const target = resolveLeaseInvoiceTarget(lease, month, allInvoices || []);
+          if (target.eligible) leaseCount++;
         }
       }
 
@@ -141,6 +162,13 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
     setVisibleMonths(months);
   }, []);
 
+  useEffect(() => {
+    if (!focusMonth || !/^\d{4}-\d{2}$/.test(focusMonth)) return;
+    setInvoiceMonth(focusMonth);
+    setVisibleMonths(getMonthRange(focusMonth));
+    onFocusMonthConsumed?.();
+  }, [focusMonth]);
+
   const loadInvoiceableItems = useCallback(async () => {
     if (!invoiceMonth) return;
     setLoading(true);
@@ -162,7 +190,7 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
         *, tenant:tenants(*),
         lease_spaces:lease_spaces(*, space:office_spaces(*))
       `).eq('status', 'active'),
-      supabase.from('invoices').select('id, lease_id, tenant_id, external_customer_id, invoice_month, status'),
+      supabase.from('invoices').select('id, lease_id, tenant_id, external_customer_id, invoice_month, status, notes'),
       supabase.from('tenants').select('*'),
       supabase.from('external_customers').select('*'),
       supabase.from('meeting_room_bookings').select(`
@@ -198,31 +226,14 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
     const newItems: InvoiceItem[] = [];
 
     for (const lease of leases) {
-      if ((lease as any).start_date && (lease as any).start_date > endDateStr) continue;
-      if ((lease as any).end_date && (lease as any).end_date < startDateStr) continue;
-      const hasExisting = invoices.some(inv => inv.lease_id === lease.id && inv.invoice_month === invoiceMonth);
-      if (hasExisting) continue;
-
-      let amount = 0;
-      const details: string[] = [];
-
-      amount = lease.lease_spaces.reduce((sum, ls) => {
-        return sum + billedCatalogRent(ls.space, Number(ls.price_per_sqm), Number(ls.monthly_rent), Number(lease.vat_rate)).monthly;
-      }, 0);
-      const deposit = typeof lease.security_deposit === 'string' ? parseFloat(lease.security_deposit) : lease.security_deposit;
-      amount += deposit;
-
-      lease.lease_spaces.forEach(ls => {
-        let name = ls.space.space_number;
-        if (ls.space.space_type === 'bedrijfsruimte') {
-          const numOnly = name.replace(/^(Bedrijfsruimte|Hal)\s*/i, '').trim();
-          if (/^\d+/.test(numOnly)) name = `Hal ${numOnly}`;
-        }
-        const rent = billedCatalogRent(ls.space, Number(ls.price_per_sqm), Number(ls.monthly_rent), Number(lease.vat_rate)).monthly;
-        details.push(`${name}: ${rent.toFixed(2)}`);
-      });
-      if (deposit > 0) {
-        details.push(`Voorschot GWE: ${deposit.toFixed(2)}`);
+      const target = resolveLeaseInvoiceTarget(lease, invoiceMonth, invoices);
+      const draft = target.eligible
+        ? buildLeaseRentDraft(rentLeaseOf(lease), invoices, instantInMonth(invoiceMonth))
+        : null;
+      if (draft) {
+      const details = draft.lines.map((line) => `${line.description}: ${line.amount.toFixed(2)}`);
+      if (target.isAdvanceRent) {
+        details.unshift('Eerste huur vooruit. Dit is de huur van de startmaand.');
       }
 
       newItems.push({
@@ -232,13 +243,18 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
         customerName: lease.tenant?.company_name || lease.tenant?.name || 'Onbekend',
         isExternal: false,
         leaseId: lease.id,
-        description: `Huurcontract`,
-        amount,
-        vatRate: lease.vat_rate,
-        vatInclusive: lease.vat_inclusive,
+        description: 'Huurcontract',
+        amount: lease.vat_inclusive ? draft.amount : draft.subtotal,
+        vatRate: draft.vatRate,
+        vatInclusive: draft.vatInclusive,
         lease,
-        details
+        details,
+        rentDraft: draft,
+        resolvedInvoiceMonth: draft.invoiceMonth,
+        invoiceNotes: draft.notes,
+        isBorgfactuur: false,
       });
+      }
     }
 
     const allCustomers = [
@@ -288,13 +304,13 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
     }
 
     newItems.sort((a, b) => {
-      const typeOrder = { huur: 0, meeting_booking: 1 };
+      const typeOrder = { huur: 0, borg: 0, meeting_booking: 1 };
       if (typeOrder[a.type] !== typeOrder[b.type]) return typeOrder[a.type] - typeOrder[b.type];
       return a.customerName.localeCompare(b.customerName);
     });
 
     setItems(newItems);
-    setSelected(new Set(newItems.map(i => i.id)));
+    setSelected(new Set(newItems.map(item => item.id)));
     setLoading(false);
   }, [invoiceMonth]);
 
@@ -305,6 +321,29 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
   useEffect(() => {
     if (visibleMonths.length > 0) loadMonthIndicators(visibleMonths);
   }, [visibleMonths, loadMonthIndicators]);
+
+  useEffect(() => {
+    if (!isActive) return;
+    if (invoiceMonth) loadInvoiceableItems();
+    if (visibleMonths.length > 0) loadMonthIndicators(visibleMonths);
+  }, [isActive]);
+
+  useEffect(() => {
+    const refresh = () => {
+      if (!isActive) return;
+      if (invoiceMonth) loadInvoiceableItems();
+      if (visibleMonths.length > 0) loadMonthIndicators(visibleMonths);
+    };
+    const unsubEvents = subscribeDataRefresh(
+      [TENANTS_CHANGED_EVENT, LEASES_CHANGED_EVENT],
+      refresh
+    );
+    const unsubRealtime = subscribeTenantsLeasesRealtime(refresh);
+    return () => {
+      unsubEvents();
+      unsubRealtime();
+    };
+  }, [isActive, invoiceMonth, visibleMonths, loadInvoiceableItems, loadMonthIndicators]);
 
   const selectMonth = (month: string) => {
     setInvoiceMonth(month);
@@ -331,8 +370,13 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
   };
 
   const toggleAll = () => {
-    if (selected.size === items.length) setSelected(new Set());
-    else setSelected(new Set(items.map(i => i.id)));
+    const regularIds = items.filter(item => item.type !== 'borg').map(item => item.id);
+    const allRegularSelected = regularIds.length > 0 && regularIds.every(id => selected.has(id));
+    setSelected(prev => {
+      const next = new Set(prev);
+      regularIds.forEach(id => allRegularSelected ? next.delete(id) : next.add(id));
+      return next;
+    });
   };
 
   const toggleExpand = (id: string) => {
@@ -344,11 +388,12 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
     });
   };
 
-  const generateSelectedInvoices = async () => {
-    const selectedItems = items.filter(i => selected.has(i.id));
+  const generateSelectedInvoices = async (scope: 'huur' | 'meeting_booking') => {
+    const selectedItems = items.filter(i => selected.has(i.id) && i.type === scope);
     if (selectedItems.length === 0) return;
 
     setGenerating(true);
+    setGeneratingScope(scope);
     let successCount = 0;
     let failCount = 0;
 
@@ -374,73 +419,55 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
 
         if (item.type === 'huur') {
           const lease = item.lease!;
-          let rentAmount = 0;
-          const lineItemsToInsert: any[] = [];
-
-          rentAmount = lease.lease_spaces.reduce((sum, ls) => {
-            return sum + billedCatalogRent(ls.space, Number(ls.price_per_sqm), Number(ls.monthly_rent), Number(lease.vat_rate)).monthly;
-          }, 0);
-
-          for (const ls of lease.lease_spaces) {
-            let displayName = ls.space.space_number;
-            if (ls.space.space_type === 'bedrijfsruimte') {
-              const numOnly = displayName.replace(/^(Bedrijfsruimte|Hal)\s*/i, '').trim();
-              if (/^\d+/.test(numOnly)) displayName = `Hal ${numOnly}`;
-            }
-            const sqft = typeof ls.space.square_footage === 'string' ? parseFloat(ls.space.square_footage) : ls.space.square_footage;
-            const diversenCalc = (ls.space as any).diversen_calculation;
-            const isDiversenFixed = ls.space.space_type === 'diversen' && (!diversenCalc || diversenCalc === 'fixed');
-            let quantity = 1;
-            if (!isDiversenFixed && sqft && !isNaN(sqft) && sqft > 0) quantity = sqft;
-            const pricePerSqm = typeof ls.price_per_sqm === 'string' ? parseFloat(ls.price_per_sqm) : ls.price_per_sqm;
-            const billed = billedCatalogRent(ls.space, Number(ls.price_per_sqm), Number(ls.monthly_rent), Number(lease.vat_rate));
-            const monthlyRent = billed.monthly;
-
-            lineItemsToInsert.push({
-              description: displayName, quantity, unit_price: Number(lease.vat_rate) === 0 ? billed.rate : pricePerSqm,
-              amount: monthlyRent, local_category: getLocalCategory(ls.space.space_type)
-            });
-          }
-
-          const vatRate = typeof lease.vat_rate === 'string' ? parseFloat(lease.vat_rate) : lease.vat_rate;
-          const deposit = typeof lease.security_deposit === 'string' ? parseFloat(lease.security_deposit) : lease.security_deposit;
-          const discountPct = lease.tenant?.lease_discount_percentage
-            ? (typeof lease.tenant.lease_discount_percentage === 'string' ? parseFloat(lease.tenant.lease_discount_percentage) : lease.tenant.lease_discount_percentage)
-            : 0;
-
-          let discountAmount = 0;
-          if (discountPct > 0) discountAmount = Math.round(rentAmount * (discountPct / 100) * 100) / 100;
-
-          const baseAmount = Math.round((rentAmount - discountAmount + deposit) * 100) / 100;
-          const { subtotal, vatAmount, total } = calculateVAT(baseAmount, vatRate, lease.vat_inclusive);
+          const draft = item.rentDraft;
+          if (!draft) { failCount++; continue; }
 
           const { data: newInvoice, error: invErr } = await supabase
             .from('invoices')
             .insert([{
               lease_id: lease.id, tenant_id: lease.tenant_id,
               invoice_number: invoiceNumber, invoice_date: invoiceDate, due_date: dueDate,
-              invoice_month: invoiceMonth, subtotal, vat_amount: vatAmount, amount: total,
-              vat_rate: vatRate, vat_inclusive: lease.vat_inclusive, status: 'draft', notes: null
+              invoice_month: draft.invoiceMonth, subtotal: draft.subtotal, vat_amount: draft.vatAmount, amount: draft.amount,
+              vat_rate: draft.vatRate, vat_inclusive: draft.vatInclusive, status: 'draft',
+              notes: draft.notes
             }]).select().single();
 
           if (invErr || !newInvoice) { failCount++; continue; }
 
-          if (discountAmount > 0) {
-            lineItemsToInsert.push({
-              description: `Korting verhuur (${discountPct}%)`, quantity: 1,
-              unit_price: -discountAmount, amount: -discountAmount, local_category: null
-            });
-          }
-          if (deposit > 0) {
-            lineItemsToInsert.push({
-              description: 'Voorschot Gas, Water & Electra', quantity: 1,
-              unit_price: deposit, amount: deposit, local_category: 'diversen'
-            });
-          }
-
           const { error: liErr } = await supabase
             .from('invoice_line_items')
-            .insert(lineItemsToInsert.map(li => ({ ...li, invoice_id: newInvoice.id })));
+            .insert(draft.lines.map(li => ({ ...li, invoice_id: newInvoice.id })));
+
+          if (liErr) {
+            await supabase.from('invoices').delete().eq('id', newInvoice.id);
+            failCount++;
+          } else {
+            successCount++;
+          }
+        } else if (item.type === 'borg') {
+          const lease = item.lease!;
+          const amount = item.amount;
+          const { data: newInvoice, error: invErr } = await supabase
+            .from('invoices')
+            .insert([{
+              lease_id: lease.id, tenant_id: lease.tenant_id,
+              invoice_number: invoiceNumber, invoice_date: invoiceDate, due_date: dueDate,
+              invoice_month: item.resolvedInvoiceMonth || invoiceMonth,
+              subtotal: amount, vat_amount: 0, amount,
+              vat_rate: 0, vat_inclusive: false, status: 'draft',
+              notes: item.invoiceNotes ?? null
+            }]).select().single();
+
+          if (invErr || !newInvoice) { failCount++; continue; }
+
+          const { error: liErr } = await supabase.from('invoice_line_items').insert([{
+            invoice_id: newInvoice.id,
+            description: 'Waarborgsom',
+            quantity: 1,
+            unit_price: amount,
+            amount,
+            local_category: null
+          }]);
 
           if (liErr) {
             await supabase.from('invoices').delete().eq('id', newInvoice.id);
@@ -534,9 +561,14 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
     }
 
     setGenerating(false);
+    setGeneratingScope(null);
 
     if (successCount > 0) {
-      showToast(`${successCount} factuur${successCount !== 1 ? 'en' : ''} succesvol aangemaakt als concept.`, 'success');
+      const noun = scope === 'huur' ? 'huurfactuur' : 'boekingfactuur';
+      showToast(
+        `${successCount} ${noun}${successCount !== 1 ? 'en' : ''} aangemaakt als concept.`,
+        'success'
+      );
       loadInvoiceableItems();
       onInvoicesCreated?.();
     }
@@ -548,6 +580,7 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
   const getTypeLabel = (type: InvoiceItem['type']) => {
     switch (type) {
       case 'huur': return 'Huur';
+      case 'borg': return 'Borg';
       case 'meeting_booking': return 'Vergaderruimte';
     }
   };
@@ -555,17 +588,20 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
   const getTypeBadgeColor = (type: InvoiceItem['type']) => {
     switch (type) {
       case 'huur': return 'bg-emerald-900/50 text-emerald-400 border-emerald-700/50';
+      case 'borg': return 'bg-amber-900/50 text-amber-300 border-amber-700/50';
       case 'meeting_booking': return 'bg-blue-900/50 text-blue-400 border-blue-700/50';
     }
   };
 
   const huurItems = items.filter(i => i.type === 'huur');
   const bookingItems = items.filter(i => i.type === 'meeting_booking');
+  const regularItems = [...huurItems, ...bookingItems];
 
-  const selectedCount = items.filter(i => selected.has(i.id)).length;
-  const selectedTotal = items.filter(i => selected.has(i.id)).reduce((sum, i) => {
-    const { total } = calculateVAT(i.amount, i.vatRate, i.vatInclusive);
-    return sum + total;
+  const selectedHuur = huurItems.filter(i => selected.has(i.id));
+  const selectedBookings = bookingItems.filter(i => selected.has(i.id));
+  const selectedCount = selectedHuur.length + selectedBookings.length;
+  const sectionTotal = (list: InvoiceItem[]) => list.reduce((sum, item) => {
+    return sum + calculateVAT(item.amount, item.vatRate, item.vatInclusive).total;
   }, 0);
 
   const monthLabel = invoiceMonth
@@ -746,22 +782,25 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
 
         <div className="px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-lg font-semibold text-gray-100 capitalize">{monthLabel}</span>
+            <div>
+              <span className="text-lg font-semibold text-gray-100 capitalize">{monthLabel}</span>
+              <p className="text-xs text-gray-500 mt-0.5">Kies de maand en maak de facturen. De concepten staan hieronder om te controleren en te versturen. Borg maak je op het tabblad Borg.</p>
+            </div>
             {loading && <Loader2 size={16} className="text-gold-500 animate-spin" />}
           </div>
 
           <div className="flex items-center gap-4">
-            {items.length > 0 && (
+            {regularItems.length > 0 && (
               <div className="flex items-center gap-3 text-sm">
                 <button
                   onClick={toggleAll}
                   className="text-gray-400 hover:text-gray-200 transition-colors underline"
                 >
-                  {selected.size === items.length ? 'Deselecteer alles' : 'Selecteer alles'}
+                  {regularItems.length > 0 && selectedCount === regularItems.length ? 'Deselecteer alles' : 'Selecteer alles'}
                 </button>
                 <span className="text-gray-500">|</span>
                 <span className="text-gray-300">
-                  <span className="font-semibold text-gold-500">{selectedCount}</span> van {items.length} geselecteerd
+                  <span className="font-semibold text-gold-500">{selectedCount}</span> van {regularItems.length} geselecteerd
                 </span>
               </div>
             )}
@@ -789,36 +828,45 @@ export function InvoiceOverview({ onInvoicesCreated }: InvoiceOverviewProps = {}
               </div>
             </div>
           )}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="flex flex-col gap-3">
               {renderSection('Huurcontracten', <Home size={18} className="text-emerald-400" />, huurItems, 'text-emerald-400', 'Geen huurcontracten te factureren voor deze maand.')}
+              {selectedHuur.length > 0 && (
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => generateSelectedInvoices('huur')}
+                    disabled={generating}
+                    className="px-5 py-2.5 bg-emerald-600 text-white font-medium text-sm rounded-lg hover:bg-emerald-500 disabled:opacity-50 transition-colors flex items-center gap-2"
+                  >
+                    {generating && generatingScope === 'huur' && <Loader2 size={16} className="animate-spin" />}
+                    {generating && generatingScope === 'huur'
+                      ? 'Bezig...'
+                      : `Maak ${selectedHuur.length} huurfactuur${selectedHuur.length !== 1 ? 'en' : ''} (\u20AC${sectionTotal(selectedHuur).toFixed(2)} incl. btw)`}
+                  </button>
+                </div>
+              )}
             </div>
-            <div>
+            <div className="flex flex-col gap-3">
               {renderSection('Boekingen', <Calendar size={18} className="text-blue-400" />, bookingItems, 'text-blue-400', 'Geen boekingen te factureren voor deze maand.')}
+              {selectedBookings.length > 0 && (
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => generateSelectedInvoices('meeting_booking')}
+                    disabled={generating}
+                    className="px-5 py-2.5 bg-blue-600 text-white font-medium text-sm rounded-lg hover:bg-blue-500 disabled:opacity-50 transition-colors flex items-center gap-2"
+                  >
+                    {generating && generatingScope === 'meeting_booking' && <Loader2 size={16} className="animate-spin" />}
+                    {generating && generatingScope === 'meeting_booking'
+                      ? 'Bezig...'
+                      : `Maak ${selectedBookings.length} boekingfactuur${selectedBookings.length !== 1 ? 'en' : ''} (\u20AC${sectionTotal(selectedBookings).toFixed(2)} incl. btw)`}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
           </div>
         )}
       </div>
-
-      {items.length > 0 && selectedCount > 0 && (
-        <div className="flex-shrink-0 pt-3 border-t border-dark-700 flex justify-end">
-          <button
-            onClick={generateSelectedInvoices}
-            disabled={generating || selectedCount === 0}
-            className="px-5 py-2.5 bg-gold-500 text-white font-medium text-sm rounded-lg hover:bg-gold-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-          >
-            {generating ? (
-              <>
-                <Loader2 size={16} className="animate-spin" />
-                Genereren...
-              </>
-            ) : (
-              `Genereer ${selectedCount} ${selectedCount !== 1 ? 'facturen' : 'factuur'} (${'\u20AC'}${selectedTotal.toFixed(2)} incl. BTW)`
-            )}
-          </button>
-        </div>
-      )}
 
       {toasts.map(toast => (
         <Toast key={toast.id} message={toast.message} type={toast.type} onClose={() => removeToast(toast.id)} />

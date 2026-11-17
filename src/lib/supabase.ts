@@ -77,6 +77,7 @@ export type Lease = {
   start_date: string;
   end_date: string;
   security_deposit: number;
+  deposit_amount?: number;
   status: 'active' | 'expired' | 'terminated';
   vat_rate: number;
   vat_inclusive: boolean;

@@ -15,7 +15,14 @@ import { buildUblInvoiceXml, downloadUblXml } from '../utils/ublInvoice';
 import { sendInvoiceReminderEmails } from '../utils/invoiceReminders';
 import { getLocalRootFolderPath } from '../utils/localSettings';
 import { syncInvoicePDFs, buildInvoiceFolderPath } from '../utils/invoicePdfSync';
-import { billableBeforeDiscount, billableUnitPrice, billedCatalogRent, summarizeMeetingInvoice } from '../utils/zeroVatPrice';
+import { billableBeforeDiscount, billableUnitPrice, billedCatalogRent, billedLeaseMonthly, billedLeaseSpaceMonthly, monthlyLineFromTotal, summarizeMeetingInvoice } from '../utils/zeroVatPrice';
+import { isBorgfactuurNote, isLeaseEligibleForInvoiceMonth, resolveDepositInvoice, resolveLeaseInvoiceTarget } from '../utils/leaseInvoiceEligibility';
+import {
+  LEASES_CHANGED_EVENT,
+  TENANTS_CHANGED_EVENT,
+  subscribeDataRefresh,
+  subscribeTenantsLeasesRealtime,
+} from '../utils/dataRefresh';
 
 type LeaseWithDetails = Lease & {
   tenant: Tenant;
@@ -96,6 +103,21 @@ function convertLineItemsToSpaces(items: InvoiceLineItem[]) {
   });
 }
 
+function persistedInvoiceLine(item: {
+  quantity?: string;
+  unit_price: string;
+  square_footage?: number;
+  catalog_rate?: number;
+}) {
+  const shownQuantity = item.quantity ? parseFloat(item.quantity) : 1;
+  const shownPrice = parseFloat(item.unit_price || '0');
+  const amount = Math.round(((shownQuantity || 1) * shownPrice) * 100) / 100;
+  if (item.square_footage && item.square_footage > 0 && item.catalog_rate && item.catalog_rate > 0) {
+    return monthlyLineFromTotal(amount, item.square_footage);
+  }
+  return { quantity: shownQuantity || 1, unitPrice: shownPrice, amount };
+}
+
 function getLocalCategory(spaceType?: string, bookingType?: string): string | null {
   if (bookingType === 'meeting_room') return 'vergaderruimte';
   switch (spaceType) {
@@ -107,29 +129,13 @@ function getLocalCategory(spaceType?: string, bookingType?: string): string | nu
   }
 }
 
-function isLeaseActiveInMonth(lease: { start_date?: string | null; end_date?: string | null }, invoiceMonth: string): boolean {
-  if (!invoiceMonth) return true;
-  const [y, m] = invoiceMonth.split('-').map(Number);
-  if (!y || !m) return true;
-  const monthStart = new Date(y, m - 1, 1);
-  const monthEnd = new Date(y, m, 0);
-  if (lease.start_date) {
-    const startDate = new Date(lease.start_date);
-    if (startDate > monthEnd) return false;
-  }
-  if (lease.end_date) {
-    const endDate = new Date(lease.end_date);
-    if (endDate < monthStart) return false;
-  }
-  return true;
-}
-
-export type InvoiceTypeFilter = 'all' | 'huur' | 'vergaderruimte' | 'handmatig';
+export type InvoiceTypeFilter = 'all' | 'huur' | 'borg' | 'vergaderruimte' | 'handmatig';
 
 export interface InvoiceManagementRef {
   openGenerateModal: () => Promise<void>;
   openGenerateHuurModal: () => Promise<void>;
   openGenerateBookingsModal: () => Promise<void>;
+  openGenerateBorgModal: () => Promise<void>;
   refreshInvoices: () => Promise<void>;
 }
 
@@ -138,9 +144,11 @@ type InvoiceManagementProps = {
   invoiceTypeFilter?: InvoiceTypeFilter;
   hideOpenInvoices?: boolean;
   onlyOpenInvoices?: boolean;
+  embeddedDrafts?: boolean;
+  isActive?: boolean;
 };
 
-export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCreateCreditNote, invoiceTypeFilter = 'all', hideOpenInvoices = false, onlyOpenInvoices = false }, ref) => {
+export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCreateCreditNote, invoiceTypeFilter = 'all', hideOpenInvoices = false, onlyOpenInvoices = false, embeddedDrafts = false, isActive = true }, ref) => {
   const [invoices, setInvoices] = useState<InvoiceWithDetails[]>([]);
   const [leases, setLeases] = useState<LeaseWithDetails[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -177,10 +185,11 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     meetingRoomCount: new Map()
   });
   const [selectedLeases, setSelectedLeases] = useState<Set<string>>(new Set());
+  const [selectedDepositLeases, setSelectedDepositLeases] = useState<Set<string>>(new Set());
   const [selectedCustomers, setSelectedCustomers] = useState<Set<string>>(new Set());
   const [meetingRoomBookings, setMeetingRoomBookings] = useState<any[]>([]);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
-  const [generateModalType, setGenerateModalType] = useState<'all' | 'huur' | 'bookings'>('all');
+  const [generateModalType, setGenerateModalType] = useState<'all' | 'huur' | 'bookings' | 'borg'>('all');
   const [showDetailSelection, setShowDetailSelection] = useState(true);
   const [syncingInvoiceId, setSyncingInvoiceId] = useState<string | null>(null);
   const [markingPaidId, setMarkingPaidId] = useState<string | null>(null);
@@ -263,6 +272,12 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       setGenerateModalType('bookings');
       setShowGenerateModal(true);
     },
+    openGenerateBorgModal: async () => {
+      const defaultMonth = await getDefaultInvoiceMonth('borg');
+      setInvoiceMonth(defaultMonth);
+      setGenerateModalType('borg');
+      setShowGenerateModal(true);
+    },
     refreshInvoices
   }));
 
@@ -289,9 +304,9 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       const result = `${nextYear}-${String(finalMonth + 1).padStart(2, '0')}`;
       console.log('Default month for rent (next month):', result);
       return result;
-    } else if (type === 'vergaderruimte') {
+    } else if (type === 'vergaderruimte' || type === 'borg') {
       const result = `${year}-${String(month + 1).padStart(2, '0')}`;
-      console.log('Default month for bookings (current month):', result);
+      console.log('Default month for bookings or deposit (current month):', result);
       return result;
     } else {
       const nextMonth = month + 1;
@@ -367,6 +382,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     bookingType?: 'meeting_room';
     local_category?: string | null;
     grootboek_id?: number | null;
+    square_footage?: number;
+    catalog_rate?: number;
   }>>([]);
   const [grootboekMappings, setGrootboekMappings] = useState<Array<{
     id: string;
@@ -406,6 +423,27 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     localStorage.setItem('hal5-invoices-last-seen', new Date().toISOString());
     window.dispatchEvent(new CustomEvent('invoices-seen'));
   }, []);
+
+  useEffect(() => {
+    if (isActive) {
+      loadData();
+    }
+  }, [isActive]);
+
+  useEffect(() => {
+    const refresh = () => {
+      if (isActive) loadData();
+    };
+    const unsubEvents = subscribeDataRefresh(
+      [TENANTS_CHANGED_EVENT, LEASES_CHANGED_EVENT],
+      refresh
+    );
+    const unsubRealtime = subscribeTenantsLeasesRealtime(refresh);
+    return () => {
+      unsubEvents();
+      unsubRealtime();
+    };
+  }, [isActive]);
 
   useEffect(() => {
     const electron = (window as any).electron;
@@ -710,13 +748,9 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   useEffect(() => {
     if (!invoiceMonth || !showGenerateModal) return;
 
-    const leasesToGenerate = leases.filter(lease => {
-      if (!isLeaseActiveInMonth(lease, invoiceMonth)) return false;
-      const existingInvoice = invoices.find(
-        inv => inv.lease_id === lease.id && inv.invoice_month === invoiceMonth
-      );
-      return !existingInvoice;
-    });
+    const leasesToGenerate = leases.filter(lease =>
+      isLeaseEligibleForInvoiceMonth(lease, invoiceMonth, invoices)
+    );
 
     const customersWithBookingsIds = [...tenants, ...externalCustomers.map(ec => ({
       ...ec,
@@ -747,10 +781,19 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       return !existingDraftInvoice;
     }).map(c => c.id);
 
-    setSelectedLeases(new Set(leasesToGenerate.map(l => l.id)));
-    setSelectedCustomers(new Set(customersWithBookingsIds));
+    if (generateModalType === 'borg') {
+      setSelectedLeases(new Set());
+      setSelectedCustomers(new Set());
+      setSelectedDepositLeases(new Set(
+        leases.filter(lease => resolveDepositInvoice(lease, invoiceMonth, invoices)?.eligible).map(lease => lease.id)
+      ));
+    } else {
+      setSelectedLeases(new Set(leasesToGenerate.map(l => l.id)));
+      setSelectedDepositLeases(new Set());
+      setSelectedCustomers(new Set(customersWithBookingsIds));
+    }
     setShowDetailSelection(false);
-  }, [invoiceMonth, showGenerateModal, leases, invoices, tenants, externalCustomers, meetingRoomBookings]);
+  }, [invoiceMonth, showGenerateModal, generateModalType, leases, invoices, tenants, externalCustomers, meetingRoomBookings]);
 
   const startEditInvoice = async (invoice: InvoiceWithDetails) => {
     const { data: items } = await supabase
@@ -778,7 +821,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       customer_type: customerType,
       invoice_date: invoice.invoice_date,
       due_date: invoice.due_date,
-      invoice_month: invoice.invoice_month || getNextMonthString(),
+      invoice_month: invoice.invoice_month || await getNextMonthString(),
       vat_rate: invoice.vat_rate.toString(),
       vat_inclusive: invoice.vat_inclusive,
       reference_number: invoice.reference_number || '',
@@ -864,14 +907,13 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         .eq('invoice_id', editingInvoiceId);
 
       const lineItemsToInsert = lineItems.map(item => {
-        const quantity = item.quantity ? parseFloat(item.quantity) : 1;
-        const unitPrice = parseFloat(item.unit_price);
+        const shown = persistedInvoiceLine(item);
         return {
           invoice_id: editingInvoiceId,
           description: item.description,
-          quantity: quantity,
-          unit_price: unitPrice,
-          amount: quantity * unitPrice,
+          quantity: shown.quantity,
+          unit_price: shown.unitPrice,
+          amount: shown.amount,
           booking_id: item.bookingId || null,
           local_category: item.local_category || getLocalCategory(item.space_type, item.bookingType),
           grootboek_id: item.grootboek_id || null
@@ -949,14 +991,13 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         }
 
       const lineItemsToInsert = lineItems.map(item => {
-        const quantity = item.quantity ? parseFloat(item.quantity) : 1;
-        const unitPrice = parseFloat(item.unit_price);
+        const shown = persistedInvoiceLine(item);
         return {
           invoice_id: newInvoice.id,
           description: item.description,
-          quantity: quantity,
-          unit_price: unitPrice,
-          amount: quantity * unitPrice,
+          quantity: shown.quantity,
+          unit_price: shown.unitPrice,
+          amount: shown.amount,
           booking_id: item.bookingId || null,
           local_category: item.local_category || getLocalCategory(item.space_type, item.bookingType),
           grootboek_id: item.grootboek_id || null
@@ -1018,7 +1059,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       if (formData.invoice_month) {
         let query = supabase
           .from('invoices')
-          .select('id', { count: 'exact', head: true })
+          .select('id, notes')
           .eq('invoice_month', formData.invoice_month);
 
         if (invoiceMode === 'lease') {
@@ -1029,9 +1070,11 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           query = query.eq('external_customer_id', formData.external_customer_id).is('lease_id', null);
         }
 
-        const { count } = await query;
+        const { data: monthInvoices } = await query;
+        const creatingBorg = isBorgfactuurNote(formData.notes);
+        const sameKind = (monthInvoices || []).filter((inv) => isBorgfactuurNote(inv.notes) === creatingBorg);
 
-        if (count && count > 0) {
+        if (sameKind.length > 0) {
           let customerName = '';
           if (invoiceMode === 'lease') {
             const lease = leases.find(l => l.id === formData.lease_id);
@@ -1047,7 +1090,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           setDuplicateInvoiceConfirm({
             month: formData.invoice_month,
             customerName,
-            count
+            count: sameKind.length
           });
           setPendingSubmit(() => createInvoice);
           return;
@@ -1061,52 +1104,63 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   const handleLeaseSelect = async (leaseId: string) => {
     const lease = leases.find(l => l.id === leaseId);
     if (lease) {
-      const items = [];
+      const vatRate = Number(lease.vat_rate);
+      const items: typeof lineItems = [];
 
-      items.push(...lease.lease_spaces.map(ls => {
-          const spaceName = ls.space.space_number;
-          const spaceType = ls.space.space_type;
-          const squareFootageRaw = ls.space.square_footage;
-          const squareFootage = typeof squareFootageRaw === 'string' ? parseFloat(squareFootageRaw) : squareFootageRaw;
-          const diversenCalc = (ls.space as any).diversen_calculation;
+      for (const ls of lease.lease_spaces) {
+        const spaceName = ls.space.space_number;
+        const spaceType = ls.space.space_type;
+        let displayName = spaceName;
+        if (spaceType === 'bedrijfsruimte') {
+          const numOnly = spaceName.replace(/^(Bedrijfsruimte|Hal)\s*/i, '').trim();
+          if (/^\d+/.test(numOnly)) displayName = `Hal ${numOnly}`;
+        }
+        const billed = billedLeaseSpaceMonthly(ls.space, Number(ls.price_per_sqm), Number(ls.monthly_rent), vatRate);
+        const fixedDiversen = spaceType === 'diversen' && (!(ls.space as any).diversen_calculation || (ls.space as any).diversen_calculation === 'fixed');
+        items.push({
+          description: displayName,
+          unit_price: billed.monthly.toFixed(2),
+          quantity: '1',
+          space_type: spaceType,
+          local_category: getLocalCategory(spaceType),
+          square_footage: fixedDiversen ? undefined : billed.quantity,
+          catalog_rate: fixedDiversen ? undefined : billed.rate,
+        });
+      }
 
-          let displayName = spaceName;
-          if (spaceType === 'bedrijfsruimte') {
-            const numOnly = spaceName.replace(/^(Bedrijfsruimte|Hal)\s*/i, '').trim();
-            if (/^\d+/.test(numOnly)) {
-              displayName = `Hal ${numOnly}`;
-            }
-          }
-
-          const isDiversenFixed = spaceType === 'diversen' && (!diversenCalc || diversenCalc === 'fixed');
-          let quantity = 1;
-
-          if (isDiversenFixed) {
-            quantity = 1;
-          } else if (squareFootage && !isNaN(squareFootage) && squareFootage > 0) {
-            quantity = squareFootage;
-          } else {
-            quantity = 1;
-          }
-
-          return {
-            description: displayName,
-            unit_price: ls.price_per_sqm.toFixed(2),
-            quantity: quantity,
-            space_type: spaceType,
-            local_category: getLocalCategory(spaceType)
-          };
-        }));
+      const discountPct = Number(lease.tenant?.lease_discount_percentage) || 0;
+      const rentAmount = items.reduce((sum, item) => sum + (parseFloat(item.unit_price) || 0), 0);
+      if (discountPct > 0) {
+        const discountAmount = Math.round(rentAmount * (discountPct / 100) * 100) / 100;
+        items.push({
+          description: `Korting verhuur (${discountPct}%)`,
+          unit_price: (-discountAmount).toFixed(2),
+          quantity: '1',
+          local_category: null,
+        });
+      }
 
       if (lease.security_deposit > 0) {
         items.push({
           description: 'Voorschot Gas, Water & Electra',
-          unit_price: lease.security_deposit.toFixed(2),
+          unit_price: Number(lease.security_deposit).toFixed(2),
+          quantity: '1',
           local_category: 'diversen'
         });
       }
 
       setLineItems(items);
+
+      const existing = invoices
+        .filter(inv => inv.lease_id === lease.id && inv.invoice_month)
+        .map(inv => ({ lease_id: lease.id, invoice_month: inv.invoice_month, notes: inv.notes }));
+      const target = resolveLeaseInvoiceTarget(lease, formData.invoice_month, existing);
+      setFormData({
+        ...formData,
+        lease_id: leaseId,
+        invoice_month: target.isAdvanceRent && target.invoiceMonth ? target.invoiceMonth : formData.invoice_month,
+      });
+      return;
     }
     setFormData({ ...formData, lease_id: leaseId });
   };
@@ -1572,7 +1626,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     setPreviewInvoice({ invoice: { ...invoice, line_items: items } as any, spaces });
   };
 
-  const resetForm = () => {
+  const resetForm = async () => {
+    const invoiceMonth = await getNextMonthString();
     setFormData({
       lease_id: '',
       tenant_id: '',
@@ -1580,7 +1635,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       customer_type: 'tenant',
       invoice_date: new Date().toISOString().split('T')[0],
       due_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      invoice_month: getNextMonthString(),
+      invoice_month: invoiceMonth,
       vat_rate: '21',
       vat_inclusive: false,
       reference_number: '',
@@ -1930,8 +1985,14 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   };
 
   const generateBulkInvoices = async () => {
-    if (selectedLeases.size === 0) {
-      showToast('Selecteer eerst de huurcontracten waarvoor je facturen wilt genereren.', 'error');
+    const depositOnly = generateModalType === 'borg';
+    if (depositOnly ? selectedDepositLeases.size === 0 : selectedLeases.size === 0) {
+      showToast(
+        depositOnly
+          ? 'Selecteer eerst de borgfacturen.'
+          : 'Selecteer eerst de huurcontracten waarvoor je facturen wilt genereren.',
+        'error'
+      );
       return;
     }
 
@@ -1954,6 +2015,11 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     const dueDate = dueDateObj.toISOString().split('T')[0];
 
     const leasesToProcess = leases.filter(l => selectedLeases.has(l.id));
+    const invoiceIndex = invoices.map(inv => ({
+      lease_id: inv.lease_id,
+      invoice_month: inv.invoice_month,
+      notes: inv.notes,
+    }));
 
     console.log('Starting bulk invoice generation for month:', targetMonth);
     console.log('Total leases to process:', leasesToProcess.length);
@@ -1962,25 +2028,24 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     let successCount = 0;
     let failCount = 0;
 
-    for (const lease of leasesToProcess) {
+    if (!depositOnly) for (const lease of leasesToProcess) {
       try {
         console.log('Processing lease:', lease.id, 'Tenant:', lease.tenant?.company_name);
 
-        if (!isLeaseActiveInMonth(lease, targetMonth)) {
-          console.log('Skipping - lease not active in', targetMonth, 'for', lease.tenant?.company_name);
+        const target = resolveLeaseInvoiceTarget(lease, targetMonth, invoiceIndex);
+        if (!target.eligible) {
+          console.log('Skipping - lease not eligible in', targetMonth, 'for', lease.tenant?.company_name);
           continue;
         }
 
-        const existingInvoice = invoices.find(
-          inv => inv.lease_id === lease.id && inv.invoice_month === targetMonth
+        const leaseInvoiceMonth = target.invoiceMonth;
+        console.log(
+          'Creating invoice for',
+          lease.tenant?.company_name,
+          'for month:',
+          leaseInvoiceMonth,
+          target.isAdvanceRent ? '(huur vooruit)' : ''
         );
-
-        if (existingInvoice) {
-          console.log('Skipping - invoice already exists for', lease.tenant?.company_name, 'month:', targetMonth);
-          continue;
-        }
-
-        console.log('Creating invoice for', lease.tenant?.company_name, 'for month:', targetMonth);
 
         const { data: invoiceNumber, error: numberError } = await supabase.rpc('generate_invoice_number');
 
@@ -2037,14 +2102,14 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
             invoice_number: invoiceNumber,
             invoice_date: invoiceDate,
             due_date: dueDate,
-            invoice_month: targetMonth,
+            invoice_month: leaseInvoiceMonth,
             subtotal: subtotal,
             vat_amount: vatAmount,
             amount: total,
             vat_rate: vatRate,
             vat_inclusive: lease.vat_inclusive,
             status: 'draft',
-            notes: null
+            notes: target.notes
           }])
           .select()
           .single();
@@ -2054,6 +2119,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           failCount++;
           continue;
         }
+
+        invoiceIndex.push({ lease_id: lease.id, invoice_month: leaseInvoiceMonth, notes: null });
 
         for (const ls of lease.lease_spaces) {
           const spaceName = ls.space.space_number;
@@ -2176,6 +2243,55 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       }
     }
 
+    if (depositOnly) for (const leaseId of selectedDepositLeases) {
+      const lease = leases.find(item => item.id === leaseId);
+      if (!lease) continue;
+      const deposit = resolveDepositInvoice(lease, targetMonth, invoiceIndex);
+      if (!deposit?.eligible || !deposit.amount) continue;
+      try {
+        const { data: invoiceNumber, error: numberError } = await supabase.rpc('generate_invoice_number');
+        if (numberError || !invoiceNumber) { failCount++; continue; }
+        const { data: newInvoice, error: invoiceError } = await supabase
+          .from('invoices')
+          .insert([{
+            lease_id: lease.id,
+            tenant_id: lease.tenant_id,
+            invoice_number: invoiceNumber,
+            invoice_date: invoiceDate,
+            due_date: dueDate,
+            invoice_month: deposit.invoiceMonth,
+            subtotal: deposit.amount,
+            vat_amount: 0,
+            amount: deposit.amount,
+            vat_rate: 0,
+            vat_inclusive: false,
+            status: 'draft',
+            notes: deposit.notes
+          }])
+          .select()
+          .single();
+        if (invoiceError || !newInvoice) { failCount++; continue; }
+        const { error: lineItemsError } = await supabase.from('invoice_line_items').insert([{
+          invoice_id: newInvoice.id,
+          description: 'Waarborgsom',
+          quantity: 1,
+          unit_price: deposit.amount,
+          amount: deposit.amount,
+          local_category: null
+        }]);
+        if (lineItemsError) {
+          await supabase.from('invoices').delete().eq('id', newInvoice.id);
+          failCount++;
+        } else {
+          successCount++;
+          invoiceIndex.push({ lease_id: lease.id, invoice_month: deposit.invoiceMonth, notes: deposit.notes });
+        }
+      } catch (error) {
+        console.error('Error creating deposit invoice:', error);
+        failCount++;
+      }
+    }
+
     setGeneratingBulk(false);
 
     if (failCount > 0) {
@@ -2190,9 +2306,26 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     console.log('GENERATE ALL INVOICES CALLED');
     console.log('========================================');
     console.log('Selected leases:', selectedLeases.size);
+    console.log('Selected deposits:', selectedDepositLeases.size);
     console.log('Selected customers:', selectedCustomers.size);
     console.log('Invoice month:', invoiceMonth);
     console.log('========================================\n');
+
+    if (generateModalType === 'borg') {
+      if (selectedDepositLeases.size === 0) {
+        showToast('Selecteer eerst de borgfacturen.', 'error');
+        return;
+      }
+      const count = await generateBulkInvoices();
+      if ((count || 0) > 0) {
+        await refreshInvoices();
+        setShowGenerateModal(false);
+        setInvoiceMonth('');
+        setSelectedDepositLeases(new Set());
+        showToast(`${count} borgfactuur${count !== 1 ? 'en' : ''} aangemaakt. Verstuur deze los van de huur.`, 'success');
+      }
+      return;
+    }
 
     if (selectedLeases.size === 0 && selectedCustomers.size === 0) {
       showToast('Selecteer eerst de huurcontracten en/of klanten waarvoor je facturen wilt genereren.', 'error');
@@ -2514,6 +2647,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   };
 
   const getInvoiceType = (inv: InvoiceWithDetails): InvoiceTypeFilter => {
+    if (isBorgfactuurNote(inv.notes)) return 'borg';
     if (inv.lease_id !== null) return 'huur';
     if (inv.notes?.includes('Vergaderruimte gebruik') || inv.notes?.includes('Vergaderruimte boekingen')) return 'vergaderruimte';
     if (inv.line_items && inv.line_items.some((item: any) => item.booking_id !== null)) {
@@ -2526,6 +2660,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     const type = getInvoiceType(inv);
     switch (type) {
       case 'huur': return 'text-green-500';
+      case 'borg': return 'text-amber-400';
       case 'vergaderruimte': return 'text-blue-500';
       case 'handmatig': return 'text-orange-500';
       default: return 'text-gray-400';
@@ -2835,7 +2970,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   }
 
   return (
-    <div className="h-full flex overflow-hidden">
+    <div className="w-full">
 
       {duplicateInvoiceConfirm && (
         <ConfirmModal
@@ -2998,8 +3133,12 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                   >
                     <option value="">Selecteer een huurcontract...</option>
                     {leases.map((lease) => {
-                      const rentAmount = lease.lease_spaces.reduce((sum, ls) => sum + ls.monthly_rent, 0);
-                      const totalMonthlyRent = Math.round((rentAmount + lease.security_deposit) * 100) / 100;
+                      const totalMonthlyRent = billedLeaseMonthly(
+                        lease.lease_spaces,
+                        Number(lease.vat_rate),
+                        Number(lease.security_deposit),
+                        Number(lease.tenant?.lease_discount_percentage) || 0,
+                      );
                       return (
                         <option key={lease.id} value={lease.id}>
                           {lease.tenant.company_name} - €{totalMonthlyRent.toFixed(2)}/mo ({lease.vat_rate}% BTW {lease.vat_inclusive ? 'incl.' : 'excl.'})
@@ -3394,7 +3533,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           />
       )}
 
-      <div className="flex-1 min-w-0 overflow-y-auto w-full transition-all duration-300">
+      <div className="w-full">
       <div className="space-y-4">
         {(() => {
           const sortByInvoiceNumber = (a: InvoiceWithDetails, b: InvoiceWithDetails) => {
@@ -3435,6 +3574,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           const getInvoiceTypeLabel = (type: InvoiceTypeFilter): string => {
             switch (type) {
               case 'huur': return 'Huur';
+              case 'borg': return 'Borg';
               case 'vergaderruimte': return 'Vergaderruimte';
               case 'handmatig': return 'Handmatig';
               default: return '';
@@ -3475,8 +3615,9 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                 <td className="px-4 py-3 text-center">
                   <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
                     getInvoiceType(invoice) === 'huur' ? 'bg-green-900/50 text-green-400' :
+                    getInvoiceType(invoice) === 'borg' ? 'bg-amber-900/50 text-amber-300' :
                     getInvoiceType(invoice) === 'vergaderruimte' ? 'bg-blue-900/50 text-blue-400' :
-                    'bg-amber-900/50 text-amber-400'
+                    'bg-orange-900/50 text-orange-400'
                   }`}>
                     {getInvoiceTypeLabel(getInvoiceType(invoice))}
                   </span>
@@ -3581,6 +3722,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                 >
                   <option value="all">Alle types</option>
                   <option value="huur">Huur</option>
+                  <option value="borg">Borg</option>
                   <option value="vergaderruimte">Vergaderruimte</option>
                   <option value="handmatig">Handmatig</option>
                 </select>
@@ -3622,8 +3764,13 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
               {!onlyOpenInvoices && (
               <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700">
-                <div className="flex items-center justify-between px-4 py-3 bg-dark-800 border-b border-emerald-500">
-                  <h2 className="text-lg font-bold text-gray-100">Concept Facturen</h2>
+                <div className="flex items-center justify-between gap-4 px-4 py-3 bg-dark-800 border-b border-emerald-500">
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-100">Concept Facturen</h2>
+                    {embeddedDrafts && (
+                      <p className="text-xs text-gray-400 mt-0.5">Alle concepten, ook van andere maanden. Open een factuur om te controleren en te versturen.</p>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2">
                     {draftSelected > 0 && (
                       <>
@@ -3851,15 +3998,14 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       {showGenerateModal && (() => {
         const targetMonth = invoiceMonth;
 
-        const allLeasesToGenerate = targetMonth ? leases.filter(lease => {
-          if (!isLeaseActiveInMonth(lease, targetMonth)) return false;
-          const existingInvoice = invoices.find(
-            inv => inv.lease_id === lease.id && inv.invoice_month === targetMonth
-          );
-          return !existingInvoice;
-        }) : [];
+        const allLeasesToGenerate = targetMonth
+          ? leases.filter(lease => isLeaseEligibleForInvoiceMonth(lease, targetMonth, invoices))
+          : [];
 
         const regularLeasesToGenerate = allLeasesToGenerate;
+        const depositLeasesToGenerate = targetMonth
+          ? leases.filter(lease => resolveDepositInvoice(lease, targetMonth, invoices)?.eligible)
+          : [];
 
         const allCustomers = [...tenants, ...externalCustomers.map(ec => ({
           ...ec,
@@ -3908,7 +4054,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
             <div className="bg-dark-900 rounded-lg shadow-xl border border-dark-700 max-w-5xl w-full max-h-[90vh] flex flex-col">
               <div className="flex-shrink-0 bg-dark-800 px-6 py-4 border-b border-dark-700 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-gray-100">
-                  {generateModalType === 'huur' ? 'Huur Facturen Genereren' : generateModalType === 'bookings' ? 'Boeking Facturen Genereren' : 'Facturen Genereren'}
+                  {generateModalType === 'huur' ? 'Huur Facturen Genereren' : generateModalType === 'bookings' ? 'Boeking Facturen Genereren' : generateModalType === 'borg' ? 'Borgfacturen maken' : 'Facturen Genereren'}
                 </h2>
                 <button
                   onClick={() => {
@@ -3926,6 +4072,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
               <div className="overflow-y-auto flex-1 p-6 space-y-4">
                 {invoiceMonth && (
+                  (generateModalType === 'borg' && depositLeasesToGenerate.length > 0) ||
                   (generateModalType === 'huur' && regularLeasesToGenerate.length > 0) ||
                   (generateModalType === 'bookings' && customersWithMeetingBookings.length > 0) ||
                   (generateModalType === 'all' && (
@@ -3954,6 +4101,11 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                             {(generateModalType === 'all' || generateModalType === 'huur') && (
                               <p className="text-xs text-emerald-400">
                                 Huur wordt vooraf gefactureerd
+                              </p>
+                            )}
+                            {generateModalType === 'borg' && (
+                              <p className="text-xs text-amber-300">
+                                Kies zelf de maand. Die hoeft niet de maand van de eerste huur te zijn
                               </p>
                             )}
                             {(generateModalType === 'all' || generateModalType === 'bookings') && (
@@ -4015,6 +4167,44 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                     {/* Gedetailleerde selectie - 3 kolommen naast elkaar */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {/* Huurcontracten */}
+                      {generateModalType === 'borg' && depositLeasesToGenerate.length > 0 && (
+                          <div className="space-y-3">
+                            <h4 className="text-sm font-medium text-gray-300">Borgfacturen ({depositLeasesToGenerate.length})</h4>
+                            <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
+                              {depositLeasesToGenerate.map(lease => (
+                                <div
+                                  key={lease.id}
+                                  onClick={() => setSelectedDepositLeases(prev => {
+                                    const next = new Set(prev);
+                                    if (next.has(lease.id)) next.delete(lease.id);
+                                    else next.add(lease.id);
+                                    return next;
+                                  })}
+                                  className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-all ${
+                                    selectedDepositLeases.has(lease.id)
+                                      ? 'bg-amber-900/20 border-amber-700'
+                                      : 'bg-dark-800 border-dark-700 hover:border-dark-600'
+                                  }`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedDepositLeases.has(lease.id)}
+                                    onChange={() => {}}
+                                    className="w-4 h-4 rounded border-dark-600 text-amber-500 focus:ring-amber-500 flex-shrink-0"
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-sm font-medium text-gray-200 truncate">{lease.tenant?.company_name}</div>
+                                    <div className="text-xs text-gray-400">Eigen factuur, wordt aan het einde teruggestort</div>
+                                  </div>
+                                  <div className="text-sm font-medium text-amber-200 flex-shrink-0">
+                                    €{Number(lease.deposit_amount || 0).toFixed(2)}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                      )}
+
                       {(generateModalType === 'huur' || generateModalType === 'all') && (invoiceTypeFilter === 'huur' || invoiceTypeFilter === 'all') && regularLeasesToGenerate.length > 0 && (
                           <div className="space-y-3">
                             <div className="flex items-center justify-between">
@@ -4042,10 +4232,15 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                               {regularLeasesToGenerate.map(lease => {
                                 const rentAmount = lease.lease_spaces.reduce((sum, ls) => sum + ls.monthly_rent, 0);
                                 const total = Math.round((rentAmount + lease.security_deposit) * 100) / 100;
+                                const leaseTarget = targetMonth
+                                  ? resolveLeaseInvoiceTarget(lease, targetMonth, invoices)
+                                  : null;
+                                const rentEligible = !!leaseTarget?.eligible;
 
                                 return (
+                                  <div key={lease.id} className="space-y-2">
+                                  {rentEligible && (
                                   <div
-                                    key={lease.id}
                                     onClick={() => toggleLeaseSelection(lease.id)}
                                     className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-all ${
                                       selectedLeases.has(lease.id)
@@ -4065,11 +4260,16 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                                       </div>
                                       <div className="text-xs text-gray-400">
                                         {lease.lease_spaces.length} ruimte(s)
+                                        {leaseTarget?.isAdvanceRent && leaseTarget.invoiceMonth
+                                          ? ` · Huur ${new Date(leaseTarget.invoiceMonth + '-01').toLocaleDateString('nl-NL', { month: 'short', year: 'numeric' })}`
+                                          : ''}
                                       </div>
                                     </div>
                                     <div className="text-sm font-medium text-gray-200 flex-shrink-0">
                                       €{total.toFixed(2)}
                                     </div>
+                                  </div>
+                                  )}
                                   </div>
                                 );
                               })}
@@ -4151,10 +4351,10 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                           console.log('generatingBulk:', generatingBulk);
                           generateAllInvoices();
                         }}
-                        disabled={(selectedLeases.size === 0 && selectedCustomers.size === 0) || generatingBulk}
+                        disabled={((generateModalType === 'borg' ? selectedDepositLeases.size : selectedLeases.size + selectedCustomers.size) === 0) || generatingBulk}
                         className="w-full px-6 py-4 bg-gold-500 text-white font-semibold text-lg rounded-lg hover:bg-gold-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
-                        {generatingBulk ? 'Facturen worden gegenereerd...' : `Genereer ${selectedLeases.size + selectedCustomers.size} ${(selectedLeases.size + selectedCustomers.size) !== 1 ? 'facturen' : 'factuur'}`}
+                        {generatingBulk ? 'Facturen worden gegenereerd...' : `Genereer ${generateModalType === 'borg' ? selectedDepositLeases.size : selectedLeases.size + selectedCustomers.size} ${(generateModalType === 'borg' ? selectedDepositLeases.size : selectedLeases.size + selectedCustomers.size) !== 1 ? 'facturen' : 'factuur'}`}
                       </button>
                     </div>
                   </div>

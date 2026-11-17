@@ -2,16 +2,30 @@ import { useState, useEffect, useRef } from 'react';
 import { InvoiceManagement, InvoiceManagementRef } from './InvoiceManagement';
 import { InvoiceOverview } from './InvoiceOverview';
 import { DebtorsOverview } from './DebtorsOverview';
-import { FileText, AlertTriangle, FileCheck, Home, Calendar } from 'lucide-react';
+import { DepositOverview } from './DepositOverview';
+import { FileText, AlertTriangle, FileCheck, ListChecks, Shield } from 'lucide-react';
+
+export type DebiteurenTab = 'te-factureren' | 'facturen' | 'borg' | 'outstanding' | 'log';
 
 type DebiteurenTabsProps = {
-  initialTab?: 'facturen' | 'outstanding' | 'log';
+  initialTab?: DebiteurenTab;
+  focusMonth?: string;
   onInitialTabConsumed?: () => void;
+  onFocusMonthConsumed?: () => void;
   onCreateCreditNote?: (invoice: any, tenant: any, spaces: any[]) => void;
+  isActive?: boolean;
 };
 
-export function DebiteurenTabs({ initialTab, onInitialTabConsumed, onCreateCreditNote }: DebiteurenTabsProps) {
-  const [activeTab, setActiveTab] = useState<'facturen' | 'outstanding' | 'log'>(initialTab || 'facturen');
+export function DebiteurenTabs({
+  initialTab,
+  focusMonth,
+  onInitialTabConsumed,
+  onFocusMonthConsumed,
+  onCreateCreditNote,
+  isActive = true,
+}: DebiteurenTabsProps) {
+  const [activeTab, setActiveTab] = useState<DebiteurenTab>(initialTab || 'te-factureren');
+  const invoiceManagementRef = useRef<InvoiceManagementRef>(null);
 
   useEffect(() => {
     if (initialTab) {
@@ -19,10 +33,11 @@ export function DebiteurenTabs({ initialTab, onInitialTabConsumed, onCreateCredi
       onInitialTabConsumed?.();
     }
   }, [initialTab]);
-  const invoiceManagementRef = useRef<InvoiceManagementRef>(null);
 
-  const tabs: { id: typeof activeTab; label: string; icon: any }[] = [
+  const tabs: { id: DebiteurenTab; label: string; icon: any }[] = [
+    { id: 'te-factureren', label: 'Te factureren', icon: ListChecks },
     { id: 'facturen', label: 'Facturen', icon: FileText },
+    { id: 'borg', label: 'Borg', icon: Shield },
     { id: 'outstanding', label: 'Openstaand', icon: AlertTriangle },
     { id: 'log', label: 'Logboek', icon: FileCheck },
   ];
@@ -48,38 +63,44 @@ export function DebiteurenTabs({ initialTab, onInitialTabConsumed, onCreateCredi
                 </button>
               ))}
             </div>
-            {activeTab === 'facturen' && (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => invoiceManagementRef.current?.openGenerateHuurModal()}
-                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-500 transition-colors"
-                >
-                  <Home size={18} />
-                  Huur Facturen
-                </button>
-                <button
-                  onClick={() => invoiceManagementRef.current?.openGenerateBookingsModal()}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-500 transition-colors"
-                >
-                  <Calendar size={18} />
-                  Boeking Facturen
-                </button>
-              </div>
-            )}
           </div>
         </div>
       </div>
 
       <div className="flex-1 min-h-0 overflow-hidden">
+        {activeTab === 'te-factureren' && (
+          <div className="h-full overflow-y-auto">
+            <div className="flex flex-col gap-4 pb-4">
+              <InvoiceOverview
+                isActive={isActive && activeTab === 'te-factureren'}
+                focusMonth={focusMonth}
+                onFocusMonthConsumed={onFocusMonthConsumed}
+                onInvoicesCreated={() => invoiceManagementRef.current?.refreshInvoices()}
+              />
+              <InvoiceManagement
+                ref={invoiceManagementRef}
+                onCreateCreditNote={onCreateCreditNote}
+                invoiceTypeFilter="all"
+                hideOpenInvoices
+                embeddedDrafts
+                isActive={isActive && activeTab === 'te-factureren'}
+              />
+            </div>
+          </div>
+        )}
         {activeTab === 'facturen' && (
-          <div className="h-full flex flex-col gap-4 overflow-y-auto">
-            <InvoiceOverview onInvoicesCreated={() => invoiceManagementRef.current?.refreshInvoices()} />
+          <div className="h-full overflow-y-auto">
             <InvoiceManagement
-              ref={invoiceManagementRef}
               onCreateCreditNote={onCreateCreditNote}
               invoiceTypeFilter="all"
               hideOpenInvoices
+              isActive={isActive && activeTab === 'facturen'}
             />
+          </div>
+        )}
+        {activeTab === 'borg' && (
+          <div className="h-full overflow-y-auto">
+            <DepositOverview isActive={isActive && activeTab === 'borg'} />
           </div>
         )}
         {activeTab === 'outstanding' && (
@@ -88,6 +109,7 @@ export function DebiteurenTabs({ initialTab, onInitialTabConsumed, onCreateCredi
               onCreateCreditNote={onCreateCreditNote}
               invoiceTypeFilter="all"
               onlyOpenInvoices
+              isActive={isActive && activeTab === 'outstanding'}
             />
           </div>
         )}

@@ -35,7 +35,7 @@ const skip = new Set([
 assert(skip.has('eboekhouden_payment_status_check'), 'e-Boekhouden stays skipped');
 assert(skip.has('send_invoice_reminders'), 'PDF reminders stay in the app');
 assert(skip.has('generate_flex_invoices'), 'flex invoices stay skipped');
-assert(!skip.has('generate_monthly_invoices'), 'monthly invoices run in the background');
+assert(!skip.has('generate_monthly_invoices'), 'monthly rent invoices use the same draft as the app');
 assert(!skip.has('generate_meeting_room_invoices'), 'meeting-room invoices run in the background');
 assert(!skip.has('settings_backup'), 'settings backup runs in the background');
 

@@ -62,7 +62,7 @@ type Lease = {
 };
 
 type DashboardProps = {
-  onNavigateToDebtors?: (subTab: 'facturen' | 'outstanding') => void;
+  onNavigateToDebtors?: (subTab: 'te-factureren' | 'facturen' | 'outstanding') => void;
   onNavigateToInvoicing?: (month: string) => void;
 };
 
@@ -261,7 +261,7 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
   }
 
   return (
-    <div className="h-full bg-dark-950 overflow-y-auto p-3 sm:p-4 md:p-6">
+    <div className="h-full overflow-y-auto">
       {notification && (
         <div className={`fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 ${
           notification.type === 'success' ? 'bg-green-600' :
@@ -598,7 +598,7 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
                       return (
                         <div
                           key={inv.invoice_number}
-                          onClick={() => onNavigateToDebtors?.('facturen')}
+                          onClick={() => onNavigateToDebtors?.('te-factureren')}
                           className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-amber-900/20 transition-colors"
                         >
                           <div className="flex items-center gap-2.5">

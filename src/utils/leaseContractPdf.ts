@@ -17,6 +17,7 @@ export interface LeaseContractData {
   vat_rate: number;
   vat_inclusive: boolean;
   security_deposit: number;
+  deposit_amount?: number;
   spaces: Array<{
     space_number: string;
     space_type: string;
@@ -363,7 +364,20 @@ async function buildLeaseContractPDF(pdf: jsPDF, data: LeaseContractData) {
       y,
       { align: 'right' }
     );
-    y += 10;
+    y += 8;
+    if (data.deposit_amount && data.deposit_amount > 0) {
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(9);
+      pdf.setTextColor(80, 80, 80);
+      pdf.text(
+        `Waarborgsom: \u20AC ${data.deposit_amount.toFixed(2)}. Dit bedrag wordt aan het einde van het contract teruggestort.`,
+        margin,
+        y
+      );
+      y += 8;
+    } else {
+      y += 2;
+    }
   }
 
   // --- Betaalinformatie ---

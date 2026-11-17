@@ -1,19 +1,11 @@
 import { supabase } from '../lib/supabase';
-import { billedCatalogRent } from './zeroVatPrice';
 import { checkInvoicePaymentStatuses, checkPurchaseInvoicePaymentStatuses, verifyInvoiceSyncStatus, verifyRelationsInEBoekhouden } from '../lib/eboekhoudenSync';
 import { createLeaseNotification } from './notificationHelper';
 import { sendInvoiceReminderEmails } from './invoiceReminders';
 import { createSettingsBackup } from './settingsBackup';
-
-function getLocalCategory(spaceType?: string): string | null {
-  switch (spaceType) {
-    case 'kantoor': return 'huur_kantoor';
-    case 'bedrijfsruimte': return 'huur_bedrijfsruimte';
-    case 'buitenterrein': return 'huur_buitenterrein';
-    case 'diversen': return 'diversen';
-    default: return null;
-  }
-}
+import { amsterdamNextMonthStart } from './amsterdamCalendar';
+import { buildLeaseRentDraft } from './leaseRentDraft';
+import { buildMeetingInvoiceDraft, groupMeetingBookings, previousAmsterdamMonth } from './meetingInvoiceDraft';
 
 export interface ScheduledJob {
   id: string;
@@ -34,6 +26,7 @@ export const checkAndRunScheduledJobs = async () => {
   if (error || !jobs) return;
 
   for (const job of jobs) {
+    if (!(await claimScheduledJob(job))) continue;
     if (job.job_type === 'generate_monthly_invoices') {
       await generateMonthlyInvoices(job);
     } else if (job.job_type === 'generate_meeting_room_invoices') {
@@ -67,14 +60,23 @@ async function getEBoekhoudenToken(): Promise<string | null> {
   return settings.eboekhouden_api_token;
 }
 
+async function claimScheduledJob(job: ScheduledJob): Promise<boolean> {
+  const now = new Date().toISOString();
+  const until = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+  const { data } = await supabase
+    .from('scheduled_jobs')
+    .update({ next_run_at: until })
+    .eq('id', job.id)
+    .lte('next_run_at', now)
+    .select('id')
+    .maybeSingle();
+  return !!data;
+}
+
 async function advanceJobToNextMonth(job: ScheduledJob) {
-  const nextMonth = new Date();
-  nextMonth.setMonth(nextMonth.getMonth() + 1);
-  nextMonth.setDate(1);
-  nextMonth.setHours(0, 0, 0, 0);
   await supabase
     .from('scheduled_jobs')
-    .update({ last_run_at: new Date().toISOString(), next_run_at: nextMonth.toISOString() })
+    .update({ last_run_at: new Date().toISOString(), next_run_at: amsterdamNextMonthStart().toISOString() })
     .eq('id', job.id);
 }
 
@@ -85,18 +87,6 @@ async function advanceJobNextRun(job: ScheduledJob, intervalHours: number) {
     .from('scheduled_jobs')
     .update({ last_run_at: new Date().toISOString(), next_run_at: next.toISOString() })
     .eq('id', job.id);
-}
-
-function calculateVAT(amount: number, vatRate: number, vatInclusive: boolean) {
-  if (vatInclusive) {
-    const subtotal = Math.round((amount / (1 + vatRate / 100)) * 100) / 100;
-    const vatAmount = Math.round((amount - subtotal) * 100) / 100;
-    return { subtotal, vatAmount, total: Math.round(amount * 100) / 100 };
-  } else {
-    const subtotal = Math.round(amount * 100) / 100;
-    const vatAmount = Math.round((amount * (vatRate / 100)) * 100) / 100;
-    return { subtotal, vatAmount, total: Math.round((subtotal + vatAmount) * 100) / 100 };
-  }
 }
 
 const runEBoekhoudenPaymentStatusCheck = async (job: ScheduledJob) => {
@@ -136,114 +126,59 @@ const runEBoekhoudenRelationVerification = async (job: ScheduledJob) => {
 // Groups bookings by customer, creates/updates one draft invoice per customer per month
 const generateMeetingRoomInvoices = async (job: ScheduledJob) => {
   try {
-    const prevMonth = new Date();
-    prevMonth.setDate(1);
-    prevMonth.setMonth(prevMonth.getMonth() - 1);
-    const targetMonth = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}`;
-
-    const { data: rates } = await supabase
-      .from('space_type_rates')
-      .select('vat_inclusive')
-      .eq('space_type', 'vergaderruimte')
-      .maybeSingle();
-    const vatInclusive = rates?.vat_inclusive ?? false;
-    const defaultVatRate = 21;
-
+    const period = previousAmsterdamMonth();
     const { data: bookings } = await supabase
       .from('meeting_room_bookings')
-      .select('*, office_spaces(space_number)')
+      .select(`
+        id, booking_date, start_time, end_time, total_hours, applied_rate, hourly_rate, rate_type,
+        total_amount, discount_amount, vat_rate, tenant_id, external_customer_id,
+        office_spaces(space_number),
+        tenants(vat_rate, meeting_discount_percentage),
+        external_customers(vat_rate, meeting_discount_percentage)
+      `)
       .is('invoice_id', null)
       .in('status', ['confirmed', 'completed'])
-      .gte('booking_date', `${targetMonth}-01`)
-      .lte('booking_date', `${targetMonth}-31`);
+      .gte('booking_date', period.start)
+      .lte('booking_date', period.end);
 
     if (!bookings || bookings.length === 0) {
       await advanceJobToNextMonth(job);
       return;
     }
 
-    const grouped: Record<string, { customerId: string; customerType: 'tenant' | 'external'; bookings: typeof bookings }> = {};
+    for (const group of groupMeetingBookings(bookings)) {
+      const draft = buildMeetingInvoiceDraft(group.bookings, group.vatRate, group.discountPct, period.yearMonth);
+      if (!draft) continue;
+      const { data: invoiceNumber } = await supabase.rpc('generate_invoice_number');
+      const insertData: Record<string, unknown> = {
+        invoice_number: invoiceNumber,
+        invoice_date: draft.invoiceDate,
+        due_date: draft.dueDate,
+        invoice_month: draft.invoiceMonth,
+        status: 'draft',
+        subtotal: draft.subtotal,
+        vat_amount: draft.vatAmount,
+        vat_rate: draft.vatRate,
+        vat_inclusive: false,
+        amount: draft.amount,
+        notes: draft.notes,
+      };
+      if (group.customerType === 'tenant') insertData.tenant_id = group.customerId;
+      else insertData.external_customer_id = group.customerId;
 
-    for (const b of bookings) {
-      const key = b.booking_type === 'tenant' ? `tenant_${b.tenant_id}` : `external_${b.external_customer_id}`;
-      if (!grouped[key]) {
-        grouped[key] = {
-          customerId: b.booking_type === 'tenant' ? b.tenant_id : b.external_customer_id,
-          customerType: b.booking_type === 'tenant' ? 'tenant' : 'external',
-          bookings: [],
-        };
+      const { data: newInvoice } = await supabase.from('invoices').insert(insertData).select('id').single();
+      if (!newInvoice) continue;
+      const { error: lineError } = await supabase.from('invoice_line_items').insert(
+        draft.lines.map((line) => ({ ...line, invoice_id: newInvoice.id })),
+      );
+      if (lineError) {
+        await supabase.from('invoices').delete().eq('id', newInvoice.id);
+        continue;
       }
-      grouped[key].bookings.push(b);
-    }
-
-    const invoiceDate = new Date().toISOString().split('T')[0];
-    const dueDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-
-    for (const group of Object.values(grouped)) {
-      const totalAmount = group.bookings.reduce((sum, b) => sum + Number(b.total_amount), 0);
-      const vatRate = group.bookings[0].vat_rate ?? defaultVatRate;
-      const { subtotal, vatAmount, total } = calculateVAT(totalAmount, vatRate, vatInclusive);
-
-      const notesLines = group.bookings.map(b => {
-        const spaceName = b.office_spaces?.space_number || 'Vergaderruimte';
-        const dateStr = new Date(b.booking_date + 'T00:00:00').toLocaleDateString('nl-NL', { day: '2-digit', month: '2-digit', year: 'numeric' });
-        const timeStr = `${b.start_time.substring(0, 5)}-${b.end_time.substring(0, 5)}`;
-        return `- ${spaceName} ${dateStr} ${timeStr} = €${Number(b.total_amount).toFixed(2)}`;
-      });
-      const notes = `Vergaderruimte boekingen:\n${notesLines.join('\n')}`;
-
-      const existingQuery = supabase
-        .from('invoices')
-        .select('id, subtotal, vat_amount, amount, notes')
-        .eq('invoice_month', targetMonth)
-        .eq('status', 'draft');
-
-      const existingResult = group.customerType === 'tenant'
-        ? await existingQuery.eq('tenant_id', group.customerId).maybeSingle()
-        : await existingQuery.eq('external_customer_id', group.customerId).maybeSingle();
-
-      let invoiceId: string;
-
-      if (existingResult.data) {
-        const existing = existingResult.data;
-        const newSubtotal = Math.round((Number(existing.subtotal) + subtotal) * 100) / 100;
-        const newVat = Math.round((newSubtotal * vatRate / 100) * 100) / 100;
-        const newTotal = Math.round((newSubtotal + newVat) * 100) / 100;
-        const updatedNotes = existing.notes ? `${existing.notes}\n${notes}` : notes;
-
-        await supabase.from('invoices').update({
-          subtotal: newSubtotal, vat_amount: newVat, amount: newTotal, notes: updatedNotes
-        }).eq('id', existing.id);
-
-        invoiceId = existing.id;
-      } else {
-        const { data: invoiceNumber } = await supabase.rpc('generate_invoice_number');
-        const insertData: Record<string, unknown> = {
-          invoice_number: invoiceNumber,
-          invoice_date: invoiceDate,
-          due_date: dueDate,
-          invoice_month: targetMonth,
-          status: 'draft',
-          subtotal,
-          vat_amount: vatAmount,
-          vat_rate: vatRate,
-          vat_inclusive: vatInclusive,
-          amount: total,
-          notes,
-        };
-        if (group.customerType === 'tenant') {
-          insertData.tenant_id = group.customerId;
-        } else {
-          insertData.external_customer_id = group.customerId;
-        }
-
-        const { data: newInvoice } = await supabase.from('invoices').insert(insertData).select('id').single();
-        if (!newInvoice) continue;
-        invoiceId = newInvoice.id;
-      }
-
-      const bookingIds = group.bookings.map(b => b.id);
-      await supabase.from('meeting_room_bookings').update({ invoice_id: invoiceId }).in('id', bookingIds);
+      await supabase
+        .from('meeting_room_bookings')
+        .update({ invoice_id: newInvoice.id })
+        .in('id', group.bookings.map((booking) => booking.id).filter((id): id is string => !!id));
     }
 
     await advanceJobToNextMonth(job);
@@ -436,7 +371,7 @@ const generateMonthlyInvoices = async (job: ScheduledJob) => {
       .from('leases')
       .select(`
         *,
-        tenant:tenants(*),
+        tenant:tenants(lease_discount_percentage),
         lease_spaces(
           *,
           space:office_spaces(*)
@@ -444,96 +379,50 @@ const generateMonthlyInvoices = async (job: ScheduledJob) => {
       `)
       .eq('status', 'active');
 
-    if (!leases || leases.length === 0) return;
+    const { data: existingLeaseInvoices } = await supabase
+      .from('invoices')
+      .select('lease_id, invoice_month, notes')
+      .not('lease_id', 'is', null);
 
-    const invoiceMonth = new Date().toISOString().slice(0, 7);
-    const invoiceDate = new Date().toISOString().split('T')[0];
-    const dueDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const invoiceIndex = existingLeaseInvoices || [];
 
-    for (const lease of leases) {
-      const existingInvoice = await supabase
-        .from('invoices')
-        .select('id')
-        .eq('lease_id', lease.id)
-        .eq('invoice_month', invoiceMonth)
-        .maybeSingle();
-
-      if (existingInvoice.data) continue;
+    for (const lease of leases || []) {
+      const draft = buildLeaseRentDraft(lease, invoiceIndex);
+      if (!draft) continue;
 
       const { data: invoiceNumber } = await supabase.rpc('generate_invoice_number');
-
-      const rentAmount = Math.round(lease.lease_spaces.reduce((sum: number, ls: any) => sum + billedCatalogRent(ls.space, Number(ls.price_per_sqm), Number(ls.monthly_rent), lease.vat_rate).monthly, 0) * 100) / 100;
-
-      const baseAmount = Math.round((rentAmount + (lease.security_deposit || 0)) * 100) / 100;
-
-      const { subtotal, vatAmount, total } = calculateVAT(baseAmount, lease.vat_rate, lease.vat_inclusive);
-
       const { data: newInvoice, error: invoiceError } = await supabase
         .from('invoices')
         .insert({
           lease_id: lease.id,
           tenant_id: lease.tenant_id,
           invoice_number: invoiceNumber,
-          invoice_date: invoiceDate,
-          due_date: dueDate,
-          invoice_month: invoiceMonth,
-          subtotal: subtotal,
-          vat_amount: vatAmount,
-          amount: total,
-          vat_rate: lease.vat_rate,
-          vat_inclusive: lease.vat_inclusive,
+          invoice_date: draft.invoiceDate,
+          due_date: draft.dueDate,
+          invoice_month: draft.invoiceMonth,
+          subtotal: draft.subtotal,
+          vat_amount: draft.vatAmount,
+          amount: draft.amount,
+          vat_rate: draft.vatRate,
+          vat_inclusive: draft.vatInclusive,
           status: 'draft',
-          notes: null
+          notes: draft.notes,
         })
         .select()
         .single();
 
       if (invoiceError || !newInvoice) continue;
+      invoiceIndex.push({ lease_id: lease.id, invoice_month: draft.invoiceMonth, notes: draft.notes });
 
-      const lineItemsToInsert = [];
-
-      for (const ls of lease.lease_spaces) {
-        const spaceName = ls.space.space_number;
-        const spaceType = ls.space.space_type;
-
-        let displayName = spaceName;
-        if (spaceType === 'bedrijfsruimte') {
-          const numOnly = spaceName.replace(/^(Bedrijfsruimte|Hal)\s*/i, '').trim();
-          if (/^\d+/.test(numOnly)) {
-            displayName = `Hal ${numOnly}`;
-          }
-        }
-
-        const billed = billedCatalogRent(ls.space, Number(ls.price_per_sqm), Number(ls.monthly_rent), lease.vat_rate);
-        const rentLine = billed.monthly;
-        const pricePerSqm = Number(lease.vat_rate) === 0 ? billed.rate : (Number(ls.price_per_sqm) || rentLine);
-
-        lineItemsToInsert.push({
-          invoice_id: newInvoice.id,
-          description: displayName,
-          quantity: sqm,
-          unit_price: pricePerSqm,
-          amount: rentLine,
-          local_category: getLocalCategory(spaceType)
-        });
+      const { error: lineError } = await supabase.from('invoice_line_items').insert(
+        draft.lines.map((line) => ({ ...line, invoice_id: newInvoice.id })),
+      );
+      if (lineError) {
+        await supabase.from('invoices').delete().eq('id', newInvoice.id);
       }
-
-      if (lease.security_deposit > 0) {
-        lineItemsToInsert.push({
-          invoice_id: newInvoice.id,
-          description: 'Voorschot Gas, Water & Electra',
-          quantity: 1,
-          unit_price: lease.security_deposit,
-          amount: lease.security_deposit,
-          local_category: 'diversen'
-        });
-      }
-
-      await supabase.from('invoice_line_items').insert(lineItemsToInsert);
     }
 
     await advanceJobToNextMonth(job);
-
   } catch (error) {
     console.error('Error generating monthly invoices:', error);
   }

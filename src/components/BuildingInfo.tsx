@@ -523,7 +523,7 @@ export function BuildingInfo() {
   }
 
   return (
-    <div className="h-full overflow-auto">
+    <div>
       <div className="space-y-6">
         <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4">
           <div className="flex justify-end items-center">

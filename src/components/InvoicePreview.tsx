@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { X, Download, Send, CreditCard as Edit, Receipt, FileText, Loader2, RotateCcw, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { generateInvoicePDFBlobUrl } from '../utils/pdfGenerator';
+import { isBorgfactuurNote } from '../utils/leaseInvoiceEligibility';
 
 interface InvoiceSpace {
   space_name: string;
@@ -369,6 +370,11 @@ export function InvoicePreview({
               <span className="text-gray-400">Vervaldatum: </span>
               <span className="text-gray-100">{formatDate(invoice.due_date)}</span>
             </div>
+            {isBorgfactuurNote(invoice.notes) && (
+              <div>
+                <span className="text-amber-400 font-semibold">Borgfactuur</span>
+              </div>
+            )}
             {invoice.invoice_month && (
               <div>
                 <span className="text-gray-400">Factuurmaand: </span>

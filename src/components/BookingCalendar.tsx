@@ -1198,7 +1198,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
   };
 
   return (
-    <div className="relative">
+    <div className="relative h-full">
       {/* Notifications */}
       <div className="fixed top-4 right-4 z-50 space-y-2 max-w-md">
         {notifications.map((notification) => (
@@ -1226,9 +1226,9 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
         ))}
       </div>
 
-      <div className="flex gap-4 w-full" style={{ height: 'calc(100vh - 200px)', minHeight: '720px' }}>
+      <div className="flex gap-4 w-full h-full min-h-0">
         {/* Left Sidebar - Month Calendars */}
-      <div className="w-72 bg-dark-900 rounded-lg border border-dark-700 p-4 flex-shrink-0 flex flex-col">
+      <div className="w-72 bg-dark-900 rounded-lg border border-dark-700 p-4 flex-shrink-0 flex flex-col overflow-y-auto">
         {/* Current Month */}
         <div className="mb-6">
           {renderMonthCalendar(monthDays, baseMonth, true, 0)}

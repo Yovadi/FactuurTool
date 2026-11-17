@@ -6,13 +6,24 @@ import type { LeaseContractData } from '../utils/leaseContractPdf';
 import { billedRentAmount, monthlyRentFromRate } from '../utils/zeroVatPrice';
 import { SkeletonTable } from './SkeletonLoader';
 import { Pagination } from './Pagination';
+import {
+  LEASES_CHANGED_EVENT,
+  TENANTS_CHANGED_EVENT,
+  emitLeasesChanged,
+  subscribeDataRefresh,
+  subscribeTenantsLeasesRealtime,
+} from '../utils/dataRefresh';
 
 type LeaseWithDetails = Lease & {
   tenant: Tenant;
   lease_spaces: (LeaseSpace & { space: OfficeSpace })[];
 };
 
-export function LeaseManagement() {
+type LeaseManagementProps = {
+  isActive?: boolean;
+};
+
+export function LeaseManagement({ isActive = true }: LeaseManagementProps) {
   const [leases, setLeases] = useState<LeaseWithDetails[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [spaces, setSpaces] = useState<OfficeSpace[]>([]);
@@ -27,6 +38,7 @@ export function LeaseManagement() {
     start_date: '',
     end_date: '',
     security_deposit: '',
+    deposit_amount: '',
     vat_rate: '21',
     vat_inclusive: false,
     status: 'active' as 'active' | 'expired' | 'terminated',
@@ -46,6 +58,25 @@ export function LeaseManagement() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (isActive) loadData();
+  }, [isActive]);
+
+  useEffect(() => {
+    const refresh = () => {
+      if (isActive) loadData();
+    };
+    const unsubEvents = subscribeDataRefresh(
+      [LEASES_CHANGED_EVENT, TENANTS_CHANGED_EVENT],
+      refresh
+    );
+    const unsubRealtime = subscribeTenantsLeasesRealtime(refresh);
+    return () => {
+      unsubEvents();
+      unsubRealtime();
+    };
+  }, [isActive]);
 
   useEffect(() => {
     if (showForm && !editingLease && selectedSpaces.length === 0) {
@@ -111,6 +142,11 @@ export function LeaseManagement() {
       status: formData.status,
       lease_type: 'full_time'
     };
+
+    const depositValue = parseFloat(formData.deposit_amount) || 0;
+    if ((editingLease && 'deposit_amount' in editingLease) || depositValue > 0) {
+      leaseData.deposit_amount = depositValue;
+    }
 
     if (editingLease) {
       const { error } = await supabase
@@ -196,6 +232,7 @@ export function LeaseManagement() {
       }
 
       resetForm();
+      emitLeasesChanged();
       loadData();
 
     } else {
@@ -275,6 +312,7 @@ export function LeaseManagement() {
       }
 
       resetForm();
+      emitLeasesChanged();
       loadData();
     }
   };
@@ -287,6 +325,7 @@ export function LeaseManagement() {
       start_date: lease.start_date,
       end_date: lease.end_date,
       security_deposit: lease.security_deposit.toString(),
+      deposit_amount: lease.deposit_amount ? Number(lease.deposit_amount).toString() : '',
       vat_rate: lease.vat_rate.toString(),
       vat_inclusive: lease.vat_inclusive,
       status: lease.status,
@@ -335,6 +374,7 @@ export function LeaseManagement() {
     }
 
     setLeases(leases.filter(l => l.id !== lease.id));
+    emitLeasesChanged();
   };
 
   const addSpace = () => {
@@ -468,6 +508,7 @@ export function LeaseManagement() {
       vat_rate: lease.vat_rate,
       vat_inclusive: Number(lease.vat_rate) === 0 ? false : lease.vat_inclusive,
       security_deposit: lease.security_deposit,
+      deposit_amount: Number(lease.deposit_amount) || 0,
       spaces: lease.lease_spaces.map((ls) => ({
         space_number: ls.space.space_number,
         space_type: ls.space.space_type,
@@ -487,6 +528,7 @@ export function LeaseManagement() {
       start_date: '',
       end_date: '',
       security_deposit: '',
+      deposit_amount: '',
       vat_rate: '21',
       vat_inclusive: false,
       status: 'active',
@@ -540,8 +582,9 @@ export function LeaseManagement() {
   }
 
   return (
-    <div className="h-full bg-dark-950 overflow-y-auto p-6">
-      <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2 mb-6">
+    <div className="h-full overflow-y-auto">
+      <div className="sticky top-0 z-10 bg-dark-950 pb-4">
+      <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2">
         <div className="flex gap-2">
           <button
             onClick={() => { setActiveTab('active'); setRegularPage(1); }}
@@ -566,6 +609,7 @@ export function LeaseManagement() {
             Verlopen/Beëindigd ({expiredLeases.length})
           </button>
         </div>
+      </div>
       </div>
 
       {(tenants.length === 0 || spaces.length === 0) && (
@@ -781,6 +825,24 @@ export function LeaseManagement() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-200 mb-1">
+                    Borg (waarborgsom)
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={formData.deposit_amount}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                        setFormData({ ...formData, deposit_amount: value });
+                      }
+                    }}
+                    className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold-500"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Apart van de huur. Wordt aan het einde van het contract teruggestort.</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-200 mb-1">
                     BTW-tarief (%)
                   </label>
                   <input
@@ -843,14 +905,14 @@ export function LeaseManagement() {
                   type="submit"
                   className="flex-1 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors"
                 >
-                  {editingLease ? 'Update' : 'Create'}
+                  {editingLease ? 'Opslaan' : 'Aanmaken'}
                 </button>
                 <button
                   type="button"
                   onClick={resetForm}
                   className="flex-1 bg-dark-800 text-gray-200 px-4 py-2 rounded-lg hover:bg-dark-700 transition-colors"
                 >
-                  Cancel
+                  Annuleren
                 </button>
               </div>
             </form>
@@ -874,7 +936,7 @@ export function LeaseManagement() {
                 Huurcontract Aanmaken
               </button>
             </div>
-            <div className="overflow-x-auto flex-1 min-h-0">
+            <div className="overflow-x-auto">
               <table className="w-full table-fixed min-w-[1000px]">
                 <thead>
                   <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
@@ -907,6 +969,11 @@ export function LeaseManagement() {
                             {lease.security_deposit > 0 && (
                               <div className="text-xs text-green-400">
                                 + Voorschot G/W/E
+                              </div>
+                            )}
+                            {Number(lease.deposit_amount) > 0 && (
+                              <div className="text-xs text-amber-300">
+                                Borg €{Number(lease.deposit_amount).toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}, wordt teruggestort
                               </div>
                             )}
                           </div>

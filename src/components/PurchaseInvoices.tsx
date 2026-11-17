@@ -767,7 +767,7 @@ export function PurchaseInvoices() {
           </div>
         </div>
       )}
-      <div className="p-6 space-y-6">
+      <div className="space-y-6">
         {aiNotification && (
           <div className={`flex items-center gap-3 p-4 rounded-lg border ${
             aiNotification.type === 'success'
@@ -908,7 +908,7 @@ export function PurchaseInvoices() {
           </div>
         ) : (
           <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden flex flex-col">
-            <div className="overflow-x-auto flex-1 min-h-0">
+            <div className="overflow-x-auto">
               <table className="w-full table-fixed min-w-[900px]">
                 <thead>
                   <tr className="border-b border-dark-700 text-gray-400 text-xs uppercase bg-dark-800">

@@ -1,4 +1,4 @@
-import { amountWithEmbeddedVat, billableBeforeDiscount, billedRentAmount, summarizeMeetingInvoice } from './zeroVatPrice';
+import { amountWithEmbeddedVat, billableBeforeDiscount, billedCatalogRent, billedLeaseMonthly, billedRentAmount, monthlyLineFromTotal, summarizeMeetingInvoice } from './zeroVatPrice';
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -28,5 +28,30 @@ assert(coppis.vatRate === 0, 'invoice VAT rate stays 0');
 
 assert(billedRentAmount(23, 0, false) === 27.83, 'exclusive 23 at 0% VAT becomes 27.83');
 assert(billedRentAmount(27.83, 0, true) === 27.83, 'inclusive rent is not grossed again');
+
+const hal4 = billedCatalogRent(
+  { space_type: 'bedrijfsruimte', square_footage: 352, rate_per_sqm: 37.5 },
+  37.5,
+  1100,
+  0,
+);
+assert(hal4.monthly === 1331, 'Hal 4 is 352 m2 x 37.50 / 12, then plus 21%');
+assert(billedLeaseMonthly(
+  [{ price_per_sqm: 37.5, monthly_rent: 1100, space: { space_type: 'bedrijfsruimte', square_footage: 352, rate_per_sqm: 37.5 } }],
+  0,
+  25,
+  0,
+) === 1356, 'TrackLab manual invoice is the month rent plus the GWE advance');
+assert(billedCatalogRent(
+  { space_type: 'bedrijfsruimte', square_footage: 352, rate_per_sqm: 37.5 },
+  37.5,
+  1100,
+  21,
+).monthly === 1100, '21% customer keeps the exclusive monthly hall rent');
+
+const halLine = monthlyLineFromTotal(1331, 352);
+assert(halLine.quantity === 352, 'hall line keeps the square metres');
+assert(halLine.unitPrice === 3.78, 'hall line stores the monthly price per m2');
+assert(halLine.amount === 1331, 'hall line amount stays the exact monthly total');
 
 console.log('zero vat price tests passed');

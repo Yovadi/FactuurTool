@@ -11,6 +11,20 @@ export function roundMoney(value: number): number {
   return Math.round((Number(value) || 0) * 100) / 100;
 }
 
+/**
+ * Store a hall line as square metres times the monthly price per m².
+ * The line amount stays the exact monthly total; the unit price is that total
+ * divided by the area, rounded to cents.
+ */
+export function monthlyLineFromTotal(amount: number, squareFootage: number): { quantity: number; unitPrice: number; amount: number } {
+  const total = roundMoney(amount);
+  const sqm = Number(squareFootage);
+  if (!(sqm > 0) || total === 0) {
+    return { quantity: 1, unitPrice: total, amount: total };
+  }
+  return { quantity: sqm, unitPrice: roundMoney(total / sqm), amount: total };
+}
+
 export function monthlyRentFromRate(spaceType: string | undefined, squareFootage: number, ratePerSqm: number): number {
   const raw = (Number(squareFootage) || 0) * (Number(ratePerSqm) || 0);
   if (spaceType === 'bedrijfsruimte' || spaceType === 'buitenterrein') return roundMoney(raw / 12);
@@ -22,7 +36,7 @@ export function billedRentAmount(amount: number, vatRate: number, vatInclusive: 
 }
 
 export function billedCatalogRent(
-  space: { space_type?: string; square_footage?: number | string | null; rate_per_sqm?: number | string | null } | null | undefined,
+  space: { space_type?: string; square_footage?: number | string | null; rate_per_sqm?: number | string | null; diversen_calculation?: string | null } | null | undefined,
   storedRate: number,
   storedMonthly: number,
   vatRate: number,
@@ -36,6 +50,39 @@ export function billedCatalogRent(
     rate: billedRentAmount(rate, vatRate, false),
     monthly: billedRentAmount(exclusiveMonthly, vatRate, false),
   };
+}
+
+export function billedLeaseSpaceMonthly(
+  space: { space_type?: string; square_footage?: number | string | null; rate_per_sqm?: number | string | null; diversen_calculation?: string | null } | null | undefined,
+  storedRate: number,
+  storedMonthly: number,
+  vatRate: number,
+): { monthly: number; rate: number; quantity: number } {
+  const fixedDiversen = space?.space_type === 'diversen' && (!space.diversen_calculation || space.diversen_calculation === 'fixed');
+  if (fixedDiversen) {
+    const monthly = billedRentAmount(Number(storedRate) || Number(storedMonthly), vatRate, false);
+    return { monthly, rate: monthly, quantity: 1 };
+  }
+  const billed = billedCatalogRent(space, storedRate, storedMonthly, vatRate);
+  const squareFootage = Number(space?.square_footage) || 0;
+  return {
+    monthly: billed.monthly,
+    rate: billed.rate,
+    quantity: squareFootage > 0 ? squareFootage : 1,
+  };
+}
+
+export function billedLeaseMonthly(
+  spaces: Array<{ price_per_sqm?: number | string | null; monthly_rent?: number | string | null; space?: { space_type?: string; square_footage?: number | string | null; rate_per_sqm?: number | string | null; diversen_calculation?: string | null } | null }>,
+  vatRate: number,
+  securityDeposit = 0,
+  discountPct = 0,
+): number {
+  const rent = spaces.reduce((sum, ls) => (
+    sum + billedLeaseSpaceMonthly(ls.space, Number(ls.price_per_sqm), Number(ls.monthly_rent), vatRate).monthly
+  ), 0);
+  const discount = Number(discountPct) > 0 ? roundMoney(rent * (Number(discountPct) / 100)) : 0;
+  return roundMoney(rent - discount + (Number(securityDeposit) || 0));
 }
 
 function alreadyEmbedded(storedVatRate: number | null | undefined): boolean {
