@@ -1,7 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { checkInvoicePaymentStatuses, checkPurchaseInvoicePaymentStatuses, verifyInvoiceSyncStatus, verifyRelationsInEBoekhouden } from '../lib/eboekhoudenSync';
 import { createLeaseNotification } from './notificationHelper';
-import { sendInvoiceReminderEmails } from './invoiceReminders';
 import { createSettingsBackup } from './settingsBackup';
 import { addCalendarDays, amsterdamInstant, amsterdamNextMonthStart } from './amsterdamCalendar';
 import { getCurrentDate, getCurrentDateString } from './dateHelpers';
@@ -30,6 +29,10 @@ export const checkAndRunScheduledJobs = async (options?: { skip?: Set<string> })
   if (error || !jobs) return ran;
 
   for (const job of jobs) {
+    if (job.job_type === 'send_invoice_reminders') {
+      await supabase.from('scheduled_jobs').update({ is_enabled: false }).eq('id', job.id);
+      continue;
+    }
     if (options?.skip?.has(job.job_type)) continue;
     if (!(await claimScheduledJob(job))) continue;
     ran.push(job.job_type);
@@ -49,8 +52,6 @@ export const checkAndRunScheduledJobs = async (options?: { skip?: Set<string> })
       await applyRentIndexation(job);
     } else if (job.job_type === 'complete_past_bookings') {
       await completePastBookings(job);
-    } else if (job.job_type === 'send_invoice_reminders') {
-      await runInvoiceReminders(job);
     } else if (job.job_type === 'settings_backup') {
       await runSettingsBackup(job);
     }
@@ -359,15 +360,6 @@ const completePastBookings = async (job: ScheduledJob) => {
     await advanceJobNextRun(job, 24);
   } catch (error) {
     console.error('Error completing past bookings:', error);
-  }
-};
-
-const runInvoiceReminders = async (job: ScheduledJob) => {
-  try {
-    await sendInvoiceReminderEmails();
-    await advanceJobNextRun(job, 24);
-  } catch (error) {
-    console.error('Error sending invoice reminders:', error);
   }
 };
 

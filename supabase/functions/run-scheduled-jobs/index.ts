@@ -13,7 +13,6 @@ const SKIP_JOB_TYPES = new Set([
   "eboekhouden_payment_status_check",
   "eboekhouden_sync_verification",
   "eboekhouden_relation_verification",
-  "send_invoice_reminders",
   "generate_flex_invoices",
 ]);
 
@@ -355,6 +354,11 @@ async function runDueJobs(supabase: SupabaseClient) {
 
   const results: Record<string, string> = {};
   for (const job of (jobs || []) as Job[]) {
+    if (job.job_type === "send_invoice_reminders") {
+      await supabase.from("scheduled_jobs").update({ is_enabled: false }).eq("id", job.id);
+      results[job.job_type] = "disabled";
+      continue;
+    }
     if (SKIP_JOB_TYPES.has(job.job_type)) {
       results[job.job_type] = "skipped";
       continue;

@@ -1,12 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase, type CompanySettings } from '../lib/supabase';
-import { Save, Loader2, RotateCcw, Eye, EyeOff, Info, Copy, Check, Upload, Trash2, Image, FileText, Clock, CreditCard } from 'lucide-react';
+import { Save, Loader2, RotateCcw, Eye, EyeOff, Info, Copy, Check, Upload, Trash2, Image, FileText, CreditCard } from 'lucide-react';
 
-type TemplateType = 'invoice' | 'reminder' | 'credit_note';
+type TemplateType = 'invoice' | 'credit_note';
 
 const TABS: { key: TemplateType; label: string; icon: typeof FileText }[] = [
   { key: 'invoice', label: 'Factuur', icon: FileText },
-  { key: 'reminder', label: 'Herinnering', icon: Clock },
   { key: 'credit_note', label: 'Credit factuur', icon: CreditCard },
 ];
 
@@ -47,27 +46,6 @@ t.n.v.: {bedrijfsnaam}
 Kenmerk: {factuurnummer}
 
 Mocht u vragen hebben over deze factuur, neem dan gerust contact met ons op.
-
-Met vriendelijke groet,
-{bedrijfsnaam}`,
-  },
-  reminder: {
-    subject: 'Betalingsherinnering factuur {factuurnummer}',
-    body: `Beste {naam},
-
-Uit onze administratie blijkt dat wij nog geen betaling hebben ontvangen voor onderstaande factuur:
-
-Factuurnummer: {factuurnummer}
-Bedrag: {bedrag}
-Factuurdatum: {factuurdatum}
-Vervaldatum: {vervaldatum}
-
-Wij verzoeken u vriendelijk het openstaande bedrag zo spoedig mogelijk over te maken naar:
-IBAN: {iban}
-t.n.v.: {bedrijfsnaam}
-Kenmerk: {factuurnummer}
-
-Mocht u de betaling reeds hebben verricht, dan kunt u dit bericht als niet verstuurd beschouwen.
 
 Met vriendelijke groet,
 {bedrijfsnaam}`,
@@ -120,13 +98,11 @@ export function EmailTemplateSettings() {
 
   const [subjects, setSubjects] = useState({
     invoice: '',
-    reminder: '',
     credit_note: '',
   });
 
   const [bodies, setBodies] = useState({
     invoice: '',
-    reminder: '',
     credit_note: '',
   });
 
@@ -146,12 +122,10 @@ export function EmailTemplateSettings() {
       if (data) {
         setSubjects({
           invoice: data.email_subject_template || '',
-          reminder: data.email_subject_reminder || '',
           credit_note: data.email_subject_credit_note || '',
         });
         setBodies({
           invoice: data.email_template_invoice || '',
-          reminder: data.email_template_reminder || '',
           credit_note: data.email_template_credit_note || '',
         });
         setSignatureImage(data.email_signature_image || null);
@@ -173,10 +147,8 @@ export function EmailTemplateSettings() {
         .from('company_settings')
         .update({
           email_subject_template: subjects.invoice || null,
-          email_subject_reminder: subjects.reminder || null,
           email_subject_credit_note: subjects.credit_note || null,
           email_template_invoice: bodies.invoice || null,
-          email_template_reminder: bodies.reminder || null,
           email_template_credit_note: bodies.credit_note || null,
           email_signature_image: signatureImage,
         })
