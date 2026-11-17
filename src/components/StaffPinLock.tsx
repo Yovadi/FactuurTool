@@ -1,8 +1,20 @@
 import { useEffect, useState } from 'react';
 import { Lock } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, supabaseAnonKey, supabaseUrl } from '../lib/supabase';
+import { requestGate, roleFromAccessToken } from '../utils/accessGate';
 
 const STORAGE_KEY = 'hal5-staff-unlocked';
+
+async function legacyPin(): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('company_settings')
+    .select('staff_pin_code')
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return (data?.staff_pin_code || '').trim() || null;
+}
 
 export function StaffPinLock({ children }: { children: React.ReactNode }) {
   const [requiredPin, setRequiredPin] = useState<string | null>(null);
@@ -11,28 +23,35 @@ export function StaffPinLock({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [pinCheckFailed, setPinCheckFailed] = useState(false);
+  const [checking, setChecking] = useState(false);
 
   useEffect(() => {
-    supabase
-      .from('company_settings')
-      .select('staff_pin_code')
-      .order('updated_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => {
-        const pin = (data?.staff_pin_code || '').trim();
-        setRequiredPin(pin || null);
-        if (!pin) {
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (token && roleFromAccessToken(token) === 'staff') {
+        if (!cancelled) {
           setUnlocked(true);
-        } else if (sessionStorage.getItem(STORAGE_KEY) === '1') {
-          setUnlocked(true);
+          setLoading(false);
         }
+        return;
+      }
+      try {
+        const pin = await legacyPin();
+        if (cancelled) return;
+        setRequiredPin(pin);
+        if (!pin || sessionStorage.getItem(STORAGE_KEY) === '1') setUnlocked(true);
         setLoading(false);
-      }, () => {
-        setUnlocked(false);
-        setPinCheckFailed(true);
+      } catch {
+        if (cancelled) return;
+        setRequiredPin('server');
         setLoading(false);
-      });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (loading) {
@@ -65,16 +84,48 @@ export function StaffPinLock({ children }: { children: React.ReactNode }) {
     return (
       <div className="min-h-screen bg-dark-950 flex items-center justify-center p-6">
         <form
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault();
-            if (input === requiredPin) {
+            if (!supabaseUrl || !supabaseAnonKey) {
+              setError('De verbinding ontbreekt.');
+              return;
+            }
+            setChecking(true);
+            const gate = await requestGate(supabaseUrl, supabaseAnonKey, 'staff-session', input);
+            if (gate.kind === 'session' && gate.accessToken && gate.refreshToken) {
+              const { error: sessionError } = await supabase.auth.setSession({
+                access_token: gate.accessToken,
+                refresh_token: gate.refreshToken,
+              });
+              setChecking(false);
+              if (sessionError || roleFromAccessToken(gate.accessToken) !== 'staff') {
+                setError('De PIN is niet bevestigd.');
+                setInput('');
+                return;
+              }
               sessionStorage.setItem(STORAGE_KEY, '1');
               setUnlocked(true);
               setError('');
-            } else {
-              setError('Onjuiste personeels-PIN');
-              setInput('');
+              return;
             }
+            setChecking(false);
+            if (gate.kind === 'rejected') {
+              setError(gate.message || 'Onjuiste personeels-PIN');
+              setInput('');
+              return;
+            }
+            if (gate.kind === 'legacy' && requiredPin && requiredPin !== 'server' && input === requiredPin) {
+              sessionStorage.setItem(STORAGE_KEY, '1');
+              setUnlocked(true);
+              setError('');
+              return;
+            }
+            if (gate.kind === 'legacy' && requiredPin === 'server') {
+              setPinCheckFailed(true);
+              return;
+            }
+            setError(gate.kind === 'legacy' ? 'Onjuiste personeels-PIN' : 'De PIN kon niet worden gecontroleerd. Probeer het opnieuw.');
+            setInput('');
           }}
           className="w-full max-w-sm bg-dark-900 border border-dark-700 rounded-2xl p-6 space-y-4"
         >
@@ -95,8 +146,8 @@ export function StaffPinLock({ children }: { children: React.ReactNode }) {
             autoFocus
           />
           {error && <p className="text-sm text-red-400">{error}</p>}
-          <button type="submit" className="w-full bg-gold-500 text-dark-950 font-medium py-2.5 rounded-lg hover:bg-gold-400">
-            Ontgrendelen
+          <button type="submit" disabled={checking} className="w-full bg-gold-500 text-dark-950 font-medium py-2.5 rounded-lg hover:bg-gold-400 disabled:opacity-60">
+            {checking ? 'Controleren...' : 'Ontgrendelen'}
           </button>
         </form>
       </div>

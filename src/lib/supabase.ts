@@ -1,20 +1,30 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl =
+export const supabaseUrl =
   (import.meta.env && import.meta.env.VITE_SUPABASE_URL) ||
   (typeof process !== 'undefined' ? process.env.VITE_SUPABASE_URL : undefined);
-const supabaseAnonKey =
+export const supabaseAnonKey =
   (import.meta.env && import.meta.env.VITE_SUPABASE_ANON_KEY) ||
   (typeof process !== 'undefined' ? process.env.VITE_SUPABASE_ANON_KEY : undefined);
+const serviceRoleKey = typeof process !== 'undefined' ? process.env.SUPABASE_SERVICE_ROLE_KEY : undefined;
 
 export const supabaseConfigError: string | null =
   !supabaseUrl || !supabaseAnonKey
     ? 'Supabase omgevingsvariabelen ontbreken (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY). Controleer dat .env aanwezig is tijdens de build.'
     : null;
 
+const browserSession = typeof sessionStorage !== 'undefined';
+
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder-key'
+  serviceRoleKey || supabaseAnonKey || 'placeholder-key',
+  {
+    auth: {
+      persistSession: browserSession && !serviceRoleKey,
+      autoRefreshToken: browserSession && !serviceRoleKey,
+      storage: browserSession ? sessionStorage : undefined,
+    },
+  }
 );
 
 export type Tenant = {

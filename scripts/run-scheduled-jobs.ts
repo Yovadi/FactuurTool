@@ -8,5 +8,9 @@ if (!url || !key) {
   process.exit(1);
 }
 
+if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  console.warn('SUPABASE_SERVICE_ROLE_KEY ontbreekt. De uurtaak gebruikt nog de publieke sleutel.');
+}
+
 const ran = await checkAndRunScheduledJobs({ skip: SERVER_SKIP_JOB_TYPES });
 console.log(ran.length === 0 ? 'Geen taken uitgevoerd.' : `Uitgevoerd: ${ran.join(', ')}`);
