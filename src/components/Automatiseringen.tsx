@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import {
   Loader2, RefreshCw, CheckCircle2, Clock, FileText,
   Receipt, Link2, Users, Calendar, ChevronDown, ChevronUp, Play, DoorOpen,
-  AlertTriangle, TrendingUp, CalendarCheck, Monitor, LayoutPanelLeft, Mail
+  AlertTriangle, TrendingUp, CalendarCheck, Monitor, LayoutPanelLeft
 } from 'lucide-react';
 
 interface ScheduledJob {
@@ -62,14 +62,6 @@ const JOB_META: Record<string, {
     accentColor: 'amber',
     interval: 'Dagelijks (elke 24 uur)',
     category: 'beheer',
-  },
-  send_invoice_reminders: {
-    label: 'Betalingsherinneringen e-mailen',
-    description: 'Stuurt automatisch een herinneringsmail met de factuur-PDF voor openstaande, vervallen facturen. Maximaal één herinnering per 14 dagen. Geen betaallink, alleen e-mail met PDF.',
-    icon: <Mail size={18} />,
-    accentColor: 'teal',
-    interval: 'Dagelijks (elke 24 uur)',
-    category: 'facturatie',
   },
   settings_backup: {
     label: 'Instellingen back-uppen',
@@ -422,7 +414,7 @@ export function Automatiseringen() {
             {enabledCount} van {visibleJobs.length} automatiseringen actief
           </p>
           <p className="text-xs text-gray-500 mt-1 max-w-2xl">
-            Deze taken draaien in de app zolang die open is, en elk uur via GitHub ook als de app dicht is. Herinneringen met een pdf en de e-Boekhouden-taken blijven in de app.
+            Deze taken draaien in de app zolang die open is, en elk uur via GitHub ook als de app dicht is. De e-Boekhouden-taken blijven in de app.
           </p>
         </div>
         <button
@@ -513,7 +505,7 @@ export function Automatiseringen() {
       <div className="rounded-xl bg-dark-800/50 border border-dark-700 px-5 py-4 flex items-start gap-3">
         <Clock size={16} className="text-gray-500 mt-0.5 flex-shrink-0" />
         <p className="text-sm text-gray-400 leading-relaxed">
-          Staat de app dicht, dan pakt GitHub de openstaande facturatie- en beheertaken elk uur op. Een herinnering met pdf of een e-Boekhouden-controle wacht tot de app open is.
+          Staat de app dicht, dan pakt GitHub de openstaande facturatie- en beheertaken elk uur op. Een e-Boekhouden-controle wacht tot de app open is.
         </p>
       </div>
 

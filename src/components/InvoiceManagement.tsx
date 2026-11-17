@@ -12,7 +12,6 @@ import { Pagination } from './Pagination';
 import { logAudit } from '../utils/auditLog';
 import { downloadCsv } from '../utils/csvExport';
 import { buildUblInvoiceXml, downloadUblXml } from '../utils/ublInvoice';
-import { sendInvoiceReminderEmails } from '../utils/invoiceReminders';
 import { getLocalRootFolderPath } from '../utils/localSettings';
 import { syncInvoicePDFs, buildInvoiceFolderPath } from '../utils/invoicePdfSync';
 import { billableBeforeDiscount, billableUnitPrice, billedCatalogRent, billedLeaseMonthly, billedLeaseSpaceMonthly, monthlyLineFromTotal, summarizeMeetingInvoice } from '../utils/zeroVatPrice';
@@ -2756,16 +2755,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     downloadUblXml(`${previewInvoice.invoice.invoice_number}.xml`, xml);
   };
 
-  const handlePreviewReminder = async () => {
-    if (!previewInvoice?.invoice.id) return;
-    const result = await sendInvoiceReminderEmails(1, previewInvoice.invoice.id);
-    if (result.sent > 0) {
-      showToast('Herinnering verzonden (e-mail met PDF)', 'success');
-    } else {
-      showToast(result.errors[0] || 'Geen herinnering verzonden. Controleer e-mailinstellingen en vervaldatum.', 'error');
-    }
-  };
-
   const exportInvoicesCsv = () => {
     downloadCsv(
       `facturen-${new Date().toISOString().slice(0, 10)}.csv`,
@@ -3434,7 +3423,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
             onClose={() => setPreviewInvoice(null)}
             onDownload={handlePreviewDownload}
             onDownloadUbl={handlePreviewUbl}
-            onSendReminder={previewInvoice.invoice.status === 'sent' || previewInvoice.invoice.status === 'overdue' ? handlePreviewReminder : undefined}
             onSend={previewInvoice.invoice.status === 'draft' ? handlePreviewSend : undefined}
             onEdit={previewInvoice.invoice.status === 'draft' ? () => {
               setPreviewInvoice(null);

@@ -37,26 +37,6 @@ Mocht u vragen hebben over deze factuur, neem dan gerust contact met ons op.
 Met vriendelijke groet,
 {bedrijfsnaam}`;
 
-const DEFAULT_REMINDER_SUBJECT = 'Betalingsherinnering factuur {factuurnummer}';
-const DEFAULT_REMINDER_BODY = `Beste {naam},
-
-Uit onze administratie blijkt dat wij nog geen betaling hebben ontvangen voor onderstaande factuur:
-
-Factuurnummer: {factuurnummer}
-Bedrag: {bedrag}
-Factuurdatum: {factuurdatum}
-Vervaldatum: {vervaldatum}
-
-Wij verzoeken u vriendelijk het openstaande bedrag zo spoedig mogelijk over te maken naar:
-IBAN: {iban}
-t.n.v.: {bedrijfsnaam}
-Kenmerk: {factuurnummer}
-
-Mocht u de betaling reeds hebben verricht, dan kunt u dit bericht als niet verstuurd beschouwen.
-
-Met vriendelijke groet,
-{bedrijfsnaam}`;
-
 const DEFAULT_CREDIT_NOTE_SUBJECT = 'Credit nota {creditnotanummer} van {bedrijfsnaam}';
 const DEFAULT_CREDIT_NOTE_BODY = `Beste {naam},
 
@@ -192,22 +172,6 @@ export function buildInvoiceEmailHtml(data: InvoiceEmailData): string {
 
 export function buildInvoiceEmailText(data: InvoiceEmailData): string {
   const bodyTemplate = getTemplate(data.companySettings.email_template_invoice, DEFAULT_INVOICE_BODY);
-  return resolveInvoicePlaceholders(bodyTemplate, data);
-}
-
-export function buildReminderEmailSubject(data: InvoiceEmailData): string {
-  const template = getTemplate(data.companySettings.email_subject_reminder, DEFAULT_REMINDER_SUBJECT);
-  return resolveInvoicePlaceholders(template, data);
-}
-
-export function buildReminderEmailHtml(data: InvoiceEmailData): string {
-  const bodyTemplate = getTemplate(data.companySettings.email_template_reminder, DEFAULT_REMINDER_BODY);
-  const bodyText = resolveInvoicePlaceholders(bodyTemplate, data);
-  return wrapInEmailHtml(data.companySettings, bodyText, data.companySettings.email_signature_image);
-}
-
-export function buildReminderEmailText(data: InvoiceEmailData): string {
-  const bodyTemplate = getTemplate(data.companySettings.email_template_reminder, DEFAULT_REMINDER_BODY);
   return resolveInvoicePlaceholders(bodyTemplate, data);
 }
 

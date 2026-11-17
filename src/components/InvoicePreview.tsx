@@ -68,7 +68,6 @@ interface InvoicePreviewProps {
   onClose: () => void;
   onDownload?: () => void;
   onDownloadUbl?: () => void;
-  onSendReminder?: () => void;
   onSend?: () => void;
   onEdit?: () => void;
   onMarkAsPaid?: () => void;
@@ -87,7 +86,6 @@ export function InvoicePreview({
   onClose,
   onDownload,
   onDownloadUbl,
-  onSendReminder,
   onSend,
   onEdit,
   onMarkAsPaid,
@@ -272,16 +270,6 @@ export function InvoicePreview({
         >
           <FileText size={16} />
           <span className="text-sm font-medium">UBL</span>
-        </button>
-      )}
-      {onSendReminder && (
-        <button
-          onClick={onSendReminder}
-          className="flex items-center gap-1.5 bg-amber-600 hover:bg-amber-500 text-white transition-colors px-3 py-1.5 rounded-lg"
-          title="Herinnering e-mailen met PDF"
-        >
-          <Send size={16} />
-          <span className="text-sm font-medium">Herinnering</span>
         </button>
       )}
       {onSend && (
