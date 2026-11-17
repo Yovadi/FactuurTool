@@ -2169,7 +2169,9 @@
         // Initialize Supabase
         const SUPABASE_URL = 'https://qlvndvpxhqmjljjpehkn.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFsdm5kdnB4aHFtamxqanBlaGtuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA5MjI1MzQsImV4cCI6MjA3NjQ5ODUzNH0.q1Kel_GCQqUx2J5Nd9WFOVz7okodFPcoAJkKL6YVkUk';
-        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: { storage: window.sessionStorage, persistSession: true, autoRefreshToken: true }
+        });
 
         // State
         let authenticatedUser = null;
@@ -2328,6 +2330,32 @@
             const pinError = document.getElementById('pinError');
 
             try {
+                const gateResponse = await fetch(SUPABASE_URL + '/functions/v1/booker-session', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        apikey: SUPABASE_ANON_KEY,
+                        Authorization: 'Bearer ' + SUPABASE_ANON_KEY
+                    },
+                    body: JSON.stringify({ pin })
+                });
+                if (gateResponse.status === 401 && !clearOnFail) return;
+                if (gateResponse.status === 401 || gateResponse.status === 429) {
+                    const gateBody = await gateResponse.json().catch(() => ({}));
+                    throw new Error(gateBody.error || 'Ongeldige pincode');
+                }
+                if (gateResponse.ok) {
+                    const gateBody = await gateResponse.json();
+                    const sessionResult = await sb.auth.setSession({
+                        access_token: gateBody.access_token,
+                        refresh_token: gateBody.refresh_token
+                    });
+                    if (sessionResult.error || !gateBody.profile) throw new Error('De pincode is niet bevestigd.');
+                    authenticatedUser = gateBody.profile;
+                    showSuccess();
+                    return;
+                }
+
                 const [tenantsRes, customersRes] = await Promise.all([
                     sb.from('tenants').select('id, name, company_name, booking_pin_code, meeting_discount_percentage').eq('booking_pin_code', pin).neq('booking_pin_code', ''),
                     sb.from('external_customers').select('id, company_name, contact_name, booking_pin_code, meeting_discount_percentage').eq('booking_pin_code', pin).neq('booking_pin_code', '')
@@ -2409,8 +2437,6 @@
             const [bookingsRes, spacesRes, allBookingsRes] = await Promise.all([
                 sb.from('meeting_room_bookings').select(`
                     id, booking_date, start_time, end_time, tenant_id, external_customer_id, status,
-                    tenants(name, company_name),
-                    external_customers(company_name, contact_name),
                     office_spaces(space_number)
                 `).gte('booking_date', formatDate(weekStart)).lte('booking_date', formatDate(weekEnd)).neq('status', 'cancelled'),
                 sb.from('office_spaces').select('id, space_number, hourly_rate, half_day_rate, full_day_rate').eq('space_type', 'Meeting Room').order('space_number'),
@@ -2530,14 +2556,14 @@
                     const height = bookingHeightSlots * CELL_HEIGHT - 2;
                     const colors = getTenantColor(booking.tenant_id);
 
-                    const displayName = booking.tenant_id
-                        ? (booking.tenants?.company_name || booking.tenants?.name || '')
-                        : booking.external_customers?.company_name || '';
-
                     const isOwnBooking = authenticatedUser && (
                         (authenticatedUser.userType === 'tenant' && booking.tenant_id === authenticatedUser.id) ||
                         (authenticatedUser.userType === 'external' && booking.external_customer_id === authenticatedUser.id)
                     );
+                    const ownName = authenticatedUser
+                        ? (authenticatedUser.company_name || authenticatedUser.name || '')
+                        : '';
+                    const displayName = isOwnBooking && ownName ? ownName : 'Bezet';
                     const isPending = booking.status === 'pending';
                     const isConfirmed = booking.status === 'confirmed';
                     const isCompleted = booking.status === 'completed';
@@ -3091,9 +3117,10 @@
             }
         }
 
-        function logout() {
+        async function logout() {
             authenticatedUser = null;
             localStorage.removeItem('booking_authenticated_user');
+            await sb.auth.signOut();
             window.location.href = '/';
         }
 
@@ -3355,8 +3382,6 @@
                     .from('meeting_room_bookings')
                     .select(`
                         *,
-                        tenants(name, company_name),
-                        external_customers(company_name, contact_name),
                         office_spaces(space_number)
                     `)
                     .neq('status', 'cancelled');
