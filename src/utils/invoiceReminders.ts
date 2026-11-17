@@ -7,6 +7,9 @@ import {
   buildReminderEmailText,
 } from './emailTemplate';
 import { logAudit } from './auditLog';
+import { amsterdamCalendar } from './amsterdamCalendar';
+import { addBusinessDays } from './businessClock';
+import { getCurrentDateString } from './dateHelpers';
 
 function mapLineItemsToSpaces(items: Array<{ description: string; amount: number; quantity: number | null; unit_price: number }>): InvoiceData['spaces'] {
   return items.map(item => {
@@ -33,8 +36,8 @@ export async function sendInvoiceReminderEmails(limit = 25, invoiceId?: string):
     return result;
   }
 
-  const today = new Date().toISOString().split('T')[0];
-  const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+  const today = await getCurrentDateString();
+  const fourteenDaysAgo = addBusinessDays(today, -14);
 
   let query = supabase
     .from('invoices')
@@ -52,7 +55,9 @@ export async function sendInvoiceReminderEmails(limit = 25, invoiceId?: string):
   const { data: invoices } = await query;
 
   for (const invoice of invoices || []) {
-    if (!invoiceId && invoice.last_reminder_sent_at && invoice.last_reminder_sent_at > fourteenDaysAgo) {
+    const sentAt = invoice.last_reminder_sent_at ? new Date(invoice.last_reminder_sent_at) : null;
+    const sentOn = sentAt && !Number.isNaN(sentAt.getTime()) ? amsterdamCalendar(sentAt).date : '';
+    if (!invoiceId && sentOn && sentOn > fourteenDaysAgo) {
       result.skipped++;
       continue;
     }

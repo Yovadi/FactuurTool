@@ -16,7 +16,9 @@ import { sendInvoiceReminderEmails } from '../utils/invoiceReminders';
 import { getLocalRootFolderPath } from '../utils/localSettings';
 import { syncInvoicePDFs, buildInvoiceFolderPath } from '../utils/invoicePdfSync';
 import { billableBeforeDiscount, billableUnitPrice, billedCatalogRent, billedLeaseMonthly, billedLeaseSpaceMonthly, monthlyLineFromTotal, summarizeMeetingInvoice } from '../utils/zeroVatPrice';
-import { isBorgfactuurNote, isLeaseEligibleForInvoiceMonth, resolveDepositInvoice, resolveLeaseInvoiceTarget } from '../utils/leaseInvoiceEligibility';
+import { isBorgfactuurNote, isLeaseEligibleForInvoiceMonth, resolveDepositInvoice, resolveLeaseInvoiceTarget, shiftYearMonth } from '../utils/leaseInvoiceEligibility';
+import { addBusinessDays } from '../utils/businessClock';
+import { getCurrentDateString } from '../utils/dateHelpers';
 import {
   LEASES_CHANGED_EVENT,
   TENANTS_CHANGED_EVENT,
@@ -282,39 +284,11 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   }));
 
   const getDefaultInvoiceMonth = async (type?: InvoiceTypeFilter) => {
-    const { data: settings } = await supabase
-      .from('company_settings')
-      .select('test_mode, test_date')
-      .maybeSingle();
+    const today = await getCurrentDateString();
+    const yearMonth = today.slice(0, 7);
 
-    let currentDate = new Date();
-    if (settings?.test_mode === true && settings?.test_date) {
-      currentDate = new Date(settings.test_date);
-    }
-
-    console.log('Current date for invoice generation:', currentDate.toISOString());
-
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-
-    if (type === 'huur') {
-      const nextMonth = month + 1;
-      const nextYear = nextMonth > 11 ? year + 1 : year;
-      const finalMonth = nextMonth > 11 ? 0 : nextMonth;
-      const result = `${nextYear}-${String(finalMonth + 1).padStart(2, '0')}`;
-      console.log('Default month for rent (next month):', result);
-      return result;
-    } else if (type === 'vergaderruimte' || type === 'borg') {
-      const result = `${year}-${String(month + 1).padStart(2, '0')}`;
-      console.log('Default month for bookings or deposit (current month):', result);
-      return result;
-    } else {
-      const nextMonth = month + 1;
-      const nextYear = nextMonth > 11 ? year + 1 : year;
-      const finalMonth = nextMonth > 11 ? 0 : nextMonth;
-      const result = `${nextYear}-${String(finalMonth + 1).padStart(2, '0')}`;
-      return result;
-    }
+    if (type === 'vergaderruimte' || type === 'borg') return yearMonth;
+    return shiftYearMonth(yearMonth, 1);
   };
 
   const getNextMonthString = async () => {
@@ -395,26 +369,14 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
   useEffect(() => {
     const initializeForm = async () => {
-      const { data: settings } = await supabase
-        .from('company_settings')
-        .select('test_mode, test_date')
-        .maybeSingle();
-
-      let currentDate = new Date();
-      if (settings?.test_mode && settings?.test_date) {
-        currentDate = new Date(settings.test_date);
-      }
-
-      const dueDateObj = new Date(currentDate);
-      dueDateObj.setDate(dueDateObj.getDate() + 14);
-
+      const invoiceDate = await getCurrentDateString();
       const nextMonth = await getNextMonthString();
       setInvoiceMonth(nextMonth);
       setFormData(prev => ({
         ...prev,
         invoice_month: nextMonth,
-        invoice_date: currentDate.toISOString().split('T')[0],
-        due_date: dueDateObj.toISOString().split('T')[0]
+        invoice_date: invoiceDate,
+        due_date: addBusinessDays(invoiceDate, 14),
       }));
     };
 
@@ -537,7 +499,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   const loadData = async () => {
     setLoading(true);
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = await getCurrentDateString();
 
     const [
       { data: companyData },
@@ -1628,13 +1590,14 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
   const resetForm = async () => {
     const invoiceMonth = await getNextMonthString();
+    const invoiceDate = await getCurrentDateString();
     setFormData({
       lease_id: '',
       tenant_id: '',
       external_customer_id: '',
       customer_type: 'tenant',
-      invoice_date: new Date().toISOString().split('T')[0],
-      due_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      invoice_date: invoiceDate,
+      due_date: addBusinessDays(invoiceDate, 14),
       invoice_month: invoiceMonth,
       vat_rate: '21',
       vat_inclusive: false,
@@ -1656,28 +1619,14 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
     setGeneratingBulk(true);
 
-    const { data: settings } = await supabase
-      .from('company_settings')
-      .select('test_mode, test_date')
-      .maybeSingle();
-
-    let currentDate = new Date();
-    if (settings?.test_mode === true && settings?.test_date) {
-      currentDate = new Date(settings.test_date);
-    }
-
     const targetMonth = invoiceMonth || await getNextMonthString();
+    const invoiceDate = await getCurrentDateString();
+    const dueDate = addBusinessDays(invoiceDate, 14);
 
     console.log('=== MEETING ROOM INVOICE GENERATION ===');
     console.log('Generating meeting room invoices for month:', targetMonth);
-    console.log('Current date:', currentDate.toISOString());
+    console.log('Current date:', invoiceDate);
     console.log('Selected customers:', selectedCustomers.size);
-    console.log('Test mode:', settings?.test_mode);
-
-    const invoiceDate = currentDate.toISOString().split('T')[0];
-    const dueDateObj = new Date(currentDate);
-    dueDateObj.setDate(dueDateObj.getDate() + 14);
-    const dueDate = dueDateObj.toISOString().split('T')[0];
 
     const customersWithBookings = new Map<string, { customer: any; customerType: 'tenant' | 'external'; bookings: any[] }>();
 
@@ -1998,21 +1947,9 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
     setGeneratingBulk(true);
 
-    const { data: settings } = await supabase
-      .from('company_settings')
-      .select('test_mode, test_date')
-      .maybeSingle();
-
-    let currentDate = new Date();
-    if (settings?.test_mode === true && settings?.test_date) {
-      currentDate = new Date(settings.test_date);
-    }
-
     const targetMonth = invoiceMonth || await getNextMonthString();
-    const invoiceDate = currentDate.toISOString().split('T')[0];
-    const dueDateObj = new Date(currentDate);
-    dueDateObj.setDate(dueDateObj.getDate() + 14);
-    const dueDate = dueDateObj.toISOString().split('T')[0];
+    const invoiceDate = await getCurrentDateString();
+    const dueDate = addBusinessDays(invoiceDate, 14);
 
     const leasesToProcess = leases.filter(l => selectedLeases.has(l.id));
     const invoiceIndex = invoices.map(inv => ({
@@ -2364,16 +2301,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     let meetingSuccess = 0;
     let meetingFail = 0;
 
-    const { data: settings } = await supabase
-      .from('company_settings')
-      .select('*')
-      .maybeSingle();
-
-    let currentDate = new Date();
-    if (settings?.test_mode === true && settings?.test_date) {
-      currentDate = new Date(settings.test_date);
-    }
-
+    const invoiceDate = await getCurrentDateString();
+    const dueDate = addBusinessDays(invoiceDate, 14);
     const targetMonth = invoiceMonth || await getNextMonthString();
     console.log('Target month:', targetMonth);
 
@@ -2492,8 +2421,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
               invoice_number: invoiceNumber,
               tenant_id: isExternal ? null : customerId,
               external_customer_id: isExternal ? customerId : null,
-              invoice_date: currentDate.toISOString().split('T')[0],
-              due_date: new Date(currentDate.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              invoice_date: invoiceDate,
+              due_date: dueDate,
               subtotal: subtotal,
               vat_amount: vatAmount,
               amount: total,

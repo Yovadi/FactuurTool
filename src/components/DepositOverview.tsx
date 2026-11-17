@@ -9,6 +9,9 @@ import {
   isBorgfactuurNote,
   resolveDepositInvoice,
 } from '../utils/leaseInvoiceEligibility';
+import { amsterdamCalendar } from '../utils/amsterdamCalendar';
+import { addBusinessDays } from '../utils/businessClock';
+import { getCurrentDateString } from '../utils/dateHelpers';
 
 type BorgInvoice = {
   id: string;
@@ -94,6 +97,7 @@ export function DepositOverview({ isActive = true }: DepositOverviewProps) {
   const [loading, setLoading] = useState(true);
   const [creatingId, setCreatingId] = useState<string | null>(null);
   const [invoiceMonths, setInvoiceMonths] = useState<Record<string, string>>({});
+  const [todayMonth, setTodayMonth] = useState(() => amsterdamCalendar().yearMonth);
   const [toasts, setToasts] = useState<{ id: number; message: string; type: 'success' | 'error' | 'info' }[]>([]);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info') => {
@@ -167,7 +171,17 @@ export function DepositOverview({ isActive = true }: DepositOverviewProps) {
     if (isActive) load();
   }, [isActive, load]);
 
-  const monthFor = (row: OverviewRow) => invoiceMonths[row.lease.id] || depositSelectionMonth(row.lease);
+  useEffect(() => {
+    let active = true;
+    getCurrentDateString().then((today) => {
+      if (active) setTodayMonth(today.slice(0, 7));
+    });
+    return () => {
+      active = false;
+    };
+  }, [isActive]);
+
+  const monthFor = (row: OverviewRow) => invoiceMonths[row.lease.id] || depositSelectionMonth(row.lease, todayMonth);
 
   const createInvoice = async (row: OverviewRow) => {
     const month = monthFor(row);
@@ -179,12 +193,8 @@ export function DepositOverview({ isActive = true }: DepositOverviewProps) {
 
     setCreatingId(row.lease.id);
     try {
-      const { data: settings } = await supabase.from('company_settings').select('test_mode, test_date').maybeSingle();
-      let currentDate = new Date();
-      if (settings?.test_mode === true && settings?.test_date) currentDate = new Date(settings.test_date);
-      const invoiceDate = currentDate.toISOString().split('T')[0];
-      const due = new Date(currentDate);
-      due.setDate(due.getDate() + 14);
+      const invoiceDate = await getCurrentDateString();
+      const dueDate = addBusinessDays(invoiceDate, 14);
 
       const { data: invoiceNumber, error: numberError } = await supabase.rpc('generate_invoice_number');
       if (numberError || !invoiceNumber) throw numberError || new Error('Geen factuurnummer');
@@ -196,7 +206,7 @@ export function DepositOverview({ isActive = true }: DepositOverviewProps) {
           tenant_id: row.lease.tenant_id,
           invoice_number: invoiceNumber,
           invoice_date: invoiceDate,
-          due_date: due.toISOString().split('T')[0],
+          due_date: dueDate,
           invoice_month: target.invoiceMonth,
           subtotal: target.amount,
           vat_amount: 0,
@@ -360,9 +370,7 @@ function SummaryCard({ label, value, accent = 'text-gray-100' }: { label: string
   );
 }
 
-function depositSelectionMonth(lease: { start_date?: string | null; end_date?: string | null }): string {
-  const now = new Date();
-  const current = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+function depositSelectionMonth(lease: { start_date?: string | null; end_date?: string | null }, current: string): string {
   const lead = getLeaseLeadMonth(lease);
   const start = getLeaseStartMonth(lease);
   if (resolveDepositInvoice(lease, current, [])) return current;

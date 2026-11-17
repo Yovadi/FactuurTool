@@ -1,19 +1,22 @@
 import { supabase } from '../lib/supabase';
+import { businessDate, businessInstant } from './businessClock';
 
-export async function getCurrentDate(): Promise<Date> {
+async function readTestDate(): Promise<{ testMode: boolean; testDate: string | null }> {
   const { data: settings } = await supabase
     .from('company_settings')
     .select('test_mode, test_date')
     .maybeSingle();
-
-  if (settings?.test_mode && settings?.test_date) {
-    return new Date(settings.test_date);
-  }
-
-  return new Date();
+  return {
+    testMode: settings?.test_mode === true,
+    testDate: settings?.test_date || null,
+  };
 }
 
 export async function getCurrentDateString(): Promise<string> {
-  const date = await getCurrentDate();
-  return date.toISOString().split('T')[0];
+  const { testMode, testDate } = await readTestDate();
+  return businessDate(testMode, testDate);
+}
+
+export async function getCurrentDate(): Promise<Date> {
+  return businessInstant(await getCurrentDateString());
 }

@@ -5,6 +5,8 @@ import { Toast } from './Toast';
 import { billableBeforeDiscount, billableUnitPrice, summarizeMeetingInvoice } from '../utils/zeroVatPrice';
 import { resolveLeaseInvoiceTarget } from '../utils/leaseInvoiceEligibility';
 import { amsterdamInstant } from '../utils/amsterdamCalendar';
+import { addBusinessDays } from '../utils/businessClock';
+import { getCurrentDateString } from '../utils/dateHelpers';
 import { buildLeaseRentDraft, type LeaseRentDraft, type RentLease } from '../utils/leaseRentDraft';
 import {
   LEASES_CHANGED_EVENT,
@@ -155,12 +157,18 @@ export function InvoiceOverview({ onInvoicesCreated, onFocusMonthConsumed, isAct
   }, []);
 
   useEffect(() => {
-    const now = new Date();
-    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    setInvoiceMonth(currentMonth);
-    const months = getMonthRange(currentMonth);
-    setVisibleMonths(months);
-  }, []);
+    if (focusMonth && /^\d{4}-\d{2}$/.test(focusMonth)) return;
+    let active = true;
+    getCurrentDateString().then((today) => {
+      if (!active) return;
+      const currentMonth = today.slice(0, 7);
+      setInvoiceMonth((current) => current || currentMonth);
+      setVisibleMonths((months) => (months.length > 0 ? months : getMonthRange(currentMonth)));
+    });
+    return () => {
+      active = false;
+    };
+  }, [focusMonth]);
 
   useEffect(() => {
     if (!focusMonth || !/^\d{4}-\d{2}$/.test(focusMonth)) return;
@@ -397,20 +405,8 @@ export function InvoiceOverview({ onInvoicesCreated, onFocusMonthConsumed, isAct
     let successCount = 0;
     let failCount = 0;
 
-    const { data: settings } = await supabase
-      .from('company_settings')
-      .select('test_mode, test_date')
-      .maybeSingle();
-
-    let currentDate = new Date();
-    if (settings?.test_mode === true && settings?.test_date) {
-      currentDate = new Date(settings.test_date);
-    }
-
-    const invoiceDate = currentDate.toISOString().split('T')[0];
-    const dueDateObj = new Date(currentDate);
-    dueDateObj.setDate(dueDateObj.getDate() + 14);
-    const dueDate = dueDateObj.toISOString().split('T')[0];
+    const invoiceDate = await getCurrentDateString();
+    const dueDate = addBusinessDays(invoiceDate, 14);
 
     for (const item of selectedItems) {
       try {
