@@ -2909,7 +2909,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   }
 
   return (
-    <div className="w-full">
+    <div className="h-full min-h-0 flex flex-col">
 
       {duplicateInvoiceConfirm && (
         <ConfirmModal
@@ -3472,8 +3472,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           />
       )}
 
-      <div className="w-full">
-      <div className="space-y-4">
+      <div className="flex-1 min-h-0 flex flex-col">
+      <div className="flex-1 min-h-0 flex flex-col">
         {(() => {
           const sortByInvoiceNumber = (a: InvoiceWithDetails, b: InvoiceWithDetails) => {
             return (a.invoice_number || '').localeCompare(b.invoice_number || '');
@@ -3647,7 +3647,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           const openSelected = allOpenInvoices.filter(inv => selectedInvoices.has(inv.id)).length;
 
           return (
-            <>
+            <div className="flex-1 min-h-0 flex flex-col gap-4">
               {!onlyOpenInvoices && (
               <div className="flex flex-wrap items-center gap-3 bg-dark-900 rounded-lg border border-dark-700 px-4 py-3">
                 <div className="flex items-center gap-2 text-gray-400">
@@ -3702,7 +3702,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
               )}
 
               {!onlyOpenInvoices && (
-              <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700">
+              <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 flex-1 min-h-0 flex flex-col overflow-hidden">
                 <div className="flex items-center justify-between gap-4 px-4 py-3 bg-dark-800 border-b border-emerald-500">
                   <div>
                     <h2 className="text-lg font-bold text-gray-100">Concept Facturen</h2>
@@ -3735,10 +3735,10 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                     )}
                   </div>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="flex-1 min-h-0 overflow-auto">
                   <table className="w-full table-fixed min-w-[1100px]">
                     <thead>
-                      <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
+                      <tr className="sticky top-0 z-10 border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
                         <th className="text-center px-4 py-3 font-semibold w-[4%]">
                           <button
                             onClick={(e) => { e.stopPropagation(); toggleSelectAll(allDraftInvoices); }}
@@ -3783,7 +3783,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
               )}
 
               {!hideOpenInvoices && !onlyOpenInvoices && (
-              <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700">
+              <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 flex-1 min-h-0 flex flex-col overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-3 bg-dark-800 border-b border-amber-500">
                   <h2 className="text-lg font-bold text-gray-100">Openstaande Facturen</h2>
                   <div className="flex items-center gap-2">
@@ -3811,10 +3811,10 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                     )}
                   </div>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="flex-1 min-h-0 overflow-auto">
                   <table className="w-full table-fixed min-w-[1100px]">
                     <thead>
-                      <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
+                      <tr className="sticky top-0 z-10 border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
                         <th className="text-center px-4 py-3 font-semibold w-[4%]">
                           <button
                             onClick={(e) => { e.stopPropagation(); toggleSelectAll(allOpenInvoices); }}
@@ -3859,7 +3859,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
               )}
 
               {onlyOpenInvoices && (
-              <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700">
+              <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 flex-1 min-h-0 flex flex-col overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-3 bg-dark-800 border-b border-amber-500">
                   <h2 className="text-lg font-bold text-gray-100">Openstaande Facturen</h2>
                   <div className="flex items-center gap-2">
@@ -3880,10 +3880,10 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                     )}
                   </div>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="flex-1 min-h-0 overflow-auto">
                   <table className="w-full table-fixed min-w-[1100px]">
                     <thead>
-                      <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
+                      <tr className="sticky top-0 z-10 border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
                         <th className="text-center px-4 py-3 font-semibold w-[4%]">
                           <button
                             onClick={(e) => { e.stopPropagation(); toggleSelectAll(allOpenInvoices); }}
@@ -3926,7 +3926,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                 />
               </div>
               )}
-            </>
+            </div>
           );
         })()}
       </div>

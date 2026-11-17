@@ -701,14 +701,14 @@ export function SpaceManagement() {
           };
 
           return (
-            <div key={type} className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden flex flex-col">
+            <div key={type} className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden flex flex-col max-h-[calc(100vh-9rem)]">
               <h2 className="text-lg font-bold text-gray-100 px-4 py-3 bg-dark-800 border-b border-amber-500">
                 {typeLabels[type]}
               </h2>
-              <div className="overflow-x-auto">
+              <div className="flex-1 min-h-0 overflow-auto">
                 <table className="w-full table-fixed">
                   <thead>
-                    <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
+                    <tr className="sticky top-0 z-10 border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
                       <th className="text-left px-4 py-3 font-semibold w-[20%]">Benaming</th>
                       <th className="text-left px-4 py-3 font-semibold w-[15%]">
                         {type === 'Meeting Room' ? 'Type' : type === 'diversen' ? 'Bedrag' : 'Oppervlakte'}

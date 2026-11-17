@@ -703,9 +703,9 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
 
   return (
     <div className="h-full flex overflow-hidden">
-    <div className="flex-1 min-w-0 overflow-y-auto">
-      <div>
-      <div className="flex justify-end items-center mb-4 flex-wrap gap-3">
+    <div className="flex-1 min-w-0 min-h-0 overflow-hidden flex flex-col">
+      <div className="flex-1 min-h-0 flex flex-col">
+      <div className="flex justify-end items-center mb-4 flex-wrap gap-3 flex-shrink-0">
         <div className="flex items-center gap-2 flex-wrap">
           {ebConnected && creditNotes.some(n => !n.eboekhouden_id) && (
             <button
@@ -727,18 +727,18 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
         </div>
       </div>
 
-      <div className="space-y-4">
+      <div className="flex-1 min-h-0 flex flex-col gap-4">
         {creditNotes.length === 0 ? (
           <div className="bg-dark-900 rounded-lg p-8 text-center">
             <CheckCircle size={48} className="text-green-500 mx-auto mb-4" />
             <p className="text-gray-400">Geen credit nota's gevonden</p>
           </div>
         ) : (
-          <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden flex flex-col">
-            <div className="overflow-x-auto">
+          <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden flex flex-col flex-1 min-h-0">
+            <div className="flex-1 min-h-0 overflow-auto">
               <table className="w-full table-fixed min-w-[1000px]">
                 <thead>
-                  <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
+                  <tr className="sticky top-0 z-10 border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
                     <th className="text-left px-4 py-3 font-semibold w-[16%]">Klant</th>
                     <th className="text-left px-4 py-3 font-semibold w-[12%]">Credit Nota Nr.</th>
                     <th className="text-left px-4 py-3 font-semibold w-[10%]">Datum</th>

@@ -74,7 +74,7 @@ export function EmailSentItems({ refreshTrigger }: Props) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="h-full min-h-0 flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-100">Verzonden Items</h3>
         <div className="flex items-center gap-3">
@@ -113,7 +113,7 @@ export function EmailSentItems({ refreshTrigger }: Props) {
           </p>
         </div>
       ) : (
-        <div className="space-y-1">
+        <div className="flex-1 min-h-0 overflow-auto space-y-1">
           {paginatedLogs.map((log) => {
             const status = statusConfig[log.status] || statusConfig.pending;
             const StatusIcon = status.icon;
