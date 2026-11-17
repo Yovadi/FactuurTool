@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { amsterdamCalendar } from '../utils/amsterdamCalendar';
-import { shiftYearMonth } from '../utils/leaseInvoiceEligibility';
+import { getCurrentDateString } from '../utils/dateHelpers';
+import { pastMonthsBefore, toYearMonth } from '../utils/leaseInvoiceEligibility';
 import { missingRentForPastMonths, type RentLease } from '../utils/leaseRentDraft';
 import { meetingBookingCharge } from '../utils/meetingInvoiceDraft';
 
@@ -27,10 +27,10 @@ export function useUnbilledItems() {
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    const currentMonth = amsterdamCalendar().yearMonth;
+    const today = await getCurrentDateString();
+    const currentMonth = toYearMonth(today);
     const currentMonthStart = `${currentMonth}-01`;
-    const pastMonths: string[] = [];
-    for (let offset = -6; offset < 0; offset += 1) pastMonths.push(shiftYearMonth(currentMonth, offset));
+    const pastMonths = pastMonthsBefore(today);
 
     const [
       { data: activeLeases },

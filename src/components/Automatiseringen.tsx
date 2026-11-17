@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { applyPendingIndexation, loadIndexationPreview } from '../utils/applyRentIndexation';
+import { applyPendingIndexation, loadIndexationHistory, loadIndexationPreview } from '../utils/applyRentIndexation';
+import type { IndexationHistoryRow } from '../utils/applyRentIndexation';
 import type { IndexationPreview } from '../utils/rentIndexation';
 import {
   Loader2, RefreshCw, CheckCircle2, Clock, FileText,
@@ -75,7 +76,7 @@ const JOB_META: Record<string, {
   },
   eboekhouden_payment_status_check: {
     label: 'Betaalstatus facturen controleren',
-    description: 'Controleert dagelijks de betaalstatus van verkoop- en inkoopfacturen in e-Boekhouden en werkt de lokale status bij.',
+    description: 'Controleert dagelijks de betaalstatus van verkoop- en inkoopfacturen in e-Boekhouden. Een deels betaalde verkoopfactuur wordt als deelbetaling opgeslagen. Staat er niets meer open, dan wordt de factuur betaald.',
     icon: <Receipt size={18} />,
     accentColor: 'blue',
     interval: 'Dagelijks (elke 24 uur)',
@@ -303,6 +304,7 @@ export function Automatiseringen() {
   const [indexationPreview, setIndexationPreview] = useState<IndexationPreview[]>([]);
   const [applyingIndexation, setApplyingIndexation] = useState(false);
   const [indexationMessage, setIndexationMessage] = useState('');
+  const [indexationHistory, setIndexationHistory] = useState<IndexationHistoryRow[]>([]);
   const [splitscreenEnabled, setSplitscreenEnabled] = useState(() => {
     return localStorage.getItem('hal5-splitscreen') === 'true';
   });
@@ -326,6 +328,7 @@ export function Automatiseringen() {
       setIndexationPercentage(percentage);
       setIndexationPreview(await loadIndexationPreview(percentage));
     }
+    setIndexationHistory(await loadIndexationHistory());
     setLoading(false);
   };
 
@@ -350,9 +353,11 @@ export function Automatiseringen() {
       if (existing?.id) {
         await supabase.from('company_settings').update({ rent_indexation_percentage: indexationPercentage }).eq('id', existing.id);
       }
-      const count = await applyPendingIndexation(indexationPercentage);
-      setIndexationMessage(count > 0 ? `${count} contracten verhoogd.` : 'Er stond niets open om te verhogen.');
+      const result = await applyPendingIndexation(indexationPercentage);
+      const saved = result.historySaved ? '' : ' De geschiedenis is niet opgeslagen. Plak het SQL-script voor de verhogingsgeschiedenis in Supabase.';
+      setIndexationMessage(result.applied > 0 ? `${result.applied} contracten verhoogd.${saved}` : 'Er stond niets open om te verhogen.');
       setIndexationPreview(await loadIndexationPreview(indexationPercentage));
+      setIndexationHistory(await loadIndexationHistory());
     } catch (error) {
       console.error(error);
       setIndexationMessage('De verhoging is niet doorgevoerd. Probeer het opnieuw.');
@@ -462,6 +467,18 @@ export function Automatiseringen() {
         </div>
       )}
       {indexationMessage && <p className="text-xs text-gray-300 mt-2">{indexationMessage}</p>}
+      <div className="mt-3 space-y-1">
+        <p className="text-xs font-medium text-gray-300">Eerdere verhogingen</p>
+        {indexationHistory.length === 0 && (
+          <p className="text-xs text-gray-500">Nog geen verhoging doorgevoerd.</p>
+        )}
+        {indexationHistory.map((row) => (
+            <div key={row.id} className="flex items-center justify-between gap-3 text-xs text-gray-400">
+              <span>{row.applied_on.slice(0, 10).split('-').reverse().join('-')} · {row.tenant_name} · {Number(row.percentage)}%</span>
+              <span>€ {Number(row.old_monthly_rent).toFixed(2)} → € {Number(row.new_monthly_rent).toFixed(2)}</span>
+            </div>
+        ))}
+      </div>
     </div>
   );
 

@@ -32,6 +32,18 @@ type UblInvoiceInput = {
   total: number;
 };
 
+/** NLCIUS: S is a normal VAT rate. O is "niet van toepassing", without a percentage. */
+export function ublTaxCategory(vatRate: number): { id: 'S' | 'O'; percent: number | null } {
+  if (!(Number(vatRate) > 0)) return { id: 'O', percent: null };
+  return { id: 'S', percent: Number(vatRate) };
+}
+
+function taxCategoryXml(vatRate: number): string {
+  const category = ublTaxCategory(vatRate);
+  const percent = category.percent === null ? '' : `<cbc:Percent>${category.percent}</cbc:Percent>`;
+  return `<cbc:ID>${category.id}</cbc:ID>${percent}<cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>`;
+}
+
 function xmlEscape(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -51,9 +63,7 @@ export function buildUblInvoiceXml(input: UblInvoiceInput): string {
         <cbc:Description>${xmlEscape(line.description)}</cbc:Description>
         <cbc:Name>${xmlEscape(line.description)}</cbc:Name>
         <cac:ClassifiedTaxCategory>
-          <cbc:ID>S</cbc:ID>
-          <cbc:Percent>${input.vatRate}</cbc:Percent>
-          <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>
+          ${taxCategoryXml(input.vatRate)}
         </cac:ClassifiedTaxCategory>
       </cac:Item>
       <cac:Price>
@@ -103,9 +113,7 @@ export function buildUblInvoiceXml(input: UblInvoiceInput): string {
       <cbc:TaxableAmount currencyID="${currency}">${input.subtotal.toFixed(2)}</cbc:TaxableAmount>
       <cbc:TaxAmount currencyID="${currency}">${input.vatAmount.toFixed(2)}</cbc:TaxAmount>
       <cac:TaxCategory>
-        <cbc:ID>S</cbc:ID>
-        <cbc:Percent>${input.vatRate}</cbc:Percent>
-        <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>
+        ${taxCategoryXml(input.vatRate)}
       </cac:TaxCategory>
     </cac:TaxSubtotal>
   </cac:TaxTotal>

@@ -7,6 +7,7 @@ import {
   isLeaseEligibleForInvoiceMonth,
   resolveDepositInvoice,
   resolveLeaseInvoiceTarget,
+  pastMonthsBefore,
   shiftYearMonth,
   toYearMonth,
 } from './leaseInvoiceEligibility';
@@ -25,6 +26,9 @@ assert(toYearMonth('2027-01-01') === '2027-01', 'toYearMonth from date');
 assert(toYearMonth('2027-01') === '2027-01', 'toYearMonth from month');
 assert(shiftYearMonth('2027-01', -1) === '2026-12', 'lead month for january start');
 assert(shiftYearMonth('2026-12', 1) === '2027-01', 'next month after december');
+const past = pastMonthsBefore('2027-02-15');
+assert(past[0] === '2026-08' && past[past.length - 1] === '2027-01', 'unbilled months follow the test date');
+assert(!past.includes('2027-02'), 'the current test month is not yet unbilled');
 assert(getLeaseStartMonth(trackLab) === '2027-01', 'TrackLab start month');
 assert(getLeaseLeadMonth(trackLab) === '2026-12', 'TrackLab lead month');
 

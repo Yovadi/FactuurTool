@@ -1333,6 +1333,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         vat_amount: invoice.vat_amount,
         vat_rate: invoice.vat_rate,
         vat_inclusive: invoice.vat_inclusive,
+        applied_credit: invoice.applied_credit,
+        paid_amount: invoice.paid_amount,
         due_date: invoice.due_date,
         invoice_date: invoice.invoice_date,
         company: {
@@ -2721,6 +2723,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       vat_amount: previewInvoice.invoice.vat_amount,
       vat_rate: previewInvoice.invoice.vat_rate,
       vat_inclusive: previewInvoice.invoice.vat_inclusive,
+      applied_credit: previewInvoice.invoice.applied_credit,
+      paid_amount: previewInvoice.invoice.paid_amount,
       due_date: previewInvoice.invoice.due_date,
       invoice_date: previewInvoice.invoice.invoice_date,
       company: companySettings ? {
