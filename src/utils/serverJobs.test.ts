@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { runsOnServer } from './scheduledJobs.ts';
+import { runsOnServer } from './serverJobTypes';
 
 assert.equal(runsOnServer('generate_monthly_invoices'), true);
 assert.equal(runsOnServer('generate_meeting_room_invoices'), true);

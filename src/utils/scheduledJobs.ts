@@ -7,6 +7,8 @@ import { addCalendarDays, amsterdamCalendar, amsterdamNextMonthStart } from './a
 import { buildLeaseRentDraft } from './leaseRentDraft';
 import { buildMeetingInvoiceDraft, groupMeetingBookings, previousAmsterdamMonth } from './meetingInvoiceDraft';
 
+export { SERVER_SKIP_JOB_TYPES, runsOnServer } from './serverJobTypes';
+
 export interface ScheduledJob {
   id: string;
   job_type: string;
@@ -14,19 +16,6 @@ export interface ScheduledJob {
   next_run_at: string | null;
   is_enabled: boolean;
   created_at: string;
-}
-
-/** Jobs that need the open Windows app: a PDF on disk, or the e-Boekhouden session. */
-export const SERVER_SKIP_JOB_TYPES = new Set([
-  'eboekhouden_payment_status_check',
-  'eboekhouden_sync_verification',
-  'eboekhouden_relation_verification',
-  'send_invoice_reminders',
-  'generate_flex_invoices',
-]);
-
-export function runsOnServer(jobType: string): boolean {
-  return !SERVER_SKIP_JOB_TYPES.has(jobType);
 }
 
 export const checkAndRunScheduledJobs = async (options?: { skip?: Set<string> }): Promise<string[]> => {
