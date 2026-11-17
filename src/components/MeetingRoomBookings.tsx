@@ -12,6 +12,7 @@ import { downloadIcs, bookingDateTime } from '../utils/icsExport';
 import { syncBookingToOutlook } from '../utils/calendarSync';
 import { downloadCsv } from '../utils/csvExport';
 import { logAudit } from '../utils/auditLog';
+import { getCurrentDateString } from '../utils/dateHelpers';
 import type { CompanySettings } from '../lib/supabase';
 
 type NotificationType = 'success' | 'error' | 'info';
@@ -192,7 +193,7 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
     }
     if (settingsData) setCompanySettings(settingsData as CompanySettings);
 
-    const todayAutoStr = new Date().toISOString().split('T')[0];
+    const todayAutoStr = await getCurrentDateString();
     const pastConfirmed = (bookingsData || []).filter(
       (b: any) => b.status === 'confirmed' && b.booking_date < todayAutoStr
     );

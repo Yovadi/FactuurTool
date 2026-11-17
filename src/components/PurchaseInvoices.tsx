@@ -8,6 +8,7 @@ import { ConfirmModal } from './ConfirmModal';
 import { Pagination } from './Pagination';
 import { syncPurchaseInvoiceToEBoekhouden } from '../lib/eboekhoudenSync';
 import { SkeletonTable } from './SkeletonLoader';
+import { amsterdamCalendar } from '../utils/amsterdamCalendar';
 
 type LineItem = {
   id?: string;
@@ -96,7 +97,7 @@ const emptyForm: FormData = {
   supplier_vat_number: '',
   supplier_kvk_number: '',
   supplier_iban: '',
-  invoice_date: new Date().toISOString().split('T')[0],
+  invoice_date: amsterdamCalendar().date,
   due_date: '',
   vat_rate: 21,
   category: '',
@@ -374,7 +375,7 @@ export function PurchaseInvoices() {
           supplier_vat_number: data.supplier_vat_number || '',
           supplier_kvk_number: data.supplier_kvk_number || '',
           supplier_iban: data.supplier_iban || '',
-          invoice_date: data.invoice_date || new Date().toISOString().split('T')[0],
+          invoice_date: data.invoice_date || amsterdamCalendar().date,
           due_date: data.due_date || null,
           subtotal,
           vat_amount: vatAmount,

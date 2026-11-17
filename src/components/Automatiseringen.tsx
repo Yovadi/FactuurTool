@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { applyPendingIndexation, loadIndexationPreview } from '../utils/applyRentIndexation';
+import type { IndexationPreview } from '../utils/rentIndexation';
 import {
   Loader2, RefreshCw, CheckCircle2, Clock, FileText,
   Receipt, Link2, Users, Calendar, ChevronDown, ChevronUp, Play, DoorOpen,
@@ -49,7 +51,7 @@ const JOB_META: Record<string, {
   },
   apply_rent_indexation: {
     label: 'Jaarlijkse huurprijsverhoging toepassen',
-    description: 'Past jaarlijks op 1 januari automatisch het ingestelde verhogingspercentage toe op alle actieve huurcontracten (alleen vaste huur). Elk contract wordt maximaal één keer per jaar verhoogd.',
+    description: 'Laat op 1 januari een melding zien dat de huurprijsverhoging klaarstaat. De maandhuur verandert pas als je de verhoging hier zelf doorvoert. Elk contract gaat maximaal één keer per jaar omhoog.',
     icon: <TrendingUp size={18} />,
     accentColor: 'amber',
     interval: 'Jaarlijks (1 januari)',
@@ -147,11 +149,12 @@ function getNextRunStatus(next_run_at: string | null, is_enabled: boolean): {
   return { label: `Over ${mins}m`, color: 'amber' };
 }
 
-function JobCard({ job, onToggle, onRunNow, extraConfig }: {
+function JobCard({ job, onToggle, onRunNow, extraConfig, hideRunNow }: {
   job: ScheduledJob;
   onToggle: (id: string, enabled: boolean) => void;
   onRunNow: (id: string, jobType: string) => void;
   extraConfig?: React.ReactNode;
+  hideRunNow?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [toggling, setToggling] = useState(false);
@@ -264,7 +267,7 @@ function JobCard({ job, onToggle, onRunNow, extraConfig }: {
             </div>
           </div>
 
-          {job.is_enabled && (
+          {job.is_enabled && !hideRunNow && (
             <div className="flex items-center gap-3">
               <button
                 onClick={handleRunNow}
@@ -297,6 +300,9 @@ export function Automatiseringen() {
   const [eboekhoudenEnabled, setEboekhoudenEnabled] = useState(false);
   const [indexationPercentage, setIndexationPercentage] = useState<number>(0);
   const [savingPercentage, setSavingPercentage] = useState(false);
+  const [indexationPreview, setIndexationPreview] = useState<IndexationPreview[]>([]);
+  const [applyingIndexation, setApplyingIndexation] = useState(false);
+  const [indexationMessage, setIndexationMessage] = useState('');
   const [splitscreenEnabled, setSplitscreenEnabled] = useState(() => {
     return localStorage.getItem('hal5-splitscreen') === 'true';
   });
@@ -316,9 +322,43 @@ export function Automatiseringen() {
     if (jobsResult.data) setJobs(jobsResult.data);
     if (settingsResult.data) {
       setEboekhoudenEnabled(settingsResult.data.eboekhouden_enabled ?? false);
-      setIndexationPercentage(settingsResult.data.rent_indexation_percentage ?? 0);
+      const percentage = settingsResult.data.rent_indexation_percentage ?? 0;
+      setIndexationPercentage(percentage);
+      setIndexationPreview(await loadIndexationPreview(percentage));
     }
     setLoading(false);
+  };
+
+  const handleApplyIndexation = async () => {
+    if (!(indexationPercentage > 0)) {
+      setIndexationMessage('Vul eerst een percentage in en sla het op.');
+      return;
+    }
+    setApplyingIndexation(true);
+    setIndexationMessage('');
+    try {
+      const fresh = await loadIndexationPreview(indexationPercentage);
+      setIndexationPreview(fresh);
+      if (fresh.length === 0) {
+        setIndexationMessage('Er stond niets open om te verhogen.');
+        return;
+      }
+      const names = fresh.map((lease) => `${lease.tenantName} (€ ${lease.totalOld.toFixed(2)} → € ${lease.totalNew.toFixed(2)})`).join(', ');
+      if (!window.confirm(`Huurprijzen met ${indexationPercentage}% verhogen voor: ${names}?`)) return;
+
+      const { data: existing } = await supabase.from('company_settings').select('id').maybeSingle();
+      if (existing?.id) {
+        await supabase.from('company_settings').update({ rent_indexation_percentage: indexationPercentage }).eq('id', existing.id);
+      }
+      const count = await applyPendingIndexation(indexationPercentage);
+      setIndexationMessage(count > 0 ? `${count} contracten verhoogd.` : 'Er stond niets open om te verhogen.');
+      setIndexationPreview(await loadIndexationPreview(indexationPercentage));
+    } catch (error) {
+      console.error(error);
+      setIndexationMessage('De verhoging is niet doorgevoerd. Probeer het opnieuw.');
+    } finally {
+      setApplyingIndexation(false);
+    }
   };
 
   const handleRefresh = async () => {
@@ -360,6 +400,7 @@ export function Automatiseringen() {
       await supabase.from('company_settings').update({ rent_indexation_percentage: value }).eq('id', existing.id);
     }
     setIndexationPercentage(value);
+    setIndexationPreview(await loadIndexationPreview(value));
     setSavingPercentage(false);
   };
 
@@ -382,7 +423,7 @@ export function Automatiseringen() {
   const indexationConfig = (
     <div className="space-y-2">
       <p className="text-xs font-medium text-gray-300">Verhogingspercentage (%)</p>
-      <p className="text-xs text-gray-500">Dit percentage wordt jaarlijks op 1 januari toegepast op de huurprijs van alle actieve vaste huurcontracten.</p>
+      <p className="text-xs text-gray-500">Het percentage wordt bewaard, maar de huur gaat pas omhoog als je hier op Doorvoeren klikt.</p>
       <div className="flex items-center gap-3 mt-2">
         <input
           type="number"
@@ -403,6 +444,24 @@ export function Automatiseringen() {
           Opslaan
         </button>
       </div>
+      {indexationPreview.length > 0 && (
+        <div className="mt-3 space-y-2">
+          {indexationPreview.map((lease) => (
+            <div key={lease.leaseId} className="flex items-center justify-between text-xs text-gray-300">
+              <span>{lease.tenantName}</span>
+              <span>€ {lease.totalOld.toFixed(2)} → € {lease.totalNew.toFixed(2)} / maand</span>
+            </div>
+          ))}
+          <button
+            onClick={handleApplyIndexation}
+            disabled={applyingIndexation}
+            className="mt-2 bg-amber-600 hover:bg-amber-700 text-white text-xs px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+          >
+            {applyingIndexation ? 'Bezig...' : 'Doorvoeren'}
+          </button>
+        </div>
+      )}
+      {indexationMessage && <p className="text-xs text-gray-300 mt-2">{indexationMessage}</p>}
     </div>
   );
 
@@ -534,6 +593,7 @@ export function Automatiseringen() {
               onToggle={handleToggle}
               onRunNow={handleRunNow}
               extraConfig={job.job_type === 'apply_rent_indexation' ? indexationConfig : undefined}
+              hideRunNow={job.job_type === 'apply_rent_indexation'}
             />
           ))}
         </div>

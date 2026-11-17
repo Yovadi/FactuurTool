@@ -1,6 +1,8 @@
 import { supabase } from './supabase';
 import type { Invoice, InvoiceLineItem, Tenant, ExternalCustomer, CompanySettings, PurchaseInvoice, PurchaseInvoiceLineItem, CreditNote, CreditNoteLineItem } from './supabase';
 import { createRelation, getRelation, updateRelation, createInvoice as ebCreateInvoice, createMutation, getInvoice as ebGetInvoice, getMutation as ebGetMutation } from './eboekhouden';
+import { amsterdamCalendar } from '../utils/amsterdamCalendar';
+import { openInvoiceAmount } from '../utils/invoiceBalance';
 
 const VAT_CODE_MAP: Record<number, string> = {
   21: 'HOOG_VERK_21',
@@ -566,6 +568,22 @@ export async function checkInvoicePaymentStatuses(
             .from('invoices')
             .update({ status: 'paid', paid_at: new Date().toISOString() })
             .eq('id', inv.id);
+          const { data: row } = await supabase
+            .from('invoices')
+            .select('amount, applied_credit, paid_amount')
+            .eq('id', inv.id)
+            .maybeSingle();
+          if (row) {
+            const open = openInvoiceAmount(Number(row.amount), Number(row.applied_credit) || 0, Number(row.paid_amount) || 0);
+            if (open > 0.009) {
+              await supabase.from('invoice_payments').insert({
+                invoice_id: inv.id,
+                amount: open,
+                paid_on: amsterdamCalendar().date,
+                note: 'e-Boekhouden',
+              });
+            }
+          }
           updated++;
         }
       }

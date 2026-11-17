@@ -5,6 +5,7 @@ import { createSettingsBackup } from './settingsBackup';
 import { addCalendarDays, amsterdamInstant, amsterdamNextMonthStart } from './amsterdamCalendar';
 import { getCurrentDate, getCurrentDateString } from './dateHelpers';
 import { buildLeaseRentDraft } from './leaseRentDraft';
+import { pendingIndexation } from './rentIndexation';
 import { buildMeetingInvoiceDraft, groupMeetingBookings, previousAmsterdamMonth } from './meetingInvoiceDraft';
 
 export { SERVER_SKIP_JOB_TYPES, runsOnServer } from './serverJobTypes';
@@ -299,41 +300,42 @@ const applyRentIndexation = async (job: ScheduledJob) => {
       return;
     }
 
-    for (const lease of leases as any[]) {
-      if (lease.last_indexation_at && lease.last_indexation_at >= currentYearStart) continue;
+    const pending = pendingIndexation(
+      (leases as any[]).map((lease) => {
+        const tenant = Array.isArray(lease.tenant) ? lease.tenant[0] : lease.tenant;
+        return {
+          id: lease.id,
+          tenant_id: lease.tenant_id,
+          tenantName: tenant?.company_name || 'Onbekende huurder',
+          last_indexation_at: lease.last_indexation_at,
+          spaces: (lease.lease_spaces || []).map((space: any) => ({
+            id: space.id,
+            monthly_rent: Number(space.monthly_rent) || 0,
+            price_per_sqm: Number(space.price_per_sqm) || 0,
+          })),
+        };
+      }),
+      percentage,
+      currentYearStart
+    );
 
-      const multiplier = 1 + percentage / 100;
-      const tenantName = lease.tenant?.company_name || 'Onbekende huurder';
-      let totalOld = 0;
-      let totalNew = 0;
+    if (pending.length > 0) {
+      const yearStart = amsterdamInstant(currentYear, 1, 1, 0, 0).toISOString();
+      const { data: existing } = await supabase
+        .from('admin_notifications')
+        .select('id')
+        .eq('notification_type', 'rent_indexation_ready')
+        .gte('created_at', yearStart)
+        .limit(1);
 
-      for (const ls of lease.lease_spaces) {
-        const oldRent = Number(ls.monthly_rent);
-        const newRent = Math.round(oldRent * multiplier * 100) / 100;
-        const oldPricePerSqm = Number(ls.price_per_sqm);
-        const newPricePerSqm = Math.round(oldPricePerSqm * multiplier * 100) / 100;
-
-        await supabase
-          .from('lease_spaces')
-          .update({ monthly_rent: newRent, price_per_sqm: newPricePerSqm })
-          .eq('id', ls.id);
-
-        totalOld += oldRent;
-        totalNew += newRent;
+      if (!existing?.length) {
+        await supabase.from('admin_notifications').insert({
+          notification_type: 'rent_indexation_ready',
+          title: 'Huurprijsverhoging staat klaar',
+          message: `${pending.length} contracten kunnen met ${percentage}% omhoog. Voer de verhoging door bij Automatiseringen.`,
+          is_read: false,
+        });
       }
-
-      await supabase
-        .from('leases')
-        .update({ last_indexation_at: todayStr })
-        .eq('id', lease.id);
-
-      await createLeaseNotification(
-        'rent_indexation_applied',
-        lease.id,
-        tenantName,
-        `${percentage}% verhoging: €${totalOld.toFixed(2)} → €${totalNew.toFixed(2)}/maand`,
-        lease.tenant_id
-      );
     }
 
     const nextYear = amsterdamInstant(currentYear + 1, 1, 1, 0, 15);
