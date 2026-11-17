@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { invoiceFullyCovered } from '../utils/creditPrefill';
+import { openInvoiceAmount } from '../utils/invoiceBalance';
 import { X, Link, DollarSign, Send, CheckCircle } from 'lucide-react';
 
 type CreditNote = {
@@ -121,6 +122,15 @@ export function CreditNoteApplications({ creditNote, onClose, onApplied }: Credi
       return;
     }
 
+    const targetBefore = customerInvoices.find((invoice) => invoice.id === linkFormData.invoice_id);
+    const openBefore = targetBefore
+      ? openInvoiceAmount(targetBefore.amount, targetBefore.applied_credit, targetBefore.paid_amount)
+      : 0;
+    if (targetBefore && linkFormData.amount > openBefore + 0.009) {
+      alert('Bedrag kan niet hoger zijn dan het openstaande factuurbedrag');
+      return;
+    }
+
     const { error } = await supabase
       .from('credit_note_applications')
       .insert({
@@ -132,13 +142,14 @@ export function CreditNoteApplications({ creditNote, onClose, onApplied }: Credi
 
     if (error) {
       console.error('Error applying credit:', error);
-      alert('Fout bij toepassen credit');
+      alert(error.message?.includes('overschrijdt') ? error.message : 'Fout bij toepassen credit');
       return;
     }
 
     const target = customerInvoices.find((invoice) => invoice.id === linkFormData.invoice_id);
-    if (target && invoiceFullyCovered(target.amount, target.applied_credit, linkFormData.amount)) {
-      await supabase.from('invoices').update({ status: 'credited' }).eq('id', target.id);
+    if (target && invoiceFullyCovered(target.amount, (target.applied_credit || 0) + (target.paid_amount || 0), linkFormData.amount)) {
+      const status = (target.paid_amount || 0) > 0.009 ? 'paid' : 'credited';
+      await supabase.from('invoices').update({ status }).eq('id', target.id);
     }
 
     await loadData();
@@ -388,7 +399,7 @@ export function CreditNoteApplications({ creditNote, onClose, onApplied }: Credi
                     const invoice = customerInvoices.find(inv => inv.id === e.target.value);
                     setLinkFormData({
                       invoice_id: e.target.value,
-                      amount: invoice ? Math.min(availableCredit, invoice.amount - (invoice.applied_credit || 0)) : 0,
+                      amount: invoice ? Math.min(availableCredit, openInvoiceAmount(invoice.amount, invoice.applied_credit, invoice.paid_amount)) : 0,
                     });
                   }}
                   className="w-full px-3 py-2 bg-dark-800 border border-dark-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -397,7 +408,7 @@ export function CreditNoteApplications({ creditNote, onClose, onApplied }: Credi
                   <option value="">Selecteer een factuur</option>
                   {customerInvoices.map((invoice) => (
                     <option key={invoice.id} value={invoice.id}>
-                      {invoice.invoice_number} - {formatCurrency(invoice.amount - (invoice.applied_credit || 0))} openstaand
+                      {invoice.invoice_number} - {formatCurrency(openInvoiceAmount(invoice.amount, invoice.applied_credit, invoice.paid_amount))} openstaand
                     </option>
                   ))}
                 </select>

@@ -4,6 +4,8 @@ import { TrendingUp, Euro, FileText, DollarSign, Calendar, Download, Users, BarC
 import { BookingOverview } from './BookingOverview';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { SkeletonTable } from './SkeletonLoader';
+import { amsterdamCalendar } from '../utils/amsterdamCalendar';
+import { openInvoiceAmount } from '../utils/invoiceBalance';
 
 type YearlyData = {
   year: number;
@@ -51,17 +53,21 @@ export function Analytics() {
 
   const loadAllData = async () => {
     setLoading(true);
+    const invoiceColumns = 'invoice_date, amount, status, due_date, lease_id, tenant_id, vat_amount, vat_rate, subtotal, applied_credit, paid_amount';
     const [
-      { data: invoicesData },
+      invoiceResult,
       { data: leaseSpData },
       { data: tenantsData },
       { data: externalData },
     ] = await Promise.all([
-      supabase.from('invoices').select('invoice_date, amount, status, due_date, lease_id, tenant_id, vat_amount, vat_rate, subtotal'),
+      supabase.from('invoices').select(invoiceColumns),
       supabase.from('lease_spaces').select('monthly_rent, lease_id, leases!inner(status, start_date, end_date)'),
       supabase.from('tenants').select('id, company_name').order('company_name'),
       supabase.from('external_customers').select('id, company_name').order('company_name'),
     ]);
+    const invoicesData = invoiceResult.error
+      ? (await supabase.from('invoices').select('invoice_date, amount, status, due_date, lease_id, tenant_id, vat_amount, vat_rate, subtotal')).data
+      : invoiceResult.data;
 
     setAllInvoices(invoicesData || []);
     setLeaseSpacesData(leaseSpData || []);
@@ -72,15 +78,14 @@ export function Analytics() {
 
   const computedStats = useMemo(() => {
     const invoices = allInvoices;
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
+    const todayStr = amsterdamCalendar().date;
 
     const totalRevenue = invoices.filter(inv => inv.status !== 'credited')
       .reduce((sum, inv) => sum + Number(inv.amount), 0);
     const paidRevenue = invoices.filter(inv => inv.status === 'paid')
       .reduce((sum, inv) => sum + Number(inv.amount), 0);
     const pendingAmount = invoices.filter(inv => inv.status !== 'paid' && inv.status !== 'credited')
-      .reduce((sum, inv) => sum + Number(inv.amount), 0);
+      .reduce((sum, inv) => sum + openInvoiceAmount(Number(inv.amount), Number(inv.applied_credit) || 0, Number(inv.paid_amount) || 0), 0);
 
     const paidInvoices = invoices.filter(inv => inv.status === 'paid').length;
     const pendingInvoices = invoices.filter(inv => inv.status !== 'paid' && inv.status !== 'credited').length;
@@ -90,7 +95,7 @@ export function Analytics() {
 
     const overdueAmount = invoices.filter(
       inv => inv.status !== 'paid' && inv.status !== 'credited' && inv.due_date < todayStr
-    ).reduce((sum, inv) => sum + Number(inv.amount), 0);
+    ).reduce((sum, inv) => sum + openInvoiceAmount(Number(inv.amount), Number(inv.applied_credit) || 0, Number(inv.paid_amount) || 0), 0);
 
     const activeLeaseSpaces = leaseSpacesData.filter(ls => {
       const lease = ls.leases;

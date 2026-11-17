@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Euro, FileText, AlertTriangle, CheckCircle, Clock, TrendingUp, Loader2 } from 'lucide-react';
+import { amsterdamCalendar } from '../utils/amsterdamCalendar';
+import { openInvoiceAmount } from '../utils/invoiceBalance';
 
 type SummaryStats = {
   draftCount: number;
@@ -31,16 +33,16 @@ export function QuickSummaryPanel() {
   }, []);
 
   const loadStats = async () => {
-    const now = new Date();
-    const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+    const monthStart = `${amsterdamCalendar().yearMonth}-01`;
 
     const [invoicesResult, creditNotesResult, purchaseResult] = await Promise.all([
-      supabase.from('invoices').select('status, amount, paid_at'),
+      supabase.from('invoices').select('status, amount, paid_at, applied_credit, paid_amount'),
       supabase.from('credit_notes').select('status, total_amount'),
       supabase.from('purchase_invoices').select('status, total_amount'),
     ]);
-
-    const invoices = invoicesResult.data || [];
+    const invoices = invoicesResult.error
+      ? (await supabase.from('invoices').select('status, amount, paid_at')).data || []
+      : invoicesResult.data || [];
     const creditNotes = creditNotesResult.data || [];
     const purchases = purchaseResult.data || [];
 
@@ -58,9 +60,9 @@ export function QuickSummaryPanel() {
       draftCount: draft.length,
       draftAmount: draft.reduce((s, i) => s + (i.amount || 0), 0),
       openCount: open.length,
-      openAmount: open.reduce((s, i) => s + (i.amount || 0), 0),
+      openAmount: open.reduce((s, i) => s + openInvoiceAmount(i.amount || 0, i.applied_credit || 0, i.paid_amount || 0), 0),
       overdueCount: overdue.length,
-      overdueAmount: overdue.reduce((s, i) => s + (i.amount || 0), 0),
+      overdueAmount: overdue.reduce((s, i) => s + openInvoiceAmount(i.amount || 0, i.applied_credit || 0, i.paid_amount || 0), 0),
       paidThisMonth: paidThisMonth.length,
       paidThisMonthAmount: paidThisMonth.reduce((s, i) => s + (i.amount || 0), 0),
       creditNotesOpen: openCredits.length,

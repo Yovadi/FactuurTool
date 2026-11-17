@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { amountWithEmbeddedVat } from '../utils/zeroVatPrice';
 import { ChevronLeft, ChevronRight, X, CheckCircle, XCircle, Info, Repeat } from 'lucide-react';
 import { RecurringBookingModal } from './RecurringBookingModal';
+import { getCurrentDateString } from '../utils/dateHelpers';
 
 type NotificationType = 'success' | 'error' | 'info';
 
@@ -713,7 +714,7 @@ export function BookingCalendar({ onBookingChange, loggedInTenantId = null, book
     }
 
     if (selectedBooking.recurring_pattern_id && deleteOption === 'all') {
-      const today = new Date().toISOString().split('T')[0];
+      const today = await getCurrentDateString();
 
       const { error: patternError } = await supabase
         .from('recurring_booking_patterns')

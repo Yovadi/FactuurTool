@@ -3,6 +3,8 @@ import { X, Download, Send, CreditCard as Edit, Receipt, FileText, Loader2, Rota
 import { supabase } from '../lib/supabase';
 import { generateInvoicePDFBlobUrl } from '../utils/pdfGenerator';
 import { isBorgfactuurNote } from '../utils/leaseInvoiceEligibility';
+import { amsterdamCalendar } from '../utils/amsterdamCalendar';
+import { openInvoiceAmount } from '../utils/invoiceBalance';
 
 interface InvoiceSpace {
   space_name: string;
@@ -38,6 +40,7 @@ interface InvoicePreviewProps {
     status: string;
     notes?: string;
     applied_credit?: number;
+    paid_amount?: number;
   };
   tenant: {
     name?: string;
@@ -71,6 +74,7 @@ interface InvoicePreviewProps {
   onSend?: () => void;
   onEdit?: () => void;
   onMarkAsPaid?: () => void;
+  onPaymentRecorded?: () => void;
   onCreateCreditNote?: () => void;
   onRevertToDraft?: () => void;
   onDelete?: () => void;
@@ -89,12 +93,19 @@ export function InvoicePreview({
   onSend,
   onEdit,
   onMarkAsPaid,
+  onPaymentRecorded,
   onCreateCreditNote,
   onRevertToDraft,
   onDelete,
   inline = false,
 }: InvoicePreviewProps) {
   const [creditApplications, setCreditApplications] = useState<CreditApplication[]>([]);
+  const [payments, setPayments] = useState<{ id: string; amount: number; paid_on: string; note: string | null }[]>([]);
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentDate, setPaymentDate] = useState(() => amsterdamCalendar().date);
+  const [paymentError, setPaymentError] = useState('');
+  const [paymentBusy, setPaymentBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
@@ -127,6 +138,54 @@ export function InvoicePreview({
       setLoading(false);
     }
   }, [invoice?.id]);
+
+  const recordedPaid = payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
+  const openAmount = openInvoiceAmount(
+    invoice.amount,
+    invoice.applied_credit || 0,
+    Math.max(Number(invoice.paid_amount) || 0, recordedPaid)
+  );
+
+  const loadPayments = async () => {
+    if (!invoice?.id) return;
+    const { data, error } = await supabase
+      .from('invoice_payments')
+      .select('id, amount, paid_on, note')
+      .eq('invoice_id', invoice.id)
+      .order('paid_on', { ascending: false });
+    if (!error && data) setPayments(data);
+  };
+
+  useEffect(() => {
+    loadPayments();
+  }, [invoice?.id]);
+
+  const recordPayment = async () => {
+    if (!invoice.id) return;
+    const amount = Number(paymentAmount);
+    if (!(amount > 0) || amount > openAmount + 0.009) {
+      setPaymentError('Het bedrag mag niet hoger zijn dan het openstaande bedrag.');
+      return;
+    }
+    setPaymentBusy(true);
+    setPaymentError('');
+    const { error } = await supabase.from('invoice_payments').insert({
+      invoice_id: invoice.id,
+      amount,
+      paid_on: paymentDate,
+    });
+    setPaymentBusy(false);
+    if (error) {
+      setPaymentError(/invoice_payments|schema cache|paid_amount/i.test(error.message || '')
+        ? 'De betalingstabel ontbreekt nog. Plak het SQL-script in Supabase.'
+        : 'De betaling is niet opgeslagen.');
+      return;
+    }
+    setShowPaymentForm(false);
+    setPaymentAmount('');
+    await loadPayments();
+    onPaymentRecorded?.();
+  };
 
   useEffect(() => {
     if (!invoice || !tenant) return;
@@ -291,6 +350,20 @@ export function InvoicePreview({
           <span className="text-sm font-medium">Betaald</span>
         </button>
       )}
+      {(invoice.status === 'sent' || invoice.status === 'overdue') && invoice.id && openAmount > 0.009 && (
+        <button
+          onClick={() => {
+            setPaymentAmount(openAmount.toFixed(2));
+            setPaymentDate(amsterdamCalendar().date);
+            setPaymentError('');
+            setShowPaymentForm((open) => !open);
+          }}
+          className="flex items-center gap-1.5 bg-dark-700 hover:bg-dark-600 text-gray-100 transition-colors px-3 py-1.5 rounded-lg border border-dark-500"
+          title="Deelbetaling registreren"
+        >
+          <span className="text-sm font-medium">Deelbetaling</span>
+        </button>
+      )}
       {onRevertToDraft && (
         <button
           onClick={onRevertToDraft}
@@ -320,6 +393,47 @@ export function InvoicePreview({
       )}
     </div>
   );
+
+  const paymentPanel = (showPaymentForm || payments.length > 0) ? (
+    <div className="mt-3 bg-dark-900 border border-dark-700 rounded-lg p-3 space-y-2">
+      {payments.length > 0 && payments.map((payment) => (
+        <div key={payment.id} className="flex justify-between text-xs text-gray-300">
+          <span>{payment.paid_on}{payment.note ? ` · ${payment.note}` : ''}</span>
+          <span>€ {Number(payment.amount).toFixed(2)}</span>
+        </div>
+      ))}
+      <div className="flex justify-between text-sm text-gold-400 font-medium">
+        <span>Openstaand</span>
+        <span>€ {openAmount.toFixed(2)}</span>
+      </div>
+      {showPaymentForm && (
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            type="number"
+            min="0.01"
+            step="0.01"
+            value={paymentAmount}
+            onChange={(event) => setPaymentAmount(event.target.value)}
+            className="w-28 bg-dark-800 border border-dark-600 text-gray-100 text-sm rounded px-2 py-1"
+          />
+          <input
+            type="date"
+            value={paymentDate}
+            onChange={(event) => setPaymentDate(event.target.value)}
+            className="bg-dark-800 border border-dark-600 text-gray-100 text-sm rounded px-2 py-1"
+          />
+          <button
+            onClick={recordPayment}
+            disabled={paymentBusy}
+            className="bg-emerald-600 hover:bg-emerald-500 text-white text-sm px-3 py-1 rounded disabled:opacity-50"
+          >
+            {paymentBusy ? 'Opslaan...' : 'Opslaan'}
+          </button>
+        </div>
+      )}
+      {paymentError && <p className="text-xs text-red-400">{paymentError}</p>}
+    </div>
+  ) : null;
 
   const htmlPreviewContent = (
     <div className="p-6 space-y-6">
@@ -536,7 +650,7 @@ export function InvoicePreview({
               </div>
               <div className="flex justify-between text-xl font-bold text-gold-400 pt-2 border-t-2 border-dark-700">
                 <span>Openstaand Bedrag:</span>
-                <span>€ {(invoice.amount - invoice.applied_credit).toFixed(2)}</span>
+                <span>€ {openAmount.toFixed(2)}</span>
               </div>
             </>
           )}
@@ -559,6 +673,7 @@ export function InvoicePreview({
             </button>
           </div>
           {actionButtons}
+          {paymentPanel}
         </div>
         <div className="flex-1 overflow-hidden bg-gray-700">
           {pdfLoading ? (
@@ -600,6 +715,7 @@ export function InvoicePreview({
         <div className="flex-shrink-0 bg-dark-800 rounded-t-lg border-b border-dark-700 px-6 py-4 flex items-center justify-between">
           <h2 className="text-2xl font-bold text-gray-100">Factuur <span className={invoiceTypeColor || 'text-gray-100'}>{invoiceNumberDisplay}</span></h2>
           {actionButtons}
+          {paymentPanel}
         </div>
         <div className="flex-1 overflow-hidden bg-gray-700 rounded-b-lg">
           {pdfLoading ? (

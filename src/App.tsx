@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { UpdateDialog } from './components/UpdateDialog';
-import { LayoutDashboard, Users, Building, Settings, CalendarClock, FileText, Building2, Calculator, Euro, UserCheck, UserMinus, Loader2, Menu, X, Database, Mail, CheckCircle, RefreshCw } from 'lucide-react';
+import { LayoutDashboard, Users, Building, Settings, CalendarClock, FileText, Building2, Calculator, Euro, UserCheck, UserMinus, Loader2, Menu, X, Database, Mail, CheckCircle, RefreshCw, Home } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { syncInvoicePDFs, syncLeaseContractPDFs, syncCreditNotePDFs, startPeriodicSync, type SyncResult } from './utils/invoicePdfSync';
 import { getEffectiveRootFolderPath } from './utils/localSettings';
@@ -13,6 +13,7 @@ const TenantManagement = lazy(() => import('./components/TenantManagement').then
 const LeaseManagement = lazy(() => import('./components/LeaseManagement').then(m => ({ default: m.LeaseManagement })));
 const SpaceManagement = lazy(() => import('./components/SpaceManagement').then(m => ({ default: m.SpaceManagement })));
 const SpaceTypeRates = lazy(() => import('./components/SpaceTypeRates').then(m => ({ default: m.SpaceTypeRates })));
+const SpaceOccupancy = lazy(() => import('./components/SpaceOccupancy').then(m => ({ default: m.SpaceOccupancy })));
 const VerhuurderTabs = lazy(() => import('./components/VerhuurderTabs').then(m => ({ default: m.VerhuurderTabs })));
 const InstellingenTabs = lazy(() => import('./components/InstellingenTabs').then(m => ({ default: m.InstellingenTabs })));
 const MeetingRoomBookings = lazy(() => import('./components/MeetingRoomBookings').then(m => ({ default: m.MeetingRoomBookings })));
@@ -21,7 +22,7 @@ const CrediteurenTabs = lazy(() => import('./components/CrediteurenTabs').then(m
 const EBoekhoudenDashboard = lazy(() => import('./components/EBoekhoudenDashboard').then(m => ({ default: m.EBoekhoudenDashboard })));
 const EmailTab = lazy(() => import('./components/EmailTab').then(m => ({ default: m.EmailTab })));
 
-type Tab = 'dashboard' | 'tenants' | 'spaces-spaces' | 'spaces-rates' | 'contracts' | 'bookings' | 'financial-debtors' | 'financial-creditors' | 'eboekhouden' | 'email' | 'verhuurder' | 'settings';
+type Tab = 'dashboard' | 'tenants' | 'spaces-spaces' | 'spaces-occupancy' | 'spaces-rates' | 'contracts' | 'bookings' | 'financial-debtors' | 'financial-creditors' | 'eboekhouden' | 'email' | 'verhuurder' | 'settings';
 
 type MenuSection = {
   id: string;
@@ -365,6 +366,7 @@ function App() {
       icon: Building,
       children: [
         { id: 'spaces-spaces' as Tab, label: 'Producten', icon: Building2 },
+        { id: 'spaces-occupancy' as Tab, label: 'Bezetting', icon: Home },
         { id: 'spaces-rates' as Tab, label: 'Tarieven', icon: Calculator },
       ],
     },
@@ -699,6 +701,9 @@ function App() {
               </div>
               <div className="h-full" style={tabStyle('spaces-spaces')}>
                 {visitedTabs.has('spaces-spaces') && <SpaceManagement />}
+              </div>
+              <div className="h-full" style={tabStyle('spaces-occupancy')}>
+                {visitedTabs.has('spaces-occupancy') && <SpaceOccupancy />}
               </div>
               <div className="h-full" style={tabStyle('spaces-rates')}>
                 {visitedTabs.has('spaces-rates') && <SpaceTypeRates />}

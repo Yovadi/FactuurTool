@@ -118,6 +118,8 @@ export type Invoice = {
   eboekhouden_synced_at: string | null;
   created_at: string;
   paid_at: string | null;
+  applied_credit?: number;
+  paid_amount?: number;
   last_reminder_sent_at?: string | null;
   reminder_count?: number;
 };

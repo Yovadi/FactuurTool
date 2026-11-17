@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X, Repeat, AlertCircle } from 'lucide-react';
 import { supabase, type Tenant } from '../lib/supabase';
 import { amountWithEmbeddedVat } from '../utils/zeroVatPrice';
+import { addCalendarDays, amsterdamCalendar } from '../utils/amsterdamCalendar';
+import { getCurrentDateString } from '../utils/dateHelpers';
 
 type ExternalCustomerOption = {
   id: string;
@@ -56,13 +58,22 @@ export function RecurringBookingModal({
     recurrence_type: 'weekly' as RecurrenceType,
     recurrence_days: [] as string[],
     recurrence_date: 1,
-    start_date: new Date().toISOString().split('T')[0],
+    start_date: amsterdamCalendar().date,
     end_date: '',
     notes: ''
   });
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
   const [skippedDates, setSkippedDates] = useState(0);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    getCurrentDateString().then((today) => {
+      setFormData((current) => (
+        current.start_date === amsterdamCalendar().date ? { ...current, start_date: today } : current
+      ));
+    });
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -137,8 +148,8 @@ export function RecurringBookingModal({
 
   const generateBookingsFromPattern = async (pattern: any) => {
     const candidateDates: string[] = [];
-    const startDate = new Date(pattern.start_date);
-    const endDate = pattern.end_date ? new Date(pattern.end_date) : new Date(startDate.getTime() + 365 * 24 * 60 * 60 * 1000);
+    const startIso = String(pattern.start_date).slice(0, 10);
+    const endIso = pattern.end_date ? String(pattern.end_date).slice(0, 10) : addCalendarDays(startIso, 365);
 
     const space = spaces.find(s => s.id === pattern.space_id);
     if (!space) return;
@@ -191,26 +202,27 @@ export function RecurringBookingModal({
     const discountAmount = Math.round(grossAmount * (discountPercentage / 100) * 100) / 100;
     const totalAmount = Math.round((grossAmount - discountAmount) * 100) / 100;
 
-    // Collect all candidate dates
-    let currentDate = new Date(startDate);
+    const weekdays = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    let cursor = startIso;
 
-    while (currentDate <= endDate) {
+    while (cursor <= endIso) {
+      const [year, month, day] = cursor.split('-').map(Number);
+      const weekday = weekdays[new Date(Date.UTC(year, month - 1, day)).getUTCDay()];
       let shouldBook = false;
 
       if (pattern.recurrence_type === 'daily') {
         shouldBook = true;
       } else if (pattern.recurrence_type === 'weekly') {
-        const dayName = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][currentDate.getDay()];
-        shouldBook = pattern.recurrence_days.includes(dayName);
+        shouldBook = pattern.recurrence_days.includes(weekday);
       } else if (pattern.recurrence_type === 'monthly') {
-        shouldBook = currentDate.getDate() === pattern.recurrence_date;
+        shouldBook = day === pattern.recurrence_date;
       }
 
       if (shouldBook) {
-        candidateDates.push(currentDate.toISOString().split('T')[0]);
+        candidateDates.push(cursor);
       }
 
-      currentDate.setDate(currentDate.getDate() + 1);
+      cursor = addCalendarDays(cursor, 1);
     }
 
     if (candidateDates.length === 0) return;
@@ -299,7 +311,7 @@ export function RecurringBookingModal({
       recurrence_type: 'weekly',
       recurrence_days: [],
       recurrence_date: 1,
-      start_date: new Date().toISOString().split('T')[0],
+      start_date: amsterdamCalendar().date,
       end_date: '',
       notes: ''
     });

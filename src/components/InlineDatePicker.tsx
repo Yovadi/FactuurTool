@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { amsterdamCalendar } from '../utils/amsterdamCalendar';
 
 type InlineDatePickerProps = {
   value: string;
@@ -61,21 +62,17 @@ export function InlineDatePicker({ value, onChange, minDate }: InlineDatePickerP
   };
 
   const handleToday = () => {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = today.getMonth();
-    const day = today.getDate();
-    const todayStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    setCurrentDate(today);
-    onChange(todayStr);
+    const today = amsterdamCalendar();
+    setCurrentDate(new Date(today.year, today.month - 1, today.day));
+    onChange(today.date);
   };
 
   const isToday = (day: number) => {
-    const today = new Date();
+    const today = amsterdamCalendar();
     return (
-      day === today.getDate() &&
-      currentDate.getMonth() === today.getMonth() &&
-      currentDate.getFullYear() === today.getFullYear()
+      day === today.day &&
+      currentDate.getMonth() === today.month - 1 &&
+      currentDate.getFullYear() === today.year
     );
   };
 
@@ -91,8 +88,7 @@ export function InlineDatePicker({ value, onChange, minDate }: InlineDatePickerP
 
   const isPastDate = (day: number) => {
     if (!minDate) return false;
-    const dateStr = new Date(currentDate.getFullYear(), currentDate.getMonth(), day)
-      .toISOString().split('T')[0];
+    const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     return dateStr < minDate;
   };
 

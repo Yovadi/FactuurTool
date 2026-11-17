@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { openInvoiceAmount } from '../utils/invoiceBalance';
 import { Euro, Calendar, AlertCircle, CheckCircle, FileText, Trash2, Eye, Filter, RefreshCw, Loader2, Database, XCircle, Square, CheckSquare, AlertTriangle, Download } from 'lucide-react';
 import { resyncInvoiceToEBoekhouden } from '../lib/eboekhoudenSync';
 import { Pagination } from './Pagination';
@@ -96,21 +97,43 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
   const loadDebtors = async () => {
     setLoading(true);
     try {
-      const { data: invoices, error } = await supabase
-        .from('invoices')
-        .select(`
+      const columns = `
           id,
           invoice_number,
           invoice_date,
           due_date,
           amount,
+          applied_credit,
+          paid_amount,
           status,
           tenant_id,
           external_customer_id,
           tenants (id, name, company_name, email),
           external_customers (id, company_name, contact_name, email)
-        `)
+        `;
+      let { data: invoices, error } = await supabase
+        .from('invoices')
+        .select(columns)
         .not('status', 'in', '(paid,credited)');
+      if (error) {
+        const fallback = await supabase
+          .from('invoices')
+          .select(`
+            id,
+            invoice_number,
+            invoice_date,
+            due_date,
+            amount,
+            status,
+            tenant_id,
+            external_customer_id,
+            tenants (id, name, company_name, email),
+            external_customers (id, company_name, contact_name, email)
+          `)
+          .not('status', 'in', '(paid,credited)');
+        invoices = fallback.data as typeof invoices;
+        error = fallback.error;
+      }
 
       if (error) throw error;
 
@@ -154,14 +177,15 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
         }
 
         const debtor = debtorMap.get(customer.id)!;
-        debtor.total_outstanding += parseFloat(invoice.amount);
+        const openAmount = openInvoiceAmount(invoice.amount, invoice.applied_credit, invoice.paid_amount);
+        debtor.total_outstanding += openAmount;
         debtor.invoice_count += 1;
         if (invoice.status === 'overdue') debtor.overdue_count += 1;
         if (invoice.invoice_date < debtor.oldest_invoice_date) {
           debtor.oldest_invoice_date = invoice.invoice_date;
         }
 
-        total += parseFloat(invoice.amount);
+        total += openAmount;
       });
 
       const debtorsList = Array.from(debtorMap.values())
@@ -179,12 +203,22 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
   const loadDebtorInvoices = async (debtorId: string, debtor: Debtor) => {
     setSelectedDebtor(debtor);
     try {
-      const { data: invoices, error } = await supabase
+      let { data: invoices, error } = await supabase
         .from('invoices')
-        .select('id, invoice_number, invoice_date, due_date, amount, status, lease_id, notes, invoice_line_items(booking_id)')
+        .select('id, invoice_number, invoice_date, due_date, amount, applied_credit, paid_amount, status, lease_id, notes, invoice_line_items(booking_id)')
         .or(`tenant_id.eq.${debtorId},external_customer_id.eq.${debtorId}`)
         .not('status', 'in', '(paid,credited)')
         .order('invoice_date', { ascending: false });
+      if (error) {
+        const fallback = await supabase
+          .from('invoices')
+          .select('id, invoice_number, invoice_date, due_date, amount, status, lease_id, notes, invoice_line_items(booking_id)')
+          .or(`tenant_id.eq.${debtorId},external_customer_id.eq.${debtorId}`)
+          .not('status', 'in', '(paid,credited)')
+          .order('invoice_date', { ascending: false });
+        invoices = fallback.data as typeof invoices;
+        error = fallback.error;
+      }
 
       if (error) throw error;
       setDebtorInvoices(invoices || []);
@@ -595,7 +629,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
                           <div className="text-right">
                             <div className="font-bold text-yellow-500 flex items-center gap-1">
                               <Euro size={16} />
-                              {formatCurrency(invoice.amount)}
+                              {formatCurrency(openInvoiceAmount(invoice.amount, invoice.applied_credit, invoice.paid_amount))}
                             </div>
                             {isOverdue && (
                               <div className="text-xs text-red-400 font-semibold flex items-center gap-1 justify-end mt-1">

@@ -18,6 +18,8 @@ import { billableBeforeDiscount, billableUnitPrice, billedCatalogRent, billedLea
 import { isBorgfactuurNote, isLeaseEligibleForInvoiceMonth, resolveDepositInvoice, resolveLeaseInvoiceTarget, shiftYearMonth } from '../utils/leaseInvoiceEligibility';
 import { addBusinessDays } from '../utils/businessClock';
 import { getCurrentDateString } from '../utils/dateHelpers';
+import { amsterdamCalendar } from '../utils/amsterdamCalendar';
+import { openInvoiceAmount } from '../utils/invoiceBalance';
 import {
   LEASES_CHANGED_EVENT,
   TENANTS_CHANGED_EVENT,
@@ -1141,19 +1143,38 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   };
 
   const markAsPaid = async (invoiceId: string) => {
-    const { error } = await supabase
+    const { data } = await supabase
       .from('invoices')
-      .update({ status: 'paid', paid_at: new Date().toISOString() })
-      .eq('id', invoiceId);
-
-    if (error) {
-      console.error('Error updating invoice:', error);
-      return;
+      .select('amount, applied_credit, paid_amount')
+      .eq('id', invoiceId)
+      .maybeSingle();
+    const open = data
+      ? openInvoiceAmount(Number(data.amount), Number(data.applied_credit) || 0, Number(data.paid_amount) || 0)
+      : 0;
+    let recorded = false;
+    if (open > 0.009) {
+      const { error: payError } = await supabase.from('invoice_payments').insert({
+        invoice_id: invoiceId,
+        amount: open,
+        paid_on: amsterdamCalendar().date,
+        note: 'Volledig betaald',
+      });
+      recorded = !payError;
+    }
+    if (!recorded) {
+      const { error } = await supabase
+        .from('invoices')
+        .update({ status: 'paid', paid_at: new Date().toISOString() })
+        .eq('id', invoiceId);
+      if (error) {
+        console.error('Error updating invoice:', error);
+        return;
+      }
     }
 
     setInvoices(prev => prev.map(inv =>
       inv.id === invoiceId
-        ? { ...inv, status: 'paid' as const, paid_at: new Date().toISOString() }
+        ? { ...inv, status: 'paid' as const, paid_at: new Date().toISOString(), paid_amount: Number(inv.amount) }
         : inv
     ));
   };
@@ -3432,6 +3453,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
               markAsPaid(previewInvoice.invoice.id);
               setPreviewInvoice(null);
             } : undefined}
+            onPaymentRecorded={() => { loadData(); }}
             onCreateCreditNote={(previewInvoice.invoice.status === 'draft' && onCreateCreditNote) ? () => {
               const tenant = getInvoiceTenant(previewInvoice.invoice);
               if (tenant && onCreateCreditNote) {
