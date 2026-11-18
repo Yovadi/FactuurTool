@@ -37,4 +37,4 @@ jobs:
         run: npm ci
       - name: Run due jobs
         shell: bash
-        run: npx --yes tsx scripts/run-scheduled-jobs.ts
+        run: npx --yes tsx@4.23.15 scripts/run-scheduled-jobs.ts

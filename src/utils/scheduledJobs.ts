@@ -19,7 +19,7 @@ export interface ScheduledJob {
   created_at: string;
 }
 
-export const checkAndRunScheduledJobs = async (options?: { skip?: Set<string> }): Promise<string[]> => {
+export const checkAndRunScheduledJobs = async (options?: { skip?: Set<string>; strict?: boolean }): Promise<string[]> => {
   const ran: string[] = [];
   const { data: jobs, error } = await supabase
     .from('scheduled_jobs')
@@ -27,7 +27,12 @@ export const checkAndRunScheduledJobs = async (options?: { skip?: Set<string> })
     .eq('is_enabled', true)
     .lte('next_run_at', new Date().toISOString());
 
-  if (error || !jobs) return ran;
+  if (error || !jobs) {
+    if (options?.strict) {
+      throw new Error(error?.message || 'De takenlijst kon niet worden gelezen.');
+    }
+    return ran;
+  }
 
   for (const job of jobs) {
     if (job.job_type === 'send_invoice_reminders') {
