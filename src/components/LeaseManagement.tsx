@@ -594,8 +594,8 @@ export function LeaseManagement({ isActive = true }: LeaseManagementProps) {
   }
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="sticky top-0 z-10 bg-dark-950 pb-4">
+    <div className="h-full flex flex-col overflow-hidden">
+      <div className="flex-shrink-0 bg-dark-950 pb-4">
       <div className="bg-dark-900 rounded-lg shadow-lg border border-dark-700 p-2">
         <div className="flex gap-2">
           <button
@@ -933,9 +933,9 @@ export function LeaseManagement({ isActive = true }: LeaseManagementProps) {
         </div>
       )}
 
-      <div className="space-y-6">
+      <div className="flex-1 min-h-0 flex flex-col">
         {regularLeases.length > 0 && (
-          <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden flex flex-col">
+          <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden flex flex-col flex-1 min-h-0">
             <div className="flex justify-between items-center px-4 py-3 bg-dark-800 border-b border-amber-500">
               <h2 className="text-lg font-bold text-gray-100">
                 Huurcontracten
@@ -949,10 +949,10 @@ export function LeaseManagement({ isActive = true }: LeaseManagementProps) {
                 Huurcontract Aanmaken
               </button>
             </div>
-            <div className="overflow-x-auto">
+            <div className="flex-1 min-h-0 overflow-auto">
               <table className="w-full table-fixed min-w-[1000px]">
                 <thead>
-                  <tr className="border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
+                  <tr className="sticky top-0 z-10 border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
                     <th className="text-left px-4 py-3 font-semibold w-[15%]">Huurder</th>
                     <th className="text-left px-4 py-3 font-semibold w-[20%]">Ruimtes</th>
                     <th className="text-right px-4 py-3 font-semibold w-[12%]">Maandhuur</th>

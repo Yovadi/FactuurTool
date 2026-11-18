@@ -270,8 +270,8 @@ export function EmailTab({ onOpenInSplitscreen, onNavigateToIntegrations }: Prop
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto">
-        <div className="bg-dark-900 rounded-xl border border-dark-700 p-6">
+      <div className={`flex-1 min-h-0 ${activeSubTab === 'sent' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+        <div className={`bg-dark-900 rounded-xl border border-dark-700 p-6 ${activeSubTab === 'sent' ? 'h-full min-h-0 flex flex-col' : ''}`}>
           {configured && companySettings ? (
             <>
               {activeSubTab === 'compose' && (

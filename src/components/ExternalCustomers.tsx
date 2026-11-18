@@ -209,7 +209,7 @@ export function ExternalCustomers() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="h-full min-h-0 flex flex-col gap-6 overflow-hidden">
       <div className="flex justify-end items-center">
         <button
           onClick={() => {
@@ -397,7 +397,7 @@ export function ExternalCustomers() {
           <p className="text-sm text-gray-500 mt-2">Klik op "Nieuwe Klant" om te beginnen.</p>
         </div>
       ) : (
-        <div className="grid gap-3">
+        <div className="flex-1 min-h-0 overflow-auto grid gap-3 content-start">
           {customers.slice((currentPage - 1) * pageSize, currentPage * pageSize).map((customer) => (
             <div
               key={customer.id}

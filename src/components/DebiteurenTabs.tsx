@@ -69,14 +69,16 @@ export function DebiteurenTabs({
 
       <div className="flex-1 min-h-0 overflow-hidden">
         {activeTab === 'te-factureren' && (
-          <div className="h-full overflow-y-auto">
-            <div className="flex flex-col gap-4 pb-4">
+          <div className="h-full flex flex-col overflow-hidden gap-4">
+            <div className="flex-shrink-0 max-h-[45%] overflow-y-auto">
               <InvoiceOverview
                 isActive={isActive && activeTab === 'te-factureren'}
                 focusMonth={focusMonth}
                 onFocusMonthConsumed={onFocusMonthConsumed}
                 onInvoicesCreated={() => invoiceManagementRef.current?.refreshInvoices()}
               />
+            </div>
+            <div className="flex-1 min-h-0 overflow-hidden">
               <InvoiceManagement
                 ref={invoiceManagementRef}
                 onCreateCreditNote={onCreateCreditNote}
@@ -89,7 +91,7 @@ export function DebiteurenTabs({
           </div>
         )}
         {activeTab === 'facturen' && (
-          <div className="h-full overflow-y-auto">
+          <div className="h-full overflow-hidden">
             <InvoiceManagement
               onCreateCreditNote={onCreateCreditNote}
               invoiceTypeFilter="all"
@@ -104,7 +106,7 @@ export function DebiteurenTabs({
           </div>
         )}
         {activeTab === 'outstanding' && (
-          <div className="h-full overflow-y-auto">
+          <div className="h-full overflow-hidden">
             <InvoiceManagement
               onCreateCreditNote={onCreateCreditNote}
               invoiceTypeFilter="all"

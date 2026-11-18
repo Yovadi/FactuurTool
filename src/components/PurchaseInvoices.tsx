@@ -751,7 +751,7 @@ export function PurchaseInvoices() {
     )}
 
     <div
-      className={`flex-1 min-w-0 overflow-y-auto relative w-full transition-all duration-300 ${previewInvoice ? 'hidden' : ''}`}
+      className={`flex-1 min-w-0 min-h-0 overflow-hidden flex flex-col relative w-full transition-all duration-300 ${previewInvoice ? 'hidden' : ''}`}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
@@ -768,7 +768,7 @@ export function PurchaseInvoices() {
           </div>
         </div>
       )}
-      <div className="space-y-6">
+      <div className="flex-1 min-h-0 flex flex-col gap-6 overflow-hidden">
         {aiNotification && (
           <div className={`flex items-center gap-3 p-4 rounded-lg border ${
             aiNotification.type === 'success'
@@ -908,11 +908,11 @@ export function PurchaseInvoices() {
             </p>
           </div>
         ) : (
-          <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden flex flex-col">
-            <div className="overflow-x-auto">
+          <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 overflow-hidden flex flex-col flex-1 min-h-0">
+            <div className="flex-1 min-h-0 overflow-auto">
               <table className="w-full table-fixed min-w-[900px]">
                 <thead>
-                  <tr className="border-b border-dark-700 text-gray-400 text-xs uppercase bg-dark-800">
+                  <tr className="sticky top-0 z-10 border-b border-dark-700 text-gray-400 text-xs uppercase bg-dark-800">
                     <th className="text-left px-4 py-3 font-semibold w-[22%]">Leverancier</th>
                     <th className="text-left px-4 py-3 font-semibold w-[14%]">Factuurnr.</th>
                     <th className="text-left px-4 py-3 font-semibold w-[12%]">Datum</th>
