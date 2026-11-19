@@ -20,7 +20,7 @@ export function ConfirmModal({
   variant = 'default'
 }: ConfirmModalProps) {
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[120] p-4">
       <div className="bg-dark-900 rounded-lg border border-dark-700 max-w-md w-full shadow-xl animate-fade-in">
         <div className="flex items-start justify-between p-6 border-b border-dark-700">
           <div className="flex items-center gap-3">

@@ -1,3 +1,4 @@
+import { notify } from '../utils/notify';
 import { useState, useEffect, useMemo } from 'react';
 import { supabase, type Lease, type Tenant, type OfficeSpace, type LeaseSpace, type SpaceTypeRate, type CompanySettings } from '../lib/supabase';
 import { Plus, CreditCard as Edit2, Trash2, Calendar, Euro, X, CheckCircle, XCircle, AlertCircle, FileText } from 'lucide-react';
@@ -130,7 +131,7 @@ export function LeaseManagement({ isActive = true }: LeaseManagementProps) {
     if (saving) return;
 
     if (selectedSpaces.length === 0) {
-      alert('Selecteer minimaal één ruimte');
+      notify('Selecteer minimaal één ruimte', 'error');
       return;
     }
 
@@ -168,7 +169,7 @@ export function LeaseManagement({ isActive = true }: LeaseManagementProps) {
 
       if (error) {
         console.error('Error updating lease:', error);
-        alert('Fout bij het bijwerken van het huurcontract: ' + error.message);
+        notify('Fout bij het bijwerken van het huurcontract: ' + error.message, 'error');
         return;
       }
 
@@ -207,7 +208,7 @@ export function LeaseManagement({ isActive = true }: LeaseManagementProps) {
 
         if (spaceError) {
           console.error('Error updating lease spaces:', spaceError);
-          alert('Fout bij het bijwerken van ruimtes: ' + spaceError.message);
+          notify('Fout bij het bijwerken van ruimtes: ' + spaceError.message, 'error');
           return;
         }
 
@@ -256,7 +257,7 @@ export function LeaseManagement({ isActive = true }: LeaseManagementProps) {
 
       if (error) {
         console.error('Error creating lease:', error);
-        alert('Fout bij het aanmaken van het huurcontract: ' + error.message);
+        notify('Fout bij het aanmaken van het huurcontract: ' + error.message, 'error');
         return;
       }
 
@@ -290,7 +291,7 @@ export function LeaseManagement({ isActive = true }: LeaseManagementProps) {
 
         if (spaceError) {
           console.error('Error creating lease spaces:', spaceError);
-          alert('Fout bij het aanmaken van ruimtes: ' + spaceError.message);
+          notify('Fout bij het aanmaken van ruimtes: ' + spaceError.message, 'error');
           return;
         }
 

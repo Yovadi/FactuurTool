@@ -1,3 +1,4 @@
+import { notify } from '../utils/notify';
 import { useState, useEffect } from 'react';
 import { supabase, type CompanySettings, type WifiNetwork, type PatchPort, type MeterGroup, type RcboCircuitBreaker, type Tenant } from '../lib/supabase';
 import { Home, Edit2, Wifi, Network, FileText, Info, Save, X, Eye, EyeOff, User, Zap, Download } from 'lucide-react';
@@ -231,7 +232,7 @@ export function BuildingInfo() {
       setEditingSection(null);
     } catch (error) {
       console.error('Error saving WiFi networks:', error);
-      alert('Er is een fout opgetreden bij het opslaan');
+      notify('Er is een fout opgetreden bij het opslaan', 'error');
     }
   };
 
@@ -280,7 +281,7 @@ export function BuildingInfo() {
       setEditingSection(null);
     } catch (error) {
       console.error('Error saving patch ports:', error);
-      alert('Er is een fout opgetreden bij het opslaan');
+      notify('Er is een fout opgetreden bij het opslaan', 'error');
     }
   };
 
@@ -396,7 +397,7 @@ export function BuildingInfo() {
       setEditingSection(null);
     } catch (error) {
       console.error('Error saving meter configuration:', error);
-      alert('Er is een fout opgetreden bij het opslaan');
+      notify('Er is een fout opgetreden bij het opslaan', 'error');
     }
   };
 
@@ -418,7 +419,7 @@ export function BuildingInfo() {
       setEditingSection(null);
     } catch (error) {
       console.error('Error saving building info:', error);
-      alert('Er is een fout opgetreden bij het opslaan');
+      notify('Er is een fout opgetreden bij het opslaan', 'error');
     }
   };
 
@@ -510,7 +511,7 @@ export function BuildingInfo() {
       });
     } catch (error) {
       console.error('Error exporting PDF:', error);
-      alert('Er is een fout opgetreden bij het exporteren');
+      notify('Er is een fout opgetreden bij het exporteren', 'error');
     }
   };
 

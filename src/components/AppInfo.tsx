@@ -1,3 +1,4 @@
+import { notify } from '../utils/notify';
 import { useState, useEffect } from 'react';
 import { supabase, type CompanySettings } from '../lib/supabase';
 import { Settings, Edit2, FolderOpen, RefreshCw, Info, Package, Download } from 'lucide-react';
@@ -102,7 +103,7 @@ export function AppInfo() {
       setShowForm(false);
     } catch (error) {
       console.error('Error saving settings:', error);
-      alert('Er is een fout opgetreden bij het opslaan van de gegevens');
+      notify('Er is een fout opgetreden bij het opslaan van de gegevens', 'error');
     }
   };
 

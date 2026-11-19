@@ -1,3 +1,4 @@
+import { notify } from '../utils/notify';
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { invoiceFullyCovered } from '../utils/creditPrefill';
@@ -113,12 +114,12 @@ export function CreditNoteApplications({ creditNote, onClose, onApplied }: Credi
     e.preventDefault();
 
     if (!linkFormData.invoice_id || linkFormData.amount <= 0) {
-      alert('Vul alle velden in');
+      notify('Vul alle velden in', 'error');
       return;
     }
 
     if (linkFormData.amount > availableCredit) {
-      alert('Bedrag kan niet hoger zijn dan het beschikbare credit');
+      notify('Bedrag kan niet hoger zijn dan het beschikbare credit', 'error');
       return;
     }
 
@@ -127,7 +128,7 @@ export function CreditNoteApplications({ creditNote, onClose, onApplied }: Credi
       ? openInvoiceAmount(targetBefore.amount, targetBefore.applied_credit, targetBefore.paid_amount)
       : 0;
     if (targetBefore && linkFormData.amount > openBefore + 0.009) {
-      alert('Bedrag kan niet hoger zijn dan het openstaande factuurbedrag');
+      notify('Bedrag kan niet hoger zijn dan het openstaande factuurbedrag', 'error');
       return;
     }
 
@@ -142,7 +143,7 @@ export function CreditNoteApplications({ creditNote, onClose, onApplied }: Credi
 
     if (error) {
       console.error('Error applying credit:', error);
-      alert(error.message?.includes('overschrijdt') ? error.message : 'Fout bij toepassen credit');
+      notify(error.message?.includes('overschrijdt') ? error.message : 'Fout bij toepassen credit', 'error');
       return;
     }
 
@@ -162,12 +163,12 @@ export function CreditNoteApplications({ creditNote, onClose, onApplied }: Credi
     e.preventDefault();
 
     if (refundFormData.amount <= 0) {
-      alert('Vul een geldig bedrag in');
+      notify('Vul een geldig bedrag in', 'error');
       return;
     }
 
     if (refundFormData.amount > availableCredit) {
-      alert('Bedrag kan niet hoger zijn dan het beschikbare credit');
+      notify('Bedrag kan niet hoger zijn dan het beschikbare credit', 'error');
       return;
     }
 
@@ -182,7 +183,7 @@ export function CreditNoteApplications({ creditNote, onClose, onApplied }: Credi
 
     if (error) {
       console.error('Error recording refund:', error);
-      alert('Fout bij registreren terugbetaling');
+      notify('Fout bij registreren terugbetaling', 'error');
       return;
     }
 
@@ -196,12 +197,12 @@ export function CreditNoteApplications({ creditNote, onClose, onApplied }: Credi
     e.preventDefault();
 
     if (manualFormData.amount <= 0) {
-      alert('Vul een geldig bedrag in');
+      notify('Vul een geldig bedrag in', 'error');
       return;
     }
 
     if (manualFormData.amount > availableCredit) {
-      alert('Bedrag kan niet hoger zijn dan het beschikbare credit');
+      notify('Bedrag kan niet hoger zijn dan het beschikbare credit', 'error');
       return;
     }
 
@@ -216,7 +217,7 @@ export function CreditNoteApplications({ creditNote, onClose, onApplied }: Credi
 
     if (error) {
       console.error('Error recording manual application:', error);
-      alert('Fout bij registreren handmatige toepassing');
+      notify('Fout bij registreren handmatige toepassing', 'error');
       return;
     }
 
@@ -238,7 +239,7 @@ export function CreditNoteApplications({ creditNote, onClose, onApplied }: Credi
 
     if (error) {
       console.error('Error deleting application:', error);
-      alert('Fout bij verwijderen toepassing');
+      notify('Fout bij verwijderen toepassing', 'error');
       return;
     }
 

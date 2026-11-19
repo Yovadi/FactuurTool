@@ -1,3 +1,4 @@
+import { notify } from '../utils/notify';
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { getLocalRootFolderPath } from '../utils/localSettings';
@@ -496,7 +497,7 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
 
   const handleSendCreditNote = async (creditNote: CreditNote) => {
     if (!creditNote.tenant_id && !creditNote.external_customer_id) {
-      alert('Geen klantgegevens beschikbaar voor verzending.');
+      notify('Geen klantgegevens beschikbaar voor verzending.', 'error');
       return;
     }
 
@@ -508,12 +509,12 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
       : externalCustomer?.email;
 
     if (!customerEmail) {
-      alert('Geen e-mailadres beschikbaar voor deze klant.');
+      notify('Geen e-mailadres beschikbaar voor deze klant.', 'error');
       return;
     }
 
     if (!companySettings || !isEmailConfigured(companySettings as any)) {
-      alert('Geen e-mail integratie geconfigureerd. Configureer SMTP, Microsoft Graph of Resend in Integraties.');
+      notify('Geen e-mail integratie geconfigureerd. Configureer SMTP, Microsoft Graph of Resend in Integraties.', 'error');
       return;
     }
 

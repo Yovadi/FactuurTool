@@ -383,6 +383,7 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
             </span>
           )}
         </div>
+        <p className="text-sm text-gray-400 mb-4">Een boeking komt op de maandfactuur nadat je hem accepteert.</p>
 
         {pendingBookings.length > 0 ? (
           <div className="space-y-3">

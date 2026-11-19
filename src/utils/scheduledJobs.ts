@@ -34,6 +34,7 @@ export const checkAndRunScheduledJobs = async (options?: { skip?: Set<string>; s
     return ran;
   }
 
+  const failures: string[] = [];
   for (const job of jobs) {
     if (job.job_type === 'send_invoice_reminders') {
       await supabase.from('scheduled_jobs').update({ is_enabled: false }).eq('id', job.id);
@@ -42,25 +43,34 @@ export const checkAndRunScheduledJobs = async (options?: { skip?: Set<string>; s
     if (options?.skip?.has(job.job_type)) continue;
     if (!(await claimScheduledJob(job))) continue;
     ran.push(job.job_type);
-    if (job.job_type === 'generate_monthly_invoices') {
-      await generateMonthlyInvoices(job);
-    } else if (job.job_type === 'generate_meeting_room_invoices') {
-      await generateMeetingRoomInvoices(job);
-    } else if (job.job_type === 'eboekhouden_payment_status_check') {
-      await runEBoekhoudenPaymentStatusCheck(job);
-    } else if (job.job_type === 'eboekhouden_sync_verification') {
-      await runEBoekhoudenSyncVerification(job);
-    } else if (job.job_type === 'eboekhouden_relation_verification') {
-      await runEBoekhoudenRelationVerification(job);
-    } else if (job.job_type === 'check_expiring_leases') {
-      await checkExpiringLeases(job);
-    } else if (job.job_type === 'apply_rent_indexation') {
-      await applyRentIndexation(job);
-    } else if (job.job_type === 'complete_past_bookings') {
-      await completePastBookings(job);
-    } else if (job.job_type === 'settings_backup') {
-      await runSettingsBackup(job);
+    try {
+      if (job.job_type === 'generate_monthly_invoices') {
+        await generateMonthlyInvoices(job);
+      } else if (job.job_type === 'generate_meeting_room_invoices') {
+        await generateMeetingRoomInvoices(job);
+      } else if (job.job_type === 'eboekhouden_payment_status_check') {
+        await runEBoekhoudenPaymentStatusCheck(job);
+      } else if (job.job_type === 'eboekhouden_sync_verification') {
+        await runEBoekhoudenSyncVerification(job);
+      } else if (job.job_type === 'eboekhouden_relation_verification') {
+        await runEBoekhoudenRelationVerification(job);
+      } else if (job.job_type === 'check_expiring_leases') {
+        await checkExpiringLeases(job);
+      } else if (job.job_type === 'apply_rent_indexation') {
+        await applyRentIndexation(job);
+      } else if (job.job_type === 'complete_past_bookings') {
+        await completePastBookings(job);
+      } else if (job.job_type === 'settings_backup') {
+        await runSettingsBackup(job);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Een nachttaak is mislukt.';
+      failures.push(`${job.job_type}: ${message}`);
     }
+  }
+
+  if (failures.length > 0) {
+    throw new Error(failures.join(' '));
   }
 
   return ran;
@@ -116,6 +126,7 @@ const runEBoekhoudenPaymentStatusCheck = async (job: ScheduledJob) => {
     await advanceJobNextRun(job, 24);
   } catch (error) {
     console.error('Error running e-Boekhouden payment status check:', error);
+    throw error;
   }
 };
 
@@ -130,6 +141,7 @@ const runEBoekhoudenSyncVerification = async (job: ScheduledJob) => {
     await advanceJobNextRun(job, 24);
   } catch (error) {
     console.error('Error running e-Boekhouden sync verification:', error);
+    throw error;
   }
 };
 
@@ -144,6 +156,7 @@ const runEBoekhoudenRelationVerification = async (job: ScheduledJob) => {
     await advanceJobNextRun(job, 24);
   } catch (error) {
     console.error('Error running e-Boekhouden relation verification:', error);
+    throw error;
   }
 };
 
@@ -152,7 +165,7 @@ const generateMeetingRoomInvoices = async (job: ScheduledJob) => {
   try {
     const clock = await getCurrentDate();
     const period = previousAmsterdamMonth(clock);
-    const { data: bookings } = await supabase
+    const { data: bookings, error: bookingsError } = await supabase
       .from('meeting_room_bookings')
       .select(`
         id, booking_date, start_time, end_time, total_hours, applied_rate, hourly_rate, rate_type,
@@ -165,6 +178,8 @@ const generateMeetingRoomInvoices = async (job: ScheduledJob) => {
       .in('status', ['confirmed', 'completed'])
       .gte('booking_date', period.start)
       .lte('booking_date', period.end);
+
+    if (bookingsError) throw bookingsError;
 
     if (!bookings || bookings.length === 0) {
       await advanceJobToNextMonth(job);
@@ -211,9 +226,11 @@ const generateMeetingRoomInvoices = async (job: ScheduledJob) => {
         .in('id', group.bookings.map((booking) => booking.id).filter((id): id is string => !!id));
     }
 
-    if (!failed) await advanceJobToNextMonth(job);
+    if (failed) throw new Error('Niet alle zaalconcepten zijn aangemaakt.');
+    await advanceJobToNextMonth(job);
   } catch (error) {
     console.error('Error generating meeting room invoices:', error);
+    throw error;
   }
 };
 
@@ -222,12 +239,14 @@ const checkExpiringLeases = async (job: ScheduledJob) => {
     const todayStr = await getCurrentDateString();
     const in60Str = addCalendarDays(todayStr, 60);
 
-    const { data: leases } = await supabase
+    const { data: leases, error: leasesError } = await supabase
       .from('leases')
       .select('id, end_date, tenant_id, tenant:tenants(company_name)')
       .eq('status', 'active')
       .gte('end_date', todayStr)
       .lte('end_date', in60Str);
+
+    if (leasesError) throw leasesError;
 
     if (!leases) {
       await advanceJobNextRun(job, 24);
@@ -274,6 +293,7 @@ const checkExpiringLeases = async (job: ScheduledJob) => {
     await advanceJobNextRun(job, 24);
   } catch (error) {
     console.error('Error checking expiring leases:', error);
+    throw error;
   }
 };
 
@@ -351,6 +371,7 @@ const applyRentIndexation = async (job: ScheduledJob) => {
       .eq('id', job.id);
   } catch (error) {
     console.error('Error applying rent indexation:', error);
+    throw error;
   }
 };
 
@@ -358,15 +379,18 @@ const completePastBookings = async (job: ScheduledJob) => {
   try {
     const todayStr = await getCurrentDateString();
 
-    await supabase
+    const { error } = await supabase
       .from('meeting_room_bookings')
       .update({ status: 'completed' })
       .eq('status', 'confirmed')
       .lt('booking_date', todayStr);
 
+    if (error) throw error;
+
     await advanceJobNextRun(job, 24);
   } catch (error) {
     console.error('Error completing past bookings:', error);
+    throw error;
   }
 };
 
@@ -376,13 +400,14 @@ const runSettingsBackup = async (job: ScheduledJob) => {
     await advanceJobNextRun(job, 24);
   } catch (error) {
     console.error('Error creating settings backup:', error);
+    throw error;
   }
 };
 
 const generateMonthlyInvoices = async (job: ScheduledJob) => {
   try {
     const clock = await getCurrentDate();
-    const { data: leases } = await supabase
+    const { data: leases, error: leasesError } = await supabase
       .from('leases')
       .select(`
         *,
@@ -394,10 +419,14 @@ const generateMonthlyInvoices = async (job: ScheduledJob) => {
       `)
       .eq('status', 'active');
 
-    const { data: existingLeaseInvoices } = await supabase
+    if (leasesError) throw leasesError;
+
+    const { data: existingLeaseInvoices, error: existingError } = await supabase
       .from('invoices')
       .select('lease_id, invoice_month, notes')
       .not('lease_id', 'is', null);
+
+    if (existingError) throw existingError;
 
     const invoiceIndex = existingLeaseInvoices || [];
     let failed = false;
@@ -442,8 +471,10 @@ const generateMonthlyInvoices = async (job: ScheduledJob) => {
       }
     }
 
-    if (!failed) await advanceJobToNextMonth(job);
+    if (failed) throw new Error('Niet alle huurconcepten zijn aangemaakt.');
+    await advanceJobToNextMonth(job);
   } catch (error) {
     console.error('Error generating monthly invoices:', error);
+    throw error;
   }
 };

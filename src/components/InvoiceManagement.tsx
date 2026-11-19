@@ -9,6 +9,7 @@ import { InvoicePreview } from './InvoicePreview';
 import { ConfirmModal } from './ConfirmModal';
 import { Toast } from './Toast';
 import { Pagination } from './Pagination';
+import { askConfirm } from '../utils/notify';
 import { logAudit } from '../utils/auditLog';
 import { downloadCsv } from '../utils/csvExport';
 import { buildUblInvoiceXml, downloadUblXml } from '../utils/ublInvoice';
@@ -313,7 +314,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       `)
       .gte('booking_date', startDateStr)
       .lte('booking_date', endDateStr)
-      .in('status', ['pending', 'confirmed', 'completed'])
+      .in('status', ['confirmed', 'completed'])
       .is('invoice_id', null);
 
     if (customerType === 'tenant') {
@@ -528,7 +529,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       supabase.from('meeting_room_bookings').select(`
         id, booking_date, start_time, end_time, total_hours, total_amount, status, invoice_id,
         tenant_id, external_customer_id, space:office_spaces(space_number)
-      `).in('status', ['pending', 'confirmed', 'completed']).order('booking_date', { ascending: false }),
+      `).in('status', ['confirmed', 'completed']).order('booking_date', { ascending: false }),
       supabase.from('eboekhouden_grootboek_mapping').select('*').order('local_category'),
     ]);
 
@@ -724,7 +725,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         const bookingYearMonth = `${y}-${m}`;
         const isForSelectedMonth = bookingYearMonth === invoiceMonth;
         const isUnbilled = !booking.invoice_id;
-        const isInvoiceable = booking.status === 'completed' || booking.status === 'confirmed' || booking.status === 'pending';
+        const isInvoiceable = booking.status === 'completed' || booking.status === 'confirmed';
         const isForCustomer = (customer as any).isExternal
           ? booking.external_customer_id === customer.id
           : booking.tenant_id === customer.id;
@@ -2875,7 +2876,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       }
     }
 
-    if (!window.confirm(`Weet je zeker dat je ${selectedInvoices.size} facturen wilt markeren als ${getStatusLabel(newStatus)}?`)) return;
+    if (!(await askConfirm(`Weet je zeker dat je ${selectedInvoices.size} facturen wilt markeren als ${getStatusLabel(newStatus)}?`))) return;
 
     const idsToUpdate = Array.from(selectedInvoices);
 
@@ -3961,7 +3962,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
             const bookingYearMonth = `${y}-${m}`;
             const isForSelectedMonth = bookingYearMonth === targetMonth;
             const isUnbilled = !booking.invoice_id;
-            const isInvoiceable = booking.status === 'completed' || booking.status === 'confirmed' || booking.status === 'pending';
+            const isInvoiceable = booking.status === 'completed' || booking.status === 'confirmed';
             const isForCustomer = (customer as any).isExternal
               ? booking.external_customer_id === customer.id
               : booking.tenant_id === customer.id;

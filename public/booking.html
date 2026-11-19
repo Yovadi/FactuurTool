@@ -3118,6 +3118,44 @@
             return `${String(hour).padStart(2, '0')}:${String(roundedMinute).padStart(2, '0')}`;
         }
 
+        function quoteMeetingPrice(room, totalMinutes) {
+            if (!room || totalMinutes < 60) return null;
+            const hourly = Number(room.hourly_rate);
+            if (!Number.isFinite(hourly) || hourly <= 0) return null;
+            const totalHours = totalMinutes / 60;
+            const half = Number(room.half_day_rate);
+            const full = Number(room.full_day_rate);
+            let rateType, appliedRate, totalAmount;
+            if (totalHours >= 8) {
+                rateType = 'full_day';
+                appliedRate = Number.isFinite(full) && full > 0 ? full : hourly * 8;
+                totalAmount = appliedRate;
+            } else if (totalHours >= 4) {
+                rateType = 'half_day';
+                appliedRate = Number.isFinite(half) && half > 0 ? half : hourly * 4;
+                totalAmount = appliedRate;
+            } else {
+                rateType = 'hourly';
+                appliedRate = hourly;
+                totalAmount = totalHours * hourly;
+            }
+            const discountPercentage = parseFloat(authenticatedUser && authenticatedUser.meeting_discount_percentage) || 0;
+            const discountAmount = (totalAmount * discountPercentage) / 100;
+            return {
+                rateType,
+                appliedRate,
+                totalHours,
+                hourly,
+                discountPercentage,
+                discountAmount,
+                finalAmount: totalAmount - discountAmount
+            };
+        }
+
+        function formatEuro(amount) {
+            return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(amount);
+        }
+
         // Calculate duration helper
         function calculateBookingDuration() {
             const startTime = document.getElementById('bookingStartTime').value;
@@ -3154,7 +3192,14 @@
             if (hours > 0) durationText += `${hours} uur`;
             if (minutes > 0) durationText += `${hours > 0 ? ' en ' : ''}${minutes} minuten`;
 
-            document.getElementById('bookingDurationInfo').innerHTML = `<strong>Duur:</strong> ${durationText}`;
+            const room = meetingRooms.find(r => r.id === document.getElementById('roomSelect').value);
+            const quote = room ? quoteMeetingPrice(room, totalMinutes) : null;
+            const priceLine = !room
+                ? ''
+                : quote
+                    ? `<br><strong>Prijs: ${formatEuro(quote.finalAmount)}</strong>`
+                    : '<br><strong>Voor deze zaal is geen tarief ingesteld. Boeken kan pas als dat tarief er is.</strong>';
+            document.getElementById('bookingDurationInfo').innerHTML = `<strong>Duur:</strong> ${durationText}${priceLine}`;
             document.getElementById('bookingDurationInfo').style.display = 'block';
             document.getElementById('bookingDurationInfo').style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
             document.getElementById('bookingDurationInfo').style.color = '#93C5FD';
@@ -3212,6 +3257,7 @@
             // Add event listeners for duration calculation
             document.getElementById('bookingStartTime').addEventListener('change', calculateBookingDuration);
             document.getElementById('bookingEndTime').addEventListener('change', calculateBookingDuration);
+            document.getElementById('roomSelect').addEventListener('change', calculateBookingDuration);
 
             calculateBookingDuration();
             document.getElementById('bookingModal').classList.add('show');
@@ -3259,41 +3305,22 @@
                 return;
             }
 
-            const totalHours = totalMinutes / 60;
             const selectedRoom = meetingRooms.find(r => r.id === roomId);
             if (!selectedRoom) return;
 
-            // Determine rate type and calculate amount
-            let rateType, appliedRate, totalAmount;
-
-            if (totalHours >= 8) {
-                // Full day rate (8+ hours)
-                rateType = 'full_day';
-                appliedRate = selectedRoom.full_day_rate || (selectedRoom.hourly_rate * 8);
-                totalAmount = appliedRate;
-            } else if (totalHours >= 4) {
-                // Half day rate (4-7 hours)
-                rateType = 'half_day';
-                appliedRate = selectedRoom.half_day_rate || (selectedRoom.hourly_rate * 4);
-                totalAmount = appliedRate;
-            } else {
-                // Hourly rate (< 4 hours)
-                rateType = 'hourly';
-                appliedRate = selectedRoom.hourly_rate || 25;
-                totalAmount = totalHours * appliedRate;
+            const quote = quoteMeetingPrice(selectedRoom, totalMinutes);
+            if (!quote) {
+                showToast('Voor deze zaal is geen tarief ingesteld. Boeken kan pas als dat tarief er is.', 'error');
+                return;
             }
-
-            // Calculate discount from customer's meeting_discount_percentage
-            const discountPercentage = parseFloat(authenticatedUser.meeting_discount_percentage) || 0;
-            const discountAmount = (totalAmount * discountPercentage) / 100;
-            const finalAmount = totalAmount - discountAmount;
+            const { rateType, appliedRate, totalHours, hourly, discountPercentage, discountAmount, finalAmount } = quote;
 
             const bookingData = {
                 space_id: roomId,
                 booking_date: bookingDate,
                 start_time: startTime,
                 end_time: endTime,
-                hourly_rate: selectedRoom.hourly_rate || 25,
+                hourly_rate: hourly,
                 total_hours: totalHours,
                 total_amount: finalAmount,
                 discount_percentage: discountPercentage,
@@ -3332,7 +3359,7 @@
                         status: 'waiting',
                     });
                     if (wait.error) {
-                        showToast('Wachtlijst opslaan mislukt. De beheerder moet eerst de database-migratie uitvoeren.', 'error');
+                        showToast('Op de wachtlijst zetten lukte niet. Kies een ander tijdstip.', 'error');
                     } else {
                         showToast('Je staat op de wachtlijst voor dit tijdslot.', 'success');
                         closeBookingModal();
@@ -3490,6 +3517,12 @@
                 return;
             }
 
+            const recurringRoom = meetingRooms.find(r => r.id === spaceId);
+            if (!quoteMeetingPrice(recurringRoom, totalMinutes)) {
+                showToast('Voor deze zaal is geen tarief ingesteld. Boeken kan pas als dat tarief er is.', 'error');
+                return;
+            }
+
             document.getElementById('recurringSubmitBtn').disabled = true;
             document.getElementById('recurringSubmitBtn').textContent = 'Aanmaken...';
 
@@ -3541,32 +3574,10 @@
 
             const [startHour, startMinute] = pattern.start_time.split(':').map(Number);
             const [endHour, endMinute] = pattern.end_time.split(':').map(Number);
-            const totalHours = (endHour + endMinute / 60) - (startHour + startMinute / 60);
-
-            // Determine rate type and calculate amount
-            let rateType, appliedRate, totalAmount;
-
-            if (totalHours >= 8) {
-                // Full day rate (8+ hours)
-                rateType = 'full_day';
-                appliedRate = space.full_day_rate || (space.hourly_rate * 8);
-                totalAmount = appliedRate;
-            } else if (totalHours >= 4) {
-                // Half day rate (4-7 hours)
-                rateType = 'half_day';
-                appliedRate = space.half_day_rate || (space.hourly_rate * 4);
-                totalAmount = appliedRate;
-            } else {
-                // Hourly rate (< 4 hours)
-                rateType = 'hourly';
-                appliedRate = space.hourly_rate || 25;
-                totalAmount = totalHours * appliedRate;
-            }
-
-            // Apply discount for recurring bookings from authenticated user's meeting_discount_percentage
-            const discountPercentage = parseFloat(authenticatedUser.meeting_discount_percentage) || 0;
-            const discountAmount = (totalAmount * discountPercentage) / 100;
-            const finalAmount = totalAmount - discountAmount;
+            const totalMinutes = (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
+            const quote = quoteMeetingPrice(space, totalMinutes);
+            if (!quote) throw new Error('Voor deze zaal is geen tarief ingesteld.');
+            const { rateType, appliedRate, totalHours, hourly, discountPercentage, discountAmount, finalAmount } = quote;
 
             let currentDate = new Date(startDate);
 
@@ -3590,7 +3601,7 @@
                         booking_date: currentDate.toISOString().split('T')[0],
                         start_time: pattern.start_time,
                         end_time: pattern.end_time,
-                        hourly_rate: space.hourly_rate || 25,
+                        hourly_rate: hourly,
                         total_hours: totalHours,
                         total_amount: finalAmount,
                         discount_percentage: discountPercentage,

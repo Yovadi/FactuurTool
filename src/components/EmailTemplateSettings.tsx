@@ -1,3 +1,4 @@
+import { notify } from '../utils/notify';
 import { useState, useEffect, useRef } from 'react';
 import { supabase, type CompanySettings } from '../lib/supabase';
 import { Save, Loader2, RotateCcw, Eye, EyeOff, Info, Copy, Check, Upload, Trash2, Image, FileText, CreditCard } from 'lucide-react';
@@ -180,7 +181,7 @@ export function EmailTemplateSettings() {
     if (!file) return;
     if (!file.type.startsWith('image/')) return;
     if (file.size > 500 * 1024) {
-      alert('Afbeelding mag maximaal 500KB zijn.');
+      notify('Afbeelding mag maximaal 500KB zijn.', 'error');
       return;
     }
     setUploadingImage(true);
