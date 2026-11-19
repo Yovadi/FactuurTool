@@ -183,6 +183,8 @@ export function SpaceTypeRates() {
     setError(null);
   };
 
+  const visibleRates = rates.filter((rate) => rate.space_type !== 'Flexplek');
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-12">
@@ -203,7 +205,7 @@ export function SpaceTypeRates() {
         </button>
       </div>
 
-      {rates.length === 0 ? (
+      {visibleRates.length === 0 ? (
         <div className="bg-dark-900 rounded-lg p-8 text-center border border-dark-700 mb-6">
           <AlertCircle size={48} className="text-gray-500 mx-auto mb-4" />
           <p className="text-gray-400">Nog geen tarieven ingesteld</p>
@@ -211,7 +213,7 @@ export function SpaceTypeRates() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-          {rates.map(rate => (
+          {visibleRates.map(rate => (
             <div key={rate.id} className="bg-dark-900 rounded-lg border border-dark-700 overflow-hidden hover:border-gold-500 transition-colors h-fit">
               <div className="flex items-center justify-between px-4 py-3 bg-dark-800 border-b border-dark-700">
                 <div className="flex items-center gap-2">

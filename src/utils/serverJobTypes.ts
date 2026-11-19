@@ -3,7 +3,6 @@ export const SERVER_SKIP_JOB_TYPES = new Set([
   'eboekhouden_payment_status_check',
   'eboekhouden_sync_verification',
   'eboekhouden_relation_verification',
-  'generate_flex_invoices',
 ]);
 
 export function runsOnServer(jobType: string): boolean {
