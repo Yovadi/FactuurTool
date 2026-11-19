@@ -209,6 +209,10 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   const [draftPageSize, setDraftPageSize] = useState(25);
   const [openPage, setOpenPage] = useState(1);
   const [openPageSize, setOpenPageSize] = useState(25);
+  const [externalDraftPage, setExternalDraftPage] = useState(1);
+  const [externalDraftPageSize, setExternalDraftPageSize] = useState(25);
+  const [externalOpenPage, setExternalOpenPage] = useState(1);
+  const [externalOpenPageSize, setExternalOpenPageSize] = useState(25);
   const [pdfSyncStatus, setPdfSyncStatus] = useState<{
     active: boolean;
     current: number;
@@ -2852,11 +2856,14 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   };
 
   const toggleSelectAll = (invoiceList: InvoiceWithDetails[]) => {
-    if (selectedInvoices.size === invoiceList.length) {
-      setSelectedInvoices(new Set());
+    const allSelected = invoiceList.length > 0 && invoiceList.every(inv => selectedInvoices.has(inv.id));
+    const next = new Set(selectedInvoices);
+    if (allSelected) {
+      for (const inv of invoiceList) next.delete(inv.id);
     } else {
-      setSelectedInvoices(new Set(invoiceList.map(inv => inv.id)));
+      for (const inv of invoiceList) next.add(inv.id);
     }
+    setSelectedInvoices(next);
   };
 
   const handleBatchDelete = async () => {
@@ -3648,8 +3655,120 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
             );
           };
 
-          const draftSelected = allDraftInvoices.filter(inv => selectedInvoices.has(inv.id)).length;
-          const openSelected = allOpenInvoices.filter(inv => selectedInvoices.has(inv.id)).length;
+          const isExternalInvoice = (inv: InvoiceWithDetails) => Boolean(inv.external_customer_id);
+          const internalDraftInvoices = allDraftInvoices.filter(inv => !isExternalInvoice(inv));
+          const externalDraftInvoices = allDraftInvoices.filter(isExternalInvoice);
+          const internalOpenInvoices = allOpenInvoices.filter(inv => !isExternalInvoice(inv));
+          const externalOpenInvoices = allOpenInvoices.filter(isExternalInvoice);
+
+          const renderInvoiceSection = (section: {
+            title: string;
+            subtitle?: string;
+            accentClass: string;
+            list: InvoiceWithDetails[];
+            page: number;
+            pageSize: number;
+            onPageChange: (page: number) => void;
+            onPageSizeChange: (size: number) => void;
+            emptyText: string;
+            kind: 'draft' | 'open' | 'openOnly';
+            grow: boolean;
+          }) => {
+            const selectedCount = section.list.filter(inv => selectedInvoices.has(inv.id)).length;
+            const pageItems = section.list.slice((section.page - 1) * section.pageSize, section.page * section.pageSize);
+            return (
+              <div className={`bg-dark-900 rounded-lg shadow-sm border border-dark-700 min-h-0 flex flex-col overflow-hidden ${section.grow ? 'flex-1' : 'flex-shrink-0 max-h-[40%]'}`}>
+                <div className={`flex items-center justify-between gap-4 px-4 py-3 bg-dark-800 border-b ${section.accentClass}`}>
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-100">{section.title}</h2>
+                    {section.subtitle && (
+                      <p className="text-xs text-gray-400 mt-0.5">{section.subtitle}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {selectedCount > 0 && (
+                      <>
+                        <div className="flex items-center gap-2 bg-gold-600 text-white px-3 py-1.5 rounded-lg text-sm">
+                          <CheckSquare size={16} />
+                          {selectedCount} Geselecteerd
+                        </div>
+                        {section.kind === 'draft' ? (
+                          <button
+                            onClick={() => handleBatchStatusChange('sent')}
+                            className="flex items-center gap-2 bg-amber-600 text-white px-3 py-1.5 rounded-lg hover:bg-amber-700 transition-colors text-sm"
+                          >
+                            <Send size={16} />
+                            Markeer Verzonden
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleBatchStatusChange('paid')}
+                            className="flex items-center gap-2 bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition-colors text-sm"
+                          >
+                            <CheckCircle size={16} />
+                            Markeer als Betaald
+                          </button>
+                        )}
+                        {section.kind !== 'openOnly' && (
+                          <button
+                            onClick={handleBatchDelete}
+                            className="flex items-center gap-2 bg-red-600 text-white px-3 py-1.5 rounded-lg hover:bg-red-700 transition-colors text-sm"
+                          >
+                            <Trash2 size={16} />
+                            Verwijder
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+                <div className="flex-1 min-h-0 overflow-auto">
+                  <table className="w-full table-fixed min-w-[1100px]">
+                    <thead>
+                      <tr className="sticky top-0 z-10 border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
+                        <th className="text-center px-4 py-3 font-semibold w-[4%]">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); toggleSelectAll(section.list); }}
+                            className="text-gray-300 hover:text-gold-500 transition-colors"
+                          >
+                            {section.list.length > 0 && section.list.every(inv => selectedInvoices.has(inv.id)) ? <CheckSquare size={18} /> : <Square size={18} />}
+                          </button>
+                        </th>
+                        <th className="text-left px-4 py-3 font-semibold w-[15%]">Klant</th>
+                        <th className="text-left px-4 py-3 font-semibold w-[9%]">Factuur Nr.</th>
+                        <th className="text-center px-4 py-3 font-semibold w-[9%]">Type</th>
+                        <th className="text-left px-4 py-3 font-semibold w-[7%]">Maand</th>
+                        <th className="text-left px-4 py-3 font-semibold w-[9%]">Factuur Datum</th>
+                        <th className="text-left px-4 py-3 font-semibold w-[9%]">Vervaldatum</th>
+                        <th className="text-right px-4 py-3 font-semibold w-[9%]">Bedrag</th>
+                        <th className="text-center px-4 py-3 font-semibold w-[9%]">Status</th>
+                        <th className="text-right px-4 py-3 font-semibold w-[12%]">Acties</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {section.list.length === 0 ? (
+                        <tr>
+                          <td colSpan={10} className="px-4 py-8 text-center text-gray-400">
+                            {section.emptyText}
+                          </td>
+                        </tr>
+                      ) : (
+                        pageItems.map(inv => renderInvoiceRow(inv, true))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                <Pagination
+                  currentPage={section.page}
+                  totalItems={section.list.length}
+                  pageSize={section.pageSize}
+                  onPageChange={section.onPageChange}
+                  onPageSizeChange={section.onPageSizeChange}
+                  label="facturen"
+                />
+              </div>
+            );
+          };
 
           return (
             <div className="flex-1 min-h-0 flex flex-col gap-4">
@@ -3661,7 +3780,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                 </div>
                 <select
                   value={filterType}
-                  onChange={(e) => { setFilterType(e.target.value as InvoiceTypeFilter); setDraftPage(1); setOpenPage(1); }}
+                  onChange={(e) => { setFilterType(e.target.value as InvoiceTypeFilter); setDraftPage(1); setOpenPage(1); setExternalDraftPage(1); setExternalOpenPage(1); }}
                   className="px-3 py-1.5 bg-dark-800 border border-dark-600 text-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold-500"
                 >
                   <option value="all">Alle types</option>
@@ -3672,7 +3791,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                 </select>
                 <select
                   value={filterCustomer}
-                  onChange={(e) => { setFilterCustomer(e.target.value); setDraftPage(1); setOpenPage(1); }}
+                  onChange={(e) => { setFilterCustomer(e.target.value); setDraftPage(1); setOpenPage(1); setExternalDraftPage(1); setExternalOpenPage(1); }}
                   className="px-3 py-1.5 bg-dark-800 border border-dark-600 text-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gold-500 max-w-[220px]"
                 >
                   <option value="all">Alle klanten</option>
@@ -3682,7 +3801,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                 </select>
                 {(filterType !== 'all' || filterCustomer !== 'all') && (
                   <button
-                    onClick={() => { setFilterType('all'); setFilterCustomer('all'); setDraftPage(1); setOpenPage(1); }}
+                    onClick={() => { setFilterType('all'); setFilterCustomer('all'); setDraftPage(1); setOpenPage(1); setExternalDraftPage(1); setExternalOpenPage(1); }}
                     className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-400 hover:text-gray-200 bg-dark-800 border border-dark-600 rounded-lg transition-colors"
                   >
                     <X size={14} />
@@ -3706,231 +3825,88 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
               </div>
               )}
 
-              {!onlyOpenInvoices && (
-              <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 flex-1 min-h-0 flex flex-col overflow-hidden">
-                <div className="flex items-center justify-between gap-4 px-4 py-3 bg-dark-800 border-b border-emerald-500">
-                  <div>
-                    <h2 className="text-lg font-bold text-gray-100">Concept Facturen</h2>
-                    {embeddedDrafts && (
-                      <p className="text-xs text-gray-400 mt-0.5">Alle concepten, ook van andere maanden. Open een factuur om te controleren en te versturen.</p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {draftSelected > 0 && (
-                      <>
-                        <div className="flex items-center gap-2 bg-gold-600 text-white px-3 py-1.5 rounded-lg text-sm">
-                          <CheckSquare size={16} />
-                          {draftSelected} Geselecteerd
-                        </div>
-                        <button
-                          onClick={() => handleBatchStatusChange('sent')}
-                          className="flex items-center gap-2 bg-amber-600 text-white px-3 py-1.5 rounded-lg hover:bg-amber-700 transition-colors text-sm"
-                        >
-                          <Send size={16} />
-                          Markeer Verzonden
-                        </button>
-                        <button
-                          onClick={handleBatchDelete}
-                          className="flex items-center gap-2 bg-red-600 text-white px-3 py-1.5 rounded-lg hover:bg-red-700 transition-colors text-sm"
-                        >
-                          <Trash2 size={16} />
-                          Verwijder
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-                <div className="flex-1 min-h-0 overflow-auto">
-                  <table className="w-full table-fixed min-w-[1100px]">
-                    <thead>
-                      <tr className="sticky top-0 z-10 border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
-                        <th className="text-center px-4 py-3 font-semibold w-[4%]">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); toggleSelectAll(allDraftInvoices); }}
-                            className="text-gray-300 hover:text-gold-500 transition-colors"
-                          >
-                            {allDraftInvoices.every(inv => selectedInvoices.has(inv.id)) && allDraftInvoices.length > 0 ? <CheckSquare size={18} /> : <Square size={18} />}
-                          </button>
-                        </th>
-                        <th className="text-left px-4 py-3 font-semibold w-[15%]">Klant</th>
-                        <th className="text-left px-4 py-3 font-semibold w-[9%]">Factuur Nr.</th>
-                        <th className="text-center px-4 py-3 font-semibold w-[9%]">Type</th>
-                        <th className="text-left px-4 py-3 font-semibold w-[7%]">Maand</th>
-                        <th className="text-left px-4 py-3 font-semibold w-[9%]">Factuur Datum</th>
-                        <th className="text-left px-4 py-3 font-semibold w-[9%]">Vervaldatum</th>
-                        <th className="text-right px-4 py-3 font-semibold w-[9%]">Bedrag</th>
-                        <th className="text-center px-4 py-3 font-semibold w-[9%]">Status</th>
-                        <th className="text-right px-4 py-3 font-semibold w-[12%]">Acties</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {allDraftInvoices.length === 0 ? (
-                        <tr>
-                          <td colSpan={10} className="px-4 py-8 text-center text-gray-400">
-                            Geen concept facturen
-                          </td>
-                        </tr>
-                      ) : (
-                        allDraftInvoices.slice((draftPage - 1) * draftPageSize, draftPage * draftPageSize).map(inv => renderInvoiceRow(inv, true))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-                <Pagination
-                  currentPage={draftPage}
-                  totalItems={allDraftInvoices.length}
-                  pageSize={draftPageSize}
-                  onPageChange={(page) => { setDraftPage(page); }}
-                  onPageSizeChange={(size) => { setDraftPageSize(size); setDraftPage(1); }}
-                  label="facturen"
-                />
-              </div>
-              )}
+              {!onlyOpenInvoices && renderInvoiceSection({
+                title: 'Concept Facturen',
+                subtitle: embeddedDrafts ? 'Alle concepten, ook van andere maanden. Open een factuur om te controleren en te versturen.' : undefined,
+                accentClass: 'border-emerald-500',
+                list: internalDraftInvoices,
+                page: draftPage,
+                pageSize: draftPageSize,
+                onPageChange: setDraftPage,
+                onPageSizeChange: (size) => { setDraftPageSize(size); setDraftPage(1); },
+                emptyText: 'Geen concept facturen',
+                kind: 'draft',
+                grow: true,
+              })}
 
-              {!hideOpenInvoices && !onlyOpenInvoices && (
-              <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 flex-1 min-h-0 flex flex-col overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-3 bg-dark-800 border-b border-amber-500">
-                  <h2 className="text-lg font-bold text-gray-100">Openstaande Facturen</h2>
-                  <div className="flex items-center gap-2">
-                    {openSelected > 0 && (
-                      <>
-                        <div className="flex items-center gap-2 bg-gold-600 text-white px-3 py-1.5 rounded-lg text-sm">
-                          <CheckSquare size={16} />
-                          {openSelected} Geselecteerd
-                        </div>
-                        <button
-                          onClick={() => handleBatchStatusChange('paid')}
-                          className="flex items-center gap-2 bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition-colors text-sm"
-                        >
-                          <CheckCircle size={16} />
-                          Markeer als Betaald
-                        </button>
-                        <button
-                          onClick={handleBatchDelete}
-                          className="flex items-center gap-2 bg-red-600 text-white px-3 py-1.5 rounded-lg hover:bg-red-700 transition-colors text-sm"
-                        >
-                          <Trash2 size={16} />
-                          Verwijder
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-                <div className="flex-1 min-h-0 overflow-auto">
-                  <table className="w-full table-fixed min-w-[1100px]">
-                    <thead>
-                      <tr className="sticky top-0 z-10 border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
-                        <th className="text-center px-4 py-3 font-semibold w-[4%]">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); toggleSelectAll(allOpenInvoices); }}
-                            className="text-gray-300 hover:text-gold-500 transition-colors"
-                          >
-                            {allOpenInvoices.every(inv => selectedInvoices.has(inv.id)) && allOpenInvoices.length > 0 ? <CheckSquare size={18} /> : <Square size={18} />}
-                          </button>
-                        </th>
-                        <th className="text-left px-4 py-3 font-semibold w-[15%]">Klant</th>
-                        <th className="text-left px-4 py-3 font-semibold w-[9%]">Factuur Nr.</th>
-                        <th className="text-center px-4 py-3 font-semibold w-[9%]">Type</th>
-                        <th className="text-left px-4 py-3 font-semibold w-[7%]">Maand</th>
-                        <th className="text-left px-4 py-3 font-semibold w-[9%]">Factuur Datum</th>
-                        <th className="text-left px-4 py-3 font-semibold w-[9%]">Vervaldatum</th>
-                        <th className="text-right px-4 py-3 font-semibold w-[9%]">Bedrag</th>
-                        <th className="text-center px-4 py-3 font-semibold w-[9%]">Status</th>
-                        <th className="text-right px-4 py-3 font-semibold w-[12%]">Acties</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {allOpenInvoices.length === 0 ? (
-                        <tr>
-                          <td colSpan={10} className="px-4 py-8 text-center text-gray-400">
-                            Geen openstaande facturen
-                          </td>
-                        </tr>
-                      ) : (
-                        allOpenInvoices.slice((openPage - 1) * openPageSize, openPage * openPageSize).map(inv => renderInvoiceRow(inv, true))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-                <Pagination
-                  currentPage={openPage}
-                  totalItems={allOpenInvoices.length}
-                  pageSize={openPageSize}
-                  onPageChange={(page) => { setOpenPage(page); }}
-                  onPageSizeChange={(size) => { setOpenPageSize(size); setOpenPage(1); }}
-                  label="facturen"
-                />
-              </div>
-              )}
+              {!onlyOpenInvoices && renderInvoiceSection({
+                title: 'Externe facturen',
+                subtitle: 'Facturen voor externe huurders.',
+                accentClass: 'border-blue-500',
+                list: externalDraftInvoices,
+                page: externalDraftPage,
+                pageSize: externalDraftPageSize,
+                onPageChange: setExternalDraftPage,
+                onPageSizeChange: (size) => { setExternalDraftPageSize(size); setExternalDraftPage(1); },
+                emptyText: 'Geen externe facturen',
+                kind: 'draft',
+                grow: false,
+              })}
 
-              {onlyOpenInvoices && (
-              <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 flex-1 min-h-0 flex flex-col overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-3 bg-dark-800 border-b border-amber-500">
-                  <h2 className="text-lg font-bold text-gray-100">Openstaande Facturen</h2>
-                  <div className="flex items-center gap-2">
-                    {openSelected > 0 && (
-                      <>
-                        <div className="flex items-center gap-2 bg-gold-600 text-white px-3 py-1.5 rounded-lg text-sm">
-                          <CheckSquare size={16} />
-                          {openSelected} Geselecteerd
-                        </div>
-                        <button
-                          onClick={() => handleBatchStatusChange('paid')}
-                          className="flex items-center gap-2 bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition-colors text-sm"
-                        >
-                          <CheckCircle size={16} />
-                          Markeer als Betaald
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-                <div className="flex-1 min-h-0 overflow-auto">
-                  <table className="w-full table-fixed min-w-[1100px]">
-                    <thead>
-                      <tr className="sticky top-0 z-10 border-b border-dark-700 text-gray-300 text-xs uppercase bg-dark-800">
-                        <th className="text-center px-4 py-3 font-semibold w-[4%]">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); toggleSelectAll(allOpenInvoices); }}
-                            className="text-gray-300 hover:text-gold-500 transition-colors"
-                          >
-                            {allOpenInvoices.every(inv => selectedInvoices.has(inv.id)) && allOpenInvoices.length > 0 ? <CheckSquare size={18} /> : <Square size={18} />}
-                          </button>
-                        </th>
-                        <th className="text-left px-4 py-3 font-semibold w-[15%]">Klant</th>
-                        <th className="text-left px-4 py-3 font-semibold w-[9%]">Factuur Nr.</th>
-                        <th className="text-center px-4 py-3 font-semibold w-[9%]">Type</th>
-                        <th className="text-left px-4 py-3 font-semibold w-[7%]">Maand</th>
-                        <th className="text-left px-4 py-3 font-semibold w-[9%]">Factuur Datum</th>
-                        <th className="text-left px-4 py-3 font-semibold w-[9%]">Vervaldatum</th>
-                        <th className="text-right px-4 py-3 font-semibold w-[9%]">Bedrag</th>
-                        <th className="text-center px-4 py-3 font-semibold w-[9%]">Status</th>
-                        <th className="text-right px-4 py-3 font-semibold w-[12%]">Acties</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {allOpenInvoices.length === 0 ? (
-                        <tr>
-                          <td colSpan={10} className="px-4 py-8 text-center text-gray-400">
-                            Geen openstaande facturen
-                          </td>
-                        </tr>
-                      ) : (
-                        allOpenInvoices.slice((openPage - 1) * openPageSize, openPage * openPageSize).map(inv => renderInvoiceRow(inv, true))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-                <Pagination
-                  currentPage={openPage}
-                  totalItems={allOpenInvoices.length}
-                  pageSize={openPageSize}
-                  onPageChange={(page) => { setOpenPage(page); }}
-                  onPageSizeChange={(size) => { setOpenPageSize(size); setOpenPage(1); }}
-                  label="facturen"
-                />
-              </div>
-              )}
+              {!hideOpenInvoices && !onlyOpenInvoices && renderInvoiceSection({
+                title: 'Openstaande Facturen',
+                accentClass: 'border-amber-500',
+                list: internalOpenInvoices,
+                page: openPage,
+                pageSize: openPageSize,
+                onPageChange: setOpenPage,
+                onPageSizeChange: (size) => { setOpenPageSize(size); setOpenPage(1); },
+                emptyText: 'Geen openstaande facturen',
+                kind: 'open',
+                grow: true,
+              })}
+
+              {!hideOpenInvoices && !onlyOpenInvoices && renderInvoiceSection({
+                title: 'Externe facturen',
+                subtitle: 'Facturen voor externe huurders.',
+                accentClass: 'border-blue-500',
+                list: externalOpenInvoices,
+                page: externalOpenPage,
+                pageSize: externalOpenPageSize,
+                onPageChange: setExternalOpenPage,
+                onPageSizeChange: (size) => { setExternalOpenPageSize(size); setExternalOpenPage(1); },
+                emptyText: 'Geen externe facturen',
+                kind: 'open',
+                grow: false,
+              })}
+
+              {onlyOpenInvoices && renderInvoiceSection({
+                title: 'Openstaande Facturen',
+                accentClass: 'border-amber-500',
+                list: internalOpenInvoices,
+                page: openPage,
+                pageSize: openPageSize,
+                onPageChange: setOpenPage,
+                onPageSizeChange: (size) => { setOpenPageSize(size); setOpenPage(1); },
+                emptyText: 'Geen openstaande facturen',
+                kind: 'openOnly',
+                grow: true,
+              })}
+
+              {onlyOpenInvoices && renderInvoiceSection({
+                title: 'Externe facturen',
+                subtitle: 'Facturen voor externe huurders.',
+                accentClass: 'border-blue-500',
+                list: externalOpenInvoices,
+                page: externalOpenPage,
+                pageSize: externalOpenPageSize,
+                onPageChange: setExternalOpenPage,
+                onPageSizeChange: (size) => { setExternalOpenPageSize(size); setExternalOpenPage(1); },
+                emptyText: 'Geen externe facturen',
+                kind: 'openOnly',
+                grow: false,
+              })}
+
             </div>
           );
         })()}
