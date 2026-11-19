@@ -6,6 +6,7 @@ import {
   bookingLabel,
   gateReady,
   interpretGateResponse,
+  staffLockDecision,
   ownBookingRow,
   pinAttemptBlocked,
   requestGate,
@@ -88,6 +89,11 @@ assert.equal(pinAttemptBlocked(7), false);
 assert.equal(pinAttemptBlocked(8), true);
 assert.equal(gateReady(true, false), false);
 assert.equal(gateReady(true, true), true);
+assert.equal(staffLockDecision({ hasStaffSession: true, settingsVisible: false, pin: null, remembered: false }), 'open');
+assert.equal(staffLockDecision({ hasStaffSession: false, settingsVisible: false, pin: null, remembered: true }), 'ask');
+assert.equal(staffLockDecision({ hasStaffSession: false, settingsVisible: true, pin: null, remembered: false }), 'open');
+assert.equal(staffLockDecision({ hasStaffSession: false, settingsVisible: true, pin: '1234', remembered: true }), 'open');
+assert.equal(staffLockDecision({ hasStaffSession: false, settingsVisible: true, pin: '1234', remembered: false }), 'ask');
 
 const own = ownBookingRow('tenant', customer);
 assert.equal(own.tenant_id, customer);

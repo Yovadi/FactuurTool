@@ -136,6 +136,19 @@ export function gateReady(staffReady: boolean, bookingReady: boolean): boolean {
   return staffReady === true && bookingReady === true;
 }
 
+/** Open only with a staff session, or while the settings row is still readable and no PIN is set. */
+export function staffLockDecision(input: {
+  hasStaffSession: boolean;
+  settingsVisible: boolean;
+  pin: string | null;
+  remembered: boolean;
+}): 'open' | 'ask' {
+  if (input.hasStaffSession) return 'open';
+  if (!input.settingsVisible) return 'ask';
+  if (!input.pin || input.remembered) return 'open';
+  return 'ask';
+}
+
 export function ownBookingRow(
   userType: 'tenant' | 'external',
   customerId: string,

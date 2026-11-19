@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Lock } from 'lucide-react';
 import { supabase, supabaseAnonKey, supabaseUrl } from '../lib/supabase';
-import { requestGate, roleFromAccessToken } from '../utils/accessGate';
+import { requestGate, roleFromAccessToken, staffLockDecision } from '../utils/accessGate';
 
 const STORAGE_KEY = 'hal5-staff-unlocked';
 
-async function legacyPin(): Promise<string | null> {
+async function readStaffPin(): Promise<{ visible: boolean; pin: string | null }> {
   const { data, error } = await supabase
     .from('company_settings')
     .select('staff_pin_code')
@@ -13,7 +13,8 @@ async function legacyPin(): Promise<string | null> {
     .limit(1)
     .maybeSingle();
   if (error) throw error;
-  return (data?.staff_pin_code || '').trim() || null;
+  if (!data) return { visible: false, pin: null };
+  return { visible: true, pin: (data.staff_pin_code || '').trim() || null };
 }
 
 export function StaffPinLock({ children }: { children: React.ReactNode }) {
@@ -38,10 +39,16 @@ export function StaffPinLock({ children }: { children: React.ReactNode }) {
         return;
       }
       try {
-        const pin = await legacyPin();
+        const { visible, pin } = await readStaffPin();
         if (cancelled) return;
-        setRequiredPin(pin);
-        if (!pin || sessionStorage.getItem(STORAGE_KEY) === '1') setUnlocked(true);
+        const decision = staffLockDecision({
+          hasStaffSession: false,
+          settingsVisible: visible,
+          pin,
+          remembered: sessionStorage.getItem(STORAGE_KEY) === '1',
+        });
+        setRequiredPin(visible ? pin : 'server');
+        setUnlocked(decision === 'open');
         setLoading(false);
       } catch {
         if (cancelled) return;
