@@ -1,3 +1,4 @@
+import { notify } from '../utils/notify';
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Plus, CreditCard as Edit2, Trash2, Mail, Phone, MapPin, Key, AlertCircle } from 'lucide-react';
@@ -184,7 +185,7 @@ export function ExternalCustomers() {
 
     if (error) {
       console.error('Error deleting customer:', error);
-      alert('Fout bij verwijderen: ' + error.message);
+      notify('Fout bij verwijderen: ' + error.message, 'error');
     } else {
       setCustomers(customers.filter(c => c.id !== id));
     }
@@ -200,7 +201,7 @@ export function ExternalCustomers() {
 
     if (error) {
       console.error('Error deleting customer:', error);
-      alert('Fout bij verwijderen: ' + error.message);
+      notify('Fout bij verwijderen: ' + error.message, 'error');
     } else {
       setCustomers(customers.filter(c => c.id !== showDeleteWarning.customerId));
     }

@@ -1,3 +1,4 @@
+import { notify } from '../utils/notify';
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import {
@@ -133,7 +134,7 @@ export function CrediteurenEBoekhouden() {
     }
     setResyncingId(null);
     await loadData();
-    if (!result.success) alert(result.error || 'Synchronisatie mislukt');
+    if (!result.success) notify(result.error || 'Synchronisatie mislukt', 'error');
   };
 
   const handleResetSync = async (record: SyncedRecord) => {
@@ -186,7 +187,7 @@ export function CrediteurenEBoekhouden() {
     setBulkProgress(null);
     setSelectedIds(new Set());
     await loadData();
-    alert(`Klaar: ${successCount} geslaagd, ${failCount} mislukt.`);
+    notify(`Klaar: ${successCount} geslaagd, ${failCount} mislukt.`, 'info');
   };
 
   const filteredRecords = activeFilter === 'all' ? records : records.filter(r => r.type === activeFilter);

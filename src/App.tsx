@@ -7,6 +7,9 @@ import { getEffectiveRootFolderPath } from './utils/localSettings';
 import { checkAndRunScheduledJobs } from './utils/scheduledJobs';
 import { StaffPinLock } from './components/StaffPinLock';
 import { TestModeBanner } from './components/TestModeBanner';
+import { Toast } from './components/Toast';
+import { ConfirmModal } from './components/ConfirmModal';
+import type { NoticeType } from './utils/notify';
 
 const OverzichtTabs = lazy(() => import('./components/OverzichtTabs').then(m => ({ default: m.OverzichtTabs })));
 const TenantManagement = lazy(() => import('./components/TenantManagement').then(m => ({ default: m.TenantManagement })));
@@ -55,6 +58,8 @@ function App() {
   const [appVersion, setAppVersion] = useState<string>('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [notices, setNotices] = useState<{ id: number; message: string; type: NoticeType }[]>([]);
+  const [confirmRequest, setConfirmRequest] = useState<{ message: string; resolve: (value: boolean) => void } | null>(null);
   const [eBoekhoudenEnabled, setEBoekhoudenEnabled] = useState(false);
   const [emailEnabled, setEmailEnabled] = useState(false);
   const [updateDialog, setUpdateDialog] = useState<UpdateDialogState>({
@@ -195,10 +200,26 @@ function App() {
         if (data?.test_mode) setTestMode({ enabled: true, date: data.test_date || null });
       });
 
-    checkAndRunScheduledJobs();
-    const jobsInterval = setInterval(() => {
-      checkAndRunScheduledJobs();
-    }, 60 * 60 * 1000);
+    const onNotice = (event: Event) => {
+      const detail = (event as CustomEvent).detail as { message: string; type: NoticeType };
+      const id = Date.now() + Math.random();
+      setNotices((current) => [...current, { id, message: detail.message, type: detail.type }]);
+    };
+    const onConfirm = (event: Event) => {
+      const detail = (event as CustomEvent).detail as { message: string; resolve: (value: boolean) => void };
+      setConfirmRequest((current) => {
+        if (current) current.resolve(false);
+        return detail;
+      });
+    };
+    window.addEventListener('hal5-notice', onNotice);
+    window.addEventListener('hal5-confirm', onConfirm);
+
+    const runJobs = () => {
+      checkAndRunScheduledJobs().catch((error) => console.error('Nachttaak', error));
+    };
+    runJobs();
+    const jobsInterval = setInterval(runJobs, 60 * 60 * 1000);
 
     const handleEboekhoudenChange = (e: Event) => {
       const detail = (e as CustomEvent).detail;
@@ -240,6 +261,8 @@ function App() {
       stopPeriodicSync?.();
       window.removeEventListener('eboekhouden-enabled-changed', handleEboekhoudenChange);
       window.removeEventListener('email-enabled-changed', handleEmailChange);
+      window.removeEventListener('hal5-notice', onNotice);
+      window.removeEventListener('hal5-confirm', onConfirm);
       clearInterval(invoiceCheckInterval);
       clearInterval(jobsInterval);
       window.removeEventListener('invoices-seen', handleInvoicesSeen);
@@ -434,6 +457,34 @@ function App() {
   return (
     <StaffPinLock>
     <div className="h-screen bg-dark-950 flex flex-col">
+      <div className="fixed top-4 right-4 z-[110] flex flex-col gap-2 w-full max-w-sm pointer-events-none">
+        {notices.map((notice) => (
+          <div key={notice.id} className="pointer-events-auto">
+            <Toast
+              message={notice.message}
+              type={notice.type}
+              onClose={() => setNotices((current) => current.filter((item) => item.id !== notice.id))}
+            />
+          </div>
+        ))}
+      </div>
+      {confirmRequest && (
+        <ConfirmModal
+          title="Bevestigen"
+          message={confirmRequest.message}
+          confirmText="Ja"
+          cancelText="Nee"
+          variant="danger"
+          onConfirm={() => {
+            confirmRequest.resolve(true);
+            setConfirmRequest(null);
+          }}
+          onCancel={() => {
+            confirmRequest.resolve(false);
+            setConfirmRequest(null);
+          }}
+        />
+      )}
       {testMode.enabled && <TestModeBanner testDate={testMode.date} />}
       {(syncStatus.active || syncStatus.result) && (
         <div className="fixed bottom-4 right-4 z-[100] max-w-sm">

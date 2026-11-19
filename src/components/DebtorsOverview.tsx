@@ -1,3 +1,4 @@
+import { notify } from '../utils/notify';
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { openInvoiceAmount } from '../utils/invoiceBalance';
@@ -326,10 +327,10 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
       if (error) throw error;
 
       await loadSyncedInvoices();
-      alert('Sync status gereset. Je kunt de factuur nu opnieuw synchroniseren via het factuuroverzicht.');
+      notify('Sync status gereset. Je kunt de factuur nu opnieuw synchroniseren via het factuuroverzicht.', 'success');
     } catch (error) {
       console.error('Error resetting sync status:', error);
-      alert('Fout bij resetten van sync status');
+      notify('Fout bij resetten van sync status', 'error');
     }
   };
 
@@ -353,9 +354,9 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
     setResyncingInvoiceId(null);
     if (result.success) {
       await loadSyncedInvoices();
-      alert('Factuur succesvol opnieuw gesynchroniseerd!');
+      notify('Factuur succesvol opnieuw gesynchroniseerd!', 'success');
     } else {
-      alert(result.error || 'Synchronisatie mislukt');
+      notify(result.error || 'Synchronisatie mislukt', 'error');
     }
   };
 
@@ -394,7 +395,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
     setBulkProgress(null);
     setSelectedSyncIds(new Set());
     await loadSyncedInvoices();
-    alert(`Klaar: ${successCount} geslaagd, ${failCount} mislukt.`);
+    notify(`Klaar: ${successCount} geslaagd, ${failCount} mislukt.`, 'info');
   };
 
   const toggleSelectAll = () => {
@@ -418,7 +419,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
     if (!invoiceToDelete) return;
 
     if (deleteCode !== companySettings?.delete_code) {
-      alert('Onjuiste verwijdercode!');
+      notify('Onjuiste verwijdercode!', 'error');
       return;
     }
 
@@ -436,7 +437,7 @@ export function DebtorsOverview({ initialTab = 'open' }: DebtorsOverviewProps) {
       setDeleteCode('');
     } catch (error) {
       console.error('Error deleting invoice:', error);
-      alert('Fout bij verwijderen van factuur. Probeer het opnieuw.');
+      notify('Fout bij verwijderen van factuur. Probeer het opnieuw.', 'error');
     }
   };
 

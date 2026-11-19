@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { askConfirm } from '../utils/notify';
 import { supabase } from '../lib/supabase';
 import { applyPendingIndexation, loadIndexationHistory, loadIndexationPreview } from '../utils/applyRentIndexation';
 import type { IndexationHistoryRow } from '../utils/applyRentIndexation';
@@ -347,7 +348,7 @@ export function Automatiseringen() {
         return;
       }
       const names = fresh.map((lease) => `${lease.tenantName} (€ ${lease.totalOld.toFixed(2)} → € ${lease.totalNew.toFixed(2)})`).join(', ');
-      if (!window.confirm(`Huurprijzen met ${indexationPercentage}% verhogen voor: ${names}?`)) return;
+      if (!(await askConfirm(`Huurprijzen met ${indexationPercentage}% verhogen voor: ${names}?`))) return;
 
       const { data: existing } = await supabase.from('company_settings').select('id').maybeSingle();
       if (existing?.id) {
