@@ -5,6 +5,7 @@ import { SkeletonDashboard } from './SkeletonLoader';
 import { createAdminNotification } from '../utils/notificationHelper';
 import { useUnbilledItems } from './UnbilledItemsReminder';
 import { addBusinessDays, businessMonth, businessMonthRange } from '../utils/businessClock';
+import { splitBookingIncome } from '../utils/bookingIncome';
 import { getCurrentDateString } from '../utils/dateHelpers';
 import { shiftYearMonth } from '../utils/leaseInvoiceEligibility';
 
@@ -18,6 +19,10 @@ type DashboardStats = {
   activeLeases: number;
   expiringLeases: number;
   expiredLeases: number;
+  bookingIncomeInternal: number;
+  bookingIncomeExternal: number;
+  bookingIncomeInternalPrevious: number;
+  bookingIncomeExternalPrevious: number;
 };
 
 type PendingBooking = {
@@ -79,7 +84,11 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
     weekMeetingBookings: 0,
     activeLeases: 0,
     expiringLeases: 0,
-    expiredLeases: 0
+    expiredLeases: 0,
+    bookingIncomeInternal: 0,
+    bookingIncomeExternal: 0,
+    bookingIncomeInternalPrevious: 0,
+    bookingIncomeExternalPrevious: 0,
   });
   const [pendingBookings, setPendingBookings] = useState<PendingBooking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -165,8 +174,10 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
     const todayStr = await getCurrentDateString();
     const fourteenDaysStr = addBusinessDays(todayStr, 14);
     const sevenDaysStr = addBusinessDays(todayStr, 7);
+    const thisMonthDates = businessMonth(todayStr);
+    const prevMonthDates = businessMonth(`${shiftYearMonth(thisMonthDates.yearMonth, -1)}-01`);
     const thisMonth = businessMonthRange(todayStr);
-    const prevMonth = businessMonthRange(`${shiftYearMonth(businessMonth(todayStr).yearMonth, -1)}-01`);
+    const prevMonth = businessMonthRange(`${prevMonthDates.yearMonth}-01`);
 
     const [
       { data: activeLeases },
@@ -176,6 +187,8 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
       { count: todayMeetingCount },
       { count: weekMeetingCount },
       { data: pendingMeetingRooms },
+      { data: thisMonthBookings },
+      { data: prevMonthBookings },
     ] = await Promise.all([
       supabase.from('leases').select('id, end_date, status, tenant_id, tenants(name)').eq('status', 'active'),
       supabase.from('invoices').select(`
@@ -196,6 +209,16 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
         .order('booking_date', { ascending: true })
         .order('start_time', { ascending: true })
         .limit(10),
+      supabase.from('meeting_room_bookings')
+        .select('total_amount, tenant_id, external_customer_id')
+        .gte('booking_date', thisMonthDates.start)
+        .lte('booking_date', thisMonthDates.end)
+        .in('status', ['confirmed', 'completed']),
+      supabase.from('meeting_room_bookings')
+        .select('total_amount, tenant_id, external_customer_id')
+        .gte('booking_date', prevMonthDates.start)
+        .lte('booking_date', prevMonthDates.end)
+        .in('status', ['confirmed', 'completed']),
     ]);
 
     const allPendingBookings: PendingBooking[] = [
@@ -221,6 +244,8 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
 
     const revenueThisMonth = (thisMonthInvoices || []).reduce((sum, inv) => sum + Number(inv.amount), 0);
     const revenuePrevMonth = (prevMonthInvoices || []).reduce((sum, inv) => sum + Number(inv.amount), 0);
+    const bookingIncome = splitBookingIncome(thisMonthBookings);
+    const bookingIncomePrevious = splitBookingIncome(prevMonthBookings);
 
     setPendingBookings(allPendingBookings);
     setExpiringLeases(expiringLeasesData);
@@ -240,7 +265,11 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
       weekMeetingBookings: weekMeetingCount || 0,
       activeLeases: activeLeases?.length || 0,
       expiringLeases: expiringLeasesData.length,
-      expiredLeases: expiredLeasesData.length
+      expiredLeases: expiredLeasesData.length,
+      bookingIncomeInternal: bookingIncome.internal,
+      bookingIncomeExternal: bookingIncome.external,
+      bookingIncomeInternalPrevious: bookingIncomePrevious.internal,
+      bookingIncomeExternalPrevious: bookingIncomePrevious.external,
     });
 
     setLoading(false);
@@ -252,6 +281,9 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
 
   const todayTotalBookings = stats.todayMeetingBookings;
   const weekTotalBookings = stats.weekMeetingBookings;
+  const euro = (amount: number) => '\u20AC' + amount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const bookingIncomeTotal = stats.bookingIncomeInternal + stats.bookingIncomeExternal;
+  const bookingIncomePreviousTotal = stats.bookingIncomeInternalPrevious + stats.bookingIncomeExternalPrevious;
 
   if (loading) {
     return <SkeletonDashboard />;
@@ -366,6 +398,35 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
             <p className="text-xs text-gray-400 mt-1 h-5">
               {stats.expiringLeases > 0 ? `${stats.expiringLeases} verloopt binnen 14 dagen` : 'Geen actie vereist'}
             </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4 sm:p-6 mb-6 sm:mb-8">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-2 sm:p-3 bg-dark-700 rounded-lg">
+            <CalendarClock className="text-blue-400" size={20} />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-100">Zaalopbrengst deze maand</h3>
+            <p className="text-xs text-gray-400">Bevestigde en afgeronde boekingen. Een aanvraag telt mee nadat je hem accepteert.</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <p className="text-xs sm:text-sm text-gray-300 mb-1">Intern</p>
+            <p className="text-xl sm:text-2xl font-bold text-gray-100">{euro(stats.bookingIncomeInternal)}</p>
+            <p className="text-xs text-gray-400 mt-1">Huurders · vorige maand {euro(stats.bookingIncomeInternalPrevious)}</p>
+          </div>
+          <div>
+            <p className="text-xs sm:text-sm text-gray-300 mb-1">Extern</p>
+            <p className="text-xl sm:text-2xl font-bold text-gray-100">{euro(stats.bookingIncomeExternal)}</p>
+            <p className="text-xs text-gray-400 mt-1">Externe huurders · vorige maand {euro(stats.bookingIncomeExternalPrevious)}</p>
+          </div>
+          <div>
+            <p className="text-xs sm:text-sm text-gray-300 mb-1">Totaal</p>
+            <p className="text-xl sm:text-2xl font-bold text-gray-100">{euro(bookingIncomeTotal)}</p>
+            <p className="text-xs text-gray-400 mt-1">Vorige maand {euro(bookingIncomePreviousTotal)}</p>
           </div>
         </div>
       </div>
