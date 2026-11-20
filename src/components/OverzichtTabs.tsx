@@ -4,7 +4,7 @@ import { Dashboard } from './Dashboard';
 import { Analytics } from './Analytics';
 
 type OverzichtTabsProps = {
-  onNavigateToDebtors?: (subTab: 'te-factureren' | 'facturen' | 'outstanding') => void;
+  onNavigateToDebtors?: (subTab: 'te-factureren' | 'outstanding') => void;
   onNavigateToInvoicing?: (month: string) => void;
 };
 

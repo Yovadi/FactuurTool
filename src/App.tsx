@@ -52,7 +52,7 @@ function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [isElectron, setIsElectron] = useState(false);
   const [prefilledInvoiceData, setPrefilledInvoiceData] = useState<PrefilledInvoiceData | null>(null);
-  const [debiteurenInitialTab, setDebiteurenInitialTab] = useState<'te-factureren' | 'facturen' | 'borg' | 'outstanding' | 'log' | undefined>(undefined);
+  const [debiteurenInitialTab, setDebiteurenInitialTab] = useState<'te-factureren' | 'borg' | 'outstanding' | 'log' | undefined>(undefined);
   const [debiteurenFocusMonth, setDebiteurenFocusMonth] = useState<string | undefined>(undefined);
   const [appVersion, setAppVersion] = useState<string>('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);

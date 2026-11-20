@@ -3,9 +3,9 @@ import { InvoiceManagement, InvoiceManagementRef } from './InvoiceManagement';
 import { InvoiceOverview } from './InvoiceOverview';
 import { DebtorsOverview } from './DebtorsOverview';
 import { DepositOverview } from './DepositOverview';
-import { FileText, AlertTriangle, FileCheck, ListChecks, Shield } from 'lucide-react';
+import { AlertTriangle, FileCheck, ListChecks, Shield } from 'lucide-react';
 
-export type DebiteurenTab = 'te-factureren' | 'facturen' | 'borg' | 'outstanding' | 'log';
+export type DebiteurenTab = 'te-factureren' | 'borg' | 'outstanding' | 'log';
 
 type DebiteurenTabsProps = {
   initialTab?: DebiteurenTab;
@@ -36,7 +36,6 @@ export function DebiteurenTabs({
 
   const tabs: { id: DebiteurenTab; label: string; icon: any }[] = [
     { id: 'te-factureren', label: 'Te factureren', icon: ListChecks },
-    { id: 'facturen', label: 'Facturen', icon: FileText },
     { id: 'borg', label: 'Borg', icon: Shield },
     { id: 'outstanding', label: 'Openstaand', icon: AlertTriangle },
     { id: 'log', label: 'Logboek', icon: FileCheck },
@@ -88,16 +87,6 @@ export function DebiteurenTabs({
                 isActive={isActive && activeTab === 'te-factureren'}
               />
             </div>
-          </div>
-        )}
-        {activeTab === 'facturen' && (
-          <div className="h-full overflow-hidden">
-            <InvoiceManagement
-              onCreateCreditNote={onCreateCreditNote}
-              invoiceTypeFilter="all"
-              hideOpenInvoices
-              isActive={isActive && activeTab === 'facturen'}
-            />
           </div>
         )}
         {activeTab === 'borg' && (
