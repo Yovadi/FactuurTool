@@ -21,6 +21,7 @@ import { addBusinessDays } from '../utils/businessClock';
 import { getCurrentDateString } from '../utils/dateHelpers';
 import { amsterdamCalendar } from '../utils/amsterdamCalendar';
 import { openInvoiceAmount } from '../utils/invoiceBalance';
+import { invoiceSectionFrameClass } from '../utils/invoiceSectionFrame';
 import {
   LEASES_CHANGED_EVENT,
   TENANTS_CHANGED_EVENT,
@@ -3677,7 +3678,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
             const selectedCount = section.list.filter(inv => selectedInvoices.has(inv.id)).length;
             const pageItems = section.list.slice((section.page - 1) * section.pageSize, section.page * section.pageSize);
             return (
-              <div className={`bg-dark-900 rounded-lg shadow-sm border border-dark-700 min-h-0 flex flex-col overflow-hidden ${section.grow ? 'flex-1' : 'flex-shrink-0 max-h-[40%]'}`}>
+              <div className={invoiceSectionFrameClass(section.grow, section.list.length)}>
                 <div className={`flex items-center justify-between gap-4 px-4 py-3 bg-dark-800 border-b ${section.accentClass}`}>
                   <div>
                     <h2 className="text-lg font-bold text-gray-100">{section.title}</h2>
