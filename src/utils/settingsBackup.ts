@@ -3,7 +3,7 @@ const SECRET_KEYS = [
   'smtp_user',
   'graph_client_secret',
   'resend_api_key',
-  'eboekhouden_api_token',
+  'eboekhouden_api_token', // masks a token that can still sit in an older backup
   'openai_api_key',
   'staff_pin_code',
   'delete_code',

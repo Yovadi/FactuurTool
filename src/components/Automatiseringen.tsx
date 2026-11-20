@@ -5,8 +5,8 @@ import { applyPendingIndexation, loadIndexationHistory, loadIndexationPreview } 
 import type { IndexationHistoryRow } from '../utils/applyRentIndexation';
 import type { IndexationPreview } from '../utils/rentIndexation';
 import {
-  Loader2, RefreshCw, CheckCircle2, Clock, FileText,
-  Receipt, Link2, Users, Calendar, ChevronDown, ChevronUp, Play, DoorOpen,
+  Loader2, RefreshCw, Clock, FileText,
+  Calendar, ChevronDown, ChevronUp, Play, DoorOpen,
   AlertTriangle, TrendingUp, CalendarCheck, Monitor, LayoutPanelLeft
 } from 'lucide-react';
 
@@ -25,7 +25,7 @@ const JOB_META: Record<string, {
   icon: React.ReactNode;
   accentColor: string;
   interval: string;
-  category: 'facturatie' | 'eboekhouden' | 'beheer';
+  category: 'facturatie' | 'beheer';
 }> = {
   generate_monthly_invoices: {
     label: 'Maandelijkse huurfacturen aanmaken',
@@ -74,30 +74,6 @@ const JOB_META: Record<string, {
     accentColor: 'amber',
     interval: 'Dagelijks (elke 24 uur)',
     category: 'beheer',
-  },
-  eboekhouden_payment_status_check: {
-    label: 'Betaalstatus facturen controleren',
-    description: 'Controleert dagelijks de betaalstatus van verkoop- en inkoopfacturen in e-Boekhouden. Een deels betaalde verkoopfactuur wordt als deelbetaling opgeslagen. Staat er niets meer open, dan wordt de factuur betaald.',
-    icon: <Receipt size={18} />,
-    accentColor: 'blue',
-    interval: 'Dagelijks (elke 24 uur)',
-    category: 'eboekhouden',
-  },
-  eboekhouden_sync_verification: {
-    label: 'Synchronisatiestatus verifiëren',
-    description: 'Verifieert dagelijks of gesynchroniseerde facturen en creditnota\'s nog bestaan in e-Boekhouden.',
-    icon: <Link2 size={18} />,
-    accentColor: 'blue',
-    interval: 'Dagelijks (elke 24 uur)',
-    category: 'eboekhouden',
-  },
-  eboekhouden_relation_verification: {
-    label: 'Relaties verifiëren',
-    description: 'Verifieert dagelijks of gesynchroniseerde huurders en externe klanten nog als relatie bestaan in e-Boekhouden.',
-    icon: <Users size={18} />,
-    accentColor: 'blue',
-    interval: 'Dagelijks (elke 24 uur)',
-    category: 'eboekhouden',
   },
 };
 
@@ -299,7 +275,6 @@ export function Automatiseringen() {
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [refreshing, setRefreshing] = useState(false);
-  const [eboekhoudenEnabled, setEboekhoudenEnabled] = useState(false);
   const [indexationPercentage, setIndexationPercentage] = useState<number>(0);
   const [savingPercentage, setSavingPercentage] = useState(false);
   const [indexationPreview, setIndexationPreview] = useState<IndexationPreview[]>([]);
@@ -319,12 +294,11 @@ export function Automatiseringen() {
   const loadJobs = async () => {
     const [jobsResult, settingsResult] = await Promise.all([
       supabase.from('scheduled_jobs').select('*').order('created_at', { ascending: true }),
-      supabase.from('company_settings').select('eboekhouden_enabled, rent_indexation_percentage').maybeSingle(),
+      supabase.from('company_settings').select('rent_indexation_percentage').maybeSingle(),
     ]);
 
     if (jobsResult.data) setJobs(jobsResult.data);
     if (settingsResult.data) {
-      setEboekhoudenEnabled(settingsResult.data.eboekhouden_enabled ?? false);
       const percentage = settingsResult.data.rent_indexation_percentage ?? 0;
       setIndexationPercentage(percentage);
       setIndexationPreview(await loadIndexationPreview(percentage));
@@ -420,10 +394,7 @@ export function Automatiseringen() {
 
   const facturatieJobs = jobs.filter(j => JOB_META[j.job_type]?.category === 'facturatie');
   const beheerJobs = jobs.filter(j => JOB_META[j.job_type]?.category === 'beheer');
-  const eboekhoudenJobs = eboekhoudenEnabled
-    ? jobs.filter(j => JOB_META[j.job_type]?.category === 'eboekhouden')
-    : [];
-  const visibleJobs = [...facturatieJobs, ...beheerJobs, ...eboekhoudenJobs];
+  const visibleJobs = [...facturatieJobs, ...beheerJobs];
   const enabledCount = visibleJobs.filter(j => j.is_enabled).length;
 
   const indexationConfig = (
@@ -491,7 +462,7 @@ export function Automatiseringen() {
             {enabledCount} van {visibleJobs.length} automatiseringen actief
           </p>
           <p className="text-xs text-gray-500 mt-1 max-w-2xl">
-            Deze taken draaien in de app zolang die open is, en elk uur via GitHub ook als de app dicht is. De e-Boekhouden-taken blijven in de app.
+            Deze taken draaien in de app zolang die open is, en elk uur via GitHub ook als de app dicht is.
           </p>
         </div>
         <button
@@ -582,7 +553,7 @@ export function Automatiseringen() {
       <div className="rounded-xl bg-dark-800/50 border border-dark-700 px-5 py-4 flex items-start gap-3">
         <Clock size={16} className="text-gray-500 mt-0.5 flex-shrink-0" />
         <p className="text-sm text-gray-400 leading-relaxed">
-          Staat de app dicht, dan pakt GitHub de openstaande facturatie- en beheertaken elk uur op. Een e-Boekhouden-controle wacht tot de app open is.
+          Staat de app dicht, dan pakt GitHub de openstaande facturatie- en beheertaken elk uur op.
         </p>
       </div>
 
@@ -613,18 +584,6 @@ export function Automatiseringen() {
               extraConfig={job.job_type === 'apply_rent_indexation' ? indexationConfig : undefined}
               hideRunNow={job.job_type === 'apply_rent_indexation'}
             />
-          ))}
-        </div>
-      )}
-
-      {eboekhoudenJobs.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 size={15} className="text-gray-500" />
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">e-Boekhouden synchronisatie</h3>
-          </div>
-          {eboekhoudenJobs.map(job => (
-            <JobCard key={job.id} job={job} onToggle={handleToggle} onRunNow={handleRunNow} />
           ))}
         </div>
       )}

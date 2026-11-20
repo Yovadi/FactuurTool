@@ -950,7 +950,6 @@ export function MeetingRoomBookings({ loggedInTenantId = null }: MeetingRoomBook
             unit_price: unitPrice,
             amount: booking.total_amount,
             calculation_type: 'quantity_price',
-            local_category: 'vergaderruimte'
           });
       }
 

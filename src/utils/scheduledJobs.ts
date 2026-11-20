@@ -1,5 +1,4 @@
 import { supabase } from '../lib/supabase';
-import { checkInvoicePaymentStatuses, checkPurchaseInvoicePaymentStatuses, verifyInvoiceSyncStatus, verifyRelationsInEBoekhouden } from '../lib/eboekhoudenSync';
 import { createLeaseNotification } from './notificationHelper';
 import { createSettingsBackup } from './settingsBackup';
 import { addCalendarDays, amsterdamInstant, amsterdamNextMonthStart } from './amsterdamCalendar';
@@ -48,12 +47,6 @@ export const checkAndRunScheduledJobs = async (options?: { skip?: Set<string>; s
         await generateMonthlyInvoices(job);
       } else if (job.job_type === 'generate_meeting_room_invoices') {
         await generateMeetingRoomInvoices(job);
-      } else if (job.job_type === 'eboekhouden_payment_status_check') {
-        await runEBoekhoudenPaymentStatusCheck(job);
-      } else if (job.job_type === 'eboekhouden_sync_verification') {
-        await runEBoekhoudenSyncVerification(job);
-      } else if (job.job_type === 'eboekhouden_relation_verification') {
-        await runEBoekhoudenRelationVerification(job);
       } else if (job.job_type === 'check_expiring_leases') {
         await checkExpiringLeases(job);
       } else if (job.job_type === 'apply_rent_indexation') {
@@ -75,15 +68,6 @@ export const checkAndRunScheduledJobs = async (options?: { skip?: Set<string>; s
 
   return ran;
 };
-
-async function getEBoekhoudenToken(): Promise<string | null> {
-  const { data: settings } = await supabase
-    .from('company_settings')
-    .select('eboekhouden_api_token, eboekhouden_connected')
-    .maybeSingle();
-  if (!settings?.eboekhouden_connected || !settings?.eboekhouden_api_token) return null;
-  return settings.eboekhouden_api_token;
-}
 
 async function claimScheduledJob(job: ScheduledJob): Promise<boolean> {
   const now = new Date().toISOString();
@@ -113,52 +97,6 @@ async function advanceJobNextRun(job: ScheduledJob, intervalHours: number) {
     .update({ last_run_at: new Date().toISOString(), next_run_at: next.toISOString() })
     .eq('id', job.id);
 }
-
-const runEBoekhoudenPaymentStatusCheck = async (job: ScheduledJob) => {
-  try {
-    const token = await getEBoekhoudenToken();
-    if (!token) {
-      await advanceJobNextRun(job, 24);
-      return;
-    }
-    await checkInvoicePaymentStatuses(token);
-    await checkPurchaseInvoicePaymentStatuses(token);
-    await advanceJobNextRun(job, 24);
-  } catch (error) {
-    console.error('Error running e-Boekhouden payment status check:', error);
-    throw error;
-  }
-};
-
-const runEBoekhoudenSyncVerification = async (job: ScheduledJob) => {
-  try {
-    const token = await getEBoekhoudenToken();
-    if (!token) {
-      await advanceJobNextRun(job, 24);
-      return;
-    }
-    await verifyInvoiceSyncStatus(token);
-    await advanceJobNextRun(job, 24);
-  } catch (error) {
-    console.error('Error running e-Boekhouden sync verification:', error);
-    throw error;
-  }
-};
-
-const runEBoekhoudenRelationVerification = async (job: ScheduledJob) => {
-  try {
-    const token = await getEBoekhoudenToken();
-    if (!token) {
-      await advanceJobNextRun(job, 24);
-      return;
-    }
-    await verifyRelationsInEBoekhouden(token);
-    await advanceJobNextRun(job, 24);
-  } catch (error) {
-    console.error('Error running e-Boekhouden relation verification:', error);
-    throw error;
-  }
-};
 
 // Groups bookings by customer, creates/updates one draft invoice per customer per month
 const generateMeetingRoomInvoices = async (job: ScheduledJob) => {

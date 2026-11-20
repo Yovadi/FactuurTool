@@ -42,7 +42,6 @@ export type Tenant = {
   lease_discount_percentage: number;
   meeting_discount_percentage: number;
   vat_rate: number;
-  eboekhouden_relatie_id: number | null;
   created_at: string;
 };
 
@@ -60,7 +59,6 @@ export type ExternalCustomer = {
   lease_discount_percentage: number;
   meeting_discount_percentage: number;
   vat_rate: number;
-  eboekhouden_relatie_id: number | null;
   created_at: string;
   updated_at?: string;
 };
@@ -124,8 +122,6 @@ export type Invoice = {
   vat_inclusive: boolean;
   status: 'draft' | 'sent' | 'paid' | 'overdue';
   notes: string | null;
-  eboekhouden_factuur_id: number | null;
-  eboekhouden_synced_at: string | null;
   created_at: string;
   paid_at: string | null;
   applied_credit?: number;
@@ -142,7 +138,6 @@ export type InvoiceLineItem = {
   unit_price: number;
   amount: number;
   booking_id?: string | null;
-  local_category?: string | null;
   created_at: string;
 };
 
@@ -169,10 +164,6 @@ export type CompanySettings = {
   meter_cabinet_info: string | null;
   building_notes: string | null;
   openai_api_key: string | null;
-  eboekhouden_enabled: boolean;
-  eboekhouden_api_token: string | null;
-  eboekhouden_connected: boolean;
-  eboekhouden_template_id: number | null;
   smtp_host: string | null;
   smtp_port: number | null;
   smtp_user: string | null;
@@ -306,9 +297,6 @@ export type PurchaseInvoice = {
   original_file_name: string;
   ai_extracted: boolean;
   ai_confidence: number;
-  eboekhouden_factuur_id: number | null;
-  eboekhouden_synced_at: string | null;
-  eboekhouden_relatie_id: number | null;
   created_at: string;
 };
 
@@ -320,28 +308,4 @@ export type PurchaseInvoiceLineItem = {
   unit_price: number;
   amount: number;
   vat_rate: number;
-};
-
-export type EBoekhoudenGrootboekMapping = {
-  id: string;
-  local_category: string;
-  grootboek_code: string;
-  grootboek_id: number | null;
-  grootboek_omschrijving: string;
-  btw_code: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
-export type EBoekhoudenSyncLog = {
-  id: string;
-  entity_type: string;
-  entity_id: string;
-  eboekhouden_id: number | null;
-  action: string;
-  status: string;
-  error_message: string | null;
-  request_payload: unknown;
-  response_payload: unknown;
-  created_at: string;
 };

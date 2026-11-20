@@ -30,18 +30,3 @@ export function invoiceAmountBreakdown(amount: number, appliedCredit = 0, paidAm
     showRemainder: credit > 0.009 || paid > 0.009,
   };
 }
-
-/**
- * Payment to record so the local open amount matches what e-Boekhouden still has open.
- * A zero result means the books do not show a new payment beyond what the app already has.
- */
-export function paymentToMatchBookkeeping(input: {
-  amount: number;
-  appliedCredit?: number;
-  paidAmount?: number;
-  amountOpen: number;
-}): number {
-  const localOpen = openInvoiceAmount(input.amount, input.appliedCredit, input.paidAmount);
-  const booksOpen = Math.max(0, roundMoney(Number(input.amountOpen) || 0));
-  return roundMoney(Math.max(0, localOpen - booksOpen));
-}

@@ -462,7 +462,6 @@ export function InvoiceOverview({ onInvoicesCreated, onFocusMonthConsumed, isAct
             quantity: 1,
             unit_price: amount,
             amount,
-            local_category: null
           }]);
 
           if (liErr) {
@@ -526,7 +525,6 @@ export function InvoiceOverview({ onInvoicesCreated, onFocusMonthConsumed, isAct
               description: `${b.space?.space_number || label} - ${new Date(b.booking_date).toLocaleDateString('nl-NL')} ${b.start_time}-${b.end_time}`,
               quantity, unit_price: unitPrice, amount: amt,
               booking_id: b.id,
-              local_category: category
             };
           });
 
@@ -535,7 +533,7 @@ export function InvoiceOverview({ onInvoicesCreated, onFocusMonthConsumed, isAct
               invoice_id: newInvoice.id,
               description: customerDiscountPct > 0 ? `Korting boekingen (${customerDiscountPct}%)` : 'Korting boekingen',
               quantity: 1, unit_price: -totalDiscountAmount, amount: -totalDiscountAmount,
-              booking_id: null, local_category: null as any
+              booking_id: null
             });
           }
 

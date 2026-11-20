@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, type CompanySettings } from '../lib/supabase';
 import { Building2, Edit2, Mail, Phone, MapPin, CreditCard, Lock, FolderOpen, RefreshCw, Wifi, Network, Zap, FileText, Loader2 } from 'lucide-react';
-import { EBoekhoudenDashboard } from './EBoekhoudenDashboard';
 import { getLocalRootFolderPath, setLocalRootFolderPath } from '../utils/localSettings';
 
 export function CompanySettings() {
@@ -10,7 +9,7 @@ export function CompanySettings() {
   const [loading, setLoading] = useState(true);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [updateMessage, setUpdateMessage] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'company' | 'building' | 'eboekhouden'>('company');
+  const [activeTab, setActiveTab] = useState<'company' | 'building'>('company');
   const [localRootPath, setLocalRootPath] = useState<string | null>(null);
 
   const isElectron = !!(window as any).electronAPI;
@@ -37,8 +36,6 @@ export function CompanySettings() {
     patch_points: '',
     meter_cabinet_info: '',
     building_notes: '',
-    eboekhouden_api_token: '',
-    eboekhouden_enabled: false
   });
 
   useEffect(() => {
@@ -159,8 +156,6 @@ export function CompanySettings() {
         patch_points: settings.patch_points || '',
         meter_cabinet_info: settings.meter_cabinet_info || '',
         building_notes: settings.building_notes || '',
-        eboekhouden_api_token: settings.eboekhouden_api_token || '',
-        eboekhouden_enabled: settings.eboekhouden_enabled || false
       });
     }
     setShowForm(true);
@@ -189,8 +184,6 @@ export function CompanySettings() {
       patch_points: '',
       meter_cabinet_info: '',
       building_notes: '',
-      eboekhouden_api_token: '',
-      eboekhouden_enabled: false
     });
     setShowForm(false);
   };
@@ -624,21 +617,6 @@ export function CompanySettings() {
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gold-500"></div>
               )}
             </button>
-            {settings.eboekhouden_enabled && (
-              <button
-                onClick={() => setActiveTab('eboekhouden')}
-                className={`px-4 py-3 font-medium transition-colors relative ${
-                  activeTab === 'eboekhouden'
-                    ? 'text-gold-500'
-                    : 'text-gray-400 hover:text-gray-300'
-                }`}
-              >
-                e-Boekhouden
-                {activeTab === 'eboekhouden' && (
-                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gold-500"></div>
-                )}
-              </button>
-            )}
           </div>
 
           <div className="p-6">
@@ -758,20 +736,6 @@ export function CompanySettings() {
                     </div>
                   </div>
                 )}
-
-                <div className="border-t border-dark-700 pt-6">
-                  <h4 className="text-sm font-semibold text-gray-400 uppercase mb-3">e-Boekhouden Koppeling</h4>
-                  <div className="flex items-center gap-3">
-                    <div className={`w-2 h-2 rounded-full ${settings.eboekhouden_enabled ? (settings.eboekhouden_connected ? 'bg-green-500' : 'bg-amber-500') : 'bg-gray-600'}`} />
-                    <span className="text-sm text-gray-300">
-                      {settings.eboekhouden_enabled
-                        ? settings.eboekhouden_connected
-                          ? 'Verbonden en actief'
-                          : 'Geactiveerd, nog niet verbonden'
-                        : 'Niet geactiveerd'}
-                    </span>
-                  </div>
-                </div>
 
                 <div className="border-t border-dark-700 pt-6">
                   <h4 className="text-sm font-semibold text-gray-400 uppercase mb-3">SMTP E-mail Koppeling</h4>
@@ -896,12 +860,6 @@ export function CompanySettings() {
               </div>
             </div>
 
-            <div className={activeTab !== 'eboekhouden' ? 'hidden' : ''}>
-              <EBoekhoudenDashboard
-                settings={settings}
-                onSettingsUpdate={(updated) => setSettings(updated)}
-              />
-            </div>
           </div>
         </div>
       ) : (

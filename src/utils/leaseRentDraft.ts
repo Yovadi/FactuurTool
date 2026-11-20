@@ -30,7 +30,6 @@ export type RentDraftLine = {
   quantity: number;
   unit_price: number;
   amount: number;
-  local_category: string | null;
 };
 
 export type LeaseRentDraft = {
@@ -46,15 +45,6 @@ export type LeaseRentDraft = {
   lines: RentDraftLine[];
 };
 
-function localCategory(spaceType?: string | null): string | null {
-  switch (spaceType) {
-    case 'kantoor': return 'huur_kantoor';
-    case 'bedrijfsruimte': return 'huur_bedrijfsruimte';
-    case 'buitenterrein': return 'huur_buitenterrein';
-    case 'diversen': return 'diversen';
-    default: return null;
-  }
-}
 
 function spaceLabel(spaceNumber: string, spaceType?: string | null): string {
   if (spaceType !== 'bedrijfsruimte') return spaceNumber;
@@ -105,7 +95,6 @@ export function buildLeaseRentDraft(
       quantity: stored.quantity,
       unit_price: stored.unitPrice,
       amount: stored.amount,
-      local_category: localCategory(space?.space_type),
     });
   }
 
@@ -117,7 +106,6 @@ export function buildLeaseRentDraft(
       quantity: 1,
       unit_price: -discountAmount,
       amount: -discountAmount,
-      local_category: null,
     });
   }
 
@@ -128,7 +116,6 @@ export function buildLeaseRentDraft(
       quantity: 1,
       unit_price: deposit,
       amount: deposit,
-      local_category: 'diversen',
     });
   }
 
