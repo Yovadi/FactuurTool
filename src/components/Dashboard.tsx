@@ -70,7 +70,7 @@ type Lease = {
 };
 
 type DashboardProps = {
-  onNavigateToDebtors?: (subTab: 'te-factureren' | 'facturen' | 'outstanding') => void;
+  onNavigateToDebtors?: (subTab: 'te-factureren' | 'outstanding') => void;
   onNavigateToInvoicing?: (month: string) => void;
 };
 
