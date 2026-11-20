@@ -25,15 +25,11 @@ assert(inclusive.total === 121, 'in-VAT total');
 assert(inclusive.subtotal === 100, `in-VAT subtotal, got ${inclusive.subtotal}`);
 assert(inclusive.vatAmount === 21, `in-VAT amount, got ${inclusive.vatAmount}`);
 
-const skip = new Set([
-  'eboekhouden_payment_status_check',
-  'eboekhouden_sync_verification',
-  'eboekhouden_relation_verification',
-]);
-assert(skip.has('eboekhouden_payment_status_check'), 'e-Boekhouden stays skipped');
-assert(!skip.has('generate_monthly_invoices'), 'monthly rent invoices use the same draft as the app');
-assert(!skip.has('generate_meeting_room_invoices'), 'meeting-room invoices run in the background');
-assert(!skip.has('settings_backup'), 'settings backup runs in the background');
+import { SERVER_SKIP_JOB_TYPES } from './serverJobTypes';
+assert(SERVER_SKIP_JOB_TYPES.size === 0, 'no job stays on the desktop only');
+assert(!SERVER_SKIP_JOB_TYPES.has('generate_monthly_invoices'), 'monthly rent invoices use the same draft as the app');
+assert(!SERVER_SKIP_JOB_TYPES.has('generate_meeting_room_invoices'), 'meeting-room invoices run in the background');
+assert(!SERVER_SKIP_JOB_TYPES.has('settings_backup'), 'settings backup runs in the background');
 
 assert(asAssignmentType('flexplek') === 'eigen', 'leftover flexplek maps to eigen');
 assert(asAssignmentType('spreekkamer') === 'spreekkamer', 'spreekkamer stays');

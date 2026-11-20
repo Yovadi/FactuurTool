@@ -23,7 +23,6 @@ export type MeetingInvoiceLine = {
   unit_price: number;
   amount: number;
   booking_id: string | null;
-  local_category: string | null;
 };
 
 export type MeetingInvoiceDraft = {
@@ -132,7 +131,6 @@ export function buildMeetingInvoiceDraft(
         : billableUnitPrice(Number(booking.applied_rate) || Number(booking.hourly_rate) || 0, figures.vatRate, booking.vat_rate),
       amount,
       booking_id: booking.id || null,
-      local_category: 'vergaderruimte',
     };
   });
 
@@ -145,7 +143,6 @@ export function buildMeetingInvoiceDraft(
       unit_price: -figures.discount,
       amount: -figures.discount,
       booking_id: null,
-      local_category: null,
     });
   }
 

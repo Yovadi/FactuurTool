@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { supabase, type Invoice, type Lease, type Tenant, type ExternalCustomer, type LeaseSpace, type OfficeSpace, type InvoiceLineItem } from '../lib/supabase';
-import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, CreditCard as Edit, Search, CreditCard as Edit2, AlertCircle, AlertTriangle, CheckSquare, Square, Check, X, Home, RefreshCw, CheckCircle2, Loader2, Filter, RotateCcw } from 'lucide-react';
-import { syncInvoiceToEBoekhouden, checkInvoicePaymentStatuses } from '../lib/eboekhoudenSync';
+import { Plus, FileText, Eye, Calendar, CheckCircle, Download, Trash2, Send, CreditCard as Edit, Search, CreditCard as Edit2, AlertCircle, CheckSquare, Square, Check, X, Home, RefreshCw, Loader2, Filter, RotateCcw } from 'lucide-react';
 import { generateInvoicePDF, generateInvoicePDFBase64 } from '../utils/pdfGenerator';
 import { isEmailConfigured, sendEmail, getActiveEmailMethodLabel } from '../utils/emailSender';
 import { buildInvoiceEmailHtml, buildInvoiceEmailText, buildInvoiceEmailSubject } from '../utils/emailTemplate';
@@ -122,17 +121,6 @@ function persistedInvoiceLine(item: {
   return { quantity: shownQuantity || 1, unitPrice: shownPrice, amount };
 }
 
-function getLocalCategory(spaceType?: string, bookingType?: string): string | null {
-  if (bookingType === 'meeting_room') return 'vergaderruimte';
-  switch (spaceType) {
-    case 'kantoor': return 'huur_kantoor';
-    case 'bedrijfsruimte': return 'huur_bedrijfsruimte';
-    case 'buitenterrein': return 'huur_buitenterrein';
-    case 'diversen': return 'diversen';
-    default: return null;
-  }
-}
-
 export type InvoiceTypeFilter = 'all' | 'huur' | 'borg' | 'vergaderruimte' | 'handmatig';
 
 export interface InvoiceManagementRef {
@@ -195,11 +183,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [generateModalType, setGenerateModalType] = useState<'all' | 'huur' | 'bookings' | 'borg'>('all');
   const [showDetailSelection, setShowDetailSelection] = useState(true);
-  const [syncingInvoiceId, setSyncingInvoiceId] = useState<string | null>(null);
   const [markingPaidId, setMarkingPaidId] = useState<string | null>(null);
   const [sendingEmailId, setSendingEmailId] = useState<string | null>(null);
-  const [eBoekhoudenPaidWarning, setEBoekhoudenPaidWarning] = useState<{ invoiceId: string; invoiceNumber: string } | null>(null);
-  const [eBoekhoudenBatchPaidWarning, setEBoekhoudenBatchPaidWarning] = useState<{ syncedCount: number; totalCount: number } | null>(null);
   const [toasts, setToasts] = useState<{ id: number; message: string; type: 'success' | 'error' | 'info' }[]>([]);
   const [duplicateInvoiceConfirm, setDuplicateInvoiceConfirm] = useState<{ month: string; customerName: string; count: number } | null>(null);
   const [pendingSubmit, setPendingSubmit] = useState<(() => Promise<void>) | null>(null);
@@ -228,37 +213,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
 
   const removeToast = (id: number) => {
     setToasts(prev => prev.filter(t => t.id !== id));
-  };
-
-  const handleSyncToEBoekhouden = async (invoice: InvoiceWithDetails) => {
-    if (!companySettings?.eboekhouden_api_token || !companySettings?.eboekhouden_connected) return;
-    const customer = invoice.tenant || invoice.external_customer;
-    if (!customer) return;
-    const customerType = invoice.tenant ? 'tenant' : 'external';
-    setSyncingInvoiceId(invoice.id);
-    try {
-      const { data: lineItems } = await supabase
-        .from('invoice_line_items')
-        .select('*')
-        .eq('invoice_id', invoice.id);
-      const invoiceWithItems = { ...invoice, line_items: lineItems || [] };
-      const result = await syncInvoiceToEBoekhouden(
-        companySettings.eboekhouden_api_token,
-        invoiceWithItems,
-        customer as any,
-        customerType as 'tenant' | 'external',
-        companySettings
-      );
-      if (result.success) {
-        await refreshInvoices();
-      } else {
-        showToast(result.error || 'Synchronisatie mislukt', 'error');
-      }
-    } catch {
-      showToast('Fout bij synchronisatie naar e-Boekhouden', 'error');
-    } finally {
-      setSyncingInvoiceId(null);
-    }
   };
 
   useImperativeHandle(ref, () => ({
@@ -360,19 +314,9 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     space_type?: string;
     bookingId?: string;
     bookingType?: 'meeting_room';
-    local_category?: string | null;
-    grootboek_id?: number | null;
     square_footage?: number;
     catalog_rate?: number;
   }>>([]);
-  const [grootboekMappings, setGrootboekMappings] = useState<Array<{
-    id: string;
-    local_category: string;
-    grootboek_code: string;
-    grootboek_id: number;
-    grootboek_omschrijving: string;
-  }>>([]);
-
   useEffect(() => {
     const initializeForm = async () => {
       const invoiceDate = await getCurrentDateString();
@@ -516,7 +460,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
       { data: invoicesData },
       { data: pastConfirmedMeetings },
       { data: bookingsData },
-      { data: mappingsData },
     ] = await Promise.all([
       supabase.from('company_settings').select('*').maybeSingle(),
       getLocalRootFolderPath(),
@@ -534,7 +477,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         id, booking_date, start_time, end_time, total_hours, total_amount, status, invoice_id,
         tenant_id, external_customer_id, space:office_spaces(space_number)
       `).in('status', ['confirmed', 'completed']).order('booking_date', { ascending: false }),
-      supabase.from('eboekhouden_grootboek_mapping').select('*').order('local_category'),
     ]);
 
     if (companyData && localPath) {
@@ -550,7 +492,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     }));
     setInvoices(invoicesData as InvoiceWithDetails[] || []);
     setMeetingRoomBookings(bookingsData || []);
-    setGrootboekMappings(mappingsData || []);
 
     const updatePromises: Promise<any>[] = [];
     if (pastConfirmedMeetings && pastConfirmedMeetings.length > 0) {
@@ -560,23 +501,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     }
     if (updatePromises.length > 0) {
       Promise.all(updatePromises).catch(() => {});
-    }
-
-    if (companyData?.eboekhouden_api_token && companyData?.eboekhouden_connected) {
-      checkInvoicePaymentStatuses(companyData.eboekhouden_api_token).then(result => {
-        if (result.updated > 0) {
-          supabase
-            .from('invoices')
-            .select(`
-              *, lease:leases(*, tenant:tenants(*), lease_spaces:lease_spaces(*, space:office_spaces(*))),
-              tenant:tenants(*), external_customer:external_customers(*), line_items:invoice_line_items(*)
-            `)
-            .order('created_at', { ascending: false })
-            .then(({ data }) => {
-              if (data) setInvoices(data as InvoiceWithDetails[]);
-            });
-        }
-      }).catch(() => {});
     }
 
     setLoading(false);
@@ -775,8 +699,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         unit_price: item.amount.toString(),
         quantity: '1',
         bookingId: item.booking_id || undefined,
-        grootboek_id: item.grootboek_id || undefined,
-        local_category: item.local_category || undefined
       })));
     }
 
@@ -883,8 +805,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           unit_price: shown.unitPrice,
           amount: shown.amount,
           booking_id: item.bookingId || null,
-          local_category: item.local_category || getLocalCategory(item.space_type, item.bookingType),
-          grootboek_id: item.grootboek_id || null
         };
       });
 
@@ -967,8 +887,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           unit_price: shown.unitPrice,
           amount: shown.amount,
           booking_id: item.bookingId || null,
-          local_category: item.local_category || getLocalCategory(item.space_type, item.bookingType),
-          grootboek_id: item.grootboek_id || null
         };
       });
 
@@ -1090,7 +1008,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           unit_price: billed.monthly.toFixed(2),
           quantity: '1',
           space_type: spaceType,
-          local_category: getLocalCategory(spaceType),
           square_footage: fixedDiversen ? undefined : billed.quantity,
           catalog_rate: fixedDiversen ? undefined : billed.rate,
         });
@@ -1104,7 +1021,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           description: `Korting verhuur (${discountPct}%)`,
           unit_price: (-discountAmount).toFixed(2),
           quantity: '1',
-          local_category: null,
         });
       }
 
@@ -1113,7 +1029,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           description: 'Voorschot Gas, Water & Electra',
           unit_price: Number(lease.security_deposit).toFixed(2),
           quantity: '1',
-          local_category: 'diversen'
         });
       }
 
@@ -1185,28 +1100,9 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
   };
 
   const handleMarkAsPaid = async (invoiceId: string) => {
-    const invoice = invoices.find(inv => inv.id === invoiceId);
-    if (invoice?.eboekhouden_factuur_id && companySettings?.eboekhouden_enabled && companySettings?.eboekhouden_connected) {
-      setEBoekhoudenPaidWarning({ invoiceId, invoiceNumber: invoice.invoice_number });
-      return;
-    }
     setMarkingPaidId(invoiceId);
     await markAsPaid(invoiceId);
     setMarkingPaidId(null);
-  };
-
-  const confirmMarkAsPaid = async () => {
-    if (!eBoekhoudenPaidWarning) return;
-    const { invoiceId } = eBoekhoudenPaidWarning;
-    setEBoekhoudenPaidWarning(null);
-    setMarkingPaidId(invoiceId);
-    await markAsPaid(invoiceId);
-    setMarkingPaidId(null);
-  };
-
-  const confirmBatchMarkAsPaid = async () => {
-    setEBoekhoudenBatchPaidWarning(null);
-    await handleBatchStatusChange('paid', true);
   };
 
   const revertToDraft = async (invoiceId: string) => {
@@ -1490,24 +1386,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           : inv
       ));
 
-      if (companySettings.eboekhouden_api_token && companySettings.eboekhouden_connected) {
-        const customerType = invoice.external_customer ? 'external' as const : 'tenant' as const;
-        const invoiceWithItems = { ...invoice, line_items: items || [] };
-        syncInvoiceToEBoekhouden(
-          companySettings.eboekhouden_api_token,
-          invoiceWithItems as any,
-          tenant as any,
-          customerType,
-          companySettings
-        ).then(syncResult => {
-          if (syncResult.success) {
-            setInvoices(prev => prev.map(inv => {
-              if (inv.id !== invoiceId) return inv;
-              return { ...inv, eboekhouden_factuur_id: 'synced', eboekhouden_synced_at: new Date().toISOString() } as any;
-            }));
-          }
-        }).catch(() => {});
-      }
     } catch (error) {
       console.error('Error sending invoice:', error);
       showToast(error instanceof Error ? error.message : 'Fout bij verzenden van factuur', 'error');
@@ -1845,7 +1723,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
             unit_price: unitPrice,
             amount: beforeDiscountAmount,
             booking_id: booking.id,
-            local_category: 'vergaderruimte'
           }];
 
           const lineDiscount = zeroVatFigures ? 0 : booking.discount_amount;
@@ -1857,7 +1734,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
               unit_price: -lineDiscount,
               amount: -lineDiscount,
               booking_id: null,
-              local_category: 'vergaderruimte'
             });
           }
 
@@ -1872,7 +1748,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
             unit_price: -zeroVatFigures.discount,
             amount: -zeroVatFigures.discount,
             booking_id: null,
-            local_category: 'vergaderruimte'
           });
         }
 
@@ -1884,7 +1759,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
             unit_price: -additionalDiscount,
             amount: -additionalDiscount,
             booking_id: null,
-            local_category: 'vergaderruimte'
           });
         }
 
@@ -2135,7 +2009,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
             quantity: quantity,
             unit_price: Number(vatRate) === 0 ? billed.rate : pricePerSqm,
             amount: billedRent,
-            local_category: getLocalCategory(spaceType)
           });
         }
 
@@ -2146,7 +2019,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
             quantity: 1,
             unit_price: -discountAmount,
             amount: -discountAmount,
-            local_category: null
           });
         }
 
@@ -2157,7 +2029,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
             quantity: 1,
             unit_price: securityDeposit,
             amount: securityDeposit,
-            local_category: 'diversen'
           });
         }
 
@@ -2241,7 +2112,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
           quantity: 1,
           unit_price: deposit.amount,
           amount: deposit.amount,
-          local_category: null
         }]);
         if (lineItemsError) {
           await supabase.from('invoices').delete().eq('id', newInvoice.id);
@@ -2483,7 +2353,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
               unit_price: unitPrice,
               amount: beforeDiscountAmount,
               booking_id: booking.id,
-              local_category: category
             };
           });
 
@@ -2498,7 +2367,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
               unit_price: -totalDiscountAmount,
               amount: -totalDiscountAmount,
               booking_id: null,
-              local_category: null as any
             });
           }
 
@@ -2871,17 +2739,8 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
     setShowDeleteConfirm('bulk');
   };
 
-  const handleBatchStatusChange = async (newStatus: string, skipEBoekhoudenCheck = false) => {
+  const handleBatchStatusChange = async (newStatus: string) => {
     if (selectedInvoices.size === 0) return;
-
-    if (newStatus === 'paid' && !skipEBoekhoudenCheck && companySettings?.eboekhouden_enabled && companySettings?.eboekhouden_connected) {
-      const idsArr = Array.from(selectedInvoices);
-      const syncedCount = idsArr.filter(id => invoices.find(inv => inv.id === id)?.eboekhouden_factuur_id).length;
-      if (syncedCount > 0) {
-        setEBoekhoudenBatchPaidWarning({ syncedCount, totalCount: idsArr.length });
-        return;
-      }
-    }
 
     if (!(await askConfirm(`Weet je zeker dat je ${selectedInvoices.size} facturen wilt markeren als ${getStatusLabel(newStatus)}?`))) return;
 
@@ -2892,24 +2751,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
         .from('invoices')
         .update({ status: newStatus })
         .eq('id', id);
-    }
-
-    if (newStatus === 'sent' && companySettings?.eboekhouden_api_token && companySettings?.eboekhouden_connected) {
-      for (const id of idsToUpdate) {
-        const inv = invoices.find(i => i.id === id);
-        if (!inv || inv.eboekhouden_factuur_id) continue;
-        const customer = getInvoiceTenant(inv);
-        if (!customer) continue;
-        const customerType = inv.external_customer ? 'external' as const : 'tenant' as const;
-        const { data: lineItems } = await supabase.from('invoice_line_items').select('*').eq('invoice_id', id);
-        syncInvoiceToEBoekhouden(
-          companySettings.eboekhouden_api_token,
-          { ...inv, line_items: lineItems || [] } as any,
-          customer as any,
-          customerType,
-          companySettings
-        ).catch(() => {});
-      }
     }
 
     await loadData();
@@ -2942,82 +2783,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
             setPendingSubmit(null);
           }}
         />
-      )}
-
-      {eBoekhoudenPaidWarning && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] p-4">
-          <div className="bg-dark-900 rounded-xl w-full max-w-md border border-amber-700 shadow-2xl">
-            <div className="px-6 py-5 border-b border-dark-700 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-amber-900 flex items-center justify-center flex-shrink-0">
-                <AlertTriangle size={20} className="text-amber-400" />
-              </div>
-              <div>
-                <h3 className="text-base font-semibold text-gray-100">Gesynchroniseerd met e-Boekhouden</h3>
-                <p className="text-xs text-gray-400 mt-0.5">Factuur {eBoekhoudenPaidWarning.invoiceNumber}</p>
-              </div>
-            </div>
-            <div className="px-6 py-5">
-              <p className="text-sm text-gray-300 leading-relaxed">
-                Deze factuur is gesynchroniseerd met e-Boekhouden. Als je hier op <span className="text-amber-400 font-medium">Betaald</span> drukt, wordt de status alleen lokaal bijgewerkt.
-              </p>
-              <p className="text-sm text-gray-400 mt-3 leading-relaxed">
-                Vergeet niet de betaling ook in e-Boekhouden te registreren, anders loopt de administratie uit de pas.
-              </p>
-            </div>
-            <div className="px-6 pb-5 flex gap-3">
-              <button
-                onClick={() => setEBoekhoudenPaidWarning(null)}
-                className="flex-1 px-4 py-2 rounded-lg border border-dark-600 text-gray-300 hover:bg-dark-700 transition-colors text-sm"
-              >
-                Annuleren
-              </button>
-              <button
-                onClick={confirmMarkAsPaid}
-                className="flex-1 px-4 py-2 rounded-lg bg-green-700 hover:bg-green-600 text-white transition-colors text-sm font-medium"
-              >
-                Toch Betaald Markeren
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {eBoekhoudenBatchPaidWarning && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] p-4">
-          <div className="bg-dark-900 rounded-xl w-full max-w-md border border-amber-700 shadow-2xl">
-            <div className="px-6 py-5 border-b border-dark-700 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-amber-900 flex items-center justify-center flex-shrink-0">
-                <AlertTriangle size={20} className="text-amber-400" />
-              </div>
-              <div>
-                <h3 className="text-base font-semibold text-gray-100">Gesynchroniseerde facturen geselecteerd</h3>
-                <p className="text-xs text-gray-400 mt-0.5">{eBoekhoudenBatchPaidWarning.syncedCount} van {eBoekhoudenBatchPaidWarning.totalCount} facturen</p>
-              </div>
-            </div>
-            <div className="px-6 py-5">
-              <p className="text-sm text-gray-300 leading-relaxed">
-                <span className="text-amber-400 font-medium">{eBoekhoudenBatchPaidWarning.syncedCount} {eBoekhoudenBatchPaidWarning.syncedCount === 1 ? 'factuur is' : 'facturen zijn'}</span> gesynchroniseerd met e-Boekhouden. De betaalstatus wordt alleen lokaal bijgewerkt.
-              </p>
-              <p className="text-sm text-gray-400 mt-3 leading-relaxed">
-                Vergeet niet de betalingen ook in e-Boekhouden te registreren.
-              </p>
-            </div>
-            <div className="px-6 pb-5 flex gap-3">
-              <button
-                onClick={() => setEBoekhoudenBatchPaidWarning(null)}
-                className="flex-1 px-4 py-2 rounded-lg border border-dark-600 text-gray-300 hover:bg-dark-700 transition-colors text-sm"
-              >
-                Annuleren
-              </button>
-              <button
-                onClick={confirmBatchMarkAsPaid}
-                className="flex-1 px-4 py-2 rounded-lg bg-green-700 hover:bg-green-600 text-white transition-colors text-sm font-medium"
-              >
-                Toch Betaald Markeren
-              </button>
-            </div>
-          </div>
-        </div>
       )}
 
       {showForm && (
@@ -3294,13 +3059,7 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                   </div>
                   <div className="space-y-1.5">
                     {lineItems.map((item, index) => {
-                      const ebEnabled = companySettings?.eboekhouden_enabled && companySettings?.eboekhouden_connected;
-                      const autoCategory = item.local_category || getLocalCategory(item.space_type, item.bookingType);
-                      const autoMapping = autoCategory ? grootboekMappings?.find(m => m.local_category === autoCategory) : grootboekMappings?.find(m => m.local_category === 'default');
-                      const autoLabel = autoMapping ? `Auto: ${autoMapping.grootboek_code} ${autoMapping.grootboek_omschrijving}` : 'Automatisch';
-                      const gridCols = ebEnabled
-                        ? (invoiceMode === 'manual' ? '1fr auto auto 2fr auto' : '1fr auto 2fr auto')
-                        : (invoiceMode === 'manual' ? '1fr auto auto auto' : '1fr auto auto');
+                      const gridCols = invoiceMode === 'manual' ? '1fr auto auto auto' : '1fr auto auto';
                       return (
                         <div key={index} className="grid gap-1.5 bg-dark-800 rounded-lg px-3 py-2 border border-dark-600" style={{ gridTemplateColumns: gridCols }}>
                           <input
@@ -3342,20 +3101,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                             className="w-24 px-2.5 py-1.5 bg-dark-700 border border-dark-600 text-gray-100 rounded-md focus:outline-none focus:ring-1 focus:ring-gold-500 text-sm"
                             readOnly={item.space_type === 'Meeting Room'}
                           />
-                          {ebEnabled && (
-                            <select
-                              value={item.grootboek_id || ''}
-                              onChange={(e) => updateLineItem(index, 'grootboek_id', e.target.value ? parseInt(e.target.value) : null)}
-                              className="px-2.5 py-1.5 bg-dark-700 border border-dark-600 text-gray-100 rounded-md focus:outline-none focus:ring-1 focus:ring-gold-500 text-sm min-w-0"
-                            >
-                              <option value="">{autoLabel}</option>
-                              {grootboekMappings?.map((mapping) => (
-                                <option key={mapping.id} value={mapping.grootboek_id}>
-                                  {mapping.grootboek_code} - {mapping.grootboek_omschrijving}
-                                </option>
-                              ))}
-                            </select>
-                          )}
                           {lineItems.length > 1 && item.space_type !== 'Meeting Room' ? (
                             <button
                               type="button"
@@ -3630,11 +3375,6 @@ export const InvoiceManagement = forwardRef<any, InvoiceManagementProps>(({ onCr
                           <Check size={18} />
                         )}
                       </button>
-                    )}
-                    {companySettings?.eboekhouden_enabled && invoice.eboekhouden_factuur_id && (
-                      <span className="text-teal-500 p-1.5" title={`Gesynchroniseerd met e-Boekhouden (ID: ${invoice.eboekhouden_factuur_id})`}>
-                        <CheckCircle2 size={18} />
-                      </span>
                     )}
                     {(invoice.status === 'draft' || invoice.status === 'overdue') && (
                       <button

@@ -2,13 +2,12 @@ import { notify } from '../utils/notify';
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { getLocalRootFolderPath } from '../utils/localSettings';
-import { Plus, Eye, Trash2, Download, CreditCard as Edit, CreditCard as Edit2, FileText, CheckCircle, RefreshCw, Loader2, Link2 } from 'lucide-react';
+import { Plus, Eye, Trash2, Download, CreditCard as Edit, CreditCard as Edit2, FileText, CheckCircle } from 'lucide-react';
 import { CreditNotePreview } from './CreditNotePreview';
 import { CreditNoteApplications } from './CreditNoteApplications';
 import { EmailCompose } from './EmailCompose';
 import { Pagination } from './Pagination';
 import { generateCreditNotePDF } from '../utils/pdfGenerator';
-import { syncCreditNoteToEBoekhouden } from '../lib/eboekhoudenSync';
 import { isEmailConfigured } from '../utils/emailSender';
 import { buildCreditNoteEmailSubject, buildCreditNoteEmailText, buildCreditNoteEmailHtml } from '../utils/emailTemplate';
 import { creditLineFromSpace, creditVatRate } from '../utils/creditPrefill';
@@ -28,8 +27,6 @@ type CreditNote = {
   notes?: string;
   tenant_id?: string;
   external_customer_id?: string;
-  eboekhouden_id?: number | null;
-  eboekhouden_synced_at?: string | null;
   tenants?: { name: string; company_name: string; email: string; billing_address?: string; street?: string; postal_code?: string; city?: string };
   external_customers?: { company_name: string; contact_name: string; email?: string; street: string; postal_code: string; city: string; country: string };
   credit_note_line_items?: LineItem[];
@@ -102,7 +99,6 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
   const [editingCreditNote, setEditingCreditNote] = useState<CreditNote | null>(null);
   const [applyingCreditNote, setApplyingCreditNote] = useState<CreditNote | null>(null);
   const [previewAvailableCredit, setPreviewAvailableCredit] = useState<number | null>(null);
-  const [syncingIds, setSyncingIds] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [emailComposeData, setEmailComposeData] = useState<{
@@ -659,41 +655,6 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
 
   const { subtotal, vatAmount, total } = calculateTotals();
 
-  const ebConnected = (companySettings as any)?.eboekhouden_enabled && (companySettings as any)?.eboekhouden_connected && !!(companySettings as any)?.eboekhouden_api_token;
-
-  const handleSyncToEBoekhouden = async (note: CreditNote) => {
-    if (!(companySettings as any)?.eboekhouden_api_token || !companySettings) return;
-    if (note.eboekhouden_id) return;
-
-    setSyncingIds(prev => new Set(prev).add(note.id));
-    try {
-      const tenant = Array.isArray(note.tenants) ? note.tenants[0] : note.tenants;
-      const externalCustomer = Array.isArray(note.external_customers) ? note.external_customers[0] : note.external_customers;
-      const customer = note.tenant_id ? tenant : externalCustomer;
-      const cType: 'tenant' | 'external' = note.tenant_id ? 'tenant' : 'external';
-      if (!customer) return;
-
-      const result = await syncCreditNoteToEBoekhouden(
-        (companySettings as any).eboekhouden_api_token,
-        note as any,
-        customer as any,
-        cType,
-        companySettings as any
-      );
-      if (result.success) await loadData();
-    } finally {
-      setSyncingIds(prev => { const n = new Set(prev); n.delete(note.id); return n; });
-    }
-  };
-
-  const handleSyncAll = async () => {
-    if (!(companySettings as any)?.eboekhouden_api_token) return;
-    for (const note of creditNotes.filter(n => !n.eboekhouden_id)) {
-      await handleSyncToEBoekhouden(note);
-    }
-    await loadData();
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -708,16 +669,6 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
       <div className="flex-1 min-h-0 flex flex-col">
       <div className="flex justify-end items-center mb-4 flex-wrap gap-3 flex-shrink-0">
         <div className="flex items-center gap-2 flex-wrap">
-          {ebConnected && creditNotes.some(n => !n.eboekhouden_id) && (
-            <button
-              onClick={handleSyncAll}
-              disabled={syncingIds.size > 0}
-              className="flex items-center gap-2 px-4 py-2 bg-dark-800 border border-green-800/40 text-green-300 rounded-lg hover:bg-green-900/20 transition-colors text-sm font-medium disabled:opacity-50"
-            >
-              {syncingIds.size > 0 ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-              Alles synchroniseren
-            </button>
-          )}
           <button
             onClick={() => setShowForm(true)}
             className="flex items-center gap-2 bg-gold-500 text-white px-4 py-2 rounded-lg hover:bg-gold-600 transition-colors"
@@ -746,7 +697,6 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
                     <th className="text-left px-4 py-3 font-semibold w-[18%]">Reden</th>
                     <th className="text-right px-4 py-3 font-semibold w-[10%]">Bedrag</th>
                     <th className="text-center px-4 py-3 font-semibold w-[10%]">Status</th>
-                    {ebConnected && <th className="text-center px-4 py-3 font-semibold w-[11%]">e-Boekhouden</th>}
                     <th className="text-right px-4 py-3 font-semibold w-[13%]">Acties</th>
                   </tr>
                 </thead>
@@ -787,25 +737,6 @@ export function CreditNotes({ prefilledInvoiceData, onClearPrefilled }: CreditNo
                             {getStatusText(note.status)}
                           </span>
                         </td>
-                        {ebConnected && (
-                          <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
-                            {note.eboekhouden_id ? (
-                              <span className="inline-flex items-center gap-1 text-green-400 text-xs font-mono" title={`Gesynchroniseerd (ID: ${note.eboekhouden_id})`}>
-                                <Link2 size={14} />
-                                {note.eboekhouden_id}
-                              </span>
-                            ) : (
-                              <button
-                                onClick={() => handleSyncToEBoekhouden(note)}
-                                disabled={syncingIds.has(note.id)}
-                                className="text-green-400 hover:text-green-300 p-1.5 rounded hover:bg-dark-700 transition-colors disabled:opacity-50"
-                                title="Synchroniseren met e-Boekhouden"
-                              >
-                                {syncingIds.has(note.id) ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-                              </button>
-                            )}
-                          </td>
-                        )}
                         <td className="px-4 py-3">
                           <div className="flex gap-1 justify-end">
                             <button

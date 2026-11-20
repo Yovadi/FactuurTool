@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { UpdateDialog } from './components/UpdateDialog';
-import { LayoutDashboard, Users, Building, Settings, CalendarClock, FileText, Building2, Calculator, Euro, UserCheck, UserMinus, Loader2, Menu, X, Database, Mail, CheckCircle, RefreshCw, Home } from 'lucide-react';
+import { LayoutDashboard, Users, Building, Settings, CalendarClock, FileText, Building2, Calculator, Euro, UserCheck, UserMinus, Loader2, Menu, X, Mail, CheckCircle, RefreshCw, Home } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { syncInvoicePDFs, syncLeaseContractPDFs, syncCreditNotePDFs, startPeriodicSync, type SyncResult } from './utils/invoicePdfSync';
 import { getEffectiveRootFolderPath } from './utils/localSettings';
@@ -22,10 +22,9 @@ const InstellingenTabs = lazy(() => import('./components/InstellingenTabs').then
 const MeetingRoomBookings = lazy(() => import('./components/MeetingRoomBookings').then(m => ({ default: m.MeetingRoomBookings })));
 const DebiteurenTabs = lazy(() => import('./components/DebiteurenTabs').then(m => ({ default: m.DebiteurenTabs })));
 const CrediteurenTabs = lazy(() => import('./components/CrediteurenTabs').then(m => ({ default: m.CrediteurenTabs })));
-const EBoekhoudenDashboard = lazy(() => import('./components/EBoekhoudenDashboard').then(m => ({ default: m.EBoekhoudenDashboard })));
 const EmailTab = lazy(() => import('./components/EmailTab').then(m => ({ default: m.EmailTab })));
 
-type Tab = 'dashboard' | 'tenants' | 'spaces-spaces' | 'spaces-occupancy' | 'spaces-rates' | 'contracts' | 'bookings' | 'financial-debtors' | 'financial-creditors' | 'eboekhouden' | 'email' | 'verhuurder' | 'settings';
+type Tab = 'dashboard' | 'tenants' | 'spaces-spaces' | 'spaces-occupancy' | 'spaces-rates' | 'contracts' | 'bookings' | 'financial-debtors' | 'financial-creditors' | 'email' | 'verhuurder' | 'settings';
 
 type MenuSection = {
   id: string;
@@ -60,7 +59,6 @@ function App() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [notices, setNotices] = useState<{ id: number; message: string; type: NoticeType }[]>([]);
   const [confirmRequest, setConfirmRequest] = useState<{ message: string; resolve: (value: boolean) => void } | null>(null);
-  const [eBoekhoudenEnabled, setEBoekhoudenEnabled] = useState(false);
   const [emailEnabled, setEmailEnabled] = useState(false);
   const [updateDialog, setUpdateDialog] = useState<UpdateDialogState>({
     show: false,
@@ -187,12 +185,11 @@ function App() {
 
     supabase
       .from('company_settings')
-      .select('eboekhouden_enabled, smtp_enabled, smtp_connected, graph_enabled, graph_connected, resend_enabled, resend_connected, test_mode, test_date')
+      .select('smtp_enabled, smtp_connected, graph_enabled, graph_connected, resend_enabled, resend_connected, test_mode, test_date')
       .order('updated_at', { ascending: false })
       .limit(1)
       .maybeSingle()
       .then(({ data }) => {
-        if (data?.eboekhouden_enabled) setEBoekhoudenEnabled(true);
         const hasEmail = data?.smtp_enabled ||
           data?.graph_enabled ||
           data?.resend_enabled;
@@ -221,21 +218,6 @@ function App() {
     runJobs();
     const jobsInterval = setInterval(runJobs, 60 * 60 * 1000);
 
-    const handleEboekhoudenChange = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      setEBoekhoudenEnabled(detail.enabled);
-      if (!detail.enabled) {
-        setActiveTab(prev => {
-          if (prev === 'eboekhouden') {
-            setVisitedTabs(v => { const n = new Set(v); n.add('settings'); return n; });
-            return 'settings';
-          }
-          return prev;
-        });
-      }
-    };
-    window.addEventListener('eboekhouden-enabled-changed', handleEboekhoudenChange);
-
     const handleEmailChange = (e: Event) => {
       const detail = (e as CustomEvent).detail;
       setEmailEnabled(detail.enabled);
@@ -259,7 +241,6 @@ function App() {
     return () => {
       timers.forEach(clearTimeout);
       stopPeriodicSync?.();
-      window.removeEventListener('eboekhouden-enabled-changed', handleEboekhoudenChange);
       window.removeEventListener('email-enabled-changed', handleEmailChange);
       window.removeEventListener('hal5-notice', onNotice);
       window.removeEventListener('hal5-confirm', onConfirm);
@@ -404,7 +385,6 @@ function App() {
         { id: 'financial-creditors' as Tab, label: 'Crediteuren', icon: UserMinus },
       ],
     },
-    ...(eBoekhoudenEnabled ? [{ id: 'eboekhouden', label: 'e-Boekhouden', icon: Database }] : []),
     ...(emailEnabled ? [{ id: 'email', label: 'E-mail', icon: Mail }] : []),
     { id: 'verhuurder', label: 'Verhuurder', icon: Building2 },
   ] as MenuSection[];
@@ -787,9 +767,6 @@ function App() {
                     onClearPrefilled={() => setPrefilledInvoiceData(null)}
                   />
                 )}
-              </div>
-              <div className="h-full" style={tabStyle('eboekhouden')}>
-                {visitedTabs.has('eboekhouden') && eBoekhoudenEnabled && <EBoekhoudenDashboard />}
               </div>
               <div className="h-full" style={tabStyle('email')}>
                 {visitedTabs.has('email') && emailEnabled && (

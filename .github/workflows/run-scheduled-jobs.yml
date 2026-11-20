@@ -1,8 +1,7 @@
 name: Run scheduled jobs
 
 # Hourly runner. Uses the same invoice rules as the Windows app, so a closed
-# PC still creates rent and meeting-room drafts. e-Boekhouden stays on
-# the app. Does not call the Edge Function.
+# PC still creates rent and meeting-room drafts. Does not call the Edge Function.
 on:
   schedule:
     - cron: '15 * * * *'

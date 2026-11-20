@@ -226,7 +226,6 @@ export function DepositOverview({ isActive = true }: DepositOverviewProps) {
         quantity: 1,
         unit_price: target.amount,
         amount: target.amount,
-        local_category: null,
       }]);
       if (lineError) {
         await supabase.from('invoices').delete().eq('id', created.id);
