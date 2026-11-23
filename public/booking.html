@@ -1468,16 +1468,20 @@
 
         .booking-card {
             display: grid;
-            grid-template-columns: 56px 1fr auto auto;
+            grid-template-columns: 56px 1fr auto;
             align-items: center;
             gap: 1rem;
             padding: 1rem 1.25rem;
             background: #161618;
             border: 1px solid rgba(255, 255, 255, 0.06);
             border-radius: 10px;
-            cursor: pointer;
+            cursor: default;
             transition: all 0.15s;
             text-decoration: none;
+        }
+
+        .booking-card.can-manage {
+            grid-template-columns: 56px 1fr auto auto;
         }
 
         .booking-card:hover {
@@ -1487,9 +1491,27 @@
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
         }
 
-        .booking-card.can-cancel:hover {
-            border-color: rgba(239, 68, 68, 0.2);
-            background: rgba(239, 68, 68, 0.04);
+        .booking-card-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+            align-items: stretch;
+        }
+
+        .booking-card-actions .btn {
+            padding: 0.35rem 0.65rem;
+            font-size: 0.6875rem;
+            white-space: nowrap;
+        }
+
+        .booking-card-actions .btn-danger {
+            background: rgba(220, 38, 38, 0.12);
+            color: #FCA5A5;
+            border: 1px solid rgba(220, 38, 38, 0.25);
+        }
+
+        .booking-card-actions .btn-danger:hover {
+            background: rgba(220, 38, 38, 0.22);
         }
 
         .booking-card.past-card {
@@ -1862,6 +1884,25 @@
 
             .header h1 {
                 font-size: 1rem;
+            }
+
+            .booking-card.can-manage {
+                grid-template-columns: 48px 1fr;
+                grid-template-rows: auto auto;
+            }
+
+            .booking-card.can-manage > div:nth-child(3),
+            .booking-card.can-manage > .booking-card-actions {
+                grid-column: 1 / -1;
+            }
+
+            .booking-card-actions {
+                flex-direction: row;
+                justify-content: stretch;
+            }
+
+            .booking-card-actions .btn {
+                flex: 1;
             }
 
             .view-toggle button {
@@ -2327,14 +2368,14 @@
     <div id="bookingModal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 class="modal-title">
+                <h3 class="modal-title" id="bookingModalTitle">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                         <line x1="16" y1="2" x2="16" y2="6"></line>
                         <line x1="8" y1="2" x2="8" y2="6"></line>
                         <line x1="3" y1="10" x2="21" y2="10"></line>
                     </svg>
-                    Nieuwe Boeking
+                    <span id="bookingModalTitleText">Nieuwe Boeking</span>
                 </h3>
                 <button class="modal-close" onclick="closeBookingModal()">&times;</button>
             </div>
@@ -2361,8 +2402,8 @@
                     <div id="bookingDurationInfo" style="margin-top: 1rem; padding: 0.75rem; background-color: rgba(59, 130, 246, 0.1); border-radius: 0.375rem; color: #93C5FD; font-size: 0.875rem;"></div>
                 </div>
                 <div class="modal-actions">
-                    <button type="button" class="btn btn-secondary" onclick="closeBookingModal()">Annuleren</button>
-                    <button type="submit" class="btn btn-primary">Boeking Aanmaken</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeBookingModal()">Sluiten</button>
+                    <button type="submit" class="btn btn-primary" id="bookingSubmitBtn">Boeking Aanmaken</button>
                 </div>
             </form>
         </div>
@@ -2484,6 +2525,8 @@
         let allBookings = [];
         let recurringType = 'weekly';
         let selectedWeekdays = [];
+        let editingBookingId = null;
+        let listBookingsCache = [];
 
         // Persist booker profile next to the Supabase auth session (sessionStorage).
         // Tokens already survive refresh; without this the PIN overlay always returns.
@@ -2834,8 +2877,8 @@
 
             const [bookingsRes, spacesRes, allBookingsRes] = await Promise.all([
                 sb.from('meeting_room_bookings').select(`
-                    id, booking_date, start_time, end_time, tenant_id, external_customer_id, status,
-                    office_spaces(space_number)
+                    id, booking_date, start_time, end_time, tenant_id, external_customer_id, status, space_id,
+                    office_spaces(id, space_number)
                 `).gte('booking_date', formatDate(weekStart)).lte('booking_date', formatDate(weekEnd)).neq('status', 'cancelled'),
                 sb.from('office_spaces').select('id, space_number, hourly_rate, half_day_rate, full_day_rate').eq('space_type', 'Meeting Room').order('space_number'),
                 sb.from('meeting_room_bookings').select('id, booking_date').gte('booking_date', formatDate(firstDay)).lte('booking_date', formatDate(lastDay)).neq('status', 'cancelled')
@@ -2991,8 +3034,17 @@
                         ${badges}
                         <div class="booking-name">${displayName}</div>
                         <div class="booking-time">${booking.start_time.substring(0, 5)} - ${booking.end_time.substring(0, 5)}</div>
-                        ${canDelete ? '<button class="delete-booking-btn" onclick="deleteBooking(event, \'' + booking.id + '\')">×</button>' : ''}
+                        ${canDelete ? '<button class="delete-booking-btn" onclick="deleteBooking(event, \'' + booking.id + '\')" title="Annuleren">×</button>' : ''}
                     `;
+
+                    if (canDelete) {
+                        block.style.cursor = 'pointer';
+                        block.title = (block.title ? block.title + ' — ' : '') + 'Klik om te wijzigen';
+                        block.addEventListener('click', (e) => {
+                            if (e.target.closest('.delete-booking-btn')) return;
+                            openEditBookingModal(booking.id);
+                        });
+                    }
 
                     dayColumn.appendChild(block);
                 });
@@ -3303,8 +3355,91 @@
             document.getElementById('bookingDurationInfo').style.color = '#93C5FD';
         }
 
+        function isOwnBookingRow(booking) {
+            if (!authenticatedUser || !booking) return false;
+            if (authenticatedUser.userType === 'tenant') {
+                return booking.tenant_id === authenticatedUser.id;
+            }
+            return booking.external_customer_id === authenticatedUser.id;
+        }
+
+        function canEditOrCancelBooking(booking) {
+            if (!isOwnBookingRow(booking)) return false;
+            if (booking.status !== 'pending' && booking.status !== 'confirmed') return false;
+            const end = new Date(`${booking.booking_date}T${normalizeTime(booking.end_time)}:00`);
+            return end.getTime() >= Date.now();
+        }
+
+        function findBookingLocally(bookingId) {
+            return weekBookings.find(b => b.id === bookingId)
+                || listBookingsCache.find(b => b.id === bookingId)
+                || null;
+        }
+
+        function ownBookingFilter(query) {
+            if (authenticatedUser.userType === 'tenant') {
+                return query.eq('tenant_id', authenticatedUser.id);
+            }
+            return query.eq('external_customer_id', authenticatedUser.id);
+        }
+
+        function timesOverlap(startA, endA, startB, endB) {
+            return startA < endB && endA > startB;
+        }
+
+        async function hasRoomOverlap(spaceId, bookingDate, startTime, endTime, excludeId) {
+            let query = sb
+                .from('meeting_room_bookings')
+                .select('id, start_time, end_time, status')
+                .eq('space_id', spaceId)
+                .eq('booking_date', bookingDate)
+                .neq('status', 'cancelled');
+            if (excludeId) query = query.neq('id', excludeId);
+            const { data, error } = await query;
+            if (error) {
+                console.error('Overlap check failed:', error);
+                return false;
+            }
+            const start = normalizeTime(startTime);
+            const end = normalizeTime(endTime);
+            return (data || []).some(b =>
+                timesOverlap(start, end, normalizeTime(b.start_time), normalizeTime(b.end_time))
+            );
+        }
+
+        function setBookingModalMode(isEdit) {
+            document.getElementById('bookingModalTitleText').textContent =
+                isEdit ? 'Boeking Wijzigen' : 'Nieuwe Boeking';
+            document.getElementById('bookingSubmitBtn').textContent =
+                isEdit ? 'Wijzigingen Opslaan' : 'Boeking Aanmaken';
+        }
+
+        function fillBookingModalRooms(selectedRoomId) {
+            const roomSelect = document.getElementById('roomSelect');
+            roomSelect.innerHTML = '<option value="">Selecteer een vergaderruimte</option>';
+            meetingRooms.forEach(room => {
+                const option = document.createElement('option');
+                option.value = room.id;
+                option.textContent = room.space_number;
+                if (selectedRoomId && room.id === selectedRoomId) option.selected = true;
+                roomSelect.appendChild(option);
+            });
+        }
+
+        function bindBookingModalDurationListeners() {
+            const startEl = document.getElementById('bookingStartTime');
+            const endEl = document.getElementById('bookingEndTime');
+            const roomEl = document.getElementById('roomSelect');
+            startEl.onchange = calculateBookingDuration;
+            endEl.onchange = calculateBookingDuration;
+            roomEl.onchange = calculateBookingDuration;
+        }
+
         // Booking modal
         function openBookingModal() {
+            editingBookingId = null;
+            setBookingModalMode(false);
+
             let startTime = '09:00';
             let endTime = '10:00';
 
@@ -3340,29 +3475,55 @@
                 document.getElementById('bookingDate').valueAsDate = today;
             }
 
-            // Populate time dropdowns with 15-minute intervals
             populateTimeSelects(startTime, endTime);
+            fillBookingModalRooms(null);
+            bindBookingModalDurationListeners();
+            calculateBookingDuration();
+            document.getElementById('bookingModal').classList.add('show');
+        }
 
-            const roomSelect = document.getElementById('roomSelect');
-            roomSelect.innerHTML = '<option value="">Selecteer een vergaderruimte</option>';
-            meetingRooms.forEach(room => {
-                const option = document.createElement('option');
-                option.value = room.id;
-                option.textContent = room.space_number;
-                roomSelect.appendChild(option);
-            });
+        async function openEditBookingModal(bookingId) {
+            let booking = findBookingLocally(bookingId);
+            if (!booking) {
+                const { data, error } = await sb
+                    .from('meeting_room_bookings')
+                    .select(`
+                        id, booking_date, start_time, end_time, tenant_id, external_customer_id, status, space_id,
+                        office_spaces(id, space_number)
+                    `)
+                    .eq('id', bookingId)
+                    .maybeSingle();
+                if (error || !data) {
+                    showToast('Boeking niet gevonden', 'error');
+                    return;
+                }
+                booking = data;
+            }
 
-            // Add event listeners for duration calculation
-            document.getElementById('bookingStartTime').addEventListener('change', calculateBookingDuration);
-            document.getElementById('bookingEndTime').addEventListener('change', calculateBookingDuration);
-            document.getElementById('roomSelect').addEventListener('change', calculateBookingDuration);
+            if (!canEditOrCancelBooking(booking)) {
+                showToast('Deze boeking kun je niet meer wijzigen', 'error');
+                return;
+            }
 
+            editingBookingId = booking.id;
+            setBookingModalMode(true);
+            clearSelection();
+
+            document.getElementById('bookingDate').value = booking.booking_date;
+            populateTimeSelects(
+                roundToQuarterHour(normalizeTime(booking.start_time)),
+                roundToQuarterHour(normalizeTime(booking.end_time))
+            );
+            fillBookingModalRooms(booking.space_id || booking.office_spaces?.id || '');
+            bindBookingModalDurationListeners();
             calculateBookingDuration();
             document.getElementById('bookingModal').classList.add('show');
         }
 
         function closeBookingModal() {
             document.getElementById('bookingModal').classList.remove('show');
+            editingBookingId = null;
+            setBookingModalMode(false);
             clearSelection();
         }
 
@@ -3372,6 +3533,15 @@
             if (!authenticatedUser) {
                 showToast('Je bent niet ingelogd', 'error');
                 return;
+            }
+
+            const isEdit = !!editingBookingId;
+            if (isEdit) {
+                const existing = findBookingLocally(editingBookingId);
+                if (existing && !canEditOrCancelBooking(existing)) {
+                    showToast('Deze boeking kun je niet meer wijzigen', 'error');
+                    return;
+                }
             }
 
             const roomId = document.getElementById('roomSelect').value;
@@ -3413,7 +3583,34 @@
             }
             const { rateType, appliedRate, totalHours, hourly, discountPercentage, discountAmount, finalAmount } = quote;
 
-            const bookingData = {
+            if (await hasRoomOverlap(roomId, bookingDate, startTime, endTime, isEdit ? editingBookingId : null)) {
+                if (isEdit) {
+                    showToast('Dit tijdslot is al bezet. Kies een andere tijd of zaal.', 'error');
+                    return;
+                }
+                if (confirm('Dit tijdslot is al bezet. Op de wachtlijst zetten?')) {
+                    const wait = await sb.from('booking_waiting_list').insert({
+                        space_id: roomId,
+                        tenant_id: authenticatedUser.userType === 'tenant' ? authenticatedUser.id : null,
+                        external_customer_id: authenticatedUser.userType === 'external' ? authenticatedUser.id : null,
+                        booking_date: bookingDate,
+                        start_time: startTime,
+                        end_time: endTime,
+                        status: 'waiting',
+                    });
+                    if (wait.error) {
+                        showToast('Op de wachtlijst zetten lukte niet. Kies een ander tijdstip.', 'error');
+                    } else {
+                        showToast('Je staat op de wachtlijst voor dit tijdslot.', 'success');
+                        closeBookingModal();
+                    }
+                } else {
+                    showToast('Dit tijdslot is al bezet', 'error');
+                }
+                return;
+            }
+
+            const scheduleAndPrice = {
                 space_id: roomId,
                 booking_date: bookingDate,
                 start_time: startTime,
@@ -3424,7 +3621,46 @@
                 discount_percentage: discountPercentage,
                 discount_amount: discountAmount,
                 rate_type: rateType,
-                applied_rate: appliedRate,
+                applied_rate: appliedRate
+            };
+
+            if (isEdit) {
+                let updateQuery = sb
+                    .from('meeting_room_bookings')
+                    .update(scheduleAndPrice)
+                    .eq('id', editingBookingId)
+                    .in('status', ['pending', 'confirmed']);
+                updateQuery = ownBookingFilter(updateQuery);
+
+                const { data: updatedRows, error } = await updateQuery.select('id');
+                if (error) {
+                    console.error('Error updating booking:', error);
+                    const overlap = /al geboekt|overlap|exclusion/i.test(error.message || '');
+                    showToast(
+                        overlap
+                            ? 'Dit tijdslot is al bezet. Kies een andere tijd of zaal.'
+                            : 'Er is een fout opgetreden bij het wijzigen van de boeking',
+                        'error'
+                    );
+                    return;
+                }
+                if (!updatedRows || updatedRows.length === 0) {
+                    showToast('Deze boeking kun je niet wijzigen', 'error');
+                    return;
+                }
+
+                showToast('Boeking succesvol gewijzigd', 'success');
+                closeBookingModal();
+                await loadData();
+                const listViewEl = document.getElementById('listView');
+                if (listViewEl && listViewEl.classList.contains('active')) {
+                    loadBookingsList();
+                }
+                return;
+            }
+
+            const bookingData = {
+                ...scheduleAndPrice,
                 status: 'pending',
                 booking_type: authenticatedUser.userType,
                 tenant_id: null,
@@ -3438,8 +3674,6 @@
                 bookingData.tenant_id = null;
                 bookingData.external_customer_id = authenticatedUser.id;
             }
-
-            console.log('Booking data being inserted:', bookingData);
 
             const { error } = await sb.from('meeting_room_bookings').insert(bookingData);
 
@@ -3527,12 +3761,19 @@
             }
 
             try {
-                const { error } = await sb
+                let query = sb
                     .from('meeting_room_bookings')
                     .update({ status: 'cancelled' })
-                    .eq('id', bookingId);
+                    .eq('id', bookingId)
+                    .in('status', ['pending', 'confirmed']);
+                query = ownBookingFilter(query);
+                const { data, error } = await query.select('id');
 
                 if (error) throw error;
+                if (!data || data.length === 0) {
+                    showToast('Deze boeking kun je niet annuleren', 'error');
+                    return;
+                }
 
                 showToast('Boeking succesvol geannuleerd', 'success');
                 await loadData();
@@ -3817,18 +4058,20 @@
 
                 if (error) throw error;
 
+                listBookingsCache = bookings || [];
+
                 const now = new Date();
                 const nowTime = now.toTimeString().split(' ')[0].substring(0, 5);
                 const todayStr = now.toISOString().split('T')[0];
 
-                const upcoming = (bookings || []).filter(b => {
+                const upcoming = listBookingsCache.filter(b => {
                     const bookingDate = b.booking_date;
                     if (bookingDate > todayStr) return true;
                     if (bookingDate === todayStr && b.end_time > nowTime) return true;
                     return false;
                 }).sort((a, b) => a.booking_date.localeCompare(b.booking_date) || a.start_time.localeCompare(b.start_time));
 
-                const past = (bookings || []).filter(b => {
+                const past = listBookingsCache.filter(b => {
                     const bookingDate = b.booking_date;
                     if (bookingDate < todayStr) return true;
                     if (bookingDate === todayStr && b.end_time <= nowTime) return true;
@@ -3853,6 +4096,7 @@
                 }
             } catch (error) {
                 console.error('Error loading bookings:', error);
+                listBookingsCache = [];
                 upcomingDiv.innerHTML = '<div class="no-bookings">Fout bij laden van boekingen</div>';
                 pastDiv.innerHTML = '';
             }
@@ -3871,26 +4115,30 @@
             const year = date.getFullYear();
             const isPast = status === 'past';
 
-            const canCancel = status === 'upcoming' && (booking.status === 'pending' || booking.status === 'confirmed');
-            const onClickAttr = canCancel ? `onclick="handleBookingClick('${booking.id}')"` : '';
+            const canManage = status === 'upcoming' && canEditOrCancelBooking(booking);
 
             let cardClasses = 'booking-card';
-            if (canCancel) cardClasses += ' can-cancel';
+            if (canManage) cardClasses += ' can-manage';
             if (isPast) cardClasses += ' past-card';
 
             let statusBadge;
             if (booking.status === 'pending') {
                 statusBadge = '<span class="status-badge pending">In afwachting</span>';
             } else if (booking.status === 'confirmed') {
-                statusBadge = canCancel
-                    ? '<span class="status-badge can-cancel">Klik om te annuleren</span>'
-                    : '<span class="status-badge confirmed">Bevestigd</span>';
+                statusBadge = '<span class="status-badge confirmed">Bevestigd</span>';
             } else {
                 statusBadge = '<span class="status-badge past">Voltooid</span>';
             }
 
+            const actions = canManage
+                ? `<div class="booking-card-actions">
+                        <button type="button" class="btn btn-secondary" onclick="openEditBookingModal('${booking.id}')">Wijzigen</button>
+                        <button type="button" class="btn btn-danger" onclick="confirmCancelBooking('${booking.id}')">Annuleren</button>
+                   </div>`
+                : '';
+
             return `
-                <div class="${cardClasses}" ${onClickAttr}>
+                <div class="${cardClasses}">
                     <div class="booking-date-badge ${isPast ? 'past-badge' : ''}">
                         <div class="booking-date-day">${dayNum}</div>
                         <div class="booking-date-month">${monthShort}</div>
@@ -3909,6 +4157,7 @@
                         </div>
                     </div>
                     <div>${statusBadge}</div>
+                    ${actions}
                 </div>
             `;
         }
@@ -3917,7 +4166,7 @@
             return renderBookingCard(booking, status);
         }
 
-        function handleBookingClick(bookingId) {
+        function confirmCancelBooking(bookingId) {
             if (confirm('Weet je zeker dat je deze boeking wilt annuleren?')) {
                 cancelBooking(bookingId);
             }
@@ -3925,12 +4174,19 @@
 
         async function cancelBooking(bookingId) {
             try {
-                const { error } = await sb
+                let query = sb
                     .from('meeting_room_bookings')
                     .update({ status: 'cancelled' })
-                    .eq('id', bookingId);
+                    .eq('id', bookingId)
+                    .in('status', ['pending', 'confirmed']);
+                query = ownBookingFilter(query);
+                const { data, error } = await query.select('id');
 
                 if (error) throw error;
+                if (!data || data.length === 0) {
+                    showToast('Deze boeking kun je niet annuleren', 'error');
+                    return;
+                }
 
                 showToast('Boeking succesvol geannuleerd', 'success');
                 loadBookingsList();
