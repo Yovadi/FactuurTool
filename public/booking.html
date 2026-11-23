@@ -749,8 +749,12 @@
             padding: 0.625rem 0.5rem;
             text-align: center;
             background-color: #161618;
-            border-left: 1px solid rgba(255, 255, 255, 0.05);
+            border-left: 1px solid rgba(255, 255, 255, 0.22);
             border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .week-grid-header > .day-header:nth-child(even) {
+            background-color: #1E1E20;
         }
 
         .day-header.today-header {
@@ -798,12 +802,12 @@
 
         .day-column {
             position: relative;
-            border-left: 1px solid rgba(255, 255, 255, 0.05);
+            border-left: 1px solid rgba(255, 255, 255, 0.22);
         }
 
         .day-column.today-column {
             background-color: rgba(212, 175, 55, 0.04);
-            border-left: 1px solid rgba(212, 175, 55, 0.15) !important;
+            border-left: 1px solid rgba(212, 175, 55, 0.45) !important;
         }
 
         .time-cell {
@@ -813,12 +817,30 @@
             position: relative;
         }
 
+        /* Kantooruren (08:00–17:00) vs buiten kantooruren — clear charcoal contrast */
         .time-cell.work-hours {
-            background-color: #141416;
+            background-color: #2A2923;
         }
 
         .time-cell.outside-hours {
-            background-color: #0F0F11;
+            background-color: #08080A;
+        }
+
+        /* Alternating day columns so weekdays stay visually distinct */
+        .week-grid-body > .day-column:nth-child(even) .time-cell.work-hours {
+            background-color: #34322A;
+        }
+
+        .week-grid-body > .day-column:nth-child(even) .time-cell.outside-hours {
+            background-color: #121214;
+        }
+
+        .week-grid-body > .day-column.today-column .time-cell.work-hours {
+            background-color: #3A3524;
+        }
+
+        .week-grid-body > .day-column.today-column .time-cell.outside-hours {
+            background-color: #16140F;
         }
 
         .time-cell.past {
@@ -2979,7 +3001,7 @@
                     cell.dataset.time = time;
                     cell.style.height = `${CELL_HEIGHT}px`;
                     if (isWholeHour) {
-                        cell.style.borderBottom = '1px solid #374151';
+                        cell.style.borderBottom = '1px solid rgba(255, 255, 255, 0.14)';
                     }
 
                     if (!cellPast) {
