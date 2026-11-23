@@ -317,6 +317,14 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
   const todayTotalBookings = stats.todayMeetingBookings;
   const weekTotalBookings = stats.weekMeetingBookings;
   const euro = (amount: number) => '\u20AC' + amount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const overdueSplit = splitInvoiceRevenue(overdueInvoices);
+  const currentSplit = splitInvoiceRevenue(outstandingInvoices);
+  const receivableSplit: InvoiceRevenueSplit = {
+    huur: overdueSplit.huur + currentSplit.huur,
+    boeking: overdueSplit.boeking + currentSplit.boeking,
+    borg: overdueSplit.borg + currentSplit.borg,
+    overig: overdueSplit.overig + currentSplit.overig,
+  };
   const bookingIncomeTotal = stats.bookingIncomeInternal + stats.bookingIncomeExternal;
   const bookingIncomePreviousTotal = stats.bookingIncomeInternalPrevious + stats.bookingIncomeExternalPrevious;
 
@@ -410,6 +418,32 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
                 ? `${euro(stats.overdueReceivable)} te laat · ${overdueInvoices.length + outstandingInvoices.length} facturen`
                 : `${overdueInvoices.length + outstandingInvoices.length} facturen · niets te laat`}
             </p>
+            <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-dark-700">
+              <div>
+                <p className="text-xs font-medium text-emerald-400 mb-1">Huur</p>
+                <p className="text-lg font-semibold text-gray-100">{euro(receivableSplit.huur)}</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {overdueSplit.huur > 0 ? `${euro(overdueSplit.huur)} te laat` : 'Niets te laat'}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-blue-400 mb-1">Boekingen</p>
+                <p className="text-lg font-semibold text-gray-100">{euro(receivableSplit.boeking)}</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {overdueSplit.boeking > 0 ? `${euro(overdueSplit.boeking)} te laat` : 'Niets te laat'}
+                </p>
+              </div>
+            </div>
+            {receivableSplit.borg > 0 && (
+              <p className="text-xs text-amber-300 mt-3">
+                Borg {euro(receivableSplit.borg)}{overdueSplit.borg > 0 ? ` · ${euro(overdueSplit.borg)} te laat` : ''}
+              </p>
+            )}
+            {receivableSplit.overig > 0 && (
+              <p className="text-xs text-gray-400 mt-2">
+                Overig {euro(receivableSplit.overig)}{overdueSplit.overig > 0 ? ` · ${euro(overdueSplit.overig)} te laat` : ''}
+              </p>
+            )}
           </div>
         </div>
 
