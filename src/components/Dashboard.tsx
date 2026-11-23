@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { AlertCircle, Calendar, Clock, CalendarClock, FileText, DollarSign, CheckCircle, Check, XCircle, AlertTriangle, Home, ChevronDown, ChevronUp, ArrowRight, TrendingUp, TrendingDown, FileCheck } from 'lucide-react';
+import { AlertCircle, Calendar, Clock, FileText, DollarSign, CheckCircle, Check, XCircle, AlertTriangle, Home, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react';
 import { SkeletonDashboard } from './SkeletonLoader';
 import { createAdminNotification } from '../utils/notificationHelper';
 import { useUnbilledItems } from './UnbilledItemsReminder';
@@ -42,12 +42,12 @@ function groupInvoicesByKind<T extends { lease_id?: string | null; notes?: strin
     .filter((group) => group.items.length > 0);
 }
 
-function LateShareBar({ total, late, onTimeClass }: { total: number; late: number; onTimeClass: string }) {
-  const latePct = total > 0 ? Math.min(100, (late / total) * 100) : 0;
+function LateShareBar({ total, late }: { total: number; late: number }) {
+  if (total <= 0 || late <= 0) return null;
+  const latePct = Math.min(100, (late / total) * 100);
   return (
-    <div className="mt-3 h-2.5 rounded-full bg-dark-700 overflow-hidden flex">
-      <div className="h-full bg-red-500" style={{ width: `${latePct}%` }} />
-      <div className={`h-full ${onTimeClass}`} style={{ width: `${Math.max(0, 100 - latePct)}%` }} />
+    <div className="mt-2 h-1 rounded-full bg-dark-700 overflow-hidden">
+      <div className="h-full bg-red-400" style={{ width: `${latePct}%` }} />
     </div>
   );
 }
@@ -328,10 +328,6 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
     setLoading(false);
   };
 
-  const revenueChange = stats.revenuePreviousMonth > 0
-    ? ((stats.revenueThisMonth - stats.revenuePreviousMonth) / stats.revenuePreviousMonth * 100)
-    : (stats.revenueThisMonth > 0 ? 100 : 0);
-
   const todayTotalBookings = stats.todayMeetingBookings;
   const weekTotalBookings = stats.weekMeetingBookings;
   const euro = (amount: number) => '\u20AC' + amount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -361,194 +357,104 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
-        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4 sm:p-6 lg:col-span-2">
-          <div className="flex items-center justify-between mb-3 sm:mb-4">
-            <div className="p-2 sm:p-3 bg-dark-700 rounded-lg">
-              <DollarSign className="text-green-400" size={20} />
-            </div>
-            {revenueChange !== 0 && (
-              <div className={`flex items-center gap-1 text-xs font-medium ${revenueChange > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                {revenueChange > 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-                {Math.abs(revenueChange).toFixed(0)}%
+      <section className="bg-dark-900 rounded-xl border border-dark-700 mb-6 overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-2">
+          <div className="p-5 sm:p-6">
+            <p className="text-xs uppercase tracking-wider text-gold-500 font-medium">Gefactureerd deze maand</p>
+            <p className="text-xs text-gray-500 mt-1">Facturen die deze maand zijn gemaakt</p>
+            <div className="mt-2 divide-y divide-dark-800">
+              <div className="flex items-baseline justify-between gap-4 py-3">
+                <div className="min-w-0">
+                  <p className="text-sm text-gray-100"><span className="inline-block w-2 h-2 rounded-full bg-emerald-400 mr-2 align-middle" />Huur</p>
+                  <p className="text-xs text-gray-500 mt-1 pl-4">Vorige maand {euro(stats.revenueSplitPrevious.huur)}</p>
+                </div>
+                <p className="text-xl font-semibold text-gray-100 tabular-nums">{euro(stats.revenueSplit.huur)}</p>
               </div>
-            )}
-          </div>
-          <div>
-            <p className="text-xs sm:text-sm text-gray-300 mb-1">Omzet deze maand</p>
-            <div className="h-10 sm:h-12 flex items-center">
-              <p className="text-xl sm:text-2xl font-bold text-gray-100">
-                {'\u20AC'}{stats.revenueThisMonth.toLocaleString('nl-NL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-              </p>
-            </div>
-            <p className="text-xs text-gray-400 mt-1">
-              Vorige maand: {'\u20AC'}{stats.revenuePreviousMonth.toLocaleString('nl-NL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-            </p>
-            <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-dark-700">
-              <div>
-                <p className="text-xs font-medium text-emerald-400 mb-1">Huur</p>
-                <p className="text-lg font-semibold text-gray-100">{euro(stats.revenueSplit.huur)}</p>
-                <p className="text-xs text-gray-400 mt-1">Vorige maand {euro(stats.revenueSplitPrevious.huur)}</p>
+              <div className="flex items-baseline justify-between gap-4 py-3">
+                <div className="min-w-0">
+                  <p className="text-sm text-gray-100"><span className="inline-block w-2 h-2 rounded-full bg-blue-400 mr-2 align-middle" />Boekingen</p>
+                  <p className="text-xs text-gray-500 mt-1 pl-4">Vorige maand {euro(stats.revenueSplitPrevious.boeking)}</p>
+                </div>
+                <p className="text-xl font-semibold text-gray-100 tabular-nums">{euro(stats.revenueSplit.boeking)}</p>
               </div>
-              <div>
-                <p className="text-xs font-medium text-blue-400 mb-1">Boekingen</p>
-                <p className="text-lg font-semibold text-gray-100">{euro(stats.revenueSplit.boeking)}</p>
-                <p className="text-xs text-gray-400 mt-1">Vorige maand {euro(stats.revenueSplitPrevious.boeking)}</p>
-              </div>
-            </div>
-            {(stats.revenueSplit.borg > 0 || stats.revenueSplitPrevious.borg > 0) && (
-              <p className="text-xs text-amber-300 mt-3">
-                Borg {euro(stats.revenueSplit.borg)} · vorige maand {euro(stats.revenueSplitPrevious.borg)}
-              </p>
-            )}
-            {(stats.revenueSplit.overig > 0 || stats.revenueSplitPrevious.overig > 0) && (
-              <p className="text-xs text-gray-400 mt-2">
-                Overig {euro(stats.revenueSplit.overig)} · vorige maand {euro(stats.revenueSplitPrevious.overig)}
-              </p>
-            )}
-          </div>
-        </div>
-
-        <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div
-            onClick={() => onNavigateToDebtors?.('outstanding')}
-            className="bg-dark-900 rounded-lg shadow-sm border border-emerald-900/70 p-4 sm:p-5 cursor-pointer hover:border-emerald-600 transition-colors"
-          >
-            <div className="flex items-center gap-2 mb-3">
-              <Home size={16} className="text-emerald-400" />
-              <p className="text-sm font-medium text-emerald-400">Huur te ontvangen</p>
-            </div>
-            <p className="text-2xl font-bold text-gray-100">{euro(receivableSplit.huur)}</p>
-            <LateShareBar total={receivableSplit.huur} late={overdueSplit.huur} onTimeClass="bg-emerald-500" />
-            <p className="text-xs text-gray-400 mt-2">
-              {overdueSplit.huur > 0 ? `${euro(overdueSplit.huur)} te laat` : 'Niets te laat'}
-              {receivableSplit.huur - overdueSplit.huur > 0 ? ` · ${euro(receivableSplit.huur - overdueSplit.huur)} op tijd` : ''}
-            </p>
-          </div>
-          <div
-            onClick={() => onNavigateToDebtors?.('outstanding')}
-            className="bg-dark-900 rounded-lg shadow-sm border border-blue-900/70 p-4 sm:p-5 cursor-pointer hover:border-blue-600 transition-colors"
-          >
-            <div className="flex items-center gap-2 mb-3">
-              <Calendar size={16} className="text-blue-400" />
-              <p className="text-sm font-medium text-blue-400">Boekingen te ontvangen</p>
-            </div>
-            <p className="text-2xl font-bold text-gray-100">{euro(receivableSplit.boeking)}</p>
-            <LateShareBar total={receivableSplit.boeking} late={overdueSplit.boeking} onTimeClass="bg-blue-500" />
-            <p className="text-xs text-gray-400 mt-2">
-              {overdueSplit.boeking > 0 ? `${euro(overdueSplit.boeking)} te laat` : 'Niets te laat'}
-              {receivableSplit.boeking - overdueSplit.boeking > 0 ? ` · ${euro(receivableSplit.boeking - overdueSplit.boeking)} op tijd` : ''}
-            </p>
-          </div>
-          {receivableSplit.borg > 0 && (
-            <div
-              onClick={() => onNavigateToDebtors?.('outstanding')}
-              className="sm:col-span-2 bg-dark-900 rounded-lg shadow-sm border border-amber-900/70 p-4 cursor-pointer hover:border-amber-600 transition-colors"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-sm font-medium text-amber-300">Borg te ontvangen</p>
-                <p className="text-lg font-semibold text-gray-100">{euro(receivableSplit.borg)}</p>
-              </div>
-              <LateShareBar total={receivableSplit.borg} late={overdueSplit.borg} onTimeClass="bg-amber-500" />
-              <p className="text-xs text-gray-400 mt-2">
-                {overdueSplit.borg > 0 ? `${euro(overdueSplit.borg)} te laat` : 'Niets te laat'}
-              </p>
-            </div>
-          )}
-          {receivableSplit.overig > 0 && (
-            <div
-              onClick={() => onNavigateToDebtors?.('outstanding')}
-              className="sm:col-span-2 bg-dark-900 rounded-lg shadow-sm border border-dark-600 p-4 cursor-pointer hover:border-dark-500 transition-colors"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-sm font-medium text-gray-300">Overige facturen</p>
-                <p className="text-lg font-semibold text-gray-100">{euro(receivableSplit.overig)}</p>
-              </div>
-              <LateShareBar total={receivableSplit.overig} late={overdueSplit.overig} onTimeClass="bg-gray-500" />
-              <p className="text-xs text-gray-400 mt-2">
-                {overdueSplit.overig > 0 ? `${euro(overdueSplit.overig)} te laat` : 'Niets te laat'}
-              </p>
-            </div>
-          )}
-        </div>
-
-        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4 sm:p-6 lg:col-span-2">
-          <div className="flex items-center justify-between mb-3 sm:mb-4">
-            <div className="p-2 sm:p-3 bg-dark-700 rounded-lg">
-              <CalendarClock className="text-blue-400" size={20} />
-            </div>
-          </div>
-          <div>
-            <p className="text-xs sm:text-sm text-gray-300 mb-1">Boekingen vandaag</p>
-            <div className="h-10 sm:h-12 flex items-center gap-3">
-              <p className="text-2xl sm:text-3xl font-bold text-gray-100">{todayTotalBookings}</p>
-              {todayTotalBookings > 0 && (
-                <div className="flex gap-2">
-                  {stats.todayMeetingBookings > 0 && (
-                    <span className="text-xs bg-blue-900/40 text-blue-400 px-2 py-0.5 rounded">{stats.todayMeetingBookings} vergader</span>
-                  )}
+              {(stats.revenueSplit.borg > 0 || stats.revenueSplitPrevious.borg > 0) && (
+                <div className="flex items-baseline justify-between gap-4 py-3">
+                  <div className="min-w-0">
+                    <p className="text-sm text-gray-100"><span className="inline-block w-2 h-2 rounded-full bg-amber-400 mr-2 align-middle" />Borg</p>
+                    <p className="text-xs text-gray-500 mt-1 pl-4">Vorige maand {euro(stats.revenueSplitPrevious.borg)}</p>
+                  </div>
+                  <p className="text-xl font-semibold text-gray-100 tabular-nums">{euro(stats.revenueSplit.borg)}</p>
+                </div>
+              )}
+              {(stats.revenueSplit.overig > 0 || stats.revenueSplitPrevious.overig > 0) && (
+                <div className="flex items-baseline justify-between gap-4 py-3">
+                  <div className="min-w-0">
+                    <p className="text-sm text-gray-100"><span className="inline-block w-2 h-2 rounded-full bg-gray-500 mr-2 align-middle" />Overig</p>
+                    <p className="text-xs text-gray-500 mt-1 pl-4">Vorige maand {euro(stats.revenueSplitPrevious.overig)}</p>
+                  </div>
+                  <p className="text-xl font-semibold text-gray-100 tabular-nums">{euro(stats.revenueSplit.overig)}</p>
                 </div>
               )}
             </div>
-            <p className="text-xs text-gray-400 mt-1 h-5">
-              {weekTotalBookings} deze week
-            </p>
           </div>
-        </div>
 
-        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4 sm:p-6 lg:col-span-2">
-          <div className="flex items-center justify-between mb-3 sm:mb-4">
-            <div className="p-2 sm:p-3 bg-dark-700 rounded-lg">
-              <FileCheck className={stats.expiredLeases > 0 ? 'text-red-400' : stats.expiringLeases > 0 ? 'text-amber-400' : 'text-green-400'} size={20} />
+          <div className="p-5 sm:p-6 border-t lg:border-t-0 lg:border-l border-dark-700">
+            <p className="text-xs uppercase tracking-wider text-gold-500 font-medium">Nog te innen</p>
+            <p className="text-xs text-gray-500 mt-1">Openstaande facturen. Het rode streepje is het te late deel.</p>
+            <div className="mt-2 divide-y divide-dark-800">
+              <div onClick={() => onNavigateToDebtors?.('outstanding')} className="py-3 cursor-pointer">
+                <div className="flex items-baseline justify-between gap-4">
+                  <p className="text-sm text-gray-100"><span className="inline-block w-2 h-2 rounded-full bg-emerald-400 mr-2 align-middle" />Huur</p>
+                  <p className="text-xl font-semibold text-gray-100 tabular-nums">{euro(receivableSplit.huur)}</p>
+                </div>
+                <LateShareBar total={receivableSplit.huur} late={overdueSplit.huur} />
+                <p className={`text-xs mt-1 pl-4 ${overdueSplit.huur > 0 ? 'text-red-300' : 'text-gray-500'}`}>
+                  {overdueSplit.huur > 0 ? `${euro(overdueSplit.huur)} te laat` : 'Niets te laat'}
+                </p>
+              </div>
+              <div onClick={() => onNavigateToDebtors?.('outstanding')} className="py-3 cursor-pointer">
+                <div className="flex items-baseline justify-between gap-4">
+                  <p className="text-sm text-gray-100"><span className="inline-block w-2 h-2 rounded-full bg-blue-400 mr-2 align-middle" />Boekingen</p>
+                  <p className="text-xl font-semibold text-gray-100 tabular-nums">{euro(receivableSplit.boeking)}</p>
+                </div>
+                <LateShareBar total={receivableSplit.boeking} late={overdueSplit.boeking} />
+                <p className={`text-xs mt-1 pl-4 ${overdueSplit.boeking > 0 ? 'text-red-300' : 'text-gray-500'}`}>
+                  {overdueSplit.boeking > 0 ? `${euro(overdueSplit.boeking)} te laat` : 'Niets te laat'}
+                </p>
+              </div>
+              {receivableSplit.borg > 0 && (
+                <div onClick={() => onNavigateToDebtors?.('outstanding')} className="py-3 cursor-pointer">
+                  <div className="flex items-baseline justify-between gap-4">
+                    <p className="text-sm text-gray-100"><span className="inline-block w-2 h-2 rounded-full bg-amber-400 mr-2 align-middle" />Borg</p>
+                    <p className="text-xl font-semibold text-gray-100 tabular-nums">{euro(receivableSplit.borg)}</p>
+                  </div>
+                  <LateShareBar total={receivableSplit.borg} late={overdueSplit.borg} />
+                  <p className={`text-xs mt-1 pl-4 ${overdueSplit.borg > 0 ? 'text-red-300' : 'text-gray-500'}`}>
+                    {overdueSplit.borg > 0 ? `${euro(overdueSplit.borg)} te laat` : 'Niets te laat'}
+                  </p>
+                </div>
+              )}
+              {receivableSplit.overig > 0 && (
+                <div onClick={() => onNavigateToDebtors?.('outstanding')} className="py-3 cursor-pointer">
+                  <div className="flex items-baseline justify-between gap-4">
+                    <p className="text-sm text-gray-100"><span className="inline-block w-2 h-2 rounded-full bg-gray-500 mr-2 align-middle" />Overig</p>
+                    <p className="text-xl font-semibold text-gray-100 tabular-nums">{euro(receivableSplit.overig)}</p>
+                  </div>
+                  <LateShareBar total={receivableSplit.overig} late={overdueSplit.overig} />
+                  <p className={`text-xs mt-1 pl-4 ${overdueSplit.overig > 0 ? 'text-red-300' : 'text-gray-500'}`}>
+                    {overdueSplit.overig > 0 ? `${euro(overdueSplit.overig)} te laat` : 'Niets te laat'}
+                  </p>
+                </div>
+              )}
             </div>
-            {(stats.expiredLeases > 0 || stats.expiringLeases > 0) && (
-              <span className={`text-xs font-medium px-2 py-0.5 rounded ${
-                stats.expiredLeases > 0 ? 'text-red-400 bg-red-900/40' : 'text-amber-400 bg-amber-900/40'
-              }`}>
-                {stats.expiredLeases > 0 ? `${stats.expiredLeases} verlopen` : `${stats.expiringLeases} verloopt binnenkort`}
-              </span>
-            )}
-          </div>
-          <div>
-            <p className="text-xs sm:text-sm text-gray-300 mb-1">Actieve contracten</p>
-            <div className="h-10 sm:h-12 flex items-center">
-              <p className="text-2xl sm:text-3xl font-bold text-gray-100">{stats.activeLeases}</p>
-            </div>
-            <p className="text-xs text-gray-400 mt-1 h-5">
-              {stats.expiringLeases > 0 ? `${stats.expiringLeases} verloopt binnen 14 dagen` : 'Geen actie vereist'}
-            </p>
           </div>
         </div>
-      </div>
-
-      <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4 sm:p-6 mb-6 sm:mb-8">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 sm:p-3 bg-dark-700 rounded-lg">
-            <CalendarClock className="text-blue-400" size={20} />
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold text-gray-100">Zaalopbrengst deze maand</h3>
-            <p className="text-xs text-gray-400">Bevestigde en afgeronde boekingen. Een aanvraag telt mee nadat je hem accepteert.</p>
-          </div>
+        <div className="px-5 sm:px-6 py-3 border-t border-dark-700 flex flex-wrap gap-x-6 gap-y-1 text-xs text-gray-400">
+          <span><span className="text-gray-200 font-medium">{stats.activeLeases}</span> contracten{stats.expiringLeases > 0 ? ` · ${stats.expiringLeases} verloopt binnenkort` : ''}{stats.expiredLeases > 0 ? ` · ${stats.expiredLeases} verlopen` : ''}</span>
+          <span><span className="text-gray-200 font-medium">{todayTotalBookings}</span> zalen vandaag · {weekTotalBookings} deze week</span>
+          <span>Zaalopbrengst <span className="text-gray-200 font-medium">{euro(bookingIncomeTotal)}</span> · vorige maand {euro(bookingIncomePreviousTotal)}{stats.bookingIncomeExternal > 0 ? ` · huurders ${euro(stats.bookingIncomeInternal)} · extern ${euro(stats.bookingIncomeExternal)}` : bookingIncomeTotal > 0 ? ' · allemaal van huurders' : ''}</span>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div>
-            <p className="text-xs sm:text-sm text-gray-300 mb-1">Intern</p>
-            <p className="text-xl sm:text-2xl font-bold text-gray-100">{euro(stats.bookingIncomeInternal)}</p>
-            <p className="text-xs text-gray-400 mt-1">Huurders · vorige maand {euro(stats.bookingIncomeInternalPrevious)}</p>
-          </div>
-          <div>
-            <p className="text-xs sm:text-sm text-gray-300 mb-1">Extern</p>
-            <p className="text-xl sm:text-2xl font-bold text-gray-100">{euro(stats.bookingIncomeExternal)}</p>
-            <p className="text-xs text-gray-400 mt-1">Externe huurders · vorige maand {euro(stats.bookingIncomeExternalPrevious)}</p>
-          </div>
-          <div>
-            <p className="text-xs sm:text-sm text-gray-300 mb-1">Totaal</p>
-            <p className="text-xl sm:text-2xl font-bold text-gray-100">{euro(bookingIncomeTotal)}</p>
-            <p className="text-xs text-gray-400 mt-1">Vorige maand {euro(bookingIncomePreviousTotal)}</p>
-          </div>
-        </div>
-      </div>
+      </section>
 
       <div className={`grid grid-cols-1 gap-6 mb-6 items-start ${pendingBookings.length > 0 ? 'lg:grid-cols-2' : ''}`}>
       {pendingBookings.length > 0 ? (
