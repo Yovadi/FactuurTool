@@ -2485,6 +2485,64 @@
         let recurringType = 'weekly';
         let selectedWeekdays = [];
 
+        // Persist booker profile next to the Supabase auth session (sessionStorage).
+        // Tokens already survive refresh; without this the PIN overlay always returns.
+        const BOOKER_PROFILE_KEY = 'booking_authenticated_user';
+
+        function saveBookerProfile(profile) {
+            try {
+                sessionStorage.setItem(BOOKER_PROFILE_KEY, JSON.stringify(profile));
+                localStorage.removeItem(BOOKER_PROFILE_KEY);
+            } catch (_) { /* ignore quota / private mode */ }
+        }
+
+        function clearBookerProfile() {
+            try {
+                sessionStorage.removeItem(BOOKER_PROFILE_KEY);
+                localStorage.removeItem(BOOKER_PROFILE_KEY);
+            } catch (_) { /* ignore */ }
+        }
+
+        function loadStoredBookerProfile() {
+            try {
+                const raw = sessionStorage.getItem(BOOKER_PROFILE_KEY)
+                    || localStorage.getItem(BOOKER_PROFILE_KEY);
+                if (!raw) return null;
+                const profile = JSON.parse(raw);
+                if (!profile || !profile.id) return null;
+                if (profile.userType !== 'tenant' && profile.userType !== 'external') return null;
+                return profile;
+            } catch (_) {
+                return null;
+            }
+        }
+
+        function bookerRoleFromToken(token) {
+            if (!token) return '';
+            try {
+                const part = token.split('.')[1];
+                if (!part) return '';
+                const padded = part.replace(/-/g, '+').replace(/_/g, '/');
+                const json = JSON.parse(atob(padded.padEnd(Math.ceil(padded.length / 4) * 4, '=')));
+                return json?.app_metadata?.app_role || '';
+            } catch (_) {
+                return '';
+            }
+        }
+
+        function bookerCustomerIdFromToken(token) {
+            if (!token) return null;
+            try {
+                const part = token.split('.')[1];
+                if (!part) return null;
+                const padded = part.replace(/-/g, '+').replace(/_/g, '/');
+                const json = JSON.parse(atob(padded.padEnd(Math.ceil(padded.length / 4) * 4, '=')));
+                return json?.app_metadata?.customer_id || null;
+            } catch (_) {
+                return null;
+            }
+        }
+
         // Time slots from 6:00 to 21:30 in 30-minute intervals (32 slots total)
         const timeSlots = [];
         for (let i = 0; i < 32; i++) {
@@ -2652,6 +2710,7 @@
                     });
                     if (sessionResult.error || !gateBody.profile) throw new Error('De pincode is niet bevestigd.');
                     authenticatedUser = gateBody.profile;
+                    saveBookerProfile(authenticatedUser);
                     showSuccess();
                     return;
                 }
@@ -2673,9 +2732,11 @@
 
                 if (tenantsRes.data && tenantsRes.data.length > 0) {
                     authenticatedUser = { ...tenantsRes.data[0], userType: 'tenant' };
+                    saveBookerProfile(authenticatedUser);
                     showSuccess();
                 } else if (customersRes.data && customersRes.data.length > 0) {
                     authenticatedUser = { ...customersRes.data[0], userType: 'external' };
+                    saveBookerProfile(authenticatedUser);
                     showSuccess();
                 } else if (clearOnFail) {
                     const pd = document.getElementById('pinInput');
@@ -2706,7 +2767,8 @@
             }
         }
 
-        function showSuccess() {
+        function showSuccess(options = {}) {
+            const immediate = options.immediate === true;
             const userInfoDisplay = document.getElementById('userInfoDisplay');
             const loggedInUserName = document.getElementById('loggedInUserName');
             const displayName = authenticatedUser.userType === 'tenant'
@@ -2716,11 +2778,47 @@
             loggedInUserName.textContent = displayName;
             userInfoDisplay.style.display = 'block';
 
-            setTimeout(() => {
+            const enterApp = () => {
                 document.getElementById('loginOverlay').style.display = 'none';
                 document.getElementById('app').style.display = 'flex';
                 loadData();
-            }, 1000);
+            };
+
+            if (immediate) {
+                enterApp();
+            } else {
+                setTimeout(enterApp, 1000);
+            }
+        }
+
+        async function tryRestoreBookerSession() {
+            const stored = loadStoredBookerProfile();
+            if (!stored) return false;
+
+            const { data } = await sb.auth.getSession();
+            const session = data?.session;
+            const token = session?.access_token;
+
+            if (token) {
+                const role = bookerRoleFromToken(token);
+                if (role && role !== 'booker') {
+                    clearBookerProfile();
+                    await sb.auth.signOut().catch(() => {});
+                    return false;
+                }
+                const customerId = bookerCustomerIdFromToken(token);
+                if (customerId && customerId !== stored.id) {
+                    clearBookerProfile();
+                    await sb.auth.signOut().catch(() => {});
+                    return false;
+                }
+            }
+
+            // Valid stored profile (with or without gate session for legacy PIN fallback).
+            authenticatedUser = stored;
+            saveBookerProfile(stored);
+            showSuccess({ immediate: true });
+            return true;
         }
 
         // Load data
@@ -3446,7 +3544,7 @@
 
         async function logout() {
             authenticatedUser = null;
-            localStorage.removeItem('booking_authenticated_user');
+            clearBookerProfile();
             await sb.auth.signOut();
             window.location.href = '/';
         }
@@ -3845,9 +3943,18 @@
             }
         }
 
-        // Initialize
+        // Initialize — restore booker session after refresh when profile + tokens exist.
         document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('loginOverlay').style.display = 'flex';
+            const overlay = document.getElementById('loginOverlay');
+            overlay.style.display = 'flex';
+            tryRestoreBookerSession().then((restored) => {
+                if (!restored) {
+                    setTimeout(() => { if (pinInputEl) pinInputEl.focus(); }, 300);
+                }
+            }).catch((err) => {
+                console.error('Session restore failed:', err);
+                setTimeout(() => { if (pinInputEl) pinInputEl.focus(); }, 300);
+            });
         });
     </script>
 </body>
