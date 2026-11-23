@@ -1,13 +1,56 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { AlertCircle, Calendar, Clock, CalendarClock, FileText, DollarSign, CheckCircle, Check, XCircle, AlertTriangle, Home, ChevronDown, ChevronUp, ArrowRight, TrendingUp, TrendingDown, Wallet, FileCheck } from 'lucide-react';
+import { AlertCircle, Calendar, Clock, FileText, DollarSign, CheckCircle, Check, XCircle, AlertTriangle, Home, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react';
 import { SkeletonDashboard } from './SkeletonLoader';
 import { createAdminNotification } from '../utils/notificationHelper';
 import { useUnbilledItems } from './UnbilledItemsReminder';
 import { addBusinessDays, businessMonth, businessMonthRange } from '../utils/businessClock';
 import { splitBookingIncome } from '../utils/bookingIncome';
+import {
+  dashboardInvoiceKind,
+  dashboardInvoiceKindLabel,
+  invoiceRevenueTotal,
+  splitInvoiceRevenue,
+  type InvoiceRevenueSplit,
+} from '../utils/dashboardInvoiceKind';
 import { getCurrentDateString } from '../utils/dateHelpers';
 import { shiftYearMonth } from '../utils/leaseInvoiceEligibility';
+
+const emptyRevenueSplit: InvoiceRevenueSplit = { huur: 0, boeking: 0, borg: 0, overig: 0 };
+
+function InvoiceKindBadge({ invoice }: { invoice: { lease_id?: string | null; notes?: string | null } }) {
+  const kind = dashboardInvoiceKind(invoice);
+  const tone = kind === 'huur'
+    ? 'bg-emerald-900/40 text-emerald-400'
+    : kind === 'boeking'
+      ? 'bg-blue-900/40 text-blue-400'
+      : kind === 'borg'
+        ? 'bg-amber-900/40 text-amber-400'
+        : 'bg-dark-700 text-gray-300';
+  return (
+    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${tone}`}>
+      {dashboardInvoiceKindLabel(kind)}
+    </span>
+  );
+}
+
+const receivableKindOrder: Array<'huur' | 'boeking' | 'borg' | 'overig'> = ['huur', 'boeking', 'borg', 'overig'];
+
+function groupInvoicesByKind<T extends { lease_id?: string | null; notes?: string | null }>(invoices: T[]) {
+  return receivableKindOrder
+    .map((kind) => ({ kind, items: invoices.filter((invoice) => dashboardInvoiceKind(invoice) === kind) }))
+    .filter((group) => group.items.length > 0);
+}
+
+function LateShareBar({ total, late }: { total: number; late: number }) {
+  if (total <= 0 || late <= 0) return null;
+  const latePct = Math.min(100, (late / total) * 100);
+  return (
+    <div className="mt-2 h-1 rounded-full bg-dark-700 overflow-hidden">
+      <div className="h-full bg-red-400" style={{ width: `${latePct}%` }} />
+    </div>
+  );
+}
 
 type DashboardStats = {
   revenueThisMonth: number;
@@ -23,6 +66,8 @@ type DashboardStats = {
   bookingIncomeExternal: number;
   bookingIncomeInternalPrevious: number;
   bookingIncomeExternalPrevious: number;
+  revenueSplit: InvoiceRevenueSplit;
+  revenueSplitPrevious: InvoiceRevenueSplit;
 };
 
 type PendingBooking = {
@@ -51,6 +96,8 @@ type Invoice = {
   due_date: string;
   tenant_id?: string | null;
   external_customer_id?: string | null;
+  lease_id?: string | null;
+  notes?: string | null;
   tenants?: {
     company_name: string;
   };
@@ -89,6 +136,8 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
     bookingIncomeExternal: 0,
     bookingIncomeInternalPrevious: 0,
     bookingIncomeExternalPrevious: 0,
+    revenueSplit: emptyRevenueSplit,
+    revenueSplitPrevious: emptyRevenueSplit,
   });
   const [pendingBookings, setPendingBookings] = useState<PendingBooking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -192,11 +241,11 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
     ] = await Promise.all([
       supabase.from('leases').select('id, end_date, status, tenant_id, tenants(name)').eq('status', 'active'),
       supabase.from('invoices').select(`
-        invoice_number, amount, status, due_date, tenant_id, external_customer_id,
+        invoice_number, amount, status, due_date, tenant_id, external_customer_id, lease_id, notes,
         tenants(company_name), external_customers(company_name)
       `).in('status', ['draft', 'sent', 'overdue']),
-      supabase.from('invoices').select('amount').gte('created_at', thisMonth.start).lte('created_at', thisMonth.end),
-      supabase.from('invoices').select('amount').gte('created_at', prevMonth.start).lte('created_at', prevMonth.end),
+      supabase.from('invoices').select('amount, lease_id, notes').gte('created_at', thisMonth.start).lte('created_at', thisMonth.end),
+      supabase.from('invoices').select('amount, lease_id, notes').gte('created_at', prevMonth.start).lte('created_at', prevMonth.end),
       supabase.from('meeting_room_bookings').select('*', { count: 'exact', head: true }).eq('booking_date', todayStr).neq('status', 'cancelled'),
       supabase.from('meeting_room_bookings').select('*', { count: 'exact', head: true }).gte('booking_date', todayStr).lte('booking_date', sevenDaysStr).neq('status', 'cancelled'),
       supabase
@@ -242,8 +291,10 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
     const draftAmt = draftInvoicesData.reduce((sum, inv) => sum + Number(inv.amount), 0);
     const outstandingAmt = outstandingInvoicesData.reduce((sum, inv) => sum + Number(inv.amount), 0);
 
-    const revenueThisMonth = (thisMonthInvoices || []).reduce((sum, inv) => sum + Number(inv.amount), 0);
-    const revenuePrevMonth = (prevMonthInvoices || []).reduce((sum, inv) => sum + Number(inv.amount), 0);
+    const revenueSplit = splitInvoiceRevenue(thisMonthInvoices);
+    const revenueSplitPrevious = splitInvoiceRevenue(prevMonthInvoices);
+    const revenueThisMonth = invoiceRevenueTotal(revenueSplit);
+    const revenuePrevMonth = invoiceRevenueTotal(revenueSplitPrevious);
     const bookingIncome = splitBookingIncome(thisMonthBookings);
     const bookingIncomePrevious = splitBookingIncome(prevMonthBookings);
 
@@ -270,18 +321,24 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
       bookingIncomeExternal: bookingIncome.external,
       bookingIncomeInternalPrevious: bookingIncomePrevious.internal,
       bookingIncomeExternalPrevious: bookingIncomePrevious.external,
+      revenueSplit,
+      revenueSplitPrevious,
     });
 
     setLoading(false);
   };
 
-  const revenueChange = stats.revenuePreviousMonth > 0
-    ? ((stats.revenueThisMonth - stats.revenuePreviousMonth) / stats.revenuePreviousMonth * 100)
-    : (stats.revenueThisMonth > 0 ? 100 : 0);
-
   const todayTotalBookings = stats.todayMeetingBookings;
   const weekTotalBookings = stats.weekMeetingBookings;
   const euro = (amount: number) => '\u20AC' + amount.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const overdueSplit = splitInvoiceRevenue(overdueInvoices);
+  const currentSplit = splitInvoiceRevenue(outstandingInvoices);
+  const receivableSplit: InvoiceRevenueSplit = {
+    huur: overdueSplit.huur + currentSplit.huur,
+    boeking: overdueSplit.boeking + currentSplit.boeking,
+    borg: overdueSplit.borg + currentSplit.borg,
+    overig: overdueSplit.overig + currentSplit.overig,
+  };
   const bookingIncomeTotal = stats.bookingIncomeInternal + stats.bookingIncomeExternal;
   const bookingIncomePreviousTotal = stats.bookingIncomeInternalPrevious + stats.bookingIncomeExternalPrevious;
 
@@ -300,138 +357,107 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
-        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4 sm:p-6">
-          <div className="flex items-center justify-between mb-3 sm:mb-4">
-            <div className="p-2 sm:p-3 bg-dark-700 rounded-lg">
-              <DollarSign className="text-green-400" size={20} />
-            </div>
-            {revenueChange !== 0 && (
-              <div className={`flex items-center gap-1 text-xs font-medium ${revenueChange > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                {revenueChange > 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-                {Math.abs(revenueChange).toFixed(0)}%
+      <section className="bg-dark-900 rounded-xl border border-dark-700 mb-6 overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-2">
+          <div className="p-5 sm:p-6">
+            <p className="text-xs uppercase tracking-wider text-gold-500 font-medium">Gefactureerd deze maand</p>
+            <p className="text-xs text-gray-500 mt-1">Facturen die deze maand zijn gemaakt</p>
+            <div className="mt-2 divide-y divide-dark-800">
+              <div className="flex items-baseline justify-between gap-4 py-3">
+                <div className="min-w-0">
+                  <p className="text-sm text-gray-100"><span className="inline-block w-2 h-2 rounded-full bg-emerald-400 mr-2 align-middle" />Huur</p>
+                  <p className="text-xs text-gray-500 mt-1 pl-4">Vorige maand {euro(stats.revenueSplitPrevious.huur)}</p>
+                </div>
+                <p className="text-xl font-semibold text-gray-100 tabular-nums">{euro(stats.revenueSplit.huur)}</p>
               </div>
-            )}
-          </div>
-          <div>
-            <p className="text-xs sm:text-sm text-gray-300 mb-1">Omzet deze maand</p>
-            <div className="h-10 sm:h-12 flex items-center">
-              <p className="text-xl sm:text-2xl font-bold text-gray-100">
-                {'\u20AC'}{stats.revenueThisMonth.toLocaleString('nl-NL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-              </p>
-            </div>
-            <p className="text-xs text-gray-400 mt-1 h-5">
-              Vorige maand: {'\u20AC'}{stats.revenuePreviousMonth.toLocaleString('nl-NL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-            </p>
-          </div>
-        </div>
-
-        <div
-          onClick={() => onNavigateToDebtors?.('outstanding')}
-          className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4 sm:p-6 cursor-pointer hover:border-dark-600 transition-colors"
-        >
-          <div className="flex items-center justify-between mb-3 sm:mb-4">
-            <div className="p-2 sm:p-3 bg-dark-700 rounded-lg">
-              <Wallet className={stats.overdueReceivable > 0 ? 'text-red-400' : 'text-gold-500'} size={20} />
-            </div>
-            {stats.overdueReceivable > 0 && (
-              <span className="text-xs font-medium text-red-400 bg-red-900/40 px-2 py-0.5 rounded">
-                {'\u20AC'}{stats.overdueReceivable.toLocaleString('nl-NL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} achterstallig
-              </span>
-            )}
-          </div>
-          <div>
-            <p className="text-xs sm:text-sm text-gray-300 mb-1">Te ontvangen</p>
-            <div className="h-10 sm:h-12 flex items-center">
-              <p className="text-xl sm:text-2xl font-bold text-gray-100">
-                {'\u20AC'}{stats.totalReceivable.toLocaleString('nl-NL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-              </p>
-            </div>
-            <p className="text-xs text-gray-400 mt-1 h-5">
-              {overdueInvoices.length + outstandingInvoices.length} openstaande facturen
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4 sm:p-6">
-          <div className="flex items-center justify-between mb-3 sm:mb-4">
-            <div className="p-2 sm:p-3 bg-dark-700 rounded-lg">
-              <CalendarClock className="text-blue-400" size={20} />
-            </div>
-          </div>
-          <div>
-            <p className="text-xs sm:text-sm text-gray-300 mb-1">Boekingen vandaag</p>
-            <div className="h-10 sm:h-12 flex items-center gap-3">
-              <p className="text-2xl sm:text-3xl font-bold text-gray-100">{todayTotalBookings}</p>
-              {todayTotalBookings > 0 && (
-                <div className="flex gap-2">
-                  {stats.todayMeetingBookings > 0 && (
-                    <span className="text-xs bg-blue-900/40 text-blue-400 px-2 py-0.5 rounded">{stats.todayMeetingBookings} vergader</span>
-                  )}
+              <div className="flex items-baseline justify-between gap-4 py-3">
+                <div className="min-w-0">
+                  <p className="text-sm text-gray-100"><span className="inline-block w-2 h-2 rounded-full bg-blue-400 mr-2 align-middle" />Boekingen</p>
+                  <p className="text-xs text-gray-500 mt-1 pl-4">Vorige maand {euro(stats.revenueSplitPrevious.boeking)}</p>
+                </div>
+                <p className="text-xl font-semibold text-gray-100 tabular-nums">{euro(stats.revenueSplit.boeking)}</p>
+              </div>
+              {(stats.revenueSplit.borg > 0 || stats.revenueSplitPrevious.borg > 0) && (
+                <div className="flex items-baseline justify-between gap-4 py-3">
+                  <div className="min-w-0">
+                    <p className="text-sm text-gray-100"><span className="inline-block w-2 h-2 rounded-full bg-amber-400 mr-2 align-middle" />Borg</p>
+                    <p className="text-xs text-gray-500 mt-1 pl-4">Vorige maand {euro(stats.revenueSplitPrevious.borg)}</p>
+                  </div>
+                  <p className="text-xl font-semibold text-gray-100 tabular-nums">{euro(stats.revenueSplit.borg)}</p>
+                </div>
+              )}
+              {(stats.revenueSplit.overig > 0 || stats.revenueSplitPrevious.overig > 0) && (
+                <div className="flex items-baseline justify-between gap-4 py-3">
+                  <div className="min-w-0">
+                    <p className="text-sm text-gray-100"><span className="inline-block w-2 h-2 rounded-full bg-gray-500 mr-2 align-middle" />Overig</p>
+                    <p className="text-xs text-gray-500 mt-1 pl-4">Vorige maand {euro(stats.revenueSplitPrevious.overig)}</p>
+                  </div>
+                  <p className="text-xl font-semibold text-gray-100 tabular-nums">{euro(stats.revenueSplit.overig)}</p>
                 </div>
               )}
             </div>
-            <p className="text-xs text-gray-400 mt-1 h-5">
-              {weekTotalBookings} deze week
-            </p>
           </div>
-        </div>
 
-        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4 sm:p-6">
-          <div className="flex items-center justify-between mb-3 sm:mb-4">
-            <div className="p-2 sm:p-3 bg-dark-700 rounded-lg">
-              <FileCheck className={stats.expiredLeases > 0 ? 'text-red-400' : stats.expiringLeases > 0 ? 'text-amber-400' : 'text-green-400'} size={20} />
+          <div className="p-5 sm:p-6 border-t lg:border-t-0 lg:border-l border-dark-700">
+            <p className="text-xs uppercase tracking-wider text-gold-500 font-medium">Nog te innen</p>
+            <p className="text-xs text-gray-500 mt-1">Openstaande facturen. Het rode streepje is het te late deel.</p>
+            <div className="mt-2 divide-y divide-dark-800">
+              <div onClick={() => onNavigateToDebtors?.('outstanding')} className="py-3 cursor-pointer">
+                <div className="flex items-baseline justify-between gap-4">
+                  <p className="text-sm text-gray-100"><span className="inline-block w-2 h-2 rounded-full bg-emerald-400 mr-2 align-middle" />Huur</p>
+                  <p className="text-xl font-semibold text-gray-100 tabular-nums">{euro(receivableSplit.huur)}</p>
+                </div>
+                <LateShareBar total={receivableSplit.huur} late={overdueSplit.huur} />
+                <p className={`text-xs mt-1 pl-4 ${overdueSplit.huur > 0 ? 'text-red-300' : 'text-gray-500'}`}>
+                  {overdueSplit.huur > 0 ? `${euro(overdueSplit.huur)} te laat` : 'Niets te laat'}
+                </p>
+              </div>
+              <div onClick={() => onNavigateToDebtors?.('outstanding')} className="py-3 cursor-pointer">
+                <div className="flex items-baseline justify-between gap-4">
+                  <p className="text-sm text-gray-100"><span className="inline-block w-2 h-2 rounded-full bg-blue-400 mr-2 align-middle" />Boekingen</p>
+                  <p className="text-xl font-semibold text-gray-100 tabular-nums">{euro(receivableSplit.boeking)}</p>
+                </div>
+                <LateShareBar total={receivableSplit.boeking} late={overdueSplit.boeking} />
+                <p className={`text-xs mt-1 pl-4 ${overdueSplit.boeking > 0 ? 'text-red-300' : 'text-gray-500'}`}>
+                  {overdueSplit.boeking > 0 ? `${euro(overdueSplit.boeking)} te laat` : 'Niets te laat'}
+                </p>
+              </div>
+              {receivableSplit.borg > 0 && (
+                <div onClick={() => onNavigateToDebtors?.('outstanding')} className="py-3 cursor-pointer">
+                  <div className="flex items-baseline justify-between gap-4">
+                    <p className="text-sm text-gray-100"><span className="inline-block w-2 h-2 rounded-full bg-amber-400 mr-2 align-middle" />Borg</p>
+                    <p className="text-xl font-semibold text-gray-100 tabular-nums">{euro(receivableSplit.borg)}</p>
+                  </div>
+                  <LateShareBar total={receivableSplit.borg} late={overdueSplit.borg} />
+                  <p className={`text-xs mt-1 pl-4 ${overdueSplit.borg > 0 ? 'text-red-300' : 'text-gray-500'}`}>
+                    {overdueSplit.borg > 0 ? `${euro(overdueSplit.borg)} te laat` : 'Niets te laat'}
+                  </p>
+                </div>
+              )}
+              {receivableSplit.overig > 0 && (
+                <div onClick={() => onNavigateToDebtors?.('outstanding')} className="py-3 cursor-pointer">
+                  <div className="flex items-baseline justify-between gap-4">
+                    <p className="text-sm text-gray-100"><span className="inline-block w-2 h-2 rounded-full bg-gray-500 mr-2 align-middle" />Overig</p>
+                    <p className="text-xl font-semibold text-gray-100 tabular-nums">{euro(receivableSplit.overig)}</p>
+                  </div>
+                  <LateShareBar total={receivableSplit.overig} late={overdueSplit.overig} />
+                  <p className={`text-xs mt-1 pl-4 ${overdueSplit.overig > 0 ? 'text-red-300' : 'text-gray-500'}`}>
+                    {overdueSplit.overig > 0 ? `${euro(overdueSplit.overig)} te laat` : 'Niets te laat'}
+                  </p>
+                </div>
+              )}
             </div>
-            {(stats.expiredLeases > 0 || stats.expiringLeases > 0) && (
-              <span className={`text-xs font-medium px-2 py-0.5 rounded ${
-                stats.expiredLeases > 0 ? 'text-red-400 bg-red-900/40' : 'text-amber-400 bg-amber-900/40'
-              }`}>
-                {stats.expiredLeases > 0 ? `${stats.expiredLeases} verlopen` : `${stats.expiringLeases} verloopt binnenkort`}
-              </span>
-            )}
-          </div>
-          <div>
-            <p className="text-xs sm:text-sm text-gray-300 mb-1">Actieve contracten</p>
-            <div className="h-10 sm:h-12 flex items-center">
-              <p className="text-2xl sm:text-3xl font-bold text-gray-100">{stats.activeLeases}</p>
-            </div>
-            <p className="text-xs text-gray-400 mt-1 h-5">
-              {stats.expiringLeases > 0 ? `${stats.expiringLeases} verloopt binnen 14 dagen` : 'Geen actie vereist'}
-            </p>
           </div>
         </div>
-      </div>
+        <div className="px-5 sm:px-6 py-3 border-t border-dark-700 flex flex-wrap gap-x-6 gap-y-1 text-xs text-gray-400">
+          <span><span className="text-gray-200 font-medium">{stats.activeLeases}</span> contracten{stats.expiringLeases > 0 ? ` · ${stats.expiringLeases} verloopt binnenkort` : ''}{stats.expiredLeases > 0 ? ` · ${stats.expiredLeases} verlopen` : ''}</span>
+          <span><span className="text-gray-200 font-medium">{todayTotalBookings}</span> zalen vandaag · {weekTotalBookings} deze week</span>
+          <span>Zaalopbrengst <span className="text-gray-200 font-medium">{euro(bookingIncomeTotal)}</span> · vorige maand {euro(bookingIncomePreviousTotal)}{stats.bookingIncomeExternal > 0 ? ` · huurders ${euro(stats.bookingIncomeInternal)} · extern ${euro(stats.bookingIncomeExternal)}` : bookingIncomeTotal > 0 ? ' · allemaal van huurders' : ''}</span>
+        </div>
+      </section>
 
-      <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4 sm:p-6 mb-6 sm:mb-8">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 sm:p-3 bg-dark-700 rounded-lg">
-            <CalendarClock className="text-blue-400" size={20} />
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold text-gray-100">Zaalopbrengst deze maand</h3>
-            <p className="text-xs text-gray-400">Bevestigde en afgeronde boekingen. Een aanvraag telt mee nadat je hem accepteert.</p>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div>
-            <p className="text-xs sm:text-sm text-gray-300 mb-1">Intern</p>
-            <p className="text-xl sm:text-2xl font-bold text-gray-100">{euro(stats.bookingIncomeInternal)}</p>
-            <p className="text-xs text-gray-400 mt-1">Huurders · vorige maand {euro(stats.bookingIncomeInternalPrevious)}</p>
-          </div>
-          <div>
-            <p className="text-xs sm:text-sm text-gray-300 mb-1">Extern</p>
-            <p className="text-xl sm:text-2xl font-bold text-gray-100">{euro(stats.bookingIncomeExternal)}</p>
-            <p className="text-xs text-gray-400 mt-1">Externe huurders · vorige maand {euro(stats.bookingIncomeExternalPrevious)}</p>
-          </div>
-          <div>
-            <p className="text-xs sm:text-sm text-gray-300 mb-1">Totaal</p>
-            <p className="text-xl sm:text-2xl font-bold text-gray-100">{euro(bookingIncomeTotal)}</p>
-            <p className="text-xs text-gray-400 mt-1">Vorige maand {euro(bookingIncomePreviousTotal)}</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-start">
+      <div className={`grid grid-cols-1 gap-6 mb-6 items-start ${pendingBookings.length > 0 ? 'lg:grid-cols-2' : ''}`}>
+      {pendingBookings.length > 0 ? (
       <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="p-2 bg-dark-700 rounded-lg">
@@ -446,7 +472,6 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
         </div>
         <p className="text-sm text-gray-400 mb-4">Een boeking komt op de maandfactuur nadat je hem accepteert.</p>
 
-        {pendingBookings.length > 0 ? (
           <div className="space-y-3">
             {pendingBookings.map((booking) => (
               <div
@@ -502,14 +527,14 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
               </div>
             ))}
           </div>
-        ) : (
-          <div className="bg-dark-800 rounded-lg p-8 text-center">
-            <CheckCircle size={48} className="text-green-500 mx-auto mb-3" />
-            <p className="text-gray-400 font-medium">Geen openstaande aanvragen</p>
-            <p className="text-gray-500 text-sm mt-1">Alle boekingen zijn verwerkt</p>
-          </div>
-        )}
       </div>
+      ) : (
+        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 px-4 py-3 flex items-center gap-3">
+          <CheckCircle size={18} className="text-green-500 shrink-0" />
+          <p className="text-sm text-gray-200">Geen boekingen in afwachting</p>
+          <p className="text-sm text-gray-500 hidden sm:block">Een boeking komt op de maandfactuur nadat je hem accepteert.</p>
+        </div>
+      )}
 
       <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4 sm:p-6">
         <div className="flex items-center gap-3 mb-6">
@@ -543,32 +568,41 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
                   </div>
                 </button>
                 {overdueExpanded && (
-                  <div className="border-t border-red-800/30 divide-y divide-dark-700/20">
-                    {overdueInvoices.map((inv) => {
-                      const customerName = inv.tenant_id
-                        ? (inv.tenants?.company_name || 'Onbekende huurder')
-                        : (inv.external_customers?.company_name || 'Externe klant');
-                      const daysOverdue = Math.floor((new Date().getTime() - new Date(inv.due_date).getTime()) / (1000 * 60 * 60 * 24));
-                      return (
-                        <div
-                          key={inv.invoice_number}
-                          onClick={() => onNavigateToDebtors?.('outstanding')}
-                          className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-red-900/20 transition-colors"
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <FileText size={12} className="text-red-400" />
-                            <span className="text-xs text-gray-300">{inv.invoice_number}</span>
-                            <span className="text-xs text-gray-400">{customerName}</span>
-                            <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-red-900/40 text-red-400">
-                              {daysOverdue} dag{daysOverdue !== 1 ? 'en' : ''} over
-                            </span>
-                          </div>
-                          <span className="text-xs font-medium text-red-400">
-                            {'\u20AC'}{Number(inv.amount).toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </span>
+                  <div className="border-t border-red-800/30">
+                    {groupInvoicesByKind(overdueInvoices).map((group) => (
+                      <div key={group.kind}>
+                        <div className="px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400 bg-dark-800/50">
+                          {dashboardInvoiceKindLabel(group.kind)} · {euro(group.items.reduce((sum, inv) => sum + Number(inv.amount), 0))}
                         </div>
-                      );
-                    })}
+                        <div className="divide-y divide-dark-700/20">
+                          {group.items.map((inv) => {
+                            const customerName = inv.tenant_id
+                              ? (inv.tenants?.company_name || 'Onbekende huurder')
+                              : (inv.external_customers?.company_name || 'Externe klant');
+                            const daysOverdue = Math.floor((new Date().getTime() - new Date(inv.due_date).getTime()) / (1000 * 60 * 60 * 24));
+                            return (
+                              <div
+                                key={inv.invoice_number}
+                                onClick={() => onNavigateToDebtors?.('outstanding')}
+                                className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-red-900/20 transition-colors"
+                              >
+                                <div className="flex items-center gap-2.5">
+                                  <FileText size={12} className="text-red-400" />
+                                  <span className="text-xs text-gray-300">{inv.invoice_number}</span>
+                                  <span className="text-xs text-gray-400">{customerName}</span>
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-red-900/40 text-red-400">
+                                    {daysOverdue} dag{daysOverdue !== 1 ? 'en' : ''} over
+                                  </span>
+                                </div>
+                                <span className="text-xs font-medium text-red-400">
+                                  {'\u20AC'}{Number(inv.amount).toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -596,32 +630,41 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
                   </div>
                 </button>
                 {outstandingExpanded && (
-                  <div className="border-t border-blue-800/30 divide-y divide-dark-700/20">
-                    {outstandingInvoices.map((inv) => {
-                      const customerName = inv.tenant_id
-                        ? (inv.tenants?.company_name || 'Onbekende huurder')
-                        : (inv.external_customers?.company_name || 'Externe klant');
-                      const daysUntilDue = Math.floor((new Date(inv.due_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-                      return (
-                        <div
-                          key={inv.invoice_number}
-                          onClick={() => onNavigateToDebtors?.('outstanding')}
-                          className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-blue-900/20 transition-colors"
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <FileText size={12} className="text-blue-400" />
-                            <span className="text-xs text-gray-300">{inv.invoice_number}</span>
-                            <span className="text-xs text-gray-400">{customerName}</span>
-                            <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-blue-900/40 text-blue-400">
-                              {daysUntilDue <= 0 ? 'Vandaag' : `${daysUntilDue} dag${daysUntilDue !== 1 ? 'en' : ''}`}
-                            </span>
-                          </div>
-                          <span className="text-xs font-medium text-blue-400">
-                            {'\u20AC'}{Number(inv.amount).toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </span>
+                  <div className="border-t border-blue-800/30">
+                    {groupInvoicesByKind(outstandingInvoices).map((group) => (
+                      <div key={group.kind}>
+                        <div className="px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400 bg-dark-800/50">
+                          {dashboardInvoiceKindLabel(group.kind)} · {euro(group.items.reduce((sum, inv) => sum + Number(inv.amount), 0))}
                         </div>
-                      );
-                    })}
+                        <div className="divide-y divide-dark-700/20">
+                          {group.items.map((inv) => {
+                            const customerName = inv.tenant_id
+                              ? (inv.tenants?.company_name || 'Onbekende huurder')
+                              : (inv.external_customers?.company_name || 'Externe klant');
+                            const daysUntilDue = Math.floor((new Date(inv.due_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                            return (
+                              <div
+                                key={inv.invoice_number}
+                                onClick={() => onNavigateToDebtors?.('outstanding')}
+                                className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-blue-900/20 transition-colors"
+                              >
+                                <div className="flex items-center gap-2.5">
+                                  <FileText size={12} className="text-blue-400" />
+                                  <span className="text-xs text-gray-300">{inv.invoice_number}</span>
+                                  <span className="text-xs text-gray-400">{customerName}</span>
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-blue-900/40 text-blue-400">
+                                    {daysUntilDue <= 0 ? 'Vandaag' : `${daysUntilDue} dag${daysUntilDue !== 1 ? 'en' : ''}`}
+                                  </span>
+                                </div>
+                                <span className="text-xs font-medium text-blue-400">
+                                  {'\u20AC'}{Number(inv.amount).toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -664,6 +707,7 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
                             <FileText size={12} className="text-amber-400" />
                             <span className="text-xs text-gray-300">{inv.invoice_number}</span>
                             <span className="text-xs text-gray-400">{customerName}</span>
+                            <InvoiceKindBadge invoice={inv} />
                           </div>
                           <span className="text-xs font-medium text-amber-400">
                             {'\u20AC'}{Number(inv.amount).toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
