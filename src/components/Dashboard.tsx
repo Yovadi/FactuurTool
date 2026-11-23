@@ -6,8 +6,33 @@ import { createAdminNotification } from '../utils/notificationHelper';
 import { useUnbilledItems } from './UnbilledItemsReminder';
 import { addBusinessDays, businessMonth, businessMonthRange } from '../utils/businessClock';
 import { splitBookingIncome } from '../utils/bookingIncome';
+import {
+  dashboardInvoiceKind,
+  dashboardInvoiceKindLabel,
+  invoiceRevenueTotal,
+  splitInvoiceRevenue,
+  type InvoiceRevenueSplit,
+} from '../utils/dashboardInvoiceKind';
 import { getCurrentDateString } from '../utils/dateHelpers';
 import { shiftYearMonth } from '../utils/leaseInvoiceEligibility';
+
+const emptyRevenueSplit: InvoiceRevenueSplit = { huur: 0, boeking: 0, borg: 0, overig: 0 };
+
+function InvoiceKindBadge({ invoice }: { invoice: { lease_id?: string | null; notes?: string | null } }) {
+  const kind = dashboardInvoiceKind(invoice);
+  const tone = kind === 'huur'
+    ? 'bg-emerald-900/40 text-emerald-400'
+    : kind === 'boeking'
+      ? 'bg-blue-900/40 text-blue-400'
+      : kind === 'borg'
+        ? 'bg-amber-900/40 text-amber-400'
+        : 'bg-dark-700 text-gray-300';
+  return (
+    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${tone}`}>
+      {dashboardInvoiceKindLabel(kind)}
+    </span>
+  );
+}
 
 type DashboardStats = {
   revenueThisMonth: number;
@@ -23,6 +48,8 @@ type DashboardStats = {
   bookingIncomeExternal: number;
   bookingIncomeInternalPrevious: number;
   bookingIncomeExternalPrevious: number;
+  revenueSplit: InvoiceRevenueSplit;
+  revenueSplitPrevious: InvoiceRevenueSplit;
 };
 
 type PendingBooking = {
@@ -51,6 +78,8 @@ type Invoice = {
   due_date: string;
   tenant_id?: string | null;
   external_customer_id?: string | null;
+  lease_id?: string | null;
+  notes?: string | null;
   tenants?: {
     company_name: string;
   };
@@ -89,6 +118,8 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
     bookingIncomeExternal: 0,
     bookingIncomeInternalPrevious: 0,
     bookingIncomeExternalPrevious: 0,
+    revenueSplit: emptyRevenueSplit,
+    revenueSplitPrevious: emptyRevenueSplit,
   });
   const [pendingBookings, setPendingBookings] = useState<PendingBooking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -192,11 +223,11 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
     ] = await Promise.all([
       supabase.from('leases').select('id, end_date, status, tenant_id, tenants(name)').eq('status', 'active'),
       supabase.from('invoices').select(`
-        invoice_number, amount, status, due_date, tenant_id, external_customer_id,
+        invoice_number, amount, status, due_date, tenant_id, external_customer_id, lease_id, notes,
         tenants(company_name), external_customers(company_name)
       `).in('status', ['draft', 'sent', 'overdue']),
-      supabase.from('invoices').select('amount').gte('created_at', thisMonth.start).lte('created_at', thisMonth.end),
-      supabase.from('invoices').select('amount').gte('created_at', prevMonth.start).lte('created_at', prevMonth.end),
+      supabase.from('invoices').select('amount, lease_id, notes').gte('created_at', thisMonth.start).lte('created_at', thisMonth.end),
+      supabase.from('invoices').select('amount, lease_id, notes').gte('created_at', prevMonth.start).lte('created_at', prevMonth.end),
       supabase.from('meeting_room_bookings').select('*', { count: 'exact', head: true }).eq('booking_date', todayStr).neq('status', 'cancelled'),
       supabase.from('meeting_room_bookings').select('*', { count: 'exact', head: true }).gte('booking_date', todayStr).lte('booking_date', sevenDaysStr).neq('status', 'cancelled'),
       supabase
@@ -242,8 +273,10 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
     const draftAmt = draftInvoicesData.reduce((sum, inv) => sum + Number(inv.amount), 0);
     const outstandingAmt = outstandingInvoicesData.reduce((sum, inv) => sum + Number(inv.amount), 0);
 
-    const revenueThisMonth = (thisMonthInvoices || []).reduce((sum, inv) => sum + Number(inv.amount), 0);
-    const revenuePrevMonth = (prevMonthInvoices || []).reduce((sum, inv) => sum + Number(inv.amount), 0);
+    const revenueSplit = splitInvoiceRevenue(thisMonthInvoices);
+    const revenueSplitPrevious = splitInvoiceRevenue(prevMonthInvoices);
+    const revenueThisMonth = invoiceRevenueTotal(revenueSplit);
+    const revenuePrevMonth = invoiceRevenueTotal(revenueSplitPrevious);
     const bookingIncome = splitBookingIncome(thisMonthBookings);
     const bookingIncomePrevious = splitBookingIncome(prevMonthBookings);
 
@@ -270,6 +303,8 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
       bookingIncomeExternal: bookingIncome.external,
       bookingIncomeInternalPrevious: bookingIncomePrevious.internal,
       bookingIncomeExternalPrevious: bookingIncomePrevious.external,
+      revenueSplit,
+      revenueSplitPrevious,
     });
 
     setLoading(false);
@@ -300,8 +335,8 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
-        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4 sm:p-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4 sm:p-6 lg:col-span-2">
           <div className="flex items-center justify-between mb-3 sm:mb-4">
             <div className="p-2 sm:p-3 bg-dark-700 rounded-lg">
               <DollarSign className="text-green-400" size={20} />
@@ -320,25 +355,42 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
                 {'\u20AC'}{stats.revenueThisMonth.toLocaleString('nl-NL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
               </p>
             </div>
-            <p className="text-xs text-gray-400 mt-1 h-5">
+            <p className="text-xs text-gray-400 mt-1">
               Vorige maand: {'\u20AC'}{stats.revenuePreviousMonth.toLocaleString('nl-NL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
             </p>
+            <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-dark-700">
+              <div>
+                <p className="text-xs font-medium text-emerald-400 mb-1">Huur</p>
+                <p className="text-lg font-semibold text-gray-100">{euro(stats.revenueSplit.huur)}</p>
+                <p className="text-xs text-gray-400 mt-1">Vorige maand {euro(stats.revenueSplitPrevious.huur)}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-blue-400 mb-1">Boekingen</p>
+                <p className="text-lg font-semibold text-gray-100">{euro(stats.revenueSplit.boeking)}</p>
+                <p className="text-xs text-gray-400 mt-1">Vorige maand {euro(stats.revenueSplitPrevious.boeking)}</p>
+              </div>
+            </div>
+            {(stats.revenueSplit.borg > 0 || stats.revenueSplitPrevious.borg > 0) && (
+              <p className="text-xs text-amber-300 mt-3">
+                Borg {euro(stats.revenueSplit.borg)} · vorige maand {euro(stats.revenueSplitPrevious.borg)}
+              </p>
+            )}
+            {(stats.revenueSplit.overig > 0 || stats.revenueSplitPrevious.overig > 0) && (
+              <p className="text-xs text-gray-400 mt-2">
+                Overig {euro(stats.revenueSplit.overig)} · vorige maand {euro(stats.revenueSplitPrevious.overig)}
+              </p>
+            )}
           </div>
         </div>
 
         <div
           onClick={() => onNavigateToDebtors?.('outstanding')}
-          className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4 sm:p-6 cursor-pointer hover:border-dark-600 transition-colors"
+          className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4 sm:p-6 cursor-pointer hover:border-dark-600 transition-colors lg:col-span-2"
         >
           <div className="flex items-center justify-between mb-3 sm:mb-4">
             <div className="p-2 sm:p-3 bg-dark-700 rounded-lg">
               <Wallet className={stats.overdueReceivable > 0 ? 'text-red-400' : 'text-gold-500'} size={20} />
             </div>
-            {stats.overdueReceivable > 0 && (
-              <span className="text-xs font-medium text-red-400 bg-red-900/40 px-2 py-0.5 rounded">
-                {'\u20AC'}{stats.overdueReceivable.toLocaleString('nl-NL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} achterstallig
-              </span>
-            )}
           </div>
           <div>
             <p className="text-xs sm:text-sm text-gray-300 mb-1">Te ontvangen</p>
@@ -347,13 +399,21 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
                 {'\u20AC'}{stats.totalReceivable.toLocaleString('nl-NL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
               </p>
             </div>
-            <p className="text-xs text-gray-400 mt-1 h-5">
-              {overdueInvoices.length + outstandingInvoices.length} openstaande facturen
+            <div className="mt-3 h-2 rounded-full bg-dark-700 overflow-hidden" aria-hidden="true">
+              <div
+                className={`h-full ${stats.overdueReceivable > 0 ? 'bg-red-500' : 'bg-gold-500'}`}
+                style={{ width: `${stats.totalReceivable > 0 ? Math.min(100, (stats.overdueReceivable / stats.totalReceivable) * 100) : 0}%` }}
+              />
+            </div>
+            <p className="text-xs text-gray-400 mt-2">
+              {stats.overdueReceivable > 0
+                ? `${euro(stats.overdueReceivable)} te laat · ${overdueInvoices.length + outstandingInvoices.length} facturen`
+                : `${overdueInvoices.length + outstandingInvoices.length} facturen · niets te laat`}
             </p>
           </div>
         </div>
 
-        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4 sm:p-6">
+        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4 sm:p-6 lg:col-span-2">
           <div className="flex items-center justify-between mb-3 sm:mb-4">
             <div className="p-2 sm:p-3 bg-dark-700 rounded-lg">
               <CalendarClock className="text-blue-400" size={20} />
@@ -377,7 +437,7 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
           </div>
         </div>
 
-        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4 sm:p-6">
+        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4 sm:p-6 lg:col-span-2">
           <div className="flex items-center justify-between mb-3 sm:mb-4">
             <div className="p-2 sm:p-3 bg-dark-700 rounded-lg">
               <FileCheck className={stats.expiredLeases > 0 ? 'text-red-400' : stats.expiringLeases > 0 ? 'text-amber-400' : 'text-green-400'} size={20} />
@@ -431,7 +491,8 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-start">
+      <div className={`grid grid-cols-1 gap-6 mb-6 items-start ${pendingBookings.length > 0 ? 'lg:grid-cols-2' : ''}`}>
+      {pendingBookings.length > 0 ? (
       <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="p-2 bg-dark-700 rounded-lg">
@@ -446,7 +507,6 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
         </div>
         <p className="text-sm text-gray-400 mb-4">Een boeking komt op de maandfactuur nadat je hem accepteert.</p>
 
-        {pendingBookings.length > 0 ? (
           <div className="space-y-3">
             {pendingBookings.map((booking) => (
               <div
@@ -502,14 +562,14 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
               </div>
             ))}
           </div>
-        ) : (
-          <div className="bg-dark-800 rounded-lg p-8 text-center">
-            <CheckCircle size={48} className="text-green-500 mx-auto mb-3" />
-            <p className="text-gray-400 font-medium">Geen openstaande aanvragen</p>
-            <p className="text-gray-500 text-sm mt-1">Alle boekingen zijn verwerkt</p>
-          </div>
-        )}
       </div>
+      ) : (
+        <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 px-4 py-3 flex items-center gap-3">
+          <CheckCircle size={18} className="text-green-500 shrink-0" />
+          <p className="text-sm text-gray-200">Geen boekingen in afwachting</p>
+          <p className="text-sm text-gray-500 hidden sm:block">Een boeking komt op de maandfactuur nadat je hem accepteert.</p>
+        </div>
+      )}
 
       <div className="bg-dark-900 rounded-lg shadow-sm border border-dark-700 p-4 sm:p-6">
         <div className="flex items-center gap-3 mb-6">
@@ -559,6 +619,7 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
                             <FileText size={12} className="text-red-400" />
                             <span className="text-xs text-gray-300">{inv.invoice_number}</span>
                             <span className="text-xs text-gray-400">{customerName}</span>
+                            <InvoiceKindBadge invoice={inv} />
                             <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-red-900/40 text-red-400">
                               {daysOverdue} dag{daysOverdue !== 1 ? 'en' : ''} over
                             </span>
@@ -612,6 +673,7 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
                             <FileText size={12} className="text-blue-400" />
                             <span className="text-xs text-gray-300">{inv.invoice_number}</span>
                             <span className="text-xs text-gray-400">{customerName}</span>
+                            <InvoiceKindBadge invoice={inv} />
                             <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-blue-900/40 text-blue-400">
                               {daysUntilDue <= 0 ? 'Vandaag' : `${daysUntilDue} dag${daysUntilDue !== 1 ? 'en' : ''}`}
                             </span>
@@ -664,6 +726,7 @@ export function Dashboard({ onNavigateToDebtors, onNavigateToInvoicing }: Dashbo
                             <FileText size={12} className="text-amber-400" />
                             <span className="text-xs text-gray-300">{inv.invoice_number}</span>
                             <span className="text-xs text-gray-400">{customerName}</span>
+                            <InvoiceKindBadge invoice={inv} />
                           </div>
                           <span className="text-xs font-medium text-amber-400">
                             {'\u20AC'}{Number(inv.amount).toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
