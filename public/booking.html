@@ -3414,16 +3414,24 @@
                 isEdit ? 'Wijzigingen Opslaan' : 'Boeking Aanmaken';
         }
 
-        function fillBookingModalRooms(selectedRoomId) {
-            const roomSelect = document.getElementById('roomSelect');
-            roomSelect.innerHTML = '<option value="">Selecteer een vergaderruimte</option>';
+        function populateRoomSelect(selectEl, selectedRoomId = null) {
+            selectEl.innerHTML = '<option value="">Selecteer een vergaderruimte</option>';
             meetingRooms.forEach(room => {
                 const option = document.createElement('option');
                 option.value = room.id;
                 option.textContent = room.space_number;
-                if (selectedRoomId && room.id === selectedRoomId) option.selected = true;
-                roomSelect.appendChild(option);
+                selectEl.appendChild(option);
             });
+            // Only force a default when editing (known room) or when there is exactly one room
+            if (selectedRoomId && meetingRooms.some(r => r.id === selectedRoomId)) {
+                selectEl.value = selectedRoomId;
+            } else if (meetingRooms.length === 1) {
+                selectEl.value = meetingRooms[0].id;
+            }
+        }
+
+        function fillBookingModalRooms(selectedRoomId) {
+            populateRoomSelect(document.getElementById('roomSelect'), selectedRoomId || null);
         }
 
         function bindBookingModalDurationListeners() {
@@ -3714,10 +3722,7 @@
                 return;
             }
 
-            const select = document.getElementById('recurringRoomSelect');
-            select.innerHTML = meetingRooms.map(room =>
-                `<option value="${room.id}">${room.space_number}</option>`
-            ).join('');
+            populateRoomSelect(document.getElementById('recurringRoomSelect'));
 
             // Populate recurring time dropdowns
             const timeOptions = generateTimeOptions();
